@@ -3,7 +3,6 @@ import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import { config } from '../config';
 import { Logger } from '../utils/logger';
-import { AuthService } from './AuthService';
 import type { MobileVersionCheckResponse, MobileVersionCheckRequest } from '../types/api';
 
 export const APP_VERSION = config.appVersion;
@@ -31,11 +30,6 @@ class VersionServiceClass {
    */
   async checkVersion(): Promise<UpdateInfo> {
     try {
-      const hasToken = !!(await AuthService.getAccessToken());
-      if (!hasToken) {
-        return this.getDefaultUpdateInfo();
-      }
-
       const isOnline = await this.isBackendReachable();
       if (!isOnline) {
         return this.getDefaultUpdateInfo();

@@ -10,7 +10,8 @@ import { NetworkService } from './NetworkService';
 import { AuthService } from './AuthService';
 import { LocationService } from './LocationService';
 import { Logger } from '../utils/logger';
-import { normalizeVerificationType } from '../utils/normalizeVerificationType';
+import { resolveFormTypeKey, type FormTypeKey } from '../utils/formTypeKey';
+import { config } from '../config';
 import type {
   MobileSyncDownloadResponse,
   MobileCaseResponse,
@@ -358,9 +359,23 @@ class SyncServiceClass {
   private async uploadFormSubmission(entityId: string, payload: any): Promise<boolean> {
     const taskId = payload.taskId || payload.visitId;
     const localTaskId = payload.localTaskId || null;
-    const formType = normalizeVerificationType(payload.formType as string || '');
+    const formType = resolveFormTypeKey({
+      formType: typeof payload.formType === 'string' ? payload.formType : null,
+      verificationTypeCode:
+        typeof payload.verificationTypeCode === 'string'
+          ? payload.verificationTypeCode
+          : null,
+      verificationTypeName:
+        typeof payload.verificationTypeName === 'string'
+          ? payload.verificationTypeName
+          : null,
+      verificationType:
+        typeof payload.verificationType === 'string'
+          ? payload.verificationType
+          : null,
+    });
     
-    const endpointMap: Record<string, (id: string) => string> = {
+    const endpointMap: Record<FormTypeKey, (id: string) => string> = {
       residence: ENDPOINTS.FORMS.RESIDENCE,
       office: ENDPOINTS.FORMS.OFFICE,
       business: ENDPOINTS.FORMS.BUSINESS,
@@ -372,6 +387,7 @@ class SyncServiceClass {
       noc: ENDPOINTS.FORMS.NOC,
     };
 
+    if (!formType) return false;
     const getEndpoint = endpointMap[formType];
     if (!getEndpoint) return false;
 
@@ -581,52 +597,70 @@ class SyncServiceClass {
   }
 
   private async downloadServerChanges(): Promise<{ tasksDownloaded: number; conflicts: number; errors: string[] }> {
-    // Exact same as before
     const errors: string[] = [];
     try {
       const syncMeta = await DatabaseService.query<{ last_download_sync_at: string | null }>('SELECT last_download_sync_at FROM sync_metadata WHERE id = 1');
       const lastSyncAt = syncMeta[0]?.last_download_sync_at || '';
-
-      const response = await ApiClient.get<{
-        success: boolean;
-        data?: MobileSyncDownloadResponse;
-      }>(
-        `${ENDPOINTS.SYNC.DOWNLOAD}?lastSyncTimestamp=${encodeURIComponent(lastSyncAt)}`,
-      );
-      const payload = response.data;
-
-      if (!response.success || !payload) {
-        throw new Error('Invalid sync download response');
-      }
-
       let tasksDownloaded = 0;
-      for (const task of payload.cases) {
-        await this.upsertTaskFromServer(task);
-        tasksDownloaded++;
-      }
+      let conflicts = 0;
+      let offset = 0;
+      let hasMore = true;
+      let latestSyncTimestamp = lastSyncAt;
+      const limit = config.syncBatchSize;
 
-      // Automatically clear revoked tasks from SQLite so they disappear from UI
-      for (const taskId of payload.revokedAssignmentIds || []) {
-        await DatabaseService.execute(
-          "DELETE FROM tasks WHERE verification_task_id = ?",
-          [taskId],
+      while (hasMore) {
+        const response = await ApiClient.get<{
+          success: boolean;
+          data?: MobileSyncDownloadResponse;
+        }>(
+          `${ENDPOINTS.SYNC.DOWNLOAD}?lastSyncTimestamp=${encodeURIComponent(lastSyncAt)}&limit=${limit}&offset=${offset}`,
         );
-      }
+        const payload = response.data;
 
-      for (const taskId of payload.deletedTaskIds || []) {
-        await DatabaseService.execute(
-          'DELETE FROM tasks WHERE id = ? OR verification_task_id = ?',
-          [taskId, taskId],
-        );
+        if (!response.success || !payload) {
+          throw new Error('Invalid sync download response');
+        }
+
+        for (const task of payload.cases) {
+          await this.upsertTaskFromServer(task);
+          tasksDownloaded++;
+        }
+
+        for (const taskId of payload.revokedAssignmentIds || []) {
+          await DatabaseService.execute(
+            "DELETE FROM tasks WHERE verification_task_id = ?",
+            [taskId],
+          );
+        }
+
+        for (const taskId of payload.deletedTaskIds || []) {
+          await DatabaseService.execute(
+            'DELETE FROM tasks WHERE id = ? OR verification_task_id = ?',
+            [taskId, taskId],
+          );
+        }
+
+        conflicts += payload.conflicts?.length || 0;
+        latestSyncTimestamp = payload.syncTimestamp || latestSyncTimestamp;
+
+        const pageSize = payload.cases.length;
+        hasMore = Boolean(payload.hasMore);
+
+        if (hasMore && pageSize === 0) {
+          hasMore = false;
+          break;
+        }
+
+        offset += pageSize;
       }
 
       await DatabaseService.execute(
         `INSERT OR REPLACE INTO sync_metadata (id, last_download_sync_at, device_id, sync_in_progress)
          VALUES (1, ?, (SELECT COALESCE(device_id, 'unknown') FROM sync_metadata WHERE id = 1), 0)`,
-        [payload.syncTimestamp],
+        [latestSyncTimestamp],
       );
 
-      return { tasksDownloaded, conflicts: payload.conflicts?.length || 0, errors };
+      return { tasksDownloaded, conflicts, errors };
     } catch (error: any) {
       errors.push(`Download failed: ${error.message}`);
       return { tasksDownloaded: 0, conflicts: 0, errors };

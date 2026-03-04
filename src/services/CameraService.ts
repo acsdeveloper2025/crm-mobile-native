@@ -8,7 +8,7 @@ import { DatabaseService } from '../database/DatabaseService';
 import { SyncQueue, SYNC_PRIORITY } from './SyncQueue';
 import { LocationService } from './LocationService';
 import { Logger } from '../utils/logger';
-import { normalizeVerificationType } from '../utils/normalizeVerificationType';
+import { resolveFormTypeKey, toBackendFormType } from '../utils/formTypeKey';
 
 const TAG = 'CameraService';
 
@@ -107,18 +107,23 @@ class CameraServiceClass {
       const location = await LocationService.getCurrentLocation();
       const taskRows = await DatabaseService.query<{
         verificationType?: string | null;
+        verificationTypeCode?: string | null;
+        verificationTypeName?: string | null;
         verificationTaskId?: string | null;
       }>(
-        `SELECT verification_type, verification_task_id
+        `SELECT verification_type, verification_type_code, verification_type_name, verification_task_id
          FROM tasks
          WHERE id = ?
          LIMIT 1`,
         [taskId],
       );
       const taskMeta = taskRows[0];
-      const verificationType = taskMeta?.verificationType
-        ? normalizeVerificationType(taskMeta.verificationType)
-        : 'verification';
+      const formTypeKey = resolveFormTypeKey({
+        verificationTypeCode: taskMeta?.verificationTypeCode || null,
+        verificationTypeName: taskMeta?.verificationTypeName || null,
+        verificationType: taskMeta?.verificationType || null,
+      });
+      const verificationType = formTypeKey ? toBackendFormType(formTypeKey) : null;
       const backendTaskId = taskMeta?.verificationTaskId || taskId;
 
       const photo: CapturedPhoto = {
@@ -173,7 +178,7 @@ class CameraServiceClass {
           size: photo.size,
           componentType,
           photoType: componentType === 'selfie' ? 'selfie' : 'verification',
-          verificationType,
+          ...(verificationType ? { verificationType } : {}),
           geoLocation: location
             ? {
                 latitude: location.latitude,

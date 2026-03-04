@@ -3,55 +3,6 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTaskManager } from '../context/TaskContext';
 import { TaskStatus } from '../types/enums';
 
-const REPORT_METHOD_NAMES = [
-  'updateResidenceReport',
-  'updateShiftedResidenceReport',
-  'updateNspResidenceReport',
-  'updateEntryRestrictedResidenceReport',
-  'updateUntraceableResidenceReport',
-  'updateResiCumOfficeReport',
-  'updateShiftedResiCumOfficeReport',
-  'updateNspResiCumOfficeReport',
-  'updateEntryRestrictedResiCumOfficeReport',
-  'updateUntraceableResiCumOfficeReport',
-  'updatePositiveOfficeReport',
-  'updateShiftedOfficeReport',
-  'updateNspOfficeReport',
-  'updateEntryRestrictedOfficeReport',
-  'updateUntraceableOfficeReport',
-  'updatePositiveBusinessReport',
-  'updateShiftedBusinessReport',
-  'updateNspBusinessReport',
-  'updateEntryRestrictedBusinessReport',
-  'updateUntraceableBusinessReport',
-  'updatePositiveBuilderReport',
-  'updateShiftedBuilderReport',
-  'updateNspBuilderReport',
-  'updateEntryRestrictedBuilderReport',
-  'updateUntraceableBuilderReport',
-  'updatePositiveNocReport',
-  'updateShiftedNocReport',
-  'updateNspNocReport',
-  'updateEntryRestrictedNocReport',
-  'updateUntraceableNocReport',
-  'updatePositiveDsaReport',
-  'updateShiftedDsaReport',
-  'updateNspDsaReport',
-  'updateEntryRestrictedDsaReport',
-  'updateUntraceableDsaReport',
-  'updatePositivePropertyApfReport',
-  'updateShiftedPropertyApfReport',
-  'updateNspPropertyApfReport',
-  'updateEntryRestrictedPropertyApfReport',
-  'updateUntraceablePropertyApfReport',
-  'updatePositivePropertyIndividualReport',
-  'updateShiftedPropertyIndividualReport',
-  'updateNspPropertyIndividualReport',
-  'updateEntryRestrictedPropertyIndividualReport',
-  'updateUntraceablePropertyIndividualReport',
-  'updateDsaDstConnectorReport',
-] as const;
-
 const filterTasks = (
   tasks: ReturnType<typeof useTaskManager>['tasks'],
   statusFilter?: string,
@@ -121,20 +72,6 @@ export const useTasks = (statusFilter?: string, searchQuery?: string): any => {
     [allTasks, searchQuery, statusFilter],
   );
 
-  const updateTaskReport = useCallback(async (
-    taskId: string,
-    patch: Record<string, unknown>,
-  ) => {
-    await updateTaskFormData(taskId, patch);
-  }, [updateTaskFormData]);
-
-  const reportMethods = useMemo(() => {
-    return REPORT_METHOD_NAMES.reduce<Record<string, typeof updateTaskReport>>((accumulator, methodName) => {
-      accumulator[methodName] = updateTaskReport;
-      return accumulator;
-    }, {});
-  }, [updateTaskReport]);
-
   return {
     tasks,
     isLoading,
@@ -151,6 +88,6 @@ export const useTasks = (statusFilter?: string, searchQuery?: string): any => {
     updateTaskSubmissionStatus,
     verifyTaskSubmissionStatus,
     syncTasks,
-    ...reportMethods,
+    updateTaskFormData,
   };
 };

@@ -20,7 +20,11 @@ import type { LocalAttachment, LocalTask } from '../types/mobile';
 import { RevokeReason } from '../types/api';
 import { TaskStatus } from '../types/enums';
 import { Logger } from '../utils/logger';
-import { normalizeVerificationType } from '../utils/normalizeVerificationType';
+import {
+  resolveFormTypeKey,
+  toBackendFormType as toBackendFormTypeKey,
+  type FormTypeKey,
+} from '../utils/formTypeKey';
 
 const TAG = 'TaskContext';
 
@@ -75,7 +79,7 @@ const TaskContext = createContext<TaskContextValue | undefined>(undefined);
 
 const AUTO_SAVE_KEY = (taskId: string) => `auto_save_${taskId}`;
 
-const FORM_ENDPOINT_MAP: Record<string, (taskId: string) => string> = {
+const FORM_ENDPOINT_MAP: Record<FormTypeKey, (taskId: string) => string> = {
   residence: ENDPOINTS.FORMS.RESIDENCE,
   office: ENDPOINTS.FORMS.OFFICE,
   business: ENDPOINTS.FORMS.BUSINESS,
@@ -107,10 +111,6 @@ const parsePriority = (value?: string | null): number | null => {
 
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
-};
-
-const toBackendFormType = (formType: string): MobileFormSubmissionRequest['formType'] => {
-  return formType.toUpperCase().replace(/-/g, '_') as MobileFormSubmissionRequest['formType'];
 };
 
 const toSubmissionPhotoType = (
@@ -419,13 +419,20 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
 
-    if (!normalizeVerificationType(payload.formType)) {
+    const formTypeKey = resolveFormTypeKey({
+      formType: payload.formType,
+      verificationTypeCode: task.verificationTypeCode || null,
+      verificationTypeName: task.verificationTypeName || null,
+      verificationType: task.verificationType || null,
+    });
+
+    if (!formTypeKey) {
       return;
     }
 
     try {
       await ApiClient.post(ENDPOINTS.TASKS.DETAIL(task.verificationTaskId || task.id) + '/auto-save', {
-        formType: payload.formType.toUpperCase(),
+        formType: toBackendFormTypeKey(formTypeKey),
         formData: payload.formData,
         timestamp,
       });
@@ -452,12 +459,22 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return null;
     }
 
+    const formTypeKey = resolveFormTypeKey({
+      formType,
+      verificationTypeCode: task.verificationTypeCode || null,
+      verificationTypeName: task.verificationTypeName || null,
+      verificationType: task.verificationType || null,
+    });
+    if (!formTypeKey) {
+      return null;
+    }
+
     try {
       const response = await ApiClient.get<{
         success: boolean;
         data?: { formData?: Record<string, unknown> };
       }>(
-        `${ENDPOINTS.TASKS.DETAIL(task.verificationTaskId || task.id)}/auto-save/${encodeURIComponent(formType.toUpperCase())}`,
+        `${ENDPOINTS.TASKS.DETAIL(task.verificationTaskId || task.id)}/auto-save/${encodeURIComponent(toBackendFormTypeKey(formTypeKey))}`,
       );
 
       return response.data?.formData ?? null;
@@ -474,7 +491,15 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const submissionId = uuidv4();
     const now = new Date().toISOString();
-    const taskFormType = normalizeVerificationType(input.formType);
+    const taskFormType = resolveFormTypeKey({
+      formType: input.formType,
+      verificationTypeCode: task.verificationTypeCode || null,
+      verificationTypeName: task.verificationTypeName || null,
+      verificationType: task.verificationType || null,
+    });
+    if (!taskFormType) {
+      throw new Error(`Unsupported form type: ${input.formType}`);
+    }
     const endpoint = FORM_ENDPOINT_MAP[taskFormType];
 
     if (!endpoint) {
@@ -536,11 +561,11 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const deviceInfo = await AuthService.getDeviceInfo();
-    const backendFormType = toBackendFormType(taskFormType);
+    const backendFormType = toBackendFormTypeKey(taskFormType) as MobileFormSubmissionRequest['formType'];
     const mergedFormData = {
       ...input.formData,
       outcome: input.verificationOutcome || undefined,
-      verificationType: task.verificationType || backendFormType,
+      verificationType: backendFormType,
     };
     const persistedFormData = {
       ...mergedFormData,
@@ -660,7 +685,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
           taskId: task.verificationTaskId || task.id,
           localTaskId: task.id,
           submissionId,
-          verificationType: payload.verificationType || taskFormType,
+          verificationType: payload.verificationType || backendFormType,
           photoType:
             payload.photoType ||
             ((payload.componentType as string | undefined) === 'selfie'

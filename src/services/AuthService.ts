@@ -7,6 +7,7 @@ import { DatabaseService } from '../database/DatabaseService';
 import { config } from '../config';
 import { Logger } from '../utils/logger';
 import { CURRENT_PLATFORM, getOSVersion } from '../utils/platform';
+import { PushTokenService } from './PushTokenService';
 import type {
   MobileDeviceInfo,
   UserProfile,
@@ -264,6 +265,7 @@ class AuthServiceClass {
       model: 'Unknown', // TODO: Use react-native-device-info
       osVersion: getOSVersion(),
       appVersion: config.appVersion,
+      pushToken: (await PushTokenService.getCachedPushToken()) || undefined,
     };
   }
 
