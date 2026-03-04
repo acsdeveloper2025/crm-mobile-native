@@ -80,9 +80,9 @@ export interface DynamicFormBuilderProps {
   validationErrors?: Record<string, string>;
 }
 
-export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({ 
-  template, 
-  formValues, 
+export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
+  template,
+  formValues,
   onValuesChange,
   validationErrors = {}
 }) => {

@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIn
 import { useTask } from '../../hooks/useTask';
 import { PhotoGallery } from '../../components/media/PhotoGallery';
 import { DatabaseService } from '../../database/DatabaseService';
-import { DynamicFormBuilder } from '../../components/forms/DynamicFormBuilder';
+import { DynamicFormBuilder } from './DynamicFormBuilder';
 import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 import type { FormTemplate, FormFieldCondition, FormFieldTemplate } from '../../types/api';

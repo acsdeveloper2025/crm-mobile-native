@@ -16,7 +16,7 @@ export interface DynamicFieldProps {
 
 export const DynamicFieldRenderer: React.FC<DynamicFieldProps> = ({ field, value, onChange, error }) => {
   const { theme } = useTheme();
-  
+
   const renderInput = () => {
     switch (field.type) {
       case 'text':
@@ -24,9 +24,9 @@ export const DynamicFieldRenderer: React.FC<DynamicFieldProps> = ({ field, value
         return (
           <TextInput
             style={[
-              styles.input, 
-              { 
-                backgroundColor: theme.colors.surface, 
+              styles.input,
+              {
+                backgroundColor: theme.colors.surface,
                 borderColor: theme.colors.border,
                 color: theme.colors.text
               },
@@ -39,15 +39,15 @@ export const DynamicFieldRenderer: React.FC<DynamicFieldProps> = ({ field, value
             placeholderTextColor={theme.colors.textMuted}
           />
         );
-      
+
       case 'textarea':
         return (
           <TextInput
             style={[
-              styles.input, 
+              styles.input,
               styles.textArea,
-              { 
-                backgroundColor: theme.colors.surface, 
+              {
+                backgroundColor: theme.colors.surface,
                 borderColor: theme.colors.border,
                 color: theme.colors.text
               },
