@@ -347,6 +347,22 @@ export interface MobileVersionCheckResponse {
 // ------------------------------------------------------------------
 // Dynamic Forms Template Types
 // ------------------------------------------------------------------
+export interface FormFieldCondition {
+  field: string;
+  operator:
+    | 'equals'
+    | 'notEquals'
+    | 'contains'
+    | 'notContains'
+    | 'greaterThan'
+    | 'lessThan'
+    | 'in'
+    | 'notIn'
+    | 'isTruthy'
+    | 'isFalsy';
+  value?: unknown;
+}
+
 export interface FormFieldTemplate {
   id: string;
   label: string;
@@ -365,11 +381,8 @@ export interface FormFieldTemplate {
     pattern?: string;
     custom?: string;
   };
-  conditional?: {
-    field: string;
-    operator: 'equals' | 'notEquals' | 'contains' | 'notContains' | 'greaterThan' | 'lessThan';
-    value: unknown;
-  };
+  conditional?: FormFieldCondition;
+  requiredWhen?: FormFieldCondition | FormFieldCondition[];
 }
 
 export interface FormSectionTemplate {

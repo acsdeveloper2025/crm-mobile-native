@@ -5,6 +5,10 @@
  * All mobile API endpoints.
  * Base URL is configured in src/config/index.ts
  */
+import { config } from '../config';
+
+const apiRootUrl = config.apiBaseUrl.replace(/\/mobile\/?$/, '');
+
 export const ENDPOINTS = {
   // Health
   HEALTH: '/health',
@@ -66,10 +70,10 @@ export const ENDPOINTS = {
   // Notifications
   NOTIFICATIONS: {
     REGISTER: '/auth/notifications/register',
-    LIST: '/api/notifications',
-    MARK_READ: (notificationId: string) => `/api/notifications/${notificationId}/read`,
-    MARK_ALL_READ: '/api/notifications/mark-all-read',
-    CLEAR_ALL: '/api/notifications',
+    LIST: `${apiRootUrl}/notifications`,
+    MARK_READ: (notificationId: string) => `${apiRootUrl}/notifications/${notificationId}/read`,
+    MARK_ALL_READ: `${apiRootUrl}/notifications/mark-all-read`,
+    CLEAR_ALL: `${apiRootUrl}/notifications`,
   },
 
   // Version

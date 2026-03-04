@@ -2,6 +2,7 @@ import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import { DatabaseService } from '../database/DatabaseService';
 import { AuthService } from './AuthService';
+import { PushTokenService } from './PushTokenService';
 import { Logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -151,11 +152,21 @@ class NotificationServiceImpl {
   async registerCurrentDevice(enabled: boolean = true): Promise<void> {
     try {
       const deviceInfo = await AuthService.getDeviceInfo();
+      const pushToken = await PushTokenService.getPushToken();
+      const effectiveEnabled = enabled && Boolean(pushToken);
+
+      if (enabled && !pushToken) {
+        Logger.warn(
+          TAG,
+          'Push token unavailable. Registering device with notifications disabled until token is available.',
+        );
+      }
+
       await ApiClient.post(ENDPOINTS.NOTIFICATIONS.REGISTER, {
         deviceId: deviceInfo.deviceId,
-        pushToken: deviceInfo.pushToken,
+        pushToken,
         platform: deviceInfo.platform,
-        enabled,
+        enabled: effectiveEnabled,
       });
     } catch (e) {
       Logger.warn(TAG, 'Failed to register notification device', e);

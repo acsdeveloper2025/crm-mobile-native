@@ -84,9 +84,6 @@ export const RootNavigator = () => {
   const [versionResult, setVersionResult] = useState<UpdateInfo | null>(null);
 
   useEffect(() => {
-    // Only check version if auth is resolved
-    if (authLoading) return;
-
     const checkAppVersion = async () => {
       try {
         const result = await VersionService.checkVersion();
@@ -99,7 +96,7 @@ export const RootNavigator = () => {
     };
 
     checkAppVersion();
-  }, [authLoading, isAuthenticated]);
+  }, []);
 
   if (authLoading || isVersionChecking) {
     return (
