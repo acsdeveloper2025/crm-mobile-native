@@ -16,7 +16,7 @@ const AttachmentsModal: React.FC<AttachmentsModalProps> = ({
   taskId,
 }) => {
   const { theme } = useTheme();
-  const items = useMemo(() => [], [taskId]);
+  const items = useMemo(() => [], []);
 
   return (
     <>

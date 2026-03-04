@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { DatabaseService } from '../database/DatabaseService';
-import { LocalTask, LocalLocation } from '../types/mobile';
+import { LocalLocation } from '../types/mobile';
 import { Logger } from '../utils/logger';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTaskManager } from '../context/TaskContext';
