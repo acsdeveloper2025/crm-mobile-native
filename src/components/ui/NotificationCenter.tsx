@@ -156,7 +156,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       style={[
         styles.notificationItem,
         { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border },
-        !item.isRead && { borderLeftWidth: 4, borderLeftColor: theme.colors.primary },
+        !item.isRead && styles.unreadNotification,
+        !item.isRead && { borderLeftColor: theme.colors.primary },
       ]}
       onPress={() => handleNotificationPress(item)}
       activeOpacity={0.7}>
@@ -345,6 +346,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
+  },
+  unreadNotification: {
+    borderLeftWidth: 4,
   },
   notificationContent: {
     flex: 1,

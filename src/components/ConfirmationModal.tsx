@@ -1,8 +1,7 @@
 import React, { ReactNode } from 'react';
 import Modal from './Modal';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
-
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -28,23 +27,44 @@ const ConfirmationModal: React.FC<ConfirmationModalProps> = ({
   const { theme } = useTheme();
   return (
     <Modal isVisible={isOpen} onClose={onClose} title={title}>
-      <View style={{ gap: 16 }}>
+      <View style={styles.content}>
         {children}
-        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 16, marginTop: 24 }}>
+        <View style={styles.actions}>
           <TouchableOpacity
             onPress={onSave}
-            style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 6, backgroundColor: theme.colors.success }}>
-            <Text style={{ color: 'white', fontWeight: '600' }}>{saveText}</Text>
+            style={[styles.button, { backgroundColor: theme.colors.success }]}>
+            <Text style={styles.buttonText}>{saveText}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={onConfirm}
-            style={{ paddingHorizontal: 16, paddingVertical: 8, borderRadius: 6, backgroundColor: theme.colors.primary }}>
-            <Text style={{ color: 'white', fontWeight: '600' }}>{confirmText}</Text>
+            style={[styles.button, { backgroundColor: theme.colors.primary }]}>
+            <Text style={styles.buttonText}>{confirmText}</Text>
           </TouchableOpacity>
         </View>
       </View>
     </Modal>
   );
 };
+
+const styles = StyleSheet.create({
+  content: {
+    gap: 16,
+  },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 16,
+    marginTop: 24,
+  },
+  button: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  buttonText: {
+    color: '#ffffff',
+    fontWeight: '600',
+  },
+});
 
 export default ConfirmationModal;

@@ -672,8 +672,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
           'UPDATE sync_queue SET payload_json = ? WHERE id = ?',
           [JSON.stringify(nextPayload), queueItem.id],
         );
-      } catch (error) {
-        Logger.warn(TAG, `Failed to link attachment queue item ${queueItem.id}`, error);
+      } catch (queueLinkError) {
+        Logger.warn(TAG, `Failed to link attachment queue item ${queueItem.id}`, queueLinkError);
       }
     }
 

@@ -1,4 +1,4 @@
-import { View, Text } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { CapturedImage } from '../types/index';
 import ImageCapture from './ImageCapture';
 
@@ -55,18 +55,39 @@ const SelfieCapture: React.FC<SelfieCaptureProps> = ({
       />
 
       {required && images.length === 0 && (
-        <View style={{ padding: 8, backgroundColor: '#fff3cd', borderRadius: 4, marginTop: 8 }}>
-          <Text style={{ color: '#856404' }}>⚠️ Selfie photo is required for verification</Text>
+        <View style={styles.requiredBanner}>
+          <Text style={styles.requiredText}>⚠️ Selfie photo is required for verification</Text>
         </View>
       )}
 
       {images.length > 0 && (
-        <View style={{ padding: 8, backgroundColor: '#d4edda', borderRadius: 4, marginTop: 8 }}>
-          <Text style={{ color: '#155724' }}>✅ Selfie photo captured successfully</Text>
+        <View style={styles.successBanner}>
+          <Text style={styles.successText}>✅ Selfie photo captured successfully</Text>
         </View>
       )}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  requiredBanner: {
+    padding: 8,
+    backgroundColor: '#fff3cd',
+    borderRadius: 4,
+    marginTop: 8,
+  },
+  requiredText: {
+    color: '#856404',
+  },
+  successBanner: {
+    padding: 8,
+    backgroundColor: '#d4edda',
+    borderRadius: 4,
+    marginTop: 8,
+  },
+  successText: {
+    color: '#155724',
+  },
+});
 
 export default SelfieCapture;

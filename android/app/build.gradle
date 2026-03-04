@@ -57,7 +57,7 @@ react {
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
-def enableProguardInReleaseBuilds = false
+def enableProguardInReleaseBuilds = true
 def googleMapsApiKey = project.findProperty("GOOGLE_MAPS_API_KEY") ?: ""
 def appDebugKeystore = file('debug.keystore')
 def userDebugKeystore = new File(System.getProperty("user.home"), ".android/debug.keystore")
@@ -68,6 +68,7 @@ def hasReleaseKeystore = keystorePropertiesFile.exists()
 if (hasReleaseKeystore) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
+def releaseAbiFilters = ["armeabi-v7a"]
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -88,12 +89,26 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
 
     namespace "com.crmmobilenative"
+    splits {
+        abi {
+            enable true
+            reset()
+            universalApk false
+            include(*releaseAbiFilters)
+        }
+    }
+    packaging {
+        jniLibs {
+            // Compress native libraries inside the APK to reduce the download size.
+            useLegacyPackaging true
+        }
+    }
     defaultConfig {
         applicationId "com.crmmobilenative"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
+        versionName "4.0"
         manifestPlaceholders = [GOOGLE_MAPS_API_KEY: googleMapsApiKey]
     }
     signingConfigs {
@@ -119,7 +134,16 @@ android {
         release {
             signingConfig hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+        }
+    }
+}
+
+android.applicationVariants.configureEach { variant ->
+    if (variant.buildType.name == "release") {
+        variant.outputs.configureEach {
+            outputFileName = "crm-mobile-native-v${variant.versionName}.apk"
         }
     }
 }

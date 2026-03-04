@@ -1,5 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { useTheme } from '../context/ThemeContext';
 
 interface TaskCardProps {
