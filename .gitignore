@@ -75,6 +75,7 @@ yarn-error.log
 .env
 .env.*
 !.env.example
+android/keystore.properties
 ios/.xcode.env.local
 *.mobileprovision
 *.orig
