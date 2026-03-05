@@ -8,12 +8,18 @@ import type { SyncQueueItem } from '../types/mobile';
 
 const TAG = 'SyncQueue';
 
-export type EntityType = 'TASK' | 'ATTACHMENT' | 'VISIT_PHOTO' | 'LOCATION' | 'FORM_SUBMISSION';
+export type EntityType =
+  | 'TASK'
+  | 'TASK_STATUS'
+  | 'ATTACHMENT'
+  | 'VISIT_PHOTO'
+  | 'LOCATION'
+  | 'FORM_SUBMISSION';
 export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE';
 
 // Priority levels: lower number = higher priority
 export const SYNC_PRIORITY = {
-  CRITICAL: 1, // Blocking prerequisites such as visit location capture
+  CRITICAL: 1, // Task status transitions and blocking prerequisites
   HIGH: 3, // Form submissions and attachments
   NORMAL: 5, // Task updates
   LOW: 7, // Location trail, audit logs
@@ -30,6 +36,17 @@ class SyncQueueClass {
     payload: Record<string, unknown>,
     priority: number = SYNC_PRIORITY.NORMAL,
   ): Promise<string> {
+    if (entityType === 'TASK_STATUS') {
+      // Keep only the latest pending status mutation per task to avoid stale regressions.
+      await DatabaseService.execute(
+        `DELETE FROM sync_queue
+         WHERE entity_type = 'TASK_STATUS'
+           AND entity_id = ?
+           AND status IN ('PENDING', 'FAILED', 'IN_PROGRESS')`,
+        [entityId],
+      );
+    }
+
     const id = uuidv4();
     const now = new Date().toISOString();
 

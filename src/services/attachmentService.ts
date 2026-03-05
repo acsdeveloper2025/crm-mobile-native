@@ -8,9 +8,17 @@ import RNFS from 'react-native-fs';
 import { DatabaseService } from '../database/DatabaseService';
 import { Logger } from '../utils/logger';
 import { Attachment } from '../types/index';
+import { ApiClient } from '../api/apiClient';
+import { ENDPOINTS } from '../api/endpoints';
+import { AuthService } from './AuthService';
+import { config } from '../config';
 
 const TAG = 'AttachmentService';
 const CACHE_DIR = `${RNFS.CachesDirectoryPath}/attachments`;
+
+export interface RemoteTaskAttachment extends Attachment {
+  source: 'REMOTE';
+}
 
 class AttachmentServiceClass {
   private initialized = false;
@@ -49,13 +57,15 @@ class AttachmentServiceClass {
       await this.initialize();
 
       // Query local attachments table
-      const rows = await DatabaseService.query<{
+      const localRows = await DatabaseService.query<{
         id: string;
         filename: string;
         original_name: string;
         mime_type: string;
         size: number;
         local_path: string;
+        remote_path?: string;
+        backend_attachment_id?: string;
         uploaded_at: string;
         component_type: string;
         sync_status: string;
@@ -64,20 +74,78 @@ class AttachmentServiceClass {
         [taskId]
       );
 
-      return rows.map(row => ({
+      const localAttachments = localRows.map(row => ({
         id: row.id,
         name: row.original_name || row.filename,
-        type: (row.mime_type?.startsWith('image/') ? 'image' : 'pdf') as 'image' | 'pdf',
-        mimeType: row.mime_type as any,
+        type: this.mapAttachmentType(row.mime_type),
+        mimeType: this.mapAttachmentMimeType(row.mime_type),
         size: row.size,
-        url: '', // Local attachments use local_path, remote use API URL
+        url: row.remote_path || '',
         localEncryptedPath: row.local_path,
         uploadedAt: row.uploaded_at,
         uploadedBy: row.component_type === 'photo' ? 'Field Agent' : 'System',
-        description: `Source: ${row.component_type}`
+        description: `Source: ${row.component_type}`,
+        metadata: {
+          backendAttachmentId: row.backend_attachment_id || null,
+          source: 'LOCAL',
+        },
       }));
+
+      const remoteAttachments = await this.getRemoteTaskAttachments(taskId);
+      const localBackendIds = new Set(
+        localAttachments
+          .map(attachment => attachment.metadata?.backendAttachmentId)
+          .filter((id): id is string => Boolean(id)),
+      );
+
+      const uniqueRemoteAttachments = remoteAttachments.filter(
+        attachment => !localBackendIds.has(attachment.id),
+      );
+
+      return [...localAttachments, ...uniqueRemoteAttachments];
     } catch (error) {
       Logger.error(TAG, `Failed to get attachments for task ${taskId}`, error);
+      return [];
+    }
+  }
+
+  async getRemoteTaskAttachments(taskId: string): Promise<RemoteTaskAttachment[]> {
+    try {
+      const response = await ApiClient.get<{
+        success: boolean;
+        data?: Array<{
+          id: string;
+          filename?: string;
+          originalName?: string;
+          mimeType?: string;
+          size?: number;
+          url?: string;
+          uploadedAt?: string;
+        }>;
+      }>(ENDPOINTS.ATTACHMENTS.LIST(taskId));
+
+      if (!response.success || !Array.isArray(response.data)) {
+        return [];
+      }
+
+      return response.data.map(attachment => {
+        const mimeType = attachment.mimeType || 'application/pdf';
+        return {
+          id: attachment.id,
+          name: attachment.originalName || attachment.filename || 'Attachment',
+          type: this.mapAttachmentType(mimeType),
+          mimeType: this.mapAttachmentMimeType(mimeType),
+          size: Number(attachment.size || 0),
+          url: this.normalizeRemoteAttachmentUrl(attachment.url, attachment.id),
+          uploadedAt: attachment.uploadedAt || new Date().toISOString(),
+          uploadedBy: 'CRM',
+          description: 'Source: Backend/Web',
+          taskId,
+          source: 'REMOTE',
+        };
+      });
+    } catch (error) {
+      Logger.warn(TAG, `Failed to load remote attachments for task ${taskId}`, error);
       return [];
     }
   }
@@ -117,17 +185,47 @@ class AttachmentServiceClass {
    * Mock download and cache for remote attachments
    */
   private async downloadAndCache(attachment: Attachment): Promise<string> {
-    const filename = `${attachment.id}_${attachment.name}`;
+    const safeName = attachment.name
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .slice(0, 80);
+    const filename = `${attachment.id}_${safeName}`;
     const destPath = `${CACHE_DIR}/${filename}`;
 
     const exists = await RNFS.exists(destPath);
-    if (exists) return destPath;
+    if (exists) return Platform.OS === 'android' ? `file://${destPath}` : destPath;
 
-    // In a real implementation, we would use RNFS.downloadFile with Auth headers
-    Logger.info(TAG, `Downloading attachment ${attachment.id} to cache`);
-    
-    // For now, if we don't have it, we return the URL if it's HTTPS
-    return attachment.url || '';
+    const token = await AuthService.getAccessToken();
+    const headers: Record<string, string> = {
+      'X-App-Version': config.appVersion,
+      'X-Platform': config.platform,
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const candidateUrls = this.buildAttachmentContentUrls(attachment);
+    Logger.info(
+      TAG,
+      `Downloading attachment ${attachment.id} using ${candidateUrls.length} URL candidate(s)`,
+    );
+
+    let lastFailureStatus = 0;
+    for (const url of candidateUrls) {
+      const result = await RNFS.downloadFile({
+        fromUrl: url,
+        toFile: destPath,
+        headers,
+      }).promise;
+
+      if (result.statusCode >= 200 && result.statusCode < 300) {
+        return Platform.OS === 'android' ? `file://${destPath}` : destPath;
+      }
+
+      lastFailureStatus = result.statusCode;
+      Logger.warn(TAG, `Attachment download attempt failed (${result.statusCode}) for ${url}`);
+    }
+
+    throw new Error(`Attachment download failed (${lastFailureStatus || 'unknown'})`);
   }
 
   /**
@@ -153,6 +251,78 @@ class AttachmentServiceClass {
    */
   isImageAttachment(attachment: Attachment): boolean {
     return attachment.mimeType.startsWith('image/') || attachment.type === 'image';
+  }
+
+  private mapAttachmentType(mimeType: string | undefined): 'image' | 'pdf' {
+    const normalizedMime = (mimeType || '').toLowerCase();
+    if (normalizedMime.startsWith('image/')) {
+      return 'image';
+    }
+    return 'pdf';
+  }
+
+  private mapAttachmentMimeType(mimeType: string | undefined): Attachment['mimeType'] {
+    const normalizedMime = (mimeType || '').toLowerCase();
+    if (normalizedMime === 'image/png') {
+      return 'image/png';
+    }
+    if (normalizedMime === 'image/jpg') {
+      return 'image/jpg';
+    }
+    if (normalizedMime === 'image/jpeg') {
+      return 'image/jpeg';
+    }
+    return 'application/pdf';
+  }
+
+  private normalizeRemoteAttachmentUrl(url: string | undefined, attachmentId: string): string {
+    if (!url) {
+      return `${config.apiBaseUrl}/attachments/${attachmentId}/content`;
+    }
+
+    if (url.startsWith('http')) {
+      return url;
+    }
+
+    const apiMobile = config.apiBaseUrl.replace(/\/$/, '');
+    const apiRoot = apiMobile.replace(/\/mobile$/, '');
+    const origin = apiRoot.replace(/\/api$/, '');
+
+    if (url.startsWith('/api/')) {
+      return `${origin}${url}`;
+    }
+
+    if (url.startsWith('/mobile/')) {
+      return `${apiRoot}${url}`;
+    }
+
+    if (url.startsWith('/attachments/')) {
+      return `${apiMobile}${url}`;
+    }
+
+    if (url.startsWith('/')) {
+      return `${apiMobile}${url}`;
+    }
+
+    return `${apiMobile}/${url}`;
+  }
+
+  private buildAttachmentContentUrls(attachment: Attachment): string[] {
+    const urls: string[] = [];
+    const normalizedPrimary = this.normalizeRemoteAttachmentUrl(
+      attachment.url,
+      attachment.id,
+    );
+    urls.push(normalizedPrimary);
+    urls.push(`${config.apiBaseUrl}/attachments/${attachment.id}/content`);
+
+    if (attachment.taskId) {
+      urls.push(
+        `${config.apiBaseUrl}/verification-tasks/${attachment.taskId}/attachments/${attachment.id}`,
+      );
+    }
+
+    return Array.from(new Set(urls));
   }
 
   /**

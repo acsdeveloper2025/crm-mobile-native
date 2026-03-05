@@ -8,7 +8,9 @@ import {
   RefreshControl,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { notificationService, NotificationData } from '../../services/NotificationService';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -206,7 +208,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       animationType="slide"
       presentationStyle="pageSheet"
       onRequestClose={onClose}>
-      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>
         {/* Header */}
         <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
           <View style={styles.headerLeft}>
@@ -237,6 +239,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         {/* Notifications List */}
         {loading ? (
           <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
             <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading notifications...</Text>
           </View>
         ) : notifications.length === 0 ? (
@@ -263,7 +266,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             showsVerticalScrollIndicator={false}
           />
         )}
-      </View>
+      </SafeAreaView>
     </Modal>
   );
 };
@@ -327,6 +330,8 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
+    marginTop: 12,
+    fontWeight: '500',
   },
   emptyText: {
     fontSize: 18,

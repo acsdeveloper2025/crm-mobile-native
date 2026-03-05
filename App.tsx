@@ -11,6 +11,9 @@ import {
   Text,
   View,
   ActivityIndicator,
+  PermissionsAndroid,
+  Platform,
+  Alert,
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from './src/context/ThemeContext';
@@ -21,8 +24,88 @@ import { DatabaseService } from './src/database/DatabaseService';
 import { NetworkService } from './src/services/NetworkService';
 import { CameraService } from './src/services/CameraService';
 import { Logger } from './src/utils/logger';
+import { notificationService } from './src/services/NotificationService';
 
 const TAG = 'App';
+const STARTUP_PERMISSIONS_KEY = 'startup_permissions_requested_v1';
+
+const getStoredFlag = async (key: string): Promise<string | null> => {
+  const rows = await DatabaseService.query<{ value: string }>(
+    'SELECT value FROM key_value_store WHERE key = ?',
+    [key],
+  );
+  return rows[0]?.value || null;
+};
+
+const setStoredFlag = async (key: string, value: string): Promise<void> => {
+  await DatabaseService.execute(
+    'INSERT OR REPLACE INTO key_value_store (key, value) VALUES (?, ?)',
+    [key, value],
+  );
+};
+
+const requestStartupPermissionsIfNeeded = async (): Promise<void> => {
+  if (Platform.OS !== 'android') {
+    return;
+  }
+
+  const alreadyRequested = await getStoredFlag(STARTUP_PERMISSIONS_KEY);
+  if (alreadyRequested === '1') {
+    return;
+  }
+
+  const denied: string[] = [];
+
+  const locationResult = await PermissionsAndroid.request(
+    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+    {
+      title: 'Location Permission',
+      message: 'Location is required for visit start, geo-tagging, and form submission.',
+      buttonPositive: 'Allow',
+      buttonNegative: 'Deny',
+    },
+  );
+  if (locationResult !== PermissionsAndroid.RESULTS.GRANTED) {
+    denied.push('Location');
+  }
+
+  const cameraResult = await PermissionsAndroid.request(
+    PermissionsAndroid.PERMISSIONS.CAMERA,
+    {
+      title: 'Camera Permission',
+      message: 'Camera is required to capture verification photos and selfies.',
+      buttonPositive: 'Allow',
+      buttonNegative: 'Deny',
+    },
+  );
+  if (cameraResult !== PermissionsAndroid.RESULTS.GRANTED) {
+    denied.push('Camera');
+  }
+
+  if (Number(Platform.Version) >= 33) {
+    const notificationResult = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+      {
+        title: 'Notification Permission',
+        message: 'Notifications are required for new task and sync alerts.',
+        buttonPositive: 'Allow',
+        buttonNegative: 'Deny',
+      },
+    );
+    if (notificationResult !== PermissionsAndroid.RESULTS.GRANTED) {
+      denied.push('Notifications');
+    }
+  }
+
+  await setStoredFlag(STARTUP_PERMISSIONS_KEY, '1');
+
+  if (denied.length > 0) {
+    Alert.alert(
+      'Permissions Required',
+      `${denied.join(', ')} permission denied. Some features may not work until enabled in Settings.`,
+    );
+  }
+};
 
 function App(): React.JSX.Element {
   const [isInitializing, setIsInitializing] = useState(true);
@@ -41,6 +124,13 @@ function App(): React.JSX.Element {
 
         await CameraService.initialize();
         Logger.info(TAG, 'Camera service initialized');
+
+        await requestStartupPermissionsIfNeeded();
+        Logger.info(TAG, 'Startup permission check completed');
+
+        await notificationService.loadFromDb();
+        notificationService.initializePushListeners();
+        Logger.info(TAG, 'Notification service initialized');
       } catch (error: any) {
         Logger.error(TAG, 'Initialization failed', error);
         setInitError(error?.message || 'Failed to initialize app');
@@ -53,6 +143,7 @@ function App(): React.JSX.Element {
 
     return () => {
       NetworkService.destroy();
+      notificationService.destroyPushListeners();
     };
   }, []);
 

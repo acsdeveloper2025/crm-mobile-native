@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Image, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { DatabaseService } from '../../database/DatabaseService';
@@ -16,9 +16,21 @@ interface PhotoGalleryProps {
 export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentType }) => {
   const { theme } = useTheme();
   const [photos, setPhotos] = useState<LocalAttachment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const isMountedRef = useRef(true);
+  const requestIdRef = useRef(0);
+
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const loadPhotos = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
+
     try {
       setIsLoading(true);
       let query = 'SELECT * FROM attachments WHERE task_id = ?';
@@ -31,14 +43,28 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
       
       query += ' ORDER BY uploaded_at DESC';
       
-      const results = await DatabaseService.query<LocalAttachment>(query, params);
-      setPhotos(results || []);
+      const results = await Promise.race<LocalAttachment[]>([
+        DatabaseService.query<LocalAttachment>(query, params),
+        new Promise<LocalAttachment[]>((_, reject) =>
+          setTimeout(() => reject(new Error('Attachment query timed out')), 4000)
+        ),
+      ]);
+      if (isMountedRef.current && requestId === requestIdRef.current) {
+        setPhotos(results || []);
+      }
     } catch (err) {
       console.error('Failed to load photos:', err);
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current && requestId === requestIdRef.current) {
+        setHasLoadedOnce(true);
+        setIsLoading(false);
+      }
     }
   }, [taskId, componentType]);
+
+  React.useEffect(() => {
+    loadPhotos();
+  }, [loadPhotos]);
 
   useFocusEffect(
     useCallback(() => {
@@ -99,7 +125,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
     </View>
   );
 
-  if (isLoading) {
+  if (isLoading && !hasLoadedOnce) {
     return (
       <View style={styles.loadingWrapper}>
         <ActivityIndicator size="small" color={theme.colors.primary} />

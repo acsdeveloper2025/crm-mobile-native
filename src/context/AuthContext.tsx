@@ -39,6 +39,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     checkAuthStatus();
   }, []);
 
+  useEffect(() => {
+    notificationService.setAssignmentSyncHandler(async trigger => {
+      if (!AuthService.isAuthenticated()) {
+        return;
+      }
+      Logger.info(
+        TAG,
+        `Immediate sync triggered by ${trigger.type} notification (${trigger.source})`,
+        { taskId: trigger.taskId || null },
+      );
+      try {
+        await SyncService.performSync();
+      } catch (error) {
+        Logger.warn(TAG, 'Immediate sync after assignment notification failed', error);
+      }
+    });
+
+    return () => {
+      notificationService.setAssignmentSyncHandler(null);
+    };
+  }, []);
+
   const checkAuthStatus = async () => {
     try {
       const authenticated = await AuthService.initialize();

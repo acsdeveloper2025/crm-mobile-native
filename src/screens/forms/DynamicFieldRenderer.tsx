@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, Text, TextInput, StyleSheet, Switch, TouchableOpacity } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -16,6 +17,8 @@ export interface DynamicFieldProps {
 
 export const DynamicFieldRenderer: React.FC<DynamicFieldProps> = ({ field, value, onChange, error }) => {
   const { theme } = useTheme();
+  const placeholder = `Enter ${field.label.toLowerCase()}`;
+  const options = Array.isArray(field.options) ? field.options : [];
 
   const renderInput = () => {
     switch (field.type) {
@@ -33,9 +36,15 @@ export const DynamicFieldRenderer: React.FC<DynamicFieldProps> = ({ field, value
               error && [styles.inputError, { borderColor: theme.colors.danger, backgroundColor: theme.colors.danger + '10' }]
             ]}
             value={value?.toString() || ''}
-            onChangeText={(text) => onChange(field.id, field.type === 'number' ? Number(text) : text)}
+            onChangeText={(text) => {
+              if (field.type === 'number') {
+                onChange(field.id, text.trim() === '' ? '' : Number(text));
+                return;
+              }
+              onChange(field.id, text);
+            }}
             keyboardType={field.type === 'number' ? 'numeric' : 'default'}
-            placeholder={`Enter ${field.label.toLowerCase()}`}
+            placeholder={placeholder}
             placeholderTextColor={theme.colors.textMuted}
           />
         );
@@ -57,8 +66,30 @@ export const DynamicFieldRenderer: React.FC<DynamicFieldProps> = ({ field, value
             onChangeText={(text) => onChange(field.id, text)}
             multiline
             numberOfLines={4}
-            placeholder={`Enter ${field.label.toLowerCase()}`}
+            placeholder={placeholder}
             placeholderTextColor={theme.colors.textMuted}
+          />
+        );
+
+      case 'date':
+        return (
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+                color: theme.colors.text
+              },
+              error && [styles.inputError, { borderColor: theme.colors.danger, backgroundColor: theme.colors.danger + '10' }]
+            ]}
+            value={value?.toString() || ''}
+            onChangeText={(text) => onChange(field.id, text)}
+            placeholder="YYYY-MM-DD"
+            placeholderTextColor={theme.colors.textMuted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            maxLength={10}
           />
         );
 
@@ -80,9 +111,9 @@ export const DynamicFieldRenderer: React.FC<DynamicFieldProps> = ({ field, value
       case 'radio':
         return (
           <View style={styles.radioGroup}>
-            {field.options?.map((opt) => (
+            {options.map((opt, index) => (
               <TouchableOpacity
-                key={opt.value}
+                key={`${field.id}_${String(opt.value)}_${index}`}
                 style={[
                   styles.radioButton,
                   { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
@@ -120,7 +151,7 @@ export const DynamicFieldRenderer: React.FC<DynamicFieldProps> = ({ field, value
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
   labelContainer: {
     flexDirection: 'row',
@@ -128,7 +159,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   label: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -140,14 +171,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    fontSize: 16,
+    minHeight: 48,
+    paddingVertical: 10,
+    fontSize: 15,
   },
   inputError: {
     borderWidth: 1.5,
   },
   textArea: {
-    height: 120,
+    height: 116,
     textAlignVertical: 'top',
   },
   errorText: {
@@ -162,7 +194,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 14,
+    paddingHorizontal: 14,
+    minHeight: 52,
     borderRadius: 12,
     borderWidth: 1,
   },
@@ -176,8 +209,8 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   radioButton: {
-    paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     borderRadius: 24,
     borderWidth: 1,
   },

@@ -30,11 +30,6 @@ class VersionServiceClass {
    */
   async checkVersion(): Promise<UpdateInfo> {
     try {
-      const isOnline = await this.isBackendReachable();
-      if (!isOnline) {
-        return this.getDefaultUpdateInfo();
-      }
-
       const payload: MobileVersionCheckRequest = {
         currentVersion: APP_VERSION,
         platform: Platform.OS === 'ios' ? 'IOS' : 'ANDROID'
@@ -42,7 +37,8 @@ class VersionServiceClass {
 
       const response = await ApiClient.post<MobileVersionCheckResponse>(
         ENDPOINTS.VERSION.CHECK,
-        payload
+        payload,
+        { timeout: 5000 }
       );
 
       if (response && response.success) {
@@ -110,14 +106,6 @@ class VersionServiceClass {
     };
   }
 
-  private async isBackendReachable(): Promise<boolean> {
-    try {
-      const resp = await ApiClient.get<{ status: string }>(ENDPOINTS.HEALTH);
-      return resp.status === 'OK' || resp.status === 'ok';
-    } catch {
-      return false;
-    }
-  }
 }
 
 export const VersionService = new VersionServiceClass();

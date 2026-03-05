@@ -1,5 +1,7 @@
+// cspell:words Pagadi Accomodation Adhar Neighbour Bunglow Chawl Patra Resi Existance authorised Authorised
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTask } from '../../hooks/useTask';
 import { PhotoGallery } from '../../components/media/PhotoGallery';
 import { DatabaseService } from '../../database/DatabaseService';
@@ -10,6 +12,7 @@ import type { FormTemplate, FormFieldCondition, FormFieldTemplate } from '../../
 import { ApiClient } from '../../api/apiClient';
 import { ENDPOINTS } from '../../api/endpoints';
 import { useTaskManager } from '../../context/TaskContext';
+import { Logger } from '../../utils/logger';
 import {
   resolveFormTypeKey,
   toBackendFormType as toBackendFormTypeKey,
@@ -17,18 +20,36 @@ import {
 } from '../../utils/formTypeKey';
 
 type ResidenceOutcome = 'POSITIVE' | 'SHIFTED' | 'NSP' | 'ENTRY_RESTRICTED' | 'UNTRACEABLE';
+type PropertyApfOutcome = 'POSITIVE' | 'ENTRY_RESTRICTED' | 'UNTRACEABLE';
+type PropertyIndividualOutcome = 'POSITIVE' | 'NSP' | 'ENTRY_RESTRICTED' | 'UNTRACEABLE';
 type NormalizedOutcome = ResidenceOutcome | 'NEGATIVE';
+type OutcomeCoercionResult = {
+  outcome: ResidenceOutcome;
+  warning: string | null;
+};
 
 const normalizeOutcome = (rawOutcome?: string | null): NormalizedOutcome => {
   const value = String(rawOutcome || '').trim().toUpperCase();
   if (!value) {
     return 'POSITIVE';
   }
-  if (value.includes('SHIFTED')) {
+  if (value.includes('POSITIVE & NEGATIVE')) {
+    return 'NEGATIVE';
+  }
+  if (value.includes('DOOR LOCKED SHIFTED') || value.includes('SHIFTED')) {
     return 'SHIFTED';
   }
-  if (value.includes('NSP') || value.includes('PERSON NOT MET')) {
+  if (value.includes('POSITIVE')) {
+    return 'POSITIVE';
+  }
+  if (value.includes('NO SUCH PERSON')) {
     return 'NSP';
+  }
+  if (value.includes('NSP') || value.includes('PERSON NOT MET') || value.includes('NSP DOOR LOCKED')) {
+    return 'NSP';
+  }
+  if (value.includes('DOOR LOCK')) {
+    return 'POSITIVE';
   }
   if (value === 'ERT' || value.includes('ENTRY') || value.includes('RESTRICT')) {
     return 'ENTRY_RESTRICTED';
@@ -52,6 +73,42 @@ const COMMON_LEGACY_OUTCOMES: readonly ResidenceOutcome[] = [
   'UNTRACEABLE',
 ];
 
+const getOutcomeLabel = (formTypeKey: FormTypeKey | null, outcome: ResidenceOutcome): string => {
+  if (formTypeKey === 'property-apf') {
+    const apfLabelByOutcome: Record<PropertyApfOutcome, string> = {
+      POSITIVE: 'Positive & Negative',
+      ENTRY_RESTRICTED: 'ERT',
+      UNTRACEABLE: 'Untraceable',
+    };
+    const normalizedApfOutcome: PropertyApfOutcome =
+      outcome === 'ENTRY_RESTRICTED' || outcome === 'UNTRACEABLE' ? outcome : 'POSITIVE';
+    return apfLabelByOutcome[normalizedApfOutcome];
+  }
+
+  if (formTypeKey === 'property-individual') {
+    const individualLabelByOutcome: Record<PropertyIndividualOutcome, string> = {
+      POSITIVE: 'Positive & Door Locked',
+      NSP: 'No Such Person & Door Locked No Such Person',
+      ENTRY_RESTRICTED: 'ERT',
+      UNTRACEABLE: 'Untraceable',
+    };
+    const normalizedIndividualOutcome: PropertyIndividualOutcome =
+      outcome === 'NSP' || outcome === 'ENTRY_RESTRICTED' || outcome === 'UNTRACEABLE'
+        ? outcome
+        : 'POSITIVE';
+    return individualLabelByOutcome[normalizedIndividualOutcome];
+  }
+
+  const labelByOutcome: Record<ResidenceOutcome, string> = {
+    POSITIVE: 'Positive & Door Locked',
+    SHIFTED: 'Shifted & Door Locked Shifted',
+    NSP: 'NSP & NSP Door Locked',
+    ENTRY_RESTRICTED: 'ERT',
+    UNTRACEABLE: 'Untraceable',
+  };
+  return labelByOutcome[outcome];
+};
+
 const LEGACY_OUTCOMES_BY_FORM_TYPE: Record<FormTypeKey, readonly ResidenceOutcome[]> = {
   residence: COMMON_LEGACY_OUTCOMES,
   'residence-cum-office': COMMON_LEGACY_OUTCOMES,
@@ -60,8 +117,20 @@ const LEGACY_OUTCOMES_BY_FORM_TYPE: Record<FormTypeKey, readonly ResidenceOutcom
   builder: COMMON_LEGACY_OUTCOMES,
   noc: COMMON_LEGACY_OUTCOMES,
   'dsa-connector': COMMON_LEGACY_OUTCOMES,
-  'property-individual': ['POSITIVE', 'NSP', 'ENTRY_RESTRICTED', 'UNTRACEABLE'],
-  'property-apf': ['POSITIVE', 'ENTRY_RESTRICTED', 'UNTRACEABLE'],
+  'property-individual': ['NSP', 'ENTRY_RESTRICTED', 'POSITIVE', 'UNTRACEABLE'],
+  'property-apf': ['UNTRACEABLE', 'ENTRY_RESTRICTED', 'POSITIVE'],
+};
+
+const PREFERRED_DEFAULT_OUTCOME_BY_FORM_TYPE: Partial<Record<FormTypeKey, ResidenceOutcome>> = {
+  residence: 'POSITIVE',
+  'residence-cum-office': 'POSITIVE',
+  office: 'POSITIVE',
+  business: 'POSITIVE',
+  builder: 'POSITIVE',
+  noc: 'POSITIVE',
+  'dsa-connector': 'POSITIVE',
+  'property-individual': 'POSITIVE',
+  'property-apf': 'POSITIVE',
 };
 
 const getAllowedOutcomes = (formTypeKey: FormTypeKey | null): readonly ResidenceOutcome[] => {
@@ -71,22 +140,44 @@ const getAllowedOutcomes = (formTypeKey: FormTypeKey | null): readonly Residence
   return LEGACY_OUTCOMES_BY_FORM_TYPE[formTypeKey];
 };
 
-const coerceOutcomeForFormType = (
-  formTypeKey: FormTypeKey | null,
-  rawOutcome?: string | null,
-): ResidenceOutcome => {
-  const normalizedOutcome = normalizeOutcome(rawOutcome);
+const getFallbackOutcomeForFormType = (formTypeKey: FormTypeKey | null): ResidenceOutcome => {
   const allowedOutcomes = getAllowedOutcomes(formTypeKey);
+  const preferredDefault = formTypeKey ? PREFERRED_DEFAULT_OUTCOME_BY_FORM_TYPE[formTypeKey] : 'POSITIVE';
 
-  if (normalizedOutcome === 'NEGATIVE') {
-    return allowedOutcomes.includes('NSP') ? 'NSP' : 'POSITIVE';
-  }
-
-  if (allowedOutcomes.includes(normalizedOutcome)) {
-    return normalizedOutcome;
+  if (preferredDefault && allowedOutcomes.includes(preferredDefault)) {
+    return preferredDefault;
   }
 
   return allowedOutcomes[0] || 'POSITIVE';
+};
+
+const coerceOutcomeForFormType = (
+  formTypeKey: FormTypeKey | null,
+  rawOutcome?: string | null,
+): OutcomeCoercionResult => {
+  const normalizedOutcome = normalizeOutcome(rawOutcome);
+  const allowedOutcomes = getAllowedOutcomes(formTypeKey);
+  const fallbackOutcome = getFallbackOutcomeForFormType(formTypeKey);
+  const rawValue = String(rawOutcome ?? '').trim();
+
+  if (!rawValue) {
+    return { outcome: fallbackOutcome, warning: null };
+  }
+
+  if (normalizedOutcome === 'NEGATIVE') {
+    const mappedOutcome = allowedOutcomes.includes('NSP') ? 'NSP' : fallbackOutcome;
+    return { outcome: mappedOutcome, warning: null };
+  }
+
+  if (allowedOutcomes.includes(normalizedOutcome)) {
+    return { outcome: normalizedOutcome, warning: null };
+  }
+
+  const formTypeLabel = formTypeKey || 'unknown';
+  return {
+    outcome: fallbackOutcome,
+    warning: `Outcome "${rawValue}" is invalid for ${formTypeLabel}. Using "${fallbackOutcome}" form.`,
+  };
 };
 
 const legacyResidenceSelectOptions: Record<string, string[]> = {
@@ -3256,144 +3347,6 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
   },
 ]);
 
-const legacyNspPropertyApfFields = withLegacyPropertyApfOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'constructionActivity', label: 'Construction Activity', type: 'select', required: true },
-  {
-    name: 'buildingStatus',
-    label: 'Building Status',
-    type: 'select',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
-  },
-  {
-    name: 'activityStopReason',
-    label: 'Activity Stop Reason',
-    type: 'text',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
-  },
-  {
-    name: 'projectName',
-    label: 'Project Name',
-    type: 'text',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
-  },
-  {
-    name: 'projectStartedDate',
-    label: 'Project Started Date',
-    type: 'date',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
-  },
-  {
-    name: 'projectCompletionDate',
-    label: 'Project Completion Date',
-    type: 'date',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
-  },
-  {
-    name: 'totalWing',
-    label: 'Total Wing',
-    type: 'number',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
-  },
-  {
-    name: 'totalFlats',
-    label: 'Total Flats',
-    type: 'number',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
-  },
-  {
-    name: 'projectCompletionPercent',
-    label: 'Project Completion %',
-    type: 'number',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
-  },
-  {
-    name: 'staffStrength',
-    label: 'Staff Strength',
-    type: 'number',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
-  },
-  {
-    name: 'staffSeen',
-    label: 'Staff Seen',
-    type: 'number',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
-  },
-  {
-    id: 'constructionStopNameOnBoard',
-    name: 'nameOnBoard',
-    label: 'Name on Board',
-    type: 'text',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
-  },
-  {
-    name: 'metPerson',
-    label: 'Met Person',
-    type: 'text',
-    conditional: legacyCondition('constructionActivity', 'equals', 'SEEN'),
-    requiredWhen: legacyCondition('constructionActivity', 'equals', 'SEEN'),
-  },
-  {
-    name: 'relationship',
-    label: 'Relationship',
-    type: 'text',
-    conditional: legacyCondition('constructionActivity', 'equals', 'SEEN'),
-    requiredWhen: legacyCondition('constructionActivity', 'equals', 'SEEN'),
-  },
-  {
-    name: 'propertyOwnerName',
-    label: 'Property Owner Name',
-    type: 'text',
-    conditional: legacyCondition('constructionActivity', 'equals', 'SEEN'),
-    requiredWhen: legacyCondition('constructionActivity', 'equals', 'SEEN'),
-  },
-  { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select', required: true },
-  { name: 'nameOfTpc1', label: 'Name of TPC 1', type: 'text', required: true },
-  { name: 'tpcConfirmation1', label: 'TPC Confirmation 1', type: 'select', required: true },
-  { name: 'tpcMetPerson2', label: 'TPC Met Person 2', type: 'select', required: true },
-  { name: 'nameOfTpc2', label: 'Name of TPC 2', type: 'text', required: true },
-  { name: 'tpcConfirmation2', label: 'TPC Confirmation 2', type: 'select', required: true },
-  { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'number', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'text', required: true },
-  { name: 'doorColor', label: 'Door Color', type: 'text', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate', type: 'select', required: true },
-  {
-    name: 'nameOnDoorPlate',
-    label: 'Name on Door Plate',
-    type: 'text',
-    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'Sighted'),
-    requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'Sighted'),
-  },
-  { name: 'companyNameBoard', label: 'Company Name Board', type: 'select' },
-  {
-    id: 'companyBoardNameOnBoard',
-    name: 'nameOnBoard',
-    label: 'Name on Board',
-    type: 'text',
-    conditional: legacyCondition('companyNameBoard', 'equals', 'SIGHTED AS'),
-  },
-  { name: 'totalBuildingsInProject', label: 'Total Buildings in Project', type: 'number' },
-  { id: 'projectInfoTotalFlats', name: 'totalFlats', label: 'Total Flats in Building', type: 'number' },
-  { id: 'projectInfoStartDate', name: 'projectStartedDate', label: 'Project Start Date', type: 'date' },
-  { id: 'projectInfoEndDate', name: 'projectCompletionDate', label: 'Project End Date', type: 'date' },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
-  { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
-  { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
-  },
-]);
-
 const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
   { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
   { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
@@ -3467,18 +3420,15 @@ const legacyUntraceablePropertyApfFields = withLegacyPropertyApfOrder([
   },
 ]);
 
-const normalizedPropertyApfOutcome = (rawOutcome: string): ResidenceOutcome => {
+const normalizedPropertyApfOutcome = (rawOutcome: string): PropertyApfOutcome => {
   const value = rawOutcome.trim().toUpperCase();
   if (value.includes('ENTRY') || value.includes('RESTRICT')) return 'ENTRY_RESTRICTED';
   if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND')) return 'UNTRACEABLE';
-  if (value.includes('NSP') || value.includes('NEGATIVE') || value.includes('SHIFTED')) return 'NSP';
   return 'POSITIVE';
 };
 
-const legacyPropertyApfFieldsByOutcome: Record<ResidenceOutcome, FormFieldTemplate[]> = {
+const legacyPropertyApfFieldsByOutcome: Record<PropertyApfOutcome, FormFieldTemplate[]> = {
   POSITIVE: legacyPositivePropertyApfFields,
-  SHIFTED: legacyNspPropertyApfFields,
-  NSP: legacyNspPropertyApfFields,
   ENTRY_RESTRICTED: legacyEntryRestrictedPropertyApfFields,
   UNTRACEABLE: legacyUntraceablePropertyApfFields,
 };
@@ -3808,7 +3758,7 @@ const legacyUntraceablePropertyIndividualFields = withLegacyPropertyIndividualOr
   },
 ]);
 
-const normalizedPropertyIndividualOutcome = (rawOutcome: string): ResidenceOutcome => {
+const normalizedPropertyIndividualOutcome = (rawOutcome: string): PropertyIndividualOutcome => {
   const value = rawOutcome.trim().toUpperCase();
   if (value.includes('ENTRY') || value.includes('RESTRICT')) return 'ENTRY_RESTRICTED';
   if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND')) return 'UNTRACEABLE';
@@ -3816,9 +3766,8 @@ const normalizedPropertyIndividualOutcome = (rawOutcome: string): ResidenceOutco
   return 'POSITIVE';
 };
 
-const legacyPropertyIndividualFieldsByOutcome: Record<ResidenceOutcome, FormFieldTemplate[]> = {
+const legacyPropertyIndividualFieldsByOutcome: Record<PropertyIndividualOutcome, FormFieldTemplate[]> = {
   POSITIVE: legacyPositivePropertyIndividualFields,
-  SHIFTED: legacyNspPropertyIndividualFields,
   NSP: legacyNspPropertyIndividualFields,
   ENTRY_RESTRICTED: legacyEntryRestrictedPropertyIndividualFields,
   UNTRACEABLE: legacyUntraceablePropertyIndividualFields,
@@ -3911,7 +3860,8 @@ const validateTemplateRequiredFields = (
           ? evaluateCondition(field.requiredWhen, values)
           : false;
 
-      if ((requiredByDefault || requiredWhen) && isEmptyValue(values[field.id])) {
+      const valueKey = field.name || field.id;
+      if ((requiredByDefault || requiredWhen) && isEmptyValue(values[valueKey])) {
         missingFields.push(field.label);
       }
     }
@@ -3981,6 +3931,7 @@ const buildTemplateFromBackend = (
 
 export const VerificationFormScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const {
     updateVerificationOutcome,
     updateTaskFormData,
@@ -4004,6 +3955,16 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
   const [templateLoading, setTemplateLoading] = useState(false); // don't load immediately
   const [isInitialized, setIsInitialized] = useState(false);
   const [selectedOutcome, setSelectedOutcome] = useState<ResidenceOutcome | null>(null);
+  const [outcomeWarning, setOutcomeWarning] = useState<string | null>(null);
+  const isMountedRef = React.useRef(true);
+  const effectiveTaskId = task?.id || taskId;
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   const outcomeOptions = React.useMemo(() => {
     const colorByOutcome: Record<ResidenceOutcome, string> = {
       POSITIVE: theme.colors.success,
@@ -4011,13 +3972,6 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
       NSP: theme.colors.info,
       ENTRY_RESTRICTED: theme.colors.primary,
       UNTRACEABLE: theme.colors.textMuted,
-    };
-    const labelByOutcome: Record<ResidenceOutcome, string> = {
-      POSITIVE: 'Positive',
-      SHIFTED: 'Shifted',
-      NSP: 'NSP',
-      ENTRY_RESTRICTED: 'Entry Restricted',
-      UNTRACEABLE: 'Untraceable',
     };
     const iconByOutcome: Record<ResidenceOutcome, string> = {
       POSITIVE: 'checkmark-circle-outline',
@@ -4029,7 +3983,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
 
     return getAllowedOutcomes(taskFormTypeKey).map(outcome => ({
       value: outcome,
-      label: labelByOutcome[outcome],
+      label: getOutcomeLabel(taskFormTypeKey, outcome),
       icon: iconByOutcome[outcome],
       color: colorByOutcome[outcome],
     }));
@@ -4038,7 +3992,18 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
   // Sync state once task is loaded
   useEffect(() => {
     if (task && taskFormTypeKey && !selectedOutcome && task.verificationOutcome) {
-      setSelectedOutcome(coerceOutcomeForFormType(taskFormTypeKey, task.verificationOutcome));
+      const coercedOutcome = coerceOutcomeForFormType(taskFormTypeKey, task.verificationOutcome);
+      if (coercedOutcome.warning) {
+        Logger.warn('VerificationFormScreen', 'Outcome was coerced for task outcome', {
+          taskId: task.id,
+          formType: taskFormTypeKey,
+          rawOutcome: task.verificationOutcome,
+          fallbackOutcome: coercedOutcome.outcome,
+          warning: coercedOutcome.warning,
+        });
+      }
+      setOutcomeWarning(coercedOutcome.warning);
+      setSelectedOutcome(coercedOutcome.outcome);
     }
   }, [task, taskFormTypeKey, selectedOutcome]);
 
@@ -4050,7 +4015,15 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
 
     const allowedOutcomes = getAllowedOutcomes(taskFormTypeKey);
     if (!allowedOutcomes.includes(selectedOutcome)) {
-      setSelectedOutcome(coerceOutcomeForFormType(taskFormTypeKey, selectedOutcome));
+      const coercedOutcome = coerceOutcomeForFormType(taskFormTypeKey, selectedOutcome);
+      Logger.warn('VerificationFormScreen', 'Selected outcome was not allowed and got coerced', {
+        formType: taskFormTypeKey,
+        currentSelectedOutcome: selectedOutcome,
+        fallbackOutcome: coercedOutcome.outcome,
+        warning: coercedOutcome.warning,
+      });
+      setOutcomeWarning(coercedOutcome.warning);
+      setSelectedOutcome(coercedOutcome.outcome);
     }
   }, [selectedOutcome, taskFormTypeKey]);
 
@@ -4060,14 +4033,14 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
       return;
     }
 
-    let isMounted = true;
+    let isActive = true;
 
     const initializeDraft = async () => {
       try {
         const localDraft = task.formDataJson ? JSON.parse(task.formDataJson) : null;
-        if (isMounted && localDraft && typeof localDraft === 'object') {
+        if (isActive && isMountedRef.current && localDraft && typeof localDraft === 'object') {
           setFormValues(localDraft);
-        } else if (isMounted && taskFormTypeKey) {
+        } else if (isActive && isMountedRef.current && taskFormTypeKey) {
           const savedDraft = await getAutoSavedForm(task.id, taskFormTypeKey);
           if (savedDraft) {
             setFormValues(savedDraft);
@@ -4077,7 +4050,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
       } catch (error) {
         console.error('Failed to initialize form draft', error);
       } finally {
-        if (isMounted) {
+        if (isActive && isMountedRef.current) {
           setIsInitialized(true);
         }
       }
@@ -4086,7 +4059,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     initializeDraft();
 
     return () => {
-      isMounted = false;
+      isActive = false;
     };
   }, [getAutoSavedForm, isInitialized, task, taskFormTypeKey, updateTaskFormData]);
 
@@ -4112,41 +4085,79 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
 
   // 1. Fetch exactly the right template for this task when loaded and outcome is set
   useEffect(() => {
-    if (!task || !taskFormTypeKey || !selectedOutcome) return;
+    if (!task || !taskFormTypeKey || !selectedOutcome) {
+      setTemplate(null);
+      setTemplateLoading(false);
+      return;
+    }
+    let isActive = true;
     
     const loadTemplate = async () => {
-      setTemplateLoading(true);
+      if (isMountedRef.current && isActive) {
+        setTemplateLoading(true);
+      }
       try {
         const verificationType = taskFormTypeKey;
-        const normalizedOutcome = coerceOutcomeForFormType(verificationType, selectedOutcome);
+        const coercedOutcome = coerceOutcomeForFormType(verificationType, selectedOutcome);
+        if (coercedOutcome.warning) {
+          Logger.warn('VerificationFormScreen', 'Template load used coerced outcome', {
+            taskId: task.id,
+            formType: verificationType,
+            selectedOutcome,
+            fallbackOutcome: coercedOutcome.outcome,
+            warning: coercedOutcome.warning,
+          });
+          if (isMountedRef.current && isActive) {
+            setOutcomeWarning(coercedOutcome.warning);
+          }
+        }
+        const normalizedOutcome = coercedOutcome.outcome;
 
         switch (verificationType) {
           case 'residence':
-            setTemplate(buildLegacyResidenceTemplate(verificationType, normalizedOutcome));
+            if (isMountedRef.current && isActive) {
+              setTemplate(buildLegacyResidenceTemplate(verificationType, normalizedOutcome));
+            }
             return;
           case 'residence-cum-office':
-            setTemplate(buildLegacyResidenceCumOfficeTemplate(verificationType, normalizedOutcome));
+            if (isMountedRef.current && isActive) {
+              setTemplate(buildLegacyResidenceCumOfficeTemplate(verificationType, normalizedOutcome));
+            }
             return;
           case 'office':
-            setTemplate(buildLegacyOfficeTemplate(verificationType, normalizedOutcome));
+            if (isMountedRef.current && isActive) {
+              setTemplate(buildLegacyOfficeTemplate(verificationType, normalizedOutcome));
+            }
             return;
           case 'business':
-            setTemplate(buildLegacyBusinessTemplate(verificationType, normalizedOutcome));
+            if (isMountedRef.current && isActive) {
+              setTemplate(buildLegacyBusinessTemplate(verificationType, normalizedOutcome));
+            }
             return;
           case 'builder':
-            setTemplate(buildLegacyBuilderTemplate(verificationType, normalizedOutcome));
+            if (isMountedRef.current && isActive) {
+              setTemplate(buildLegacyBuilderTemplate(verificationType, normalizedOutcome));
+            }
             return;
           case 'noc':
-            setTemplate(buildLegacyNocTemplate(verificationType, normalizedOutcome));
+            if (isMountedRef.current && isActive) {
+              setTemplate(buildLegacyNocTemplate(verificationType, normalizedOutcome));
+            }
             return;
           case 'dsa-connector':
-            setTemplate(buildLegacyDsaTemplate(verificationType, normalizedOutcome));
+            if (isMountedRef.current && isActive) {
+              setTemplate(buildLegacyDsaTemplate(verificationType, normalizedOutcome));
+            }
             return;
           case 'property-individual':
-            setTemplate(buildLegacyPropertyIndividualTemplate(verificationType, normalizedOutcome));
+            if (isMountedRef.current && isActive) {
+              setTemplate(buildLegacyPropertyIndividualTemplate(verificationType, normalizedOutcome));
+            }
             return;
           case 'property-apf':
-            setTemplate(buildLegacyPropertyApfTemplate(verificationType, normalizedOutcome));
+            if (isMountedRef.current && isActive) {
+              setTemplate(buildLegacyPropertyApfTemplate(verificationType, normalizedOutcome));
+            }
             return;
           default:
             break;
@@ -4160,25 +4171,35 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
 
         if (rows.length > 0) {
           const tplData = rows[0];
-          const localSections = JSON.parse(tplData.sections_json).map((section: any) => ({
+          const parsedSections = (() => {
+            try {
+              const parsed = JSON.parse(tplData.sections_json);
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          })();
+          const localSections = parsedSections.map((section: any) => ({
             ...section,
             fields: Array.isArray(section.fields)
               ? section.fields.filter((field: any) => field.name !== 'outcome')
               : [],
           }));
-          setTemplate({
-            id: 'local',
-            formType: verificationType,
-            verificationType,
-            outcome: normalizedOutcome,
-            name: tplData.name,
-            description: tplData.description || '',
-            sections: localSections,
-            version: '1.0',
-            isActive: true,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString()
-          });
+          if (isMountedRef.current && isActive) {
+            setTemplate({
+              id: 'local',
+              formType: verificationType,
+              verificationType,
+              outcome: normalizedOutcome,
+              name: tplData.name,
+              description: tplData.description || '',
+              sections: localSections,
+              version: '1.0',
+              isActive: true,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+          }
           return;
         }
 
@@ -4214,32 +4235,40 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
           ],
         );
 
-        setTemplate({
-          ...backendTemplate,
-          outcome: normalizedOutcome,
-        });
+        if (isMountedRef.current && isActive) {
+          setTemplate({
+            ...backendTemplate,
+            outcome: normalizedOutcome,
+          });
+        }
       } catch (e) {
         console.error('Error loading template', e);
       } finally {
-        setTemplateLoading(false);
+        if (isMountedRef.current && isActive) {
+          setTemplateLoading(false);
+        }
       }
     };
 
     loadTemplate();
+    return () => {
+      isActive = false;
+    };
   }, [task, selectedOutcome, taskFormTypeKey]);
 
   const handleAddPhoto = () => {
-    navigation.navigate('CameraCapture', { taskId, componentType: 'photo' });
+    navigation.navigate('CameraCapture', { taskId: effectiveTaskId, componentType: 'photo' });
   };
 
   const handleAddSelfie = () => {
-    navigation.navigate('CameraCapture', { taskId, componentType: 'selfie' });
+    navigation.navigate('CameraCapture', { taskId: effectiveTaskId, componentType: 'selfie' });
   };
 
   const handleOutcomeSelect = async (outcome: ResidenceOutcome) => {
     if (!task) return;
     try {
       await updateVerificationOutcome(task.id, outcome);
+      setOutcomeWarning(null);
       setSelectedOutcome(outcome);
     } catch (e) {
       console.error('Failed to set outcome', e);
@@ -4309,7 +4338,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
       });
 
       Alert.alert('Success', 'Verification Form saved offline and queued for upload.', [
-        { text: 'OK', onPress: () => navigation.navigate('Main', { screen: 'Tasks' }) }
+        { text: 'OK', onPress: () => navigation.navigate('Main', { screen: 'Completed' }) }
       ]);
 
     } catch (err: any) {
@@ -4323,13 +4352,19 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     return (
       <View style={[styles.centerContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[styles.centerLoadingText, { color: theme.colors.textSecondary }]}>Loading verification form...</Text>
       </View>
     );
   }
 
   const renderOutcomeSelector = () => (
-    <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
-      <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>Step 1: Select Outcome</Text>
+    <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+      <View style={styles.stepHeader}>
+        <View style={[styles.stepBadge, { backgroundColor: theme.colors.primary }]}>
+          <Text style={[styles.stepBadgeText, { color: theme.colors.surface }]}>1</Text>
+        </View>
+        <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>Select Outcome</Text>
+      </View>
       <View style={styles.outcomeWrapper}>
         {outcomeOptions.map(option => {
           const isActive = selectedOutcome === option.value;
@@ -4364,18 +4399,38 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
           );
         })}
       </View>
+      {!selectedOutcome ? (
+        <Text style={[styles.stateHintText, { color: theme.colors.textSecondary }]}>
+          Select an outcome to load the exact form fields.
+        </Text>
+      ) : null}
+      {outcomeWarning ? (
+        <View style={[styles.outcomeWarningCard, { backgroundColor: `${theme.colors.warning}18`, borderColor: `${theme.colors.warning}40` }]}>
+          <Icon name="warning-outline" size={16} color={theme.colors.warning} />
+          <Text style={[styles.outcomeWarningText, { color: theme.colors.warning }]}>
+            {outcomeWarning}
+          </Text>
+        </View>
+      ) : null}
     </View>
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) + 32 }]}
+        showsVerticalScrollIndicator={false}>
 
         {renderOutcomeSelector()}
 
         {/* Media Block */}
-        <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>Step 2: Verification Photos</Text>
+        <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <View style={styles.stepHeader}>
+            <View style={[styles.stepBadge, { backgroundColor: theme.colors.primary }]}>
+              <Text style={[styles.stepBadgeText, { color: theme.colors.surface }]}>2</Text>
+            </View>
+            <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>Verification Photos</Text>
+          </View>
 
           <View style={styles.photoHeader}>
             <Text style={[styles.photoLabel, { color: theme.colors.text }]}>General Photos (min 5)</Text>
@@ -4385,7 +4440,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
               <Icon name="camera" size={20} color={theme.colors.surface} />
             </TouchableOpacity>
           </View>
-          <PhotoGallery taskId={taskId} componentType="photo" />
+          <PhotoGallery taskId={effectiveTaskId} componentType="photo" />
 
           <View style={styles.selfieHeader}>
             <Text style={[styles.photoLabel, { color: theme.colors.text }]}>Selfie (min 1)</Text>
@@ -4395,51 +4450,88 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
               <Icon name="person" size={20} color={theme.colors.surface} />
             </TouchableOpacity>
           </View>
-          <PhotoGallery taskId={taskId} componentType="selfie" />
+          <PhotoGallery taskId={effectiveTaskId} componentType="selfie" />
         </View>
 
         {/* Dynamic Form Block */}
-        {selectedOutcome && (
-          <View style={[styles.section, { backgroundColor: theme.colors.surface }]}>
-            <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>Step 3: Verification Details</Text>
-            {templateLoading ? (
-              <ActivityIndicator size="small" color={theme.colors.primary} style={styles.loadingContainer} />
-            ) : template ? (
-              <DynamicFormBuilder
-                template={template}
-                formValues={formValues}
-                onValuesChange={setFormValues}
-              />
-            ) : (
-              <Text style={[styles.infoText, { color: theme.colors.textSecondary }]}>No form template found for this outcome.</Text>
-            )}
+        <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+          <View style={styles.stepHeader}>
+            <View style={[styles.stepBadge, { backgroundColor: theme.colors.primary }]}>
+              <Text style={[styles.stepBadgeText, { color: theme.colors.surface }]}>3</Text>
+            </View>
+            <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>Verification Details</Text>
           </View>
-        )}
+          {!selectedOutcome ? (
+            <View style={[styles.stateCard, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
+              <Icon name="information-circle-outline" size={18} color={theme.colors.textMuted} />
+              <Text style={[styles.stateCardText, { color: theme.colors.textSecondary }]}>
+                Choose an outcome in Step 1 to continue.
+              </Text>
+            </View>
+          ) : templateLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={theme.colors.primary} />
+              <Text style={[styles.stateHintText, { color: theme.colors.textSecondary }]}>
+                Loading form fields...
+              </Text>
+            </View>
+          ) : template ? (
+            <DynamicFormBuilder
+              template={template}
+              formValues={formValues}
+              onValuesChange={setFormValues}
+            />
+          ) : (
+            <View style={[styles.stateCard, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
+              <Icon name="alert-circle-outline" size={18} color={theme.colors.warning} />
+              <Text style={[styles.stateCardText, { color: theme.colors.textSecondary }]}>
+                No form template found for this outcome.
+              </Text>
+            </View>
+          )}
+        </View>
 
         <View style={styles.spacer} />
       </ScrollView>
 
       {/* Submit Action Footer */}
-      <View style={[styles.footer, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
+      <View
+        style={[
+          styles.footer,
+          {
+            backgroundColor: theme.colors.surface,
+            borderTopColor: theme.colors.border,
+            paddingBottom: Math.max(insets.bottom, 16),
+          },
+        ]}>
         <TouchableOpacity 
           style={[
             styles.submitButton, 
-            { backgroundColor: theme.colors.primary },
+            { backgroundColor: selectedOutcome ? theme.colors.primary : theme.colors.border },
             (!selectedOutcome || isSubmitting) && styles.submitButtonDisabled
           ]}
           onPress={handleSubmit}
           disabled={isSubmitting || !selectedOutcome}>
           {isSubmitting ? (
-            <ActivityIndicator color={theme.colors.surface} />
+            <>
+              <ActivityIndicator color={theme.colors.surface} />
+              <Text style={[styles.submitText, { color: theme.colors.surface }]}>Saving...</Text>
+            </>
           ) : (
             <>
-              <Icon name="cloud-upload-outline" size={20} color={theme.colors.surface} />
-              <Text style={[styles.submitText, { color: theme.colors.surface }]}>Submit Verification</Text>
+              <Icon
+                name={selectedOutcome ? 'cloud-upload-outline' : 'lock-closed-outline'}
+                size={20}
+                color={theme.colors.surface}
+              />
+              <Text style={[styles.submitText, { color: theme.colors.surface }]}>
+                {selectedOutcome ? 'Submit Verification' : 'Select Outcome First'}
+              </Text>
             </>
           )}
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -4454,34 +4546,77 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  centerLoadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    fontWeight: '500',
   },
   section: {
     padding: 16,
     borderRadius: 16,
     marginBottom: 16,
+    borderWidth: 1,
+  },
+  stepHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  stepBadge: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 8,
+  },
+  stepBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   sectionTitle: {
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    marginBottom: 16,
+    letterSpacing: 1.2,
   },
   outcomeWrapper: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
+  stateHintText: {
+    marginTop: 2,
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  outcomeWarningCard: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  outcomeWarningText: {
+    marginLeft: 8,
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
   outcomeBtn: {
     width: '48%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: 52,
+    minHeight: 54,
     borderRadius: 12,
     borderWidth: 1,
     marginBottom: 12,
-    paddingHorizontal: 8,
+    paddingHorizontal: 10,
   },
   outcomeBtnActive: {
     elevation: 2,
@@ -4492,8 +4627,10 @@ const styles = StyleSheet.create({
   },
   outcomeText: {
     marginLeft: 8,
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
+    textAlign: 'center',
+    flexShrink: 1,
   },
   activeOutcomeText: {
     fontWeight: 'bold',
@@ -4512,7 +4649,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   photoLabel: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
   },
   addBtn: {
@@ -4528,8 +4665,23 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: 20,
   },
+  stateCard: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  stateCardText: {
+    fontSize: 13,
+    fontWeight: '500',
+    flex: 1,
+  },
   footer: {
-    padding: 24,
+    paddingTop: 14,
+    paddingHorizontal: 16,
     paddingBottom: 40,
     borderTopWidth: 1,
   },
@@ -4541,7 +4693,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   submitButtonDisabled: {
-    opacity: 0.5,
+    opacity: 1,
   },
   submitText: {
     fontSize: 18,
@@ -4550,6 +4702,9 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     padding: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   spacer: {
     height: 100,

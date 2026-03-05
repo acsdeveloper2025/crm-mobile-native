@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DatabaseService } from '../../database/DatabaseService';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
@@ -18,9 +19,11 @@ interface SyncQueueItem {
 
 export const SyncLogsScreen = () => {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const [logs, setLogs] = useState<SyncQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'ALL' | 'FAILED'>('FAILED');
+  const failedCount = logs.filter(item => item.status === 'FAILED').length;
 
   const loadLogs = useCallback(async () => {
     try {
@@ -117,7 +120,10 @@ export const SyncLogsScreen = () => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+      <View style={[styles.screenHeader, { borderBottomColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
+        <Text style={[styles.screenTitle, { color: theme.colors.text }]}>Diagnostics & Sync Logs</Text>
+      </View>
       {/* Header Tabs */}
       <View style={[styles.tabContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
         <TouchableOpacity 
@@ -155,22 +161,46 @@ export const SyncLogsScreen = () => {
         keyExtractor={item => item.id}
         renderItem={renderItem}
         refreshControl={<RefreshControl refreshing={loading} onRefresh={loadLogs} tintColor={theme.colors.primary} />}
-        contentContainerStyle={styles.listContent}
+        contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Icon name="checkmark-circle-outline" size={64} color={theme.colors.success} />
-            <Text style={[styles.emptyText, { color: theme.colors.text }]}>Sync queue is healthy.</Text>
-            <Text style={[styles.emptySubText, { color: theme.colors.textMuted }]}>No {filter.toLowerCase()} logs found.</Text>
+            {loading ? (
+              <>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={[styles.emptyText, { color: theme.colors.text }]}>Loading sync logs...</Text>
+              </>
+            ) : (
+              <>
+                <Icon name="checkmark-circle-outline" size={64} color={theme.colors.success} />
+                <Text style={[styles.emptyText, { color: theme.colors.text }]}>Sync queue is healthy.</Text>
+                <Text style={[styles.emptySubText, { color: theme.colors.textMuted }]}>No {filter.toLowerCase()} logs found.</Text>
+              </>
+            )}
           </View>
         }
       />
 
-      <View style={[styles.footer, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
+      <View
+        style={[
+          styles.footer,
+          {
+            backgroundColor: theme.colors.surface,
+            borderTopColor: theme.colors.border,
+            paddingBottom: Math.max(insets.bottom, 12),
+          },
+        ]}>
         <TouchableOpacity 
-          style={[styles.actionButton, { backgroundColor: theme.colors.primary }]} 
-          onPress={handleRetryAll}>
+          style={[
+            styles.actionButton,
+            { backgroundColor: theme.colors.primary },
+            failedCount === 0 && styles.actionButtonDisabled,
+          ]} 
+          onPress={handleRetryAll}
+          disabled={failedCount === 0}>
           <Icon name="refresh" size={20} color={theme.colors.surface} />
-          <Text style={[styles.actionButtonText, { color: theme.colors.surface }]}>Retry Failed</Text>
+          <Text style={[styles.actionButtonText, { color: theme.colors.surface }]}>
+            Retry Failed {failedCount > 0 ? `(${failedCount})` : ''}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={[styles.actionButton, styles.dangerButton, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.danger }]} 
@@ -179,7 +209,7 @@ export const SyncLogsScreen = () => {
           <Text style={[styles.actionButtonText, styles.dangerText, { color: theme.colors.danger }]}>Clear Logs</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -187,9 +217,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  screenHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+  },
+  screenTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+  },
   tabContainer: {
     flexDirection: 'row',
-    padding: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderBottomWidth: 1,
   },
   tab: {
@@ -305,6 +345,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+  },
+  actionButtonDisabled: {
+    opacity: 0.5,
   },
   actionButtonText: {
     fontSize: 14,

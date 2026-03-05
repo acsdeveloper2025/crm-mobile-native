@@ -110,22 +110,24 @@ export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
         <Text style={[styles.formDescription, { color: theme.colors.textSecondary }]}>{template.description}</Text>
       ) : null}
 
-      {template.sections
+      {(Array.isArray(template.sections) ? template.sections : [])
         .filter((section: FormSectionTemplate) => isSectionVisible(section, formValues))
         .map((section: FormSectionTemplate, index: number) => {
-          const visibleFields = section.fields.filter(field => isFieldVisible(field, formValues));
+          const sectionKey = section.id || `${section.title || 'section'}_${index}`;
+          const visibleFields = (Array.isArray(section.fields) ? section.fields : [])
+            .filter(field => isFieldVisible(field, formValues));
 
           if (visibleFields.length === 0) {
             return null;
           }
 
           return (
-            <View key={section.id} style={[styles.sectionContainer, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
+            <View key={sectionKey} style={[styles.sectionContainer, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
               <View style={[styles.sectionHeader, { backgroundColor: theme.colors.surfaceAlt, borderBottomColor: theme.colors.border }]}>
                 <View style={[styles.sectionBadge, { backgroundColor: theme.colors.primary }]}>
                   <Text style={[styles.sectionBadgeText, { color: theme.colors.surface }]}>{index + 1}</Text>
                 </View>
-                <View>
+                <View style={styles.sectionTextWrap}>
                   <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{section.title}</Text>
                   {section.description ? (
                     <Text style={[styles.sectionDesc, { color: theme.colors.textSecondary }]}>{section.description}</Text>
@@ -134,15 +136,18 @@ export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
               </View>
 
               <View style={styles.fieldsContainer}>
-                {visibleFields.map(field => (
-                  <DynamicFieldRenderer
-                    key={field.id}
-                    field={{ ...field, required: isFieldRequired(field, formValues) }}
-                    value={formValues[field.id]}
-                    onChange={handleFieldChange}
-                    error={validationErrors[field.id]}
-                  />
-                ))}
+                {visibleFields.map((field, fieldIndex) => {
+                  const valueKey = field.name || field.id;
+                  return (
+                    <DynamicFieldRenderer
+                      key={`${sectionKey}_${field.id || 'field'}_${fieldIndex}`}
+                      field={{ ...field, id: valueKey, required: isFieldRequired(field, formValues) }}
+                      value={formValues[valueKey]}
+                      onChange={handleFieldChange}
+                      error={validationErrors[valueKey]}
+                    />
+                  );
+                })}
               </View>
             </View>
           );
@@ -153,7 +158,7 @@ export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    paddingVertical: 8,
+    paddingTop: 4,
   },
   emptyContainer: {
     padding: 20,
@@ -164,20 +169,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   formTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
+    fontSize: 18,
+    fontWeight: '700',
     color: '#111827',
     marginBottom: 4,
   },
   formDescription: {
     fontSize: 14,
     color: '#4B5563',
-    marginBottom: 16,
+    marginBottom: 14,
   },
   sectionContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 14,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -201,11 +206,14 @@ const styles = StyleSheet.create({
   },
   sectionBadgeText: {
     color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  sectionTextWrap: {
+    flex: 1,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#1F2937',
   },
@@ -213,8 +221,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
+    lineHeight: 16,
   },
   fieldsContainer: {
-    padding: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
   }
 });

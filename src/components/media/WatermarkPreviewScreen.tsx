@@ -1,5 +1,6 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, Image, ActivityIndicator, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import MapView, { Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
@@ -13,6 +14,19 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
   const [isSaving, setIsSaving] = useState(false);
   const [location, setLocation] = useState<{lat: number; lng: number; alt: number; spd: number} | null>(null);
   const [timestamp, setTimestamp] = useState('');
+  const insets = useSafeAreaInsets();
+  const dynamicStyles = useMemo(
+    () =>
+      StyleSheet.create({
+        watermarkBase: {
+          bottom: Math.max(insets.bottom, 16),
+        },
+        actionOverlay: {
+          top: Math.max(insets.top, 16),
+        },
+      }),
+    [insets.bottom, insets.top],
+  );
 
   useEffect(() => {
     // 1. Get accurate time
@@ -69,7 +83,8 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={styles.loadingText}>Acquiring High-Accuracy GPS...</Text>
+        <Text style={styles.loadingText}>Acquiring high-accuracy GPS...</Text>
+        <Text style={styles.loadingSubText}>Please keep the device steady for geo-tagging.</Text>
       </View>
     );
   }
@@ -86,7 +101,7 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
         />
         
         {/* Watermark Overlay pinned to bottom left exactly like User reference */}
-        <View style={styles.watermarkBase}>
+        <View style={[styles.watermarkBase, dynamicStyles.watermarkBase]}>
           
           <View style={styles.watermarkRow}>
             {/* 1. Mini map snippet */}
@@ -120,7 +135,7 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
       </ViewShot>
 
       {/* Action constraints NOT captured in viewshot, overlaid on top */}
-      <View style={styles.actionOverlay}>
+      <View style={[styles.actionOverlay, dynamicStyles.actionOverlay]}>
         <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()}>
           <Icon name="close" size={24} color="white" />
           <Text style={styles.btnText}>Retake</Text>
@@ -134,6 +149,11 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
             </>
           )}
         </TouchableOpacity>
+      </View>
+      <View style={[styles.bottomHintWrap, { bottom: Math.max(insets.bottom, 12) }]}>
+        <Text style={styles.bottomHintText}>
+          {isSaving ? 'Saving photo and returning to form...' : 'Review watermark and save to continue.'}
+        </Text>
       </View>
     </View>
   );
@@ -153,6 +173,13 @@ const styles = StyleSheet.create({
   loadingText: {
     color: 'white',
     marginTop: 12,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  loadingSubText: {
+    color: '#D1D5DB',
+    marginTop: 6,
+    fontSize: 12,
   },
   viewShotContainer: {
     flex: 1, 
@@ -160,9 +187,9 @@ const styles = StyleSheet.create({
   },
   watermarkBase: {
     position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
+    bottom: 16,
+    left: 16,
+    right: 16,
     padding: 8,
   },
   watermarkRow: {
@@ -209,9 +236,9 @@ const styles = StyleSheet.create({
   },
   actionOverlay: {
     position: 'absolute',
-    top: 50,
-    left: 20,
-    right: 20,
+    top: 16,
+    left: 16,
+    right: 16,
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
@@ -236,5 +263,20 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 16,
     marginLeft: 4,
-  }
+  },
+  bottomHintWrap: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    alignItems: 'center',
+  },
+  bottomHintText: {
+    color: 'white',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    fontSize: 12,
+    fontWeight: '500',
+  },
 });

@@ -3,6 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Icon from 'react-native-vector-icons/Ionicons';
 
@@ -10,8 +11,13 @@ import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { DashboardScreen } from '../screens/main/DashboardScreen';
 import { ProfileScreen } from '../screens/main/ProfileScreen';
-import { TaskListScreen } from '../screens/tasks/TaskListScreen';
+import { DigitalIdCardScreen } from '../screens/main/DigitalIdCardScreen';
+import { AssignedTasksScreen } from '../screens/tasks/AssignedTasksScreen';
+import { InProgressTasksScreen } from '../screens/tasks/InProgressTasksScreen';
+import { SavedTasksScreen } from '../screens/tasks/SavedTasksScreen';
+import { CompletedTasksScreen } from '../screens/tasks/CompletedTasksScreen';
 import { TaskDetailScreen } from '../screens/tasks/TaskDetailScreen';
+import { TaskAttachmentsScreen } from '../screens/tasks/TaskAttachmentsScreen';
 import { CameraCaptureScreen } from '../components/media/CameraCaptureScreen';
 import { WatermarkPreviewScreen } from '../components/media/WatermarkPreviewScreen';
 import { VerificationFormScreen } from '../screens/forms/VerificationFormScreen';
@@ -28,23 +34,36 @@ const TabBarIcon = ({ route, focused, color, size }: any) => {
 
   if (route.name === 'Dashboard') {
     iconName = focused ? 'home' : 'home-outline';
-  } else if (route.name === 'Tasks') {
+  } else if (route.name === 'Assigned') {
     iconName = focused ? 'list' : 'list-outline';
-  } else if (route.name === 'Profile') {
-    iconName = focused ? 'person' : 'person-outline';
+  } else if (route.name === 'InProgress') {
+    iconName = focused ? 'time' : 'time-outline';
+  } else if (route.name === 'Saved') {
+    iconName = focused ? 'star' : 'star-outline';
+  } else if (route.name === 'Completed') {
+    iconName = focused ? 'checkmark-circle' : 'checkmark-circle-outline';
   }
 
   return <Icon name={iconName} size={size} color={color} />;
 };
 
-const getTabScreenOptions = ({ route }: any, theme: any) => ({
+const getTabScreenOptions = ({ route }: any, theme: any, insets: { bottom: number }) => ({
   tabBarIcon: (props: any) => <TabBarIcon route={route} {...props} />,
   tabBarActiveTintColor: theme.colors.primary,
   tabBarInactiveTintColor: theme.colors.textMuted,
-  headerShown: true,
+  headerShown: false,
+  tabBarLabelStyle: {
+    fontSize: 10,
+    fontWeight: '600' as const,
+    marginBottom: 2,
+  },
   tabBarStyle: {
     backgroundColor: theme.colors.surface,
     borderTopColor: theme.colors.border,
+    borderTopWidth: 1,
+    minHeight: 56 + Math.max(insets.bottom, 8),
+    paddingTop: 8,
+    paddingBottom: Math.max(insets.bottom, 8),
   },
   headerStyle: {
     backgroundColor: theme.colors.surface,
@@ -54,23 +73,37 @@ const getTabScreenOptions = ({ route }: any, theme: any) => ({
 
 const MainTabs = () => {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   
   return (
-    <Tab.Navigator screenOptions={(props) => getTabScreenOptions(props, theme)}>
+    <Tab.Navigator
+      initialRouteName="Dashboard"
+      screenOptions={(props) => getTabScreenOptions(props, theme, insets)}
+    >
       <Tab.Screen 
         name="Dashboard" 
         component={DashboardScreen} 
-        options={{ title: 'Overview' }}
+        options={{ title: 'Dashboard', tabBarLabel: 'Dashboard' }}
       />
       <Tab.Screen 
-        name="Tasks" 
-        component={TaskListScreen} 
-        options={{ title: 'Tasks' }}
+        name="Assigned" 
+        component={AssignedTasksScreen}
+        options={{ title: 'Assigned Tasks', tabBarLabel: 'Assigned' }}
       />
       <Tab.Screen 
-        name="Profile" 
-        component={ProfileScreen} 
-        options={{ title: 'Profile' }}
+        name="InProgress"
+        component={InProgressTasksScreen}
+        options={{ title: 'In Progress Tasks', tabBarLabel: 'In Progress' }}
+      />
+      <Tab.Screen
+        name="Saved"
+        component={SavedTasksScreen}
+        options={{ title: 'Saved for Offline', tabBarLabel: 'Saved' }}
+      />
+      <Tab.Screen
+        name="Completed"
+        component={CompletedTasksScreen}
+        options={{ title: 'Completed Tasks', tabBarLabel: 'Completed' }}
       />
     </Tab.Navigator>
   );
@@ -86,7 +119,13 @@ export const RootNavigator = () => {
   useEffect(() => {
     const checkAppVersion = async () => {
       try {
-        const result = await VersionService.checkVersion();
+        const timeoutFallback = new Promise<UpdateInfo | null>(resolve => {
+          setTimeout(() => resolve(null), 2500);
+        });
+        const result = await Promise.race([
+          VersionService.checkVersion(),
+          timeoutFallback,
+        ]);
         setVersionResult(result);
       } catch (e) {
         console.error('Failed to check version:', e);
@@ -137,6 +176,11 @@ export const RootNavigator = () => {
               component={TaskDetailScreen} 
               options={{ headerShown: true, title: 'Task Details', headerBackTitle: 'Back' }} 
             />
+            <Stack.Screen
+              name="TaskAttachments"
+              component={TaskAttachmentsScreen}
+              options={{ headerShown: true, title: 'Attachments', headerBackTitle: 'Back' }}
+            />
             <Stack.Screen 
               name="CameraCapture" 
               component={CameraCaptureScreen} 
@@ -156,6 +200,16 @@ export const RootNavigator = () => {
               name="SyncLogs" 
               component={SyncLogsScreen} 
               options={{ headerShown: true, title: 'Sync Diagnostics', headerBackTitle: 'Back' }} 
+            />
+            <Stack.Screen
+              name="Profile"
+              component={ProfileScreen}
+              options={{ headerShown: true, title: 'Profile', headerBackTitle: 'Back' }}
+            />
+            <Stack.Screen
+              name="DigitalIdCard"
+              component={DigitalIdCardScreen}
+              options={{ headerShown: true, title: 'Digital ID Card', headerBackTitle: 'Back' }}
             />
           </>
         )}

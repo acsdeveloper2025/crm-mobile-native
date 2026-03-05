@@ -13,7 +13,6 @@ import { SyncService } from '../services/SyncService';
 import { StorageService } from '../services/StorageService';
 import { AuthService } from '../services/AuthService';
 import { NetworkService } from '../services/NetworkService';
-import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import type { GeoLocation, MobileFormSubmissionRequest } from '../types/api';
 import type { LocalAttachment, LocalTask } from '../types/mobile';
@@ -27,6 +26,8 @@ import {
 } from '../utils/formTypeKey';
 
 const TAG = 'TaskContext';
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 interface SubmitTaskFormInput {
   taskId: string;
@@ -137,6 +138,52 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const repairTaskIdentity = useCallback(async () => {
+    const brokenRows = await DatabaseService.query<{ id: string; verification_task_id: string }>(
+      `SELECT id, verification_task_id
+       FROM tasks
+       WHERE verification_task_id IS NOT NULL
+         AND verification_task_id != ''
+         AND id != verification_task_id`,
+    );
+
+    for (const row of brokenRows) {
+      const currentId = row.id;
+      const targetId = row.verification_task_id;
+
+      const targetExists = await DatabaseService.query<{ id: string }>(
+        'SELECT id FROM tasks WHERE id = ? LIMIT 1',
+        [targetId],
+      );
+
+      await DatabaseService.execute(
+        'UPDATE attachments SET task_id = ? WHERE task_id = ?',
+        [targetId, currentId],
+      );
+      await DatabaseService.execute(
+        'UPDATE locations SET task_id = ? WHERE task_id = ?',
+        [targetId, currentId],
+      );
+      await DatabaseService.execute(
+        'UPDATE form_submissions SET task_id = ? WHERE task_id = ?',
+        [targetId, currentId],
+      );
+      await DatabaseService.execute(
+        "UPDATE sync_queue SET entity_id = ? WHERE entity_type IN ('TASK', 'TASK_STATUS') AND entity_id = ?",
+        [targetId, currentId],
+      );
+
+      if (targetExists.length > 0) {
+        await DatabaseService.execute('DELETE FROM tasks WHERE id = ?', [currentId]);
+      } else {
+        await DatabaseService.execute(
+          'UPDATE tasks SET id = ?, verification_task_id = ? WHERE id = ?',
+          [targetId, targetId, currentId],
+        );
+      }
+    }
+  }, []);
+
   const loadTasks = useCallback(async (): Promise<LocalTask[]> => {
     const rows = await DatabaseService.query<LocalTask>(
       `SELECT * FROM tasks
@@ -158,6 +205,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       setError(null);
+      await repairTaskIdentity();
       await loadTasks();
     } catch (err: any) {
       Logger.error(TAG, 'Failed to load tasks', err);
@@ -165,7 +213,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  }, [loadTasks]);
+  }, [loadTasks, repairTaskIdentity]);
 
   useEffect(() => {
     refreshTasks();
@@ -206,19 +254,63 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [getTask, replaceTask]);
 
+  const resolveBackendTaskId = useCallback((task: LocalTask): string => {
+    const preferred = (task.verificationTaskId || '').trim();
+    if (UUID_REGEX.test(preferred)) {
+      return preferred;
+    }
+
+    const fallback = (task.id || '').trim();
+    if (UUID_REGEX.test(fallback)) {
+      if (preferred) {
+        Logger.warn(
+          TAG,
+          `Invalid verificationTaskId for case ${task.caseId}. Falling back to local task id.`,
+        );
+      }
+      return fallback;
+    }
+
+    throw new Error(`Invalid task identifier for case ${task.caseId}`);
+  }, []);
+
   const enqueueTaskUpdate = useCallback(async (
     task: LocalTask,
     payload: Record<string, unknown>,
     priority: number = SYNC_PRIORITY.NORMAL,
   ) => {
+    const backendTaskId = resolveBackendTaskId(task);
     await SyncQueue.enqueue(
       'UPDATE',
       'TASK',
-      task.verificationTaskId || task.id,
+      backendTaskId,
       { localTaskId: task.id, ...payload },
       priority,
     );
-  }, []);
+  }, [resolveBackendTaskId]);
+
+  const enqueueTaskStatusUpdate = useCallback(async (
+    task: LocalTask,
+    status: string,
+    extraPayload: Record<string, unknown> = {},
+    priority: number = SYNC_PRIORITY.CRITICAL,
+  ) => {
+    const backendTaskId = resolveBackendTaskId(task);
+    await SyncQueue.enqueue(
+      'UPDATE',
+      'TASK_STATUS',
+      backendTaskId,
+      {
+        localTaskId: task.id,
+        taskId: backendTaskId,
+        status,
+        action: String(status).toUpperCase(),
+        timestamp: new Date().toISOString(),
+        ...extraPayload,
+      },
+      priority,
+    );
+  }, [resolveBackendTaskId]);
 
   const updateTaskStatus = useCallback(async (taskId: string, status: string) => {
     const task = await getTask(taskId);
@@ -245,14 +337,22 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     await DatabaseService.execute(sql, params);
 
-    if (status === TaskStatus.InProgress) {
-      await enqueueTaskUpdate(task, { action: 'start' }, SYNC_PRIORITY.HIGH);
-    } else if (status === TaskStatus.Completed) {
-      await enqueueTaskUpdate(task, { action: 'complete' }, SYNC_PRIORITY.HIGH);
+    if (status === TaskStatus.InProgress || status === TaskStatus.Completed) {
+      await enqueueTaskStatusUpdate(task, status, {}, SYNC_PRIORITY.CRITICAL);
+
+      // Best effort online flush; local-first write already committed above.
+      try {
+        const online = await NetworkService.checkConnection();
+        if (online) {
+          await SyncService.performSync();
+        }
+      } catch (syncError) {
+        Logger.warn(TAG, 'Immediate sync deferred after local status update', syncError);
+      }
     }
 
     await reloadTask(taskId);
-  }, [enqueueTaskUpdate, getTask, reloadTask]);
+  }, [enqueueTaskStatusUpdate, getTask, reloadTask]);
 
   const startTask = useCallback(async (taskId: string) => {
     await updateTaskStatus(taskId, TaskStatus.InProgress);
@@ -333,8 +433,18 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ],
     );
 
+    await enqueueTaskStatusUpdate(
+      task,
+      nextStatus,
+      {
+        isSaved,
+        savedAt: isSaved ? now : null,
+      },
+      SYNC_PRIORITY.CRITICAL,
+    );
+
     await reloadTask(taskId);
-  }, [getTask, reloadTask]);
+  }, [enqueueTaskStatusUpdate, getTask, reloadTask]);
 
   const revokeTask = useCallback(async (taskId: string, reason: RevokeReason) => {
     const task = await getTask(taskId);
@@ -356,13 +466,14 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       [reason, now, now, taskId],
     );
 
-    await enqueueTaskUpdate(
+    await enqueueTaskStatusUpdate(
       task,
-      { action: 'revoke', reason, revoke_reason: reason },
-      SYNC_PRIORITY.HIGH,
+      'REVOKED',
+      { reason, revoke_reason: reason },
+      SYNC_PRIORITY.CRITICAL,
     );
     await reloadTask(taskId);
-  }, [enqueueTaskUpdate, getTask, reloadTask]);
+  }, [enqueueTaskStatusUpdate, getTask, reloadTask]);
 
   const setTaskPriority = useCallback(async (taskId: string, priority: number | null) => {
     if (priority === null) {
@@ -408,42 +519,16 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const persistAutoSave = useCallback(async (taskId: string, payload: AutoSavePayload) => {
     const timestamp = payload.timestamp || new Date().toISOString();
-    const task = await getTask(taskId);
 
     await StorageService.setJson(AUTO_SAVE_KEY(taskId), {
       ...payload,
       timestamp,
     });
-
-    if (!task) {
-      return;
-    }
-
-    const formTypeKey = resolveFormTypeKey({
-      formType: payload.formType,
-      verificationTypeCode: task.verificationTypeCode || null,
-      verificationTypeName: task.verificationTypeName || null,
-      verificationType: task.verificationType || null,
-    });
-
-    if (!formTypeKey) {
-      return;
-    }
-
-    try {
-      await ApiClient.post(ENDPOINTS.TASKS.DETAIL(task.verificationTaskId || task.id) + '/auto-save', {
-        formType: toBackendFormTypeKey(formTypeKey),
-        formData: payload.formData,
-        timestamp,
-      });
-    } catch (err) {
-      Logger.warn(TAG, `Auto-save sync deferred for task ${taskId}`, err);
-    }
-  }, [getTask]);
+  }, []);
 
   const getAutoSavedForm = useCallback(async (
     taskId: string,
-    formType: string,
+    _formType: string,
   ): Promise<Record<string, unknown> | null> => {
     const local = await StorageService.getJson<{
       formType: string;
@@ -453,41 +538,15 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (local?.formData) {
       return local.formData;
     }
-
-    const task = await getTask(taskId);
-    if (!task) {
-      return null;
-    }
-
-    const formTypeKey = resolveFormTypeKey({
-      formType,
-      verificationTypeCode: task.verificationTypeCode || null,
-      verificationTypeName: task.verificationTypeName || null,
-      verificationType: task.verificationType || null,
-    });
-    if (!formTypeKey) {
-      return null;
-    }
-
-    try {
-      const response = await ApiClient.get<{
-        success: boolean;
-        data?: { formData?: Record<string, unknown> };
-      }>(
-        `${ENDPOINTS.TASKS.DETAIL(task.verificationTaskId || task.id)}/auto-save/${encodeURIComponent(toBackendFormTypeKey(formTypeKey))}`,
-      );
-
-      return response.data?.formData ?? null;
-    } catch {
-      return null;
-    }
-  }, [getTask]);
+    return null;
+  }, []);
 
   const submitTaskForm = useCallback(async (input: SubmitTaskFormInput) => {
     const task = await getTask(input.taskId);
     if (!task) {
       throw new Error('Task not found');
     }
+    const backendTaskId = resolveBackendTaskId(task);
 
     const submissionId = uuidv4();
     const now = new Date().toISOString();
@@ -586,10 +645,10 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } = {
       submissionId,
       localTaskId: task.id,
-      taskId: task.verificationTaskId || task.id,
-      visitId: task.verificationTaskId || task.id,
+      taskId: backendTaskId,
+      visitId: backendTaskId,
       caseId: String(task.caseId),
-      verificationTaskId: task.verificationTaskId || task.id,
+      verificationTaskId: backendTaskId,
       formType: backendFormType,
       formData: mergedFormData,
       attachmentIds: attachments.map(attachment => attachment.id),
@@ -674,7 +733,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
            json_extract(payload_json, '$.localTaskId') = ?
            OR json_extract(payload_json, '$.taskId') = ?
          )`,
-      [task.id, task.verificationTaskId || task.id],
+      [task.id, backendTaskId],
     );
 
     for (const queueItem of pendingAttachmentQueueItems) {
@@ -682,7 +741,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const payload = JSON.parse(queueItem.payloadJson) as Record<string, unknown>;
         const nextPayload = {
           ...payload,
-          taskId: task.verificationTaskId || task.id,
+          taskId: backendTaskId,
           localTaskId: task.id,
           submissionId,
           verificationType: payload.verificationType || backendFormType,
@@ -719,7 +778,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err) {
       Logger.warn(TAG, `Immediate sync deferred for form submission ${submissionId}`, err);
     }
-  }, [clearAutoSave, getTask, reloadTask]);
+  }, [clearAutoSave, getTask, reloadTask, resolveBackendTaskId]);
 
   const updateTaskSubmissionStatus = useCallback(async (
     taskId: string,
