@@ -68,7 +68,7 @@ def hasReleaseKeystore = keystorePropertiesFile.exists()
 if (hasReleaseKeystore) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
-def releaseAbiFilters = ["armeabi-v7a"]
+def releaseAbiFilters = ["arm64-v8a"]
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
