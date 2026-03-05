@@ -7,12 +7,13 @@ const PUSH_TOKEN_KEY = 'push_token';
 const PUSH_TOKEN_UPDATED_AT_KEY = 'push_token_updated_at';
 
 type MessagingInstance = {
-  requestPermission?: () => Promise<number>;
-  registerDeviceForRemoteMessages?: () => Promise<void>;
-  getToken?: () => Promise<string>;
+  requestPermission?: (messaging: unknown) => Promise<number>;
+  registerDeviceForRemoteMessages?: (messaging: unknown) => Promise<void>;
+  getToken?: (messaging: unknown) => Promise<string>;
+  getMessaging?: () => unknown;
 };
 
-type MessagingFactory = () => MessagingInstance;
+type MessagingModule = MessagingInstance;
 
 class PushTokenServiceClass {
   private cachedPushToken: string | null = null;
@@ -39,10 +40,10 @@ class PushTokenServiceClass {
     );
   }
 
-  private getMessagingFactory(): MessagingFactory | null {
+  private getMessagingModule(): MessagingModule | null {
     try {
       const module = require('@react-native-firebase/messaging');
-      return module?.default as MessagingFactory;
+      return module as MessagingModule;
     } catch (error) {
       if (!this.loggedMissingModule) {
         Logger.warn(
@@ -99,27 +100,28 @@ class PushTokenServiceClass {
         return null;
       }
 
-      const messagingFactory = this.getMessagingFactory();
-      if (!messagingFactory) {
+      const messagingModule = this.getMessagingModule();
+      if (!messagingModule?.getMessaging) {
+        Logger.warn(TAG, 'Messaging module not available.');
         return null;
       }
 
-      const messaging = messagingFactory();
+      const messaging = messagingModule.getMessaging();
 
-      if (Platform.OS === 'ios' && messaging.requestPermission) {
-        await messaging.requestPermission();
+      if (Platform.OS === 'ios' && messagingModule.requestPermission) {
+        await messagingModule.requestPermission(messaging);
       }
 
-      if (messaging.registerDeviceForRemoteMessages) {
-        await messaging.registerDeviceForRemoteMessages();
+      if (messagingModule.registerDeviceForRemoteMessages) {
+        await messagingModule.registerDeviceForRemoteMessages(messaging);
       }
 
-      if (!messaging.getToken) {
+      if (!messagingModule.getToken) {
         Logger.warn(TAG, 'Messaging provider does not expose getToken().');
         return null;
       }
 
-      const token = (await messaging.getToken())?.trim();
+      const token = (await messagingModule.getToken(messaging))?.trim();
       if (!token) {
         Logger.warn(TAG, 'Push token provider returned an empty token.');
         return null;

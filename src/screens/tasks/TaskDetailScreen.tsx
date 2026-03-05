@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Alert 
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTask } from '../../hooks/useTask';
 import { SyncService } from '../../services/SyncService';
@@ -18,6 +19,7 @@ import { useTaskManager } from '../../context/TaskContext';
 
 export const TaskDetailScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
   const { startTask } = useTaskManager();
   const { taskId } = route.params;
   const { task, isLoading, error, refetch } = useTask(taskId);
@@ -61,6 +63,7 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
 
       Alert.alert('Success', 'Visit started successfully.');
       refetch();
+      navigation.navigate('VerificationForm', { taskId: task.id });
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to start visit.');
     } finally {
@@ -76,6 +79,7 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
     return (
       <View style={[styles.centerContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={[styles.stateText, { color: theme.colors.textSecondary }]}>Loading task details...</Text>
       </View>
     );
   }
@@ -87,26 +91,31 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
         <Text style={[styles.errorText, { color: theme.colors.danger }]}>{error || 'Task not found'}</Text>
         <TouchableOpacity 
           style={[styles.retryButton, { backgroundColor: theme.colors.primary }]} 
-          onPress={() => navigation.goBack()}>
-          <Text style={[styles.retryText, { color: theme.colors.surface }]}>Go Back</Text>
+          onPress={() => navigation.goBack()}
+          activeOpacity={0.85}>
+          <Text style={[styles.retryText, { color: theme.colors.surface }]}>Back to Task List</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) + 24 }]}>
         
         {/* Header Header */}
-        <View style={[styles.headerCard, { backgroundColor: theme.colors.surface }]}>
+        <View style={[styles.headerCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <View style={styles.headerTop}>
-            <Text style={[styles.taskNumber, { color: theme.colors.textMuted }]}>{task.verificationTaskNumber || `Task ID: ${task.id.substring(0,8)}`}</Text>
+            <Text style={[styles.taskNumber, { color: theme.colors.textMuted }]}>
+              {task.verificationTaskNumber || `Case #${task.caseId}`}
+            </Text>
             <View style={[styles.badge, { backgroundColor: getStatusColor(task.status) }]}>
               <Text style={[styles.badgeText, { color: theme.colors.surface }]}>{task.status.replace('_', ' ')}</Text>
             </View>
           </View>
-          <Text style={[styles.title, { color: theme.colors.text }]}>{task.title}</Text>
+          <Text style={[styles.title, { color: theme.colors.text }]}>
+            {task.customerName || task.title}
+          </Text>
           <Text style={[styles.clientName, { color: theme.colors.primary }]}>{task.clientName}</Text>
         </View>
 
@@ -132,7 +141,7 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
         )}
 
         {/* Customer Info */}
-        <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}>
+        <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>Customer Details</Text>
           <View style={styles.detailRow}>
             <Icon name="person-outline" size={20} color={theme.colors.textSecondary} style={styles.icon} />
@@ -143,11 +152,11 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
           </View>
           <View style={styles.detailRow}>
             <Icon name="call-outline" size={20} color={theme.colors.textSecondary} style={styles.icon} />
-            <View>
+            <View style={styles.phoneBlock}>
               <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Phone</Text>
               <Text style={[styles.detailValue, { color: theme.colors.text }]}>{task.customerPhone || 'N/A'}</Text>
             </View>
-            <View style={styles.detailRow}>
+            <View style={styles.phoneBlock}>
               <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Calling Code</Text>
               <Text style={[styles.detailValue, { color: theme.colors.text }]}>{task.customerCallingCode || 'N/A'}</Text>
             </View>
@@ -155,7 +164,7 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
         </View>
 
         {/* Case Details */}
-        <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}>
+        <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>Case Details</Text>
           <View style={styles.detailsGrid}>
             <View style={styles.detailRow}>
@@ -186,7 +195,7 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
         </View>
 
         {/* Address Info */}
-        <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface }]}>
+        <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>Location</Text>
           <View style={styles.detailRow}>
             <Icon name="location-outline" size={20} color={theme.colors.textSecondary} style={styles.icon} />
@@ -211,16 +220,24 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
           styles.footer, 
           { 
             backgroundColor: theme.colors.surface, 
-            borderTopColor: theme.colors.border 
+            borderTopColor: theme.colors.border,
+            paddingBottom: Math.max(insets.bottom, 16),
           }
         ]}>
           {task.status === 'ASSIGNED' && (
             <TouchableOpacity 
-              style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
+              style={[
+                styles.primaryButton,
+                { backgroundColor: theme.colors.primary },
+                isActionLoading && styles.primaryButtonDisabled,
+              ]}
               onPress={handleStartVisit}
               disabled={isActionLoading}>
               {isActionLoading ? (
-                <ActivityIndicator color={theme.colors.surface} />
+                <>
+                  <ActivityIndicator color={theme.colors.surface} />
+                  <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Starting Visit...</Text>
+                </>
               ) : (
                 <>
                   <Icon name="play-outline" size={20} color={theme.colors.surface} />
@@ -235,7 +252,7 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
               style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
               onPress={handleFillForm}>
               <Icon name="create-outline" size={20} color={theme.colors.surface} />
-              <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Complete Verification</Text>
+              <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Continue Verification</Text>
             </TouchableOpacity>
           )}
 
@@ -247,7 +264,7 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
           )}
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -294,6 +311,7 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 16,
     marginBottom: 16,
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -337,6 +355,7 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 16,
     marginBottom: 16,
+    borderWidth: 1,
   },
   sectionTitle: {
     fontSize: 11,
@@ -349,6 +368,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  phoneBlock: {
+    flex: 1,
   },
   icon: {
     width: 24,
@@ -382,6 +404,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  primaryButtonDisabled: {
+    opacity: 0.9,
+  },
   buttonText: {
     fontSize: 16,
     fontWeight: 'bold',
@@ -404,6 +429,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     marginVertical: 16,
     textAlign: 'center',
+    fontWeight: '500',
+  },
+  stateText: {
+    marginTop: 12,
+    fontSize: 14,
     fontWeight: '500',
   },
   retryButton: {

@@ -19,6 +19,11 @@ export type ThemeColors = {
   warning: string;
   danger: string;
   info: string;
+  assigned: string;
+  inProgress: string;
+  completed: string;
+  saved: string;
+  revoked: string;
 
   // Borders
   border: string;
@@ -95,34 +100,39 @@ const commonTokens = {
 export const lightTheme: Theme = {
   ...commonTokens,
   colors: {
-    primary: '#2563EB', // blue-600
-    primaryLight: '#3B82F6', // blue-500
-    primaryDark: '#1D4ED8', // blue-700
+    primary: '#00A950',
+    primaryLight: '#00C75F',
+    primaryDark: '#008A42',
     
-    background: '#F3F4F6', // gray-100
-    surface: '#FFFFFF', // white
-    surfaceAlt: '#F9FAFB', // gray-50
+    background: '#FFFFFF',
+    surface: '#F9FAFB',
+    surfaceAlt: '#F3F4F6',
     
-    text: '#111827', // gray-900
-    textSecondary: '#4B5563', // gray-600
-    textMuted: '#9CA3AF', // gray-400
+    text: '#111827',
+    textSecondary: '#6B7280',
+    textMuted: '#9CA3AF',
     
     success: '#10B981', // emerald-500
     warning: '#F59E0B', // amber-500
     danger: '#EF4444', // red-500
-    info: '#3B82F6', // blue-500
+    info: '#3B82F6',
+    assigned: '#3B82F6',
+    inProgress: '#F59E0B',
+    completed: '#10B981',
+    saved: '#EF4444',
+    revoked: '#EF4444',
     
-    border: '#E5E7EB', // gray-200
-    borderLight: '#F3F4F6', // gray-100
+    border: '#E5E7EB',
+    borderLight: '#F3F4F6',
   },
 };
 
 export const darkTheme: Theme = {
   ...commonTokens,
   colors: {
-    primary: '#3B82F6', // blue-500 (lighter for dark mode contrast)
-    primaryLight: '#60A5FA', // blue-400
-    primaryDark: '#2563EB', // blue-600
+    primary: '#00A950',
+    primaryLight: '#00C75F',
+    primaryDark: '#008A42',
     
     background: '#111827', // gray-900
     surface: '#1F2937', // gray-800
@@ -136,6 +146,11 @@ export const darkTheme: Theme = {
     warning: '#FBBF24', // amber-400
     danger: '#F87171', // red-400
     info: '#60A5FA', // blue-400
+    assigned: '#60A5FA',
+    inProgress: '#FBBF24',
+    completed: '#34D399',
+    saved: '#F87171',
+    revoked: '#F87171',
     
     border: '#374151', // gray-700
     borderLight: '#1F2937', // gray-800

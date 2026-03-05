@@ -98,11 +98,26 @@ class ApiClientClass {
           }
         }
 
-        Logger.error(
-          'ApiClient',
-          `API Error: ${error.response?.status} ${error.config?.url}`,
-          error.response?.data,
-        );
+        const requestUrl = error.config?.url || '';
+        const isNotificationRegisterError = requestUrl.includes('/auth/notifications/register');
+        const isAutoSaveForbidden =
+          requestUrl.includes('/auto-save') && error.response?.status === 403;
+        const isAutoSaveServerError =
+          requestUrl.includes('/auto-save') && (error.response?.status || 0) >= 500;
+
+        if (isNotificationRegisterError || isAutoSaveForbidden || isAutoSaveServerError) {
+          Logger.warn(
+            'ApiClient',
+            `Recoverable API Error: ${error.response?.status} ${requestUrl}`,
+            error.response?.data,
+          );
+        } else {
+          Logger.error(
+            'ApiClient',
+            `API Error: ${error.response?.status} ${requestUrl}`,
+            error.response?.data,
+          );
+        }
 
         return Promise.reject(error);
       },

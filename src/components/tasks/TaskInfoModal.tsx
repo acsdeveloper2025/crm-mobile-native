@@ -35,16 +35,21 @@ export const TaskInfoModal: React.FC<TaskInfoModalProps> = ({ visible, task, onC
       <View style={styles.overlay}>
         <View style={[styles.modalContainer, { backgroundColor: theme.colors.surface }]}>
           <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Case Information</Text>
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Task Information</Text>
             <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
               <Icon name="close" size={24} color={theme.colors.textMuted} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.modalBody}
+            contentContainerStyle={styles.modalBodyContent}
+            showsVerticalScrollIndicator
+            persistentScrollbar
+            indicatorStyle="default">
             <InfoRow label="Customer Name" value={task.customerName} theme={theme} />
             <InfoRow label="Case ID" value={`#${task.caseId}`} theme={theme} />
-            <InfoRow label="Verification Task ID" value={task.verificationTaskNumber} theme={theme} />
+            <InfoRow label="Verification Task Number" value={task.verificationTaskNumber || ''} theme={theme} />
             <InfoRow label="Client" value={task.clientName} theme={theme} />
             <InfoRow label="Product" value={task.productName || ''} theme={theme} />
             <InfoRow label="Verification Type" value={task.verificationTypeName || task.verificationType || ''} theme={theme} />
@@ -99,7 +104,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   modalBody: {
-    padding: 20,
+    paddingLeft: 20,
+    paddingTop: 20,
+  },
+  modalBodyContent: {
+    paddingRight: 12,
+    paddingBottom: 20,
   },
   infoRow: {
     marginBottom: 16,

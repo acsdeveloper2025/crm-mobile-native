@@ -12,6 +12,7 @@ import { LocationService } from './LocationService';
 import { Logger } from '../utils/logger';
 import { resolveFormTypeKey, type FormTypeKey } from '../utils/formTypeKey';
 import { config } from '../config';
+import { notificationService } from './NotificationService';
 import type {
   MobileSyncDownloadResponse,
   MobileCaseResponse,
@@ -21,6 +22,7 @@ const TAG = 'SyncService';
 
 export interface SyncResult {
   success: boolean;
+  uploadedStatusItems: number;
   uploadedItems: number;
   downloadedTasks: number;
   conflicts: number;
@@ -193,16 +195,31 @@ class SyncServiceClass {
    */
   async performSync(): Promise<SyncResult> {
     if (this.syncInProgress) {
-      return { success: false, uploadedItems: 0, downloadedTasks: 0, conflicts: 0, errors: ['Sync in progress'] };
+      return {
+        success: false,
+        uploadedStatusItems: 0,
+        uploadedItems: 0,
+        downloadedTasks: 0,
+        conflicts: 0,
+        errors: ['Sync in progress'],
+      };
     }
 
     const reachable = await this.isBackendReachable();
     if (!reachable) {
-      return { success: false, uploadedItems: 0, downloadedTasks: 0, conflicts: 0, errors: ['Backend unreachable'] };
+      return {
+        success: false,
+        uploadedStatusItems: 0,
+        uploadedItems: 0,
+        downloadedTasks: 0,
+        conflicts: 0,
+        errors: ['Backend unreachable'],
+      };
     }
 
     this.syncInProgress = true;
     const errors: string[] = [];
+    let uploadedStatusItems = 0;
     let uploadedItems = 0;
     let downloadedTasks = 0;
     let conflicts = 0;
@@ -210,10 +227,17 @@ class SyncServiceClass {
     try {
       await this.updateSyncStatus(true);
 
+      // 1) Upload local task status updates first (local-first consistency guard)
+      const statusUploadResult = await this.uploadPendingTaskStatusUpdates();
+      uploadedStatusItems = statusUploadResult.uploaded;
+      errors.push(...statusUploadResult.errors);
+
+      // 2) Upload remaining pending local data (forms/photos/location/other task updates)
       const uploadResult = await this.uploadPendingChanges();
       uploadedItems = uploadResult.uploaded;
       errors.push(...uploadResult.errors);
 
+      // 3 + 4) Download newly assigned tasks and server-side updates
       const downloadResult = await this.downloadServerChanges();
       downloadedTasks = downloadResult.tasksDownloaded;
       conflicts = downloadResult.conflicts;
@@ -225,14 +249,41 @@ class SyncServiceClass {
       await SyncQueue.cleanup(24);
       await this.updateSyncStatus(false);
 
-      return { success: errors.length === 0, uploadedItems, downloadedTasks, conflicts, errors };
+      return { success: errors.length === 0, uploadedStatusItems, uploadedItems, downloadedTasks, conflicts, errors };
     } catch (error: any) {
       Logger.error(TAG, 'Sync failed', error);
       errors.push(error.message || 'Unknown error');
-      return { success: false, uploadedItems, downloadedTasks, conflicts, errors };
+      return { success: false, uploadedStatusItems, uploadedItems, downloadedTasks, conflicts, errors };
     } finally {
       this.syncInProgress = false;
     }
+  }
+
+  private async uploadPendingTaskStatusUpdates(): Promise<{ uploaded: number; errors: string[] }> {
+    const errors: string[] = [];
+    let uploaded = 0;
+
+    const pendingItems = await SyncQueue.getPendingItems(100);
+    const statusItems = pendingItems.filter(item => item.entityType === 'TASK_STATUS');
+
+    for (const item of statusItems) {
+      try {
+        await SyncQueue.markInProgress(item.id);
+        const payload = JSON.parse(item.payloadJson);
+        const success = await this.uploadTaskStatus(item.entityId, payload);
+        if (success) {
+          await SyncQueue.markCompleted(item.id);
+          uploaded++;
+        } else {
+          await SyncQueue.markFailed(item.id, 'Task status upload returned failure');
+        }
+      } catch (error: any) {
+        await SyncQueue.markFailed(item.id, error.message || 'Task status upload crashed');
+        errors.push(`TASK_STATUS/${item.entityId}: ${error.message}`);
+      }
+    }
+
+    return { uploaded, errors };
   }
 
   /**
@@ -242,7 +293,9 @@ class SyncServiceClass {
     const errors: string[] = [];
     let uploaded = 0;
 
-    const pendingItems = await SyncQueue.getPendingItems(50);
+    const pendingItems = (await SyncQueue.getPendingItems(50)).filter(
+      item => item.entityType !== 'TASK_STATUS',
+    );
     if (pendingItems.length === 0) return { uploaded: 0, errors: [] };
 
     // Group items by Visit/Task ID to enforce upload ordering.
@@ -296,6 +349,7 @@ class SyncServiceClass {
           case 'ATTACHMENT': success = await this.uploadAttachment(item.entityId, payload); break;
           case 'LOCATION': success = await this.uploadLocation(item.entityId, payload); break;
           case 'TASK': success = await this.uploadTaskUpdate(item.entityId, payload); break;
+          case 'TASK_STATUS': success = await this.uploadTaskStatus(item.entityId, payload); break;
         }
 
         if (success) {
@@ -596,6 +650,52 @@ class SyncServiceClass {
     return true;
   }
 
+  private async uploadTaskStatus(entityId: string, payload: any): Promise<boolean> {
+    const status = String(payload?.status || payload?.action || '').toUpperCase();
+    const localTaskId = payload?.localTaskId ? String(payload.localTaskId) : null;
+    const now = new Date().toISOString();
+    let response: { success: boolean } | null = null;
+
+    if (status === 'IN_PROGRESS') {
+      response = await ApiClient.post<{ success: boolean }>(ENDPOINTS.TASKS.START(entityId), {
+        action: 'start',
+      });
+    } else if (status === 'COMPLETED') {
+      response = await ApiClient.post<{ success: boolean }>(ENDPOINTS.TASKS.COMPLETE(entityId), {
+        action: 'complete',
+      });
+    } else if (status === 'REVOKED') {
+      response = await ApiClient.post<{ success: boolean }>(ENDPOINTS.TASKS.REVOKE(entityId), {
+        action: 'revoke',
+        reason: payload?.reason || payload?.revoke_reason || null,
+      });
+    } else {
+      // SAVED/ASSIGNED and other local lifecycle states have no dedicated backend transition.
+      // Mark as successful so queue remains convergent without blocking other sync work.
+      response = { success: true };
+    }
+
+    if (!response?.success) {
+      return false;
+    }
+
+    if (localTaskId) {
+      await DatabaseService.execute(
+        `UPDATE tasks
+         SET sync_status = 'SYNCED',
+             last_synced_at = ?,
+             local_updated_at = CASE
+               WHEN local_updated_at IS NULL THEN ?
+               ELSE local_updated_at
+             END
+         WHERE id = ?`,
+        [now, now, localTaskId],
+      );
+    }
+
+    return true;
+  }
+
   private async downloadServerChanges(): Promise<{ tasksDownloaded: number; conflicts: number; errors: string[] }> {
     const errors: string[] = [];
     try {
@@ -622,8 +722,21 @@ class SyncServiceClass {
         }
 
         for (const task of payload.cases) {
+          const canonicalTaskId = (task.verificationTaskId || task.id || '').trim();
+          const existingRows = canonicalTaskId
+            ? await DatabaseService.query<{ id: string }>(
+                'SELECT id FROM tasks WHERE id = ? LIMIT 1',
+                [canonicalTaskId],
+              )
+            : [];
+          const isNewTaskAssignment = canonicalTaskId && existingRows.length === 0;
+
           await this.upsertTaskFromServer(task);
           tasksDownloaded++;
+
+          if (isNewTaskAssignment && canonicalTaskId) {
+            await this.createLocalAssignmentNotification(task, canonicalTaskId);
+          }
         }
 
         for (const taskId of payload.revokedAssignmentIds || []) {
@@ -667,6 +780,34 @@ class SyncServiceClass {
     }
   }
 
+  private async createLocalAssignmentNotification(task: MobileCaseResponse, taskId: string): Promise<void> {
+    try {
+      const existing = await DatabaseService.query<{ id: string }>(
+        "SELECT id FROM notifications WHERE type = 'CASE_ASSIGNED' AND task_id = ? LIMIT 1",
+        [taskId],
+      );
+      if (existing.length > 0) {
+        return;
+      }
+
+      const taskNumber = (task.verificationTaskNumber || '').trim() || taskId.slice(0, 8);
+      const customerName = (task.customerName || '').trim() || 'Customer';
+      const caseNumber = task.caseId !== undefined && task.caseId !== null ? String(task.caseId) : undefined;
+
+      await notificationService.addNotification({
+        type: 'CASE_ASSIGNED',
+        title: 'New Task Assigned',
+        message: `${taskNumber} - ${customerName}`,
+        priority: 'HIGH',
+        taskId,
+        caseNumber,
+        timestamp: new Date().toISOString(),
+      });
+    } catch (error) {
+      Logger.warn(TAG, `Failed to create local assignment notification for task ${taskId}`, error);
+    }
+  }
+
   private async downloadTemplates(): Promise<{ downloaded: number; errors: string[] }> {
     Logger.info(
       TAG,
@@ -676,6 +817,83 @@ class SyncServiceClass {
   }
 
   private async upsertTaskFromServer(task: MobileCaseResponse): Promise<void> {
+    const canonicalTaskId = (task.verificationTaskId || task.id || '').trim();
+    if (!canonicalTaskId) {
+      Logger.warn(TAG, `Skipping task upsert due to missing task identifier for case ${task.caseId}`);
+      return;
+    }
+
+    // Repair stale rows where old builds stored case UUID in tasks.id.
+    // Keep a single row per case_id keyed by verificationTaskId and migrate child references.
+    const staleRows = await DatabaseService.query<{ id: string }>(
+      `SELECT id
+       FROM tasks
+       WHERE case_id = ?
+         AND id != ?`,
+      [task.caseId, canonicalTaskId],
+    );
+
+    for (const stale of staleRows) {
+      await DatabaseService.execute(
+        'UPDATE attachments SET task_id = ? WHERE task_id = ?',
+        [canonicalTaskId, stale.id],
+      );
+      await DatabaseService.execute(
+        'UPDATE locations SET task_id = ? WHERE task_id = ?',
+        [canonicalTaskId, stale.id],
+      );
+      await DatabaseService.execute(
+        'UPDATE form_submissions SET task_id = ? WHERE task_id = ?',
+        [canonicalTaskId, stale.id],
+      );
+      await DatabaseService.execute(
+        "UPDATE sync_queue SET entity_id = ? WHERE entity_type IN ('TASK', 'TASK_STATUS') AND entity_id = ?",
+        [canonicalTaskId, stale.id],
+      );
+      await DatabaseService.execute('DELETE FROM tasks WHERE id = ?', [stale.id]);
+    }
+
+    const existingRows = await DatabaseService.query<{
+      status: string;
+      is_saved: number;
+      in_progress_at: string | null;
+      saved_at: string | null;
+      completed_at: string | null;
+      sync_status: string | null;
+    }>(
+      `SELECT status, is_saved, in_progress_at, saved_at, completed_at, sync_status
+       FROM tasks
+       WHERE id = ?
+       LIMIT 1`,
+      [canonicalTaskId],
+    );
+
+    const existing = existingRows[0];
+    const backendStatus = (task.status || 'ASSIGNED').toUpperCase();
+
+    let mergedStatus = backendStatus;
+    let mergedInProgressAt = task.inProgressAt || null;
+    let mergedSavedAt = task.savedAt || null;
+    let mergedCompletedAt = task.completedAt || null;
+    let mergedIsSaved = task.isSaved ? 1 : 0;
+
+    // Do not downgrade local progress while local task updates are still pending sync.
+    if (existing && existing.sync_status === 'PENDING') {
+      const localStatus = (existing.status || '').toUpperCase();
+      const localSaved = existing.is_saved === 1;
+      const shouldPreserveLocal =
+        (backendStatus === 'ASSIGNED' && (localStatus === 'IN_PROGRESS' || localStatus === 'COMPLETED' || localSaved)) ||
+        (backendStatus === 'IN_PROGRESS' && localStatus === 'COMPLETED');
+
+      if (shouldPreserveLocal) {
+        mergedStatus = localStatus || mergedStatus;
+        mergedInProgressAt = existing.in_progress_at || mergedInProgressAt;
+        mergedSavedAt = existing.saved_at || mergedSavedAt;
+        mergedCompletedAt = existing.completed_at || mergedCompletedAt;
+        mergedIsSaved = localSaved ? 1 : mergedIsSaved;
+      }
+    }
+
     const now = new Date().toISOString();
     await DatabaseService.execute(
       `INSERT OR REPLACE INTO tasks
@@ -689,13 +907,13 @@ class SyncServiceClass {
          sync_status, last_synced_at, local_updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SYNCED', ?, ?)`,
       [
-        task.id, task.caseId, task.verificationTaskId || task.id, task.verificationTaskNumber || '', task.title, task.description || '', task.customerName, task.customerCallingCode || null,
+        canonicalTaskId, task.caseId, canonicalTaskId, task.verificationTaskNumber || '', task.title, task.description || '', task.customerName, task.customerCallingCode || null,
         task.customerPhone || null, task.customerEmail || null, task.addressStreet || '', task.addressCity || '', task.addressState || '', task.addressPincode || '', task.latitude || null, task.longitude || null,
-        task.status, task.priority || 'MEDIUM', task.assignedAt || now, task.updatedAt || now, task.completedAt || null, task.notes || null, task.verificationType || null, task.verificationOutcome || null, task.applicantType || null,
+        mergedStatus, task.priority || 'MEDIUM', task.assignedAt || now, task.updatedAt || now, mergedCompletedAt, task.notes || null, task.verificationType || null, task.verificationOutcome || null, task.applicantType || null,
         task.backendContactNumber || null, task.createdByBackendUser || null, task.assignedToFieldUser || null, task.client?.id || null, task.client?.name || null, task.client?.code || null,
         task.product?.id || null, task.product?.name || null, task.product?.code || null, task.verificationTypeDetails?.id || null, task.verificationTypeDetails?.name || null, task.verificationTypeDetails?.code || null,
         task.formData ? JSON.stringify(task.formData) : null, task.isRevoked ? 1 : 0, task.revokedAt || null, task.revokedByName || null, task.revokeReason || null,
-        task.inProgressAt || null, task.savedAt || null, task.isSaved ? 1 : 0, task.attachmentCount || 0,
+        mergedInProgressAt, mergedSavedAt, mergedIsSaved, task.attachmentCount || 0,
         now, now,
       ],
     );

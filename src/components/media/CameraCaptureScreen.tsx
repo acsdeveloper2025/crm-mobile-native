@@ -1,5 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator, Alert } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Camera, useCameraDevice, useCameraFormat } from 'react-native-vision-camera';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -12,6 +13,8 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
   const [hasPermission, setHasPermission] = useState<boolean>(false);
   const [isActive, setIsActive] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
+  const [isPreparing, setIsPreparing] = useState(true);
+  const insets = useSafeAreaInsets();
 
   // Setup simple format for standard photos (approx 1080p to fit under 2MB limit easily)
   const format = useCameraFormat(device, [
@@ -19,22 +22,27 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
   ]);
 
   const requestPermissions = useCallback(async () => {
-    const cameraPermission = await Camera.requestCameraPermission();
-    setHasPermission(cameraPermission === 'granted');
-    if (cameraPermission !== 'granted') {
-      Alert.alert('Permission needed', 'Camera permission is required to take photos.');
-      navigation.goBack();
-      return;
-    }
-    // Also request location so GPS coordinates are available for photo watermark
-    const { LocationService } = require('../../services/LocationService');
-    const locationGranted = await LocationService.requestPermissions();
-    if (!locationGranted) {
-      Alert.alert(
-        'Location Recommended',
-        'Location permission is recommended to geo-tag verification photos. Photos without location may be flagged.',
-        [{ text: 'Continue Anyway' }]
-      );
+    setIsPreparing(true);
+    try {
+      const cameraPermission = await Camera.requestCameraPermission();
+      setHasPermission(cameraPermission === 'granted');
+      if (cameraPermission !== 'granted') {
+        Alert.alert('Permission needed', 'Camera permission is required to take photos.');
+        navigation.goBack();
+        return;
+      }
+      // Also request location so GPS coordinates are available for photo watermark
+      const { LocationService } = require('../../services/LocationService');
+      const locationGranted = await LocationService.requestPermissions();
+      if (!locationGranted) {
+        Alert.alert(
+          'Location Recommended',
+          'Location permission is recommended to geo-tag verification photos. Photos without location may be flagged.',
+          [{ text: 'Continue Anyway' }]
+        );
+      }
+    } finally {
+      setIsPreparing(false);
     }
   }, [navigation]);
 
@@ -72,11 +80,11 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
     }
   };
 
-  if (!hasPermission || !device) {
+  if (!hasPermission || !device || isPreparing) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={styles.loadingText}>Initializing Camera...</Text>
+        <Text style={styles.loadingText}>Preparing camera...</Text>
       </View>
     );
   }
@@ -93,11 +101,23 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
       />
       
       {/* Controls Overlay */}
-      <View style={styles.overlay}>
+      <View
+        style={[
+          styles.overlay,
+          {
+            paddingTop: Math.max(insets.top, 16),
+            paddingBottom: Math.max(insets.bottom, 16),
+          },
+        ]}>
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
             <Icon name="close" size={32} color="white" />
           </TouchableOpacity>
+          <View style={styles.captureModeBadge}>
+            <Text style={styles.captureModeText}>
+              {componentType === 'selfie' ? 'Selfie Mode' : 'Photo Mode'}
+            </Text>
+          </View>
         </View>
 
         <View style={styles.bottomBar}>
@@ -107,6 +127,9 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
             disabled={isCapturing}>
             <View style={[styles.captureButtonInner, isCapturing && styles.capturingState]} />
           </TouchableOpacity>
+          <Text style={styles.captureHint}>
+            {isCapturing ? 'Capturing...' : 'Capture and continue to watermark review'}
+          </Text>
         </View>
       </View>
     </View>
@@ -132,20 +155,32 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'space-between',
     padding: 20,
-    paddingTop: 60, // Safe area approx
-    paddingBottom: 60,
   },
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'flex-start',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   iconButton: {
     padding: 8,
   },
   bottomBar: {
-    flexDirection: 'row',
+    flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  captureModeBadge: {
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  captureModeText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    textTransform: 'uppercase',
   },
   captureButtonOuter: {
     width: 80,
@@ -165,5 +200,16 @@ const styles = StyleSheet.create({
   capturingState: {
     backgroundColor: '#D1D5DB', // gray-300
     transform: [{ scale: 0.9 }],
-  }
+  },
+  captureHint: {
+    marginTop: 12,
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '500',
+    textAlign: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
 });

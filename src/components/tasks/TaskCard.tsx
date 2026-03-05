@@ -9,16 +9,33 @@ import { useTaskManager } from '../../context/TaskContext';
 import { RevokeReason } from '../../types/api';
 import { SyncService } from '../../services/SyncService';
 import { LocationService } from '../../services/LocationService';
+import { TaskTimeline } from './TaskTimeline';
 
 interface TaskCardProps {
   task: LocalTask;
   onPress: (task: LocalTask) => void;
   onStatusChange?: () => void;
+  onAttachmentsPress?: (task: LocalTask) => void;
+  isReorderEnabled?: boolean;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
 }
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
-export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onStatusChange }) => {
+export const TaskCard: React.FC<TaskCardProps> = ({
+  task,
+  onPress,
+  onStatusChange,
+  onAttachmentsPress,
+  isReorderEnabled = false,
+  canMoveUp = false,
+  canMoveDown = false,
+  onMoveUp,
+  onMoveDown,
+}) => {
   const { theme } = useTheme();
   const { startTask, revokeTask } = useTaskManager();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -51,6 +68,19 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onStatusChang
       case 'IN_PROGRESS': return theme.colors.warning;
       case 'COMPLETED': return theme.colors.success;
       default: return theme.colors.textMuted;
+    }
+  };
+
+  const getCardAccentColor = (status: string) => {
+    switch (status?.toUpperCase()) {
+      case 'ASSIGNED':
+        return theme.colors.assigned;
+      case 'IN_PROGRESS':
+        return theme.colors.inProgress;
+      case 'COMPLETED':
+        return theme.colors.completed;
+      default:
+        return theme.colors.border;
     }
   };
 
@@ -99,6 +129,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onStatusChang
 
       await startTask(task.id);
       onStatusChange?.();
+      onPress({ ...task, status: 'IN_PROGRESS' });
     } catch (e: any) {
       Alert.alert('Error', 'Failed to start visit: ' + e.message);
     } finally {
@@ -127,8 +158,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onStatusChang
           { 
             backgroundColor: theme.colors.surface,
             borderColor: theme.colors.border,
+            borderLeftColor: getCardAccentColor(task.status),
           },
-          task.status === 'IN_PROGRESS' && [styles.cardInProgress, { borderLeftColor: theme.colors.warning }],
+          (task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS' || task.status === 'COMPLETED') && styles.cardStatusAccent,
           { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
         ]} 
         onPress={() => onPress(task)} 
@@ -144,7 +176,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onStatusChang
           )}
         </View>
 
-        <Text style={[styles.caseId, { color: theme.colors.text }]}>Case ID: #{task.caseId}</Text>
+        <Text style={[styles.caseId, { color: theme.colors.text }]}>
+          Case ID: #{task.caseId}  |  VT ID: {task.verificationTaskNumber || 'N/A'}
+        </Text>
         <Text style={[styles.customerName, { color: theme.colors.text }]}>{task.customerName}</Text>
         
         <View style={styles.addressContainer}>
@@ -162,6 +196,12 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onStatusChang
           </View>
         )}
 
+        {task.status === 'COMPLETED' && (
+          <View style={styles.timelineWrap}>
+            <TaskTimeline task={task} />
+          </View>
+        )}
+
         <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
           <View style={styles.actionButtons}>
             {(task.status === 'ASSIGNED' && task.is_revoked !== 1) && (
@@ -172,33 +212,65 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, onPress, onStatusChang
                   ) : (
                     <Icon name="checkmark-circle" size={32} color={theme.colors.success} />
                   )}
+                  <Text style={[styles.actionLabel, { color: theme.colors.success }]}>
+                    {isAccepting ? 'Accepting...' : 'Accept'}
+                  </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.iconButton} onPress={() => setRevokeModalVisible(true)}>
                   <Icon name="close-circle" size={32} color={theme.colors.danger} />
+                  <Text style={[styles.actionLabel, { color: theme.colors.danger }]}>Revoke</Text>
                 </TouchableOpacity>
               </>
             )}
 
             <TouchableOpacity style={styles.iconButton} onPress={() => setInfoModalVisible(true)}>
               <Icon name="information-circle" size={32} color={theme.colors.info || '#3b82f6'} />
+              <Text style={[styles.actionLabel, { color: theme.colors.info || '#3b82f6' }]}>Info</Text>
             </TouchableOpacity>
 
-            <View style={styles.iconButton}>
+            <TouchableOpacity style={styles.iconButton} onPress={() => (onAttachmentsPress ? onAttachmentsPress(task) : onPress(task))}>
               <Icon name="attach" size={28} color={theme.colors.primary} />
               {(task.attachment_count || 0)> 0 && (
                 <View style={[styles.badgeContainer, { backgroundColor: theme.colors.danger }]}>
                   <Text style={styles.badgeText}>{task.attachment_count}</Text>
                 </View>
               )}
-            </View>
+              <Text style={[styles.actionLabel, { color: theme.colors.primary }]}>Attachments</Text>
+            </TouchableOpacity>
           </View>
           
           <View style={styles.statusBadgeContainer}>
+            {isReorderEnabled && (
+              <View style={styles.reorderButtons}>
+                <TouchableOpacity
+                  style={[styles.reorderButton, !canMoveUp && styles.reorderButtonDisabled]}
+                  onPress={onMoveUp}
+                  disabled={!canMoveUp}>
+                  <Icon
+                    name="chevron-up-outline"
+                    size={16}
+                    color={canMoveUp ? theme.colors.textSecondary : theme.colors.textMuted}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.reorderButton, !canMoveDown && styles.reorderButtonDisabled]}
+                  onPress={onMoveDown}
+                  disabled={!canMoveDown}>
+                  <Icon
+                    name="chevron-down-outline"
+                    size={16}
+                    color={canMoveDown ? theme.colors.textSecondary : theme.colors.textMuted}
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
             <View style={[styles.badge, { backgroundColor: getStatusColor(task.status) }]}>
               <Text style={[styles.statusText, { color: theme.colors.surface }]}>{task.status ? task.status.replace('_', ' ') : 'UNKNOWN'}</Text>
             </View>
-            <Icon name="chevron-forward" size={20} color={theme.colors.textMuted} />
+            {(task.status === 'IN_PROGRESS' || task.status === 'REVISIT') && (
+              <Icon name="chevron-forward" size={20} color={theme.colors.textMuted} />
+            )}
           </View>
         </View>
       </AnimatedTouchableOpacity>
@@ -231,7 +303,7 @@ const styles = StyleSheet.create({
     elevation: 2,
     borderWidth: 1,
   },
-  cardInProgress: {
+  cardStatusAccent: {
     borderLeftWidth: 4,
   },
   header: {
@@ -295,6 +367,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     letterSpacing: 1,
   },
+  timelineWrap: {
+    marginBottom: 10,
+  },
   footer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -310,6 +385,12 @@ const styles = StyleSheet.create({
   iconButton: {
     position: 'relative',
     padding: 4,
+    alignItems: 'center',
+  },
+  actionLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 2,
   },
   badgeContainer: {
     position: 'absolute',
@@ -331,6 +412,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  reorderButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  reorderButton: {
+    width: 28,
+    height: 24,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.05)',
+  },
+  reorderButtonDisabled: {
+    opacity: 0.5,
   },
   badge: {
     paddingHorizontal: 8,

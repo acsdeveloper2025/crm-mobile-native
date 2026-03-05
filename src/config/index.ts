@@ -59,8 +59,8 @@ const BASE_CONFIG: Omit<AppConfig, 'apiBaseUrl' | 'wsUrl' | 'environment'> = {
 // Environment-specific API URLs (from CRM-MOBILE .env files)
 const ENV_CONFIGS = {
   development: {
-    apiBaseUrl: 'http://localhost:3000/api/mobile',
-    wsUrl: 'ws://localhost:3000',
+    apiBaseUrl: 'https://example.com/api/mobile',
+    wsUrl: 'wss://example.com',
   },
   staging: {
     apiBaseUrl: 'https://example.com/api/mobile',
@@ -73,9 +73,7 @@ const ENV_CONFIGS = {
 };
 
 // Default to development - override via .env or build config
-const CURRENT_ENV: 'development' | 'staging' | 'production' = __DEV__
-  ? 'development'
-  : 'production';
+const CURRENT_ENV: 'development' | 'staging' | 'production' = 'production';
 
 export const config: AppConfig = {
   ...BASE_CONFIG,
