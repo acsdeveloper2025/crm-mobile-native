@@ -11,16 +11,13 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTask } from '../../hooks/useTask';
-import { SyncService } from '../../services/SyncService';
-import { LocationService } from '../../services/LocationService';
 import { useTheme } from '../../context/ThemeContext';
 import { TaskTimeline } from '../../components/tasks/TaskTimeline';
-import { useTaskManager } from '../../context/TaskContext';
+import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
 
 export const TaskDetailScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { startTask } = useTaskManager();
   const { taskId } = route.params;
   const { task, isLoading, error, refetch } = useTask(taskId);
   const [isActionLoading, setIsActionLoading] = useState(false);
@@ -41,26 +38,7 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
     
     setIsActionLoading(true);
     try {
-      // 1. Verify location proximity (100m rule)
-      const validation = await SyncService.validateVisitStart(task.id);
-      
-      if (!validation.allowed) {
-        Alert.alert('Cannot Start Visit', validation.reason || 'Distance validation failed.');
-        setIsActionLoading(false);
-        return;
-      }
-
-      // 2. Record the visit-start location session required by backend submission validation
-      const recordedLocation = await LocationService.recordLocation(task.id, 'CASE_START');
-      if (!recordedLocation) {
-        Alert.alert('Cannot Start Visit', 'Location capture is required before starting the visit.');
-        setIsActionLoading(false);
-        return;
-      }
-
-      // 3. Update local state and enqueue the remote transition through the task manager
-      await startTask(task.id);
-
+      await startVisitUseCase(task.id);
       Alert.alert('Success', 'Visit started successfully.');
       refetch();
       navigation.navigate('VerificationForm', { taskId: task.id });

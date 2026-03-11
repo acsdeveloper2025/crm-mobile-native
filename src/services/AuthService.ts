@@ -3,11 +3,13 @@
 
 import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
-import { DatabaseService } from '../database/DatabaseService';
 import { config } from '../config';
 import { Logger } from '../utils/logger';
 import { CURRENT_PLATFORM, getOSVersion } from '../utils/platform';
 import { PushTokenService } from './PushTokenService';
+import { SessionStore } from './SessionStore';
+import { KeyValueRepository } from '../repositories/KeyValueRepository';
+import { UserSessionRepository } from '../repositories/UserSessionRepository';
 import type {
   MobileDeviceInfo,
   UserProfile,
@@ -26,6 +28,11 @@ class AuthServiceClass {
   private deviceId: string | null = null;
   private onLogoutCallback: (() => void) | null = null;
 
+  constructor() {
+    ApiClient.setRefreshHandler(() => this.refreshAccessToken());
+    ApiClient.setUnauthorizedHandler(() => this.handleUnauthorized());
+  }
+
   /**
    * Set callback to be called when user is logged out (e.g., navigate to login)
    */
@@ -36,34 +43,71 @@ class AuthServiceClass {
   // ---- SQLite Key-Value helpers ----
 
   private async kvGet(key: string): Promise<string | null> {
-    if (!DatabaseService.isReady()) {
+    if (!KeyValueRepository.isReady()) {
       return null;
     }
-    const rows = await DatabaseService.query<{ value: string }>(
-      'SELECT value FROM key_value_store WHERE key = ?',
-      [key],
-    );
-    return rows.length > 0 ? rows[0].value : null;
+    return KeyValueRepository.get(key);
   }
 
   private async kvSet(key: string, value: string): Promise<void> {
-    if (!DatabaseService.isReady()) {
+    if (!KeyValueRepository.isReady()) {
       return;
     }
-    await DatabaseService.execute(
-      'INSERT OR REPLACE INTO key_value_store (key, value) VALUES (?, ?)',
-      [key, value],
-    );
+    await KeyValueRepository.set(key, value);
   }
 
   private async kvRemove(key: string): Promise<void> {
-    if (!DatabaseService.isReady()) {
+    if (!KeyValueRepository.isReady()) {
       return;
     }
-    await DatabaseService.execute(
-      'DELETE FROM key_value_store WHERE key = ?',
-      [key],
-    );
+    await KeyValueRepository.remove(key);
+  }
+
+  private async handleUnauthorized(): Promise<void> {
+    await this.logout();
+  }
+
+  private async hasUserSessionTokenColumns(): Promise<boolean> {
+    if (!UserSessionRepository.isReady()) {
+      return false;
+    }
+
+    return UserSessionRepository.hasLegacyTokenColumns();
+  }
+
+  private async migrateLegacyTokensFromSQLite(): Promise<void> {
+    const secureTokens = await SessionStore.getTokens();
+    if (secureTokens?.accessToken && secureTokens.refreshToken) {
+      return;
+    }
+
+    let legacyAccessToken = await this.kvGet(TOKEN_KEY);
+    let legacyRefreshToken = await this.kvGet(REFRESH_TOKEN_KEY);
+
+    if ((!legacyAccessToken || !legacyRefreshToken) && await this.hasUserSessionTokenColumns()) {
+      const legacyTokens = await UserSessionRepository.getLegacyTokens();
+      legacyAccessToken = legacyAccessToken || legacyTokens.accessToken;
+      legacyRefreshToken = legacyRefreshToken || legacyTokens.refreshToken;
+    }
+
+    if (legacyAccessToken && legacyRefreshToken) {
+      await SessionStore.setTokens({
+        accessToken: legacyAccessToken,
+        refreshToken: legacyRefreshToken,
+      });
+      await this.kvRemove(TOKEN_KEY);
+      await this.kvRemove(REFRESH_TOKEN_KEY);
+      await this.scrubLegacySqliteTokens();
+    }
+  }
+
+  private async scrubLegacySqliteTokens(): Promise<void> {
+    await this.kvRemove(TOKEN_KEY);
+    await this.kvRemove(REFRESH_TOKEN_KEY);
+
+    if (await this.hasUserSessionTokenColumns()) {
+      await UserSessionRepository.scrubLegacyTokens();
+    }
   }
 
   /**
@@ -71,8 +115,10 @@ class AuthServiceClass {
    */
   async initialize(): Promise<boolean> {
     try {
-      this.accessToken = await this.kvGet(TOKEN_KEY);
-      this.refreshToken = await this.kvGet(REFRESH_TOKEN_KEY);
+      await this.migrateLegacyTokensFromSQLite();
+      const secureTokens = await SessionStore.getTokens();
+      this.accessToken = secureTokens?.accessToken || null;
+      this.refreshToken = secureTokens?.refreshToken || null;
       const expiry = await this.kvGet(TOKEN_EXPIRY_KEY);
 
       if (!this.accessToken || !this.refreshToken) {
@@ -99,7 +145,6 @@ class AuthServiceClass {
   }
 
   /**
-  /**
    * Store session data after successful login
    */
   async login(
@@ -112,16 +157,19 @@ class AuthServiceClass {
       this.accessToken = accessToken;
       this.refreshToken = refreshToken || null;
 
-      // Store tokens in SQLite key-value store
-      await this.kvSet(TOKEN_KEY, accessToken);
-      if (refreshToken) await this.kvSet(REFRESH_TOKEN_KEY, refreshToken);
+      if (refreshToken) {
+        await SessionStore.setTokens({ accessToken, refreshToken });
+      } else {
+        await SessionStore.clearTokens();
+      }
+      await this.scrubLegacySqliteTokens();
 
       const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
       await this.kvSet(TOKEN_EXPIRY_KEY, expiresAt);
 
       // Store user in DB
       this.currentUser = user;
-      await this.saveUserToDb(user, accessToken, refreshToken || '', expiresAt);
+      await this.saveUserToDb(user, expiresAt);
 
       Logger.info(TAG, `Login successful for ${user.name}`);
       return { success: true, message: 'Login successful' };
@@ -151,11 +199,16 @@ class AuthServiceClass {
 
       if (response.success && response.data) {
         this.accessToken = response.data.accessToken;
-        await this.kvSet(TOKEN_KEY, response.data.accessToken);
         if (response.data.refreshToken) {
           this.refreshToken = response.data.refreshToken;
-          await this.kvSet(REFRESH_TOKEN_KEY, response.data.refreshToken);
         }
+        if (this.refreshToken) {
+          await SessionStore.setTokens({
+            accessToken: response.data.accessToken,
+            refreshToken: this.refreshToken,
+          });
+        }
+        await this.scrubLegacySqliteTokens();
 
         const expiresAt = new Date(
           Date.now() + response.data.expiresIn * 1000,
@@ -192,14 +245,13 @@ class AuthServiceClass {
       this.refreshToken = null;
       this.currentUser = null;
 
-      // Clear tokens from SQLite
-      await this.kvRemove(TOKEN_KEY);
-      await this.kvRemove(REFRESH_TOKEN_KEY);
+      await SessionStore.clearTokens();
+      await this.scrubLegacySqliteTokens();
       await this.kvRemove(TOKEN_EXPIRY_KEY);
 
       // Clear user session from DB
-      if (DatabaseService.isReady()) {
-        await DatabaseService.execute('DELETE FROM user_session');
+      if (UserSessionRepository.isReady()) {
+        await UserSessionRepository.clearSession();
       }
 
       Logger.info(TAG, 'Logout completed');
@@ -217,7 +269,7 @@ class AuthServiceClass {
    */
   async getAccessToken(): Promise<string | null> {
     if (!this.accessToken) {
-      this.accessToken = await this.kvGet(TOKEN_KEY);
+      this.accessToken = await SessionStore.getAccessToken();
     }
     return this.accessToken;
   }
@@ -274,84 +326,22 @@ class AuthServiceClass {
    */
   private async saveUserToDb(
     user: UserProfile,
-    accessToken: string,
-    refreshTokenValue: string,
     expiresAt: string,
   ): Promise<void> {
-    if (!DatabaseService.isReady()) {
+    if (!UserSessionRepository.isReady()) {
       return;
     }
-
-    await DatabaseService.execute('DELETE FROM user_session');
-    await DatabaseService.execute(
-      `INSERT INTO user_session
-        (id, user_id, user_name, username, email, role, employee_id,
-         designation, department, profile_photo_url,
-         assigned_pincodes_json, assigned_areas_json,
-         access_token, refresh_token, token_expires_at, logged_in_at)
-       VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        user.id,
-        user.name,
-        user.username,
-        user.email || '',
-        user.role,
-        user.employeeId || '',
-        user.designation || '',
-        user.department || '',
-        user.profilePhotoUrl || null,
-        JSON.stringify(user.assignedPincodes || []),
-        JSON.stringify(user.assignedAreas || []),
-        accessToken,
-        refreshTokenValue,
-        expiresAt,
-        new Date().toISOString(),
-      ],
-    );
+    await UserSessionRepository.saveUser(user, expiresAt);
   }
 
   /**
    * Load user session from SQLite
    */
   private async loadUserFromDb(): Promise<void> {
-    if (!DatabaseService.isReady()) {
+    if (!UserSessionRepository.isReady()) {
       return;
     }
-
-    const rows = await DatabaseService.query<{
-      user_id: string;
-      user_name: string;
-      username: string;
-      email: string;
-      role: string;
-      employee_id: string;
-      designation: string;
-      department: string;
-      profile_photo_url: string | null;
-      assigned_pincodes_json: string | null;
-      assigned_areas_json: string | null;
-    }>('SELECT * FROM user_session WHERE id = 1');
-
-    if (rows.length > 0) {
-      const row = rows[0];
-      this.currentUser = {
-        id: row.user_id,
-        name: row.user_name,
-        username: row.username,
-        email: row.email,
-        role: row.role,
-        employeeId: row.employee_id,
-        designation: row.designation,
-        department: row.department,
-        profilePhotoUrl: row.profile_photo_url || undefined,
-        assignedPincodes: row.assigned_pincodes_json
-          ? JSON.parse(row.assigned_pincodes_json)
-          : [],
-        assignedAreas: row.assigned_areas_json
-          ? JSON.parse(row.assigned_areas_json)
-          : [],
-      };
-    }
+    this.currentUser = await UserSessionRepository.loadUser();
   }
 }
 

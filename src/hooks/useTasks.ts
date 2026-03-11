@@ -1,46 +1,8 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTaskManager } from '../context/TaskContext';
-import { TaskStatus } from '../types/enums';
-
-const filterTasks = (
-  tasks: ReturnType<typeof useTaskManager>['tasks'],
-  statusFilter?: string,
-  searchQuery?: string,
-) => {
-  const query = searchQuery?.trim().toLowerCase() || '';
-
-  return tasks.filter(task => {
-    if (statusFilter === TaskStatus.Saved) {
-      if (!(task.is_saved === 1 && task.status !== TaskStatus.Completed)) {
-        return false;
-      }
-    } else if (statusFilter === TaskStatus.Revoked) {
-      if (task.is_revoked !== 1) {
-        return false;
-      }
-    } else if (statusFilter) {
-      if (task.status !== statusFilter || task.is_revoked === 1) {
-        return false;
-      }
-    } else if (task.is_revoked === 1) {
-      return false;
-    }
-
-    if (!query) {
-      return true;
-    }
-
-    return [
-      task.customerName,
-      task.addressCity,
-      String(task.caseId),
-      task.verificationTaskNumber,
-    ]
-      .filter(Boolean)
-      .some(value => String(value).toLowerCase().includes(query));
-  });
-};
+import { LocalTask } from '../types/mobile';
+import { TaskListProjection } from '../projections/TaskListProjection';
 
 export const useTasks = (statusFilter?: string, searchQuery?: string): any => {
   const {
@@ -61,23 +23,34 @@ export const useTasks = (statusFilter?: string, searchQuery?: string): any => {
     updateTaskFormData,
   } = useTaskManager();
 
+  const [tasks, setTasks] = useState<LocalTask[]>([]);
+
+  const loadProjectedTasks = useCallback(async () => {
+    const projected = await TaskListProjection.list(statusFilter, searchQuery);
+    setTasks(projected);
+  }, [searchQuery, statusFilter]);
+
+  const refreshProjectedTasks = useCallback(async () => {
+    await refreshTasks();
+    await loadProjectedTasks();
+  }, [loadProjectedTasks, refreshTasks]);
+
   useFocusEffect(
     useCallback(() => {
-      refreshTasks().catch(() => undefined);
-    }, [refreshTasks]),
+      refreshProjectedTasks().catch(() => undefined);
+    }, [refreshProjectedTasks]),
   );
 
-  const tasks = useMemo(
-    () => filterTasks(allTasks, statusFilter, searchQuery),
-    [allTasks, searchQuery, statusFilter],
-  );
+  useEffect(() => {
+    loadProjectedTasks().catch(() => undefined);
+  }, [allTasks.length, loadProjectedTasks]);
 
   return {
     tasks,
     isLoading,
     error,
-    refetch: refreshTasks,
-    fetchTasks: refreshTasks,
+    refetch: refreshProjectedTasks,
+    fetchTasks: refreshProjectedTasks,
     updateTaskStatus,
     updateVerificationOutcome,
     toggleSaveTask,

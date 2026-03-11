@@ -133,7 +133,7 @@ export interface SyncQueueItem {
   entityId: string;
   payloadJson: string; // JSON blob of the data to sync
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';
-  priority: number; // Lower = higher priority
+  priority: number; // Legacy queue priority; processor applies operation-based priority ordering
   createdAt: string;
   processedAt?: string;
   attempts: number;

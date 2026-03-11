@@ -16,9 +16,9 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
   const [isPreparing, setIsPreparing] = useState(true);
   const insets = useSafeAreaInsets();
 
-  // Setup simple format for standard photos (approx 1080p to fit under 2MB limit easily)
+  // Use 720p for faster shutter + processing and predictable upload sizes.
   const format = useCameraFormat(device, [
-    { photoResolution: { width: 1920, height: 1080 } }
+    { photoResolution: { width: 1280, height: 720 } },
   ]);
 
   const requestPermissions = useCallback(async () => {
@@ -62,10 +62,13 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
     try {
       setIsCapturing(true);
       
-      const photo = await camera.current.takePhoto({
-        flash: 'off',
-        enableShutterSound: true,
-      });
+      const photo = await camera.current.takePhoto(
+        {
+          flash: 'off',
+          enableShutterSound: false,
+          qualityPrioritization: 'speed',
+        } as any,
+      );
 
       // Redirect to Watermark compositor instead of immediately saving
       navigation.navigate('WatermarkPreview', { 
@@ -111,25 +114,37 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
         ]}>
         <View style={styles.topBar}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
-            <Icon name="close" size={32} color="white" />
+            <Icon name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
-          <View style={styles.captureModeBadge}>
-            <Text style={styles.captureModeText}>
-              {componentType === 'selfie' ? 'Selfie Mode' : 'Photo Mode'}
-            </Text>
+          <View style={styles.topInfoWrap}>
+            <View style={styles.captureModeBadge}>
+              <Text style={styles.captureModeText}>
+                {componentType === 'selfie' ? 'Selfie Capture' : 'Photo Capture'}
+              </Text>
+            </View>
+            <Text style={styles.taskHintText}>Task: {String(taskId).slice(0, 8)}</Text>
           </View>
+          <View style={styles.topSpacer} />
         </View>
 
+        {isCapturing ? (
+          <View style={styles.capturingOverlay}>
+            <ActivityIndicator size="small" color="white" />
+            <Text style={styles.capturingText}>Processing image...</Text>
+          </View>
+        ) : null}
+
         <View style={styles.bottomBar}>
-          <TouchableOpacity 
-            style={styles.captureButtonOuter} 
+          <TouchableOpacity
+            style={[styles.captureButtonOuter, isCapturing && styles.captureButtonDisabled]}
             onPress={handleCapture}
             disabled={isCapturing}>
             <View style={[styles.captureButtonInner, isCapturing && styles.capturingState]} />
           </TouchableOpacity>
           <Text style={styles.captureHint}>
-            {isCapturing ? 'Capturing...' : 'Capture and continue to watermark review'}
+            {isCapturing ? 'Saving...' : componentType === 'selfie' ? 'Tap to capture selfie' : 'Tap to capture photo'}
           </Text>
+          <Text style={styles.captureHintSub}>Fast mode enabled for quicker capture</Text>
         </View>
       </View>
     </View>
@@ -154,7 +169,7 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'space-between',
-    padding: 20,
+    paddingHorizontal: 20,
   },
   topBar: {
     flexDirection: 'row',
@@ -162,18 +177,34 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   iconButton: {
-    padding: 8,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  topInfoWrap: {
+    alignItems: 'center',
+    gap: 6,
+  },
+  topSpacer: {
+    width: 42,
+    height: 42,
   },
   bottomBar: {
     flexDirection: 'column',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingBottom: 12,
   },
   captureModeBadge: {
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
     borderRadius: 999,
     paddingHorizontal: 12,
     paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.35)',
   },
   captureModeText: {
     color: 'white',
@@ -182,34 +213,66 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
     textTransform: 'uppercase',
   },
+  taskHintText: {
+    color: '#d1d5db',
+    fontSize: 11,
+    fontWeight: '600',
+  },
   captureButtonOuter: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 82,
+    height: 82,
+    borderRadius: 41,
     borderWidth: 4,
     borderColor: 'white',
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  captureButtonDisabled: {
+    opacity: 0.7,
   },
   captureButtonInner: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 62,
+    height: 62,
+    borderRadius: 31,
     backgroundColor: 'white',
   },
   capturingState: {
-    backgroundColor: '#D1D5DB', // gray-300
+    backgroundColor: '#cbd5e1',
     transform: [{ scale: 0.9 }],
   },
   captureHint: {
     marginTop: 12,
     color: 'white',
     fontSize: 13,
-    fontWeight: '500',
+    fontWeight: '600',
     textAlign: 'center',
     backgroundColor: 'rgba(0,0,0,0.35)',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 10,
+  },
+  captureHintSub: {
+    marginTop: 5,
+    color: '#d1d5db',
+    fontSize: 11,
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  capturingOverlay: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    marginTop: 18,
+    gap: 8,
+  },
+  capturingText: {
+    color: 'white',
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

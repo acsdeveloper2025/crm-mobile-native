@@ -1,5 +1,5 @@
 import { PermissionsAndroid, Platform } from 'react-native';
-import { DatabaseService } from '../database/DatabaseService';
+import { KeyValueRepository } from '../repositories/KeyValueRepository';
 import { Logger } from '../utils/logger';
 
 const TAG = 'PushTokenService';
@@ -20,24 +20,17 @@ class PushTokenServiceClass {
   private loggedMissingModule = false;
 
   private async kvGet(key: string): Promise<string | null> {
-    if (!DatabaseService.isReady()) {
+    if (!KeyValueRepository.isReady()) {
       return null;
     }
-    const rows = await DatabaseService.query<{ value: string }>(
-      'SELECT value FROM key_value_store WHERE key = ?',
-      [key],
-    );
-    return rows[0]?.value || null;
+    return KeyValueRepository.get(key);
   }
 
   private async kvSet(key: string, value: string): Promise<void> {
-    if (!DatabaseService.isReady()) {
+    if (!KeyValueRepository.isReady()) {
       return;
     }
-    await DatabaseService.execute(
-      'INSERT OR REPLACE INTO key_value_store (key, value) VALUES (?, ?)',
-      [key, value],
-    );
+    await KeyValueRepository.set(key, value);
   }
 
   private getMessagingModule(): MessagingModule | null {

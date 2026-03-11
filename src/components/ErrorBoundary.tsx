@@ -58,6 +58,20 @@ class ErrorBoundary extends Component<Props, State> {
     }
   }
 
+  private handleRecover = () => {
+    if (__DEV__) {
+      DevSettings.reload();
+      return;
+    }
+
+    this.setState({
+      hasError: false,
+      error: undefined,
+      errorInfo: undefined,
+      showDetails: false,
+    });
+  };
+
   render() {
     if (this.state.hasError) {
       const colors = this.getThemeColors();
@@ -94,9 +108,9 @@ class ErrorBoundary extends Component<Props, State> {
           )}
           
           <TouchableOpacity 
-            onPress={() => DevSettings.reload()}
+            onPress={this.handleRecover}
             style={[styles.reloadBtn, { backgroundColor: colors.primary }]}>
-            <Text style={styles.reloadBtnText}>Reload App</Text>
+            <Text style={styles.reloadBtnText}>{__DEV__ ? 'Reload App' : 'Try Again'}</Text>
           </TouchableOpacity>
         </View>
       );

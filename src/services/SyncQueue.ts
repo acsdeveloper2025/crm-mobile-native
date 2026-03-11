@@ -2,11 +2,14 @@
 // All data-modifying operations go through this queue for reliable sync
 
 import { v4 as uuidv4 } from 'uuid';
-import { DatabaseService } from '../database/DatabaseService';
+import { SyncQueueRepository } from '../repositories/SyncQueueRepository';
+import { syncRetryPolicy } from '../sync/SyncRetryPolicy';
+import { inferOperationType, priorityForOperationType } from '../sync/SyncOperationLog';
 import { Logger } from '../utils/logger';
 import type { SyncQueueItem } from '../types/mobile';
 
 const TAG = 'SyncQueue';
+const DEFAULT_LEASE_TIMEOUT_MS = 5 * 60 * 1000;
 
 export type EntityType =
   | 'TASK'
@@ -17,7 +20,7 @@ export type EntityType =
   | 'FORM_SUBMISSION';
 export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE';
 
-// Priority levels: lower number = higher priority
+// Legacy priority levels remain supported for backward compatibility.
 export const SYNC_PRIORITY = {
   CRITICAL: 1, // Task status transitions and blocking prerequisites
   HIGH: 3, // Form submissions and attachments
@@ -26,6 +29,21 @@ export const SYNC_PRIORITY = {
 } as const;
 
 class SyncQueueClass {
+  private getLeaseExpiry(timeoutMs: number): string {
+    return new Date(Date.now() + timeoutMs).toISOString();
+  }
+
+  async recoverExpiredLeases(): Promise<number> {
+    const now = new Date().toISOString();
+    const result = await SyncQueueRepository.recoverExpiredLeases(now);
+
+    if (result > 0) {
+      Logger.warn(TAG, `Recovered ${result} expired queue lease(s)`);
+    }
+
+    return result;
+  }
+
   /**
    * Enqueue a new operation for sync
    */
@@ -38,23 +56,34 @@ class SyncQueueClass {
   ): Promise<string> {
     if (entityType === 'TASK_STATUS') {
       // Keep only the latest pending status mutation per task to avoid stale regressions.
-      await DatabaseService.execute(
-        `DELETE FROM sync_queue
-         WHERE entity_type = 'TASK_STATUS'
-           AND entity_id = ?
-           AND status IN ('PENDING', 'FAILED', 'IN_PROGRESS')`,
-        [entityId],
-      );
+      await SyncQueueRepository.deletePendingStatusItems(entityId);
     }
 
     const id = uuidv4();
     const now = new Date().toISOString();
+    const operationType = inferOperationType(actionType, entityType, payload);
+    const operationPriority = priorityForOperationType(operationType);
+    const payloadWithOperation = {
+      ...payload,
+      _operation: {
+        operation_id: id,
+        type: operationType,
+        entity_type: entityType,
+        entity_id: entityId,
+        created_at: now,
+        retry_count: 0,
+        priority: operationPriority,
+      },
+    };
 
-    await DatabaseService.execute(
-      `INSERT INTO sync_queue
-        (id, action_type, entity_type, entity_id, payload_json, status, priority, created_at, attempts, max_attempts)
-       VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, 0, 3)`,
-      [id, actionType, entityType, entityId, JSON.stringify(payload), priority, now],
+    await SyncQueueRepository.insert(
+      id,
+      actionType,
+      entityType,
+      entityId,
+      JSON.stringify(payloadWithOperation),
+      priority,
+      now,
     );
 
     Logger.debug(TAG, `Enqueued: ${actionType} ${entityType} ${entityId} (priority: ${priority})`);
@@ -65,49 +94,27 @@ class SyncQueueClass {
    * Get the next batch of pending items, ordered by priority then creation time
    */
   async getPendingItems(limit: number = 50): Promise<SyncQueueItem[]> {
-    const rows = await DatabaseService.query<any>(
-      `SELECT * FROM sync_queue
-       WHERE status = 'PENDING' OR (status = 'FAILED' AND attempts < max_attempts AND (next_retry_at IS NULL OR next_retry_at <= ?))
-       ORDER BY priority ASC, created_at ASC
-       LIMIT ?`,
-      [new Date().toISOString(), limit],
-    );
+    await this.recoverExpiredLeases();
 
-    return rows.map(row => ({
-      id: row.id,
-      actionType: row.action_type,
-      entityType: row.entity_type,
-      entityId: row.entity_id,
-      payloadJson: row.payload_json,
-      status: row.status,
-      priority: row.priority,
-      createdAt: row.created_at,
-      processedAt: row.processed_at,
-      attempts: row.attempts,
-      maxAttempts: row.max_attempts,
-      lastError: row.last_error,
-      nextRetryAt: row.next_retry_at,
-    }));
+    return SyncQueueRepository.listProcessible(new Date().toISOString(), limit);
   }
 
   /**
    * Mark an item as in-progress
    */
-  async markInProgress(id: string): Promise<void> {
-    await DatabaseService.execute(
-      `UPDATE sync_queue SET status = 'IN_PROGRESS', attempts = attempts + 1 WHERE id = ?`,
-      [id],
-    );
+  async markInProgress(
+    id: string,
+    leaseTimeoutMs: number = DEFAULT_LEASE_TIMEOUT_MS,
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    await SyncQueueRepository.markInProgress(id, now, this.getLeaseExpiry(leaseTimeoutMs));
   }
 
   /**
    * Mark an item as completed (successfully synced)
    */
   async markCompleted(id: string): Promise<void> {
-    await DatabaseService.execute(
-      `UPDATE sync_queue SET status = 'COMPLETED', processed_at = ? WHERE id = ?`,
-      [new Date().toISOString(), id],
-    );
+    await SyncQueueRepository.markCompleted(id, new Date().toISOString());
   }
 
   /**
@@ -115,15 +122,7 @@ class SyncQueueClass {
    * Used when sequencing rules defer an upload rather than failing it.
    */
   async markPending(id: string, reason?: string): Promise<void> {
-    await DatabaseService.execute(
-      `UPDATE sync_queue
-       SET status = 'PENDING',
-           attempts = CASE WHEN attempts > 0 THEN attempts - 1 ELSE 0 END,
-           last_error = ?,
-           next_retry_at = NULL
-       WHERE id = ?`,
-      [reason || null, id],
-    );
+    await SyncQueueRepository.markPending(id, reason || null);
   }
 
   /**
@@ -132,22 +131,10 @@ class SyncQueueClass {
    */
   async markFailed(id: string, error: string): Promise<void> {
     // Get current attempts for backoff calculation
-    const rows = await DatabaseService.query<{ attempts: number }>(
-      'SELECT attempts FROM sync_queue WHERE id = ?',
-      [id],
-    );
-    const attempts = rows[0]?.attempts ?? 1;
+    const attempts = await SyncQueueRepository.getAttempts(id) || 1;
+    const { nextRetryAt } = syncRetryPolicy.getRetryWindow(attempts);
 
-    // Exponential backoff: 5s, 25s, 125s
-    const backoffMs = Math.pow(5, attempts) * 1000;
-    const nextRetryAt = new Date(Date.now() + backoffMs).toISOString();
-
-    await DatabaseService.execute(
-      `UPDATE sync_queue
-       SET status = 'FAILED', last_error = ?, next_retry_at = ?
-       WHERE id = ?`,
-      [error, nextRetryAt, id],
-    );
+    await SyncQueueRepository.markFailed(id, error, nextRetryAt);
 
     Logger.warn(TAG, `Item ${id} failed (attempt ${attempts}): ${error}`);
   }
@@ -156,10 +143,7 @@ class SyncQueueClass {
    * Get count of pending items
    */
   async getPendingCount(): Promise<number> {
-    return await DatabaseService.count(
-      'sync_queue',
-      "status IN ('PENDING', 'FAILED')",
-    );
+    return SyncQueueRepository.getPendingCount();
   }
 
   /**
@@ -171,20 +155,14 @@ class SyncQueueClass {
     completed: number;
     failed: number;
   }> {
-    const rows = await DatabaseService.query<{ status: string; count: number }>(
-      `SELECT status, COUNT(*) as count FROM sync_queue
-       WHERE entity_type = ?
-       GROUP BY status`,
-      [entityType],
-    );
-
+    const rows = await SyncQueueRepository.getCountByType(entityType);
     const counts = { pending: 0, inProgress: 0, completed: 0, failed: 0 };
-    for (const row of rows) {
-      switch (row.status) {
-        case 'PENDING': counts.pending = row.count; break;
-        case 'IN_PROGRESS': counts.inProgress = row.count; break;
-        case 'COMPLETED': counts.completed = row.count; break;
-        case 'FAILED': counts.failed = row.count; break;
+    for (const [status, count] of Object.entries(rows)) {
+      switch (status) {
+        case 'PENDING': counts.pending = count; break;
+        case 'IN_PROGRESS': counts.inProgress = count; break;
+        case 'COMPLETED': counts.completed = count; break;
+        case 'FAILED': counts.failed = count; break;
       }
     }
 
@@ -199,27 +177,26 @@ class SyncQueueClass {
       Date.now() - olderThanHours * 60 * 60 * 1000,
     ).toISOString();
 
-    const result = await DatabaseService.execute(
-      `DELETE FROM sync_queue WHERE status = 'COMPLETED' AND processed_at < ?`,
-      [cutoff],
-    );
+    const result = await SyncQueueRepository.cleanupCompletedOlderThan(cutoff);
 
-    if (result.rowsAffected > 0) {
-      Logger.info(TAG, `Cleaned up ${result.rowsAffected} completed sync items`);
+    if (result > 0) {
+      Logger.info(TAG, `Cleaned up ${result} completed sync items`);
     }
 
-    return result.rowsAffected;
+    return result;
   }
 
   /**
    * Check if there's a pending item for a specific entity
    */
   async hasPendingItem(entityType: EntityType, entityId: string): Promise<boolean> {
-    const count = await DatabaseService.count(
-      'sync_queue',
-      "entity_type = ? AND entity_id = ? AND status IN ('PENDING', 'IN_PROGRESS')",
-      [entityType, entityId],
-    );
+    const rows = await this.getPendingItems(500);
+    const count = rows.filter(
+      item =>
+        item.entityType === entityType &&
+        item.entityId === entityId &&
+        (item.status === 'PENDING' || item.status === 'IN_PROGRESS'),
+    ).length;
     return count > 0;
   }
 }

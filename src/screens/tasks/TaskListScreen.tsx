@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useDeferredValue } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, TextInput, Alert } from 'react-native';
 import { useRoute, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,8 +8,8 @@ import { TaskCardSkeleton } from '../../components/ui/Skeleton';
 import { LocalTask } from '../../types/mobile';
 import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { DatabaseService } from '../../database/DatabaseService';
 import { useTaskManager } from '../../context/TaskContext';
+import { TaskRepository, type TaskListCounts } from '../../repositories/TaskRepository';
 
 // Updated tab bar filters for tasks to include Saved and Revoked
 const FILTER_TABS = [
@@ -38,12 +38,19 @@ export const TaskListScreen = ({
   
   const [activeTab, setActiveTab] = useState(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
-  const [counts, setCounts] = useState<Record<string, number>>({});
+  const deferredSearchQuery = useDeferredValue(searchQuery);
+  const [counts, setCounts] = useState<TaskListCounts>({
+    ALL: 0,
+    ASSIGNED: 0,
+    IN_PROGRESS: 0,
+    COMPLETED: 0,
+    SAVED: 0,
+  });
   const insets = useSafeAreaInsets();
   const { setTaskPriority } = useTaskManager();
   
   const statusFilter = lockedFilter ? initialFilter : activeTab.value;
-  const { tasks, isLoading, error, refetch } = useTasks(statusFilter, searchQuery);
+  const { tasks, isLoading, error, refetch } = useTasks(statusFilter, deferredSearchQuery);
   const canReorder = lockedFilter && (initialFilter === 'ASSIGNED' || initialFilter === 'IN_PROGRESS');
 
   useEffect(() => {
@@ -159,34 +166,7 @@ export const TaskListScreen = ({
     useCallback(() => {
       const fetchCounts = async () => {
         try {
-          const results = await DatabaseService.query<{ status: string; is_saved: number; is_revoked: number; count: number }>(
-            "SELECT status, is_saved, is_revoked, COUNT(*) as count FROM tasks GROUP BY status, is_saved, is_revoked"
-          );
-          
-          let all = 0, assigned = 0, inProgress = 0, completed = 0, saved = 0;
-          
-          results.forEach(row => {
-            if (row.is_revoked) {
-              return;
-            } else if (row.is_saved && row.status !== 'COMPLETED') {
-              saved += row.count;
-            } else if (row.status === 'ASSIGNED') {
-              assigned += row.count;
-            } else if (row.status === 'IN_PROGRESS') {
-              inProgress += row.count;
-            } else if (row.status === 'COMPLETED') {
-              completed += row.count;
-            }
-            if (!row.is_revoked) all += row.count;
-          });
-
-          setCounts({
-            ALL: all,
-            ASSIGNED: assigned,
-            IN_PROGRESS: inProgress,
-            COMPLETED: completed,
-            SAVED: saved,
-          });
+          setCounts(await TaskRepository.getTaskListCounts());
         } catch (err) {
            console.error("Error fetching tab counts", err);
         }
@@ -196,7 +176,7 @@ export const TaskListScreen = ({
     }, [])
   );
 
-  const handleTaskPress = (task: LocalTask) => {
+  const handleTaskPress = useCallback((task: LocalTask) => {
     if (task.status === 'IN_PROGRESS' || task.status === 'REVISIT') {
       navigation.navigate('VerificationForm', { taskId: task.id });
       return;
@@ -210,7 +190,7 @@ export const TaskListScreen = ({
       return;
     }
     navigation.navigate('TaskDetail', { taskId: task.id });
-  };
+  }, [navigation]);
 
   const handleAttachmentsPress = useCallback((task: LocalTask) => {
     navigation.navigate('TaskAttachments', {
@@ -249,6 +229,33 @@ export const TaskListScreen = ({
     }
   }, [isSavingOrder, refetch, reorderIds, reorderMode, setTaskPriority]);
 
+  const keyExtractor = useCallback((item: LocalTask) => item.id, []);
+
+  const renderTaskItem = useCallback(
+    ({ item, index }: { item: LocalTask; index: number }) => (
+      <TaskCard
+        task={item}
+        onPress={handleTaskPress}
+        onStatusChange={refetch}
+        onAttachmentsPress={handleAttachmentsPress}
+        isReorderEnabled={reorderMode && canReorder}
+        canMoveUp={index > 0}
+        canMoveDown={index < visibleTasks.length - 1}
+        onMoveUp={() => handleMoveTask(item.id, 'up')}
+        onMoveDown={() => handleMoveTask(item.id, 'down')}
+      />
+    ),
+    [
+      canReorder,
+      handleAttachmentsPress,
+      handleMoveTask,
+      handleTaskPress,
+      reorderMode,
+      refetch,
+      visibleTasks.length,
+    ],
+  );
+
   const renderFilterTabs = () => (
     <View style={[styles.filterContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
@@ -267,7 +274,7 @@ export const TaskListScreen = ({
                 { color: theme.colors.textSecondary },
                 activeTab.id === tab.id && [styles.activeFilterText, { color: theme.colors.surface }]
               ]}>
-              {tab.label} {counts[tab.id] !== undefined ? `(${counts[tab.id]})` : ''}
+              {tab.label} {counts[tab.id as keyof TaskListCounts] !== undefined ? `(${counts[tab.id as keyof TaskListCounts]})` : ''}
             </Text>
           </TouchableOpacity>
         ))}
@@ -371,20 +378,13 @@ export const TaskListScreen = ({
       ) : (
         <FlatList
           data={visibleTasks}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => (
-            <TaskCard
-              task={item}
-              onPress={handleTaskPress}
-              onStatusChange={refetch}
-              onAttachmentsPress={handleAttachmentsPress}
-              isReorderEnabled={reorderMode && canReorder}
-              canMoveUp={index > 0}
-              canMoveDown={index < visibleTasks.length - 1}
-              onMoveUp={() => handleMoveTask(item.id, 'up')}
-              onMoveDown={() => handleMoveTask(item.id, 'down')}
-            />
-          )}
+          keyExtractor={keyExtractor}
+          renderItem={renderTaskItem}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          updateCellsBatchingPeriod={50}
+          windowSize={8}
+          removeClippedSubviews
           contentContainerStyle={[styles.listContainer, { paddingBottom: Math.max(insets.bottom, 16) + 80 }]}
           refreshing={isLoading}
           onRefresh={refetch}

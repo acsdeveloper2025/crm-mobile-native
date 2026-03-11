@@ -53,7 +53,7 @@ const BASE_CONFIG: Omit<AppConfig, 'apiBaseUrl' | 'wsUrl' | 'environment'> = {
 
   // Database
   dbName: 'crm_mobile.db',
-  dbVersion: 5,
+  dbVersion: 7,
 };
 
 // Environment-specific API URLs (from CRM-MOBILE .env files)

@@ -4,8 +4,11 @@
 import { Platform, PermissionsAndroid } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 import RNFS from 'react-native-fs';
-import { DatabaseService } from '../database/DatabaseService';
-import { SyncQueue, SYNC_PRIORITY } from './SyncQueue';
+import ImageResizer from '@bam.tech/react-native-image-resizer';
+import { AttachmentRepository } from '../repositories/AttachmentRepository';
+import { TaskRepository } from '../repositories/TaskRepository';
+import { SyncGateway } from './SyncGateway';
+import { SYNC_PRIORITY } from './SyncQueue';
 import { LocationService } from './LocationService';
 import { Logger } from '../utils/logger';
 import { resolveFormTypeKey, toBackendFormType } from '../utils/formTypeKey';
@@ -14,10 +17,12 @@ const TAG = 'CameraService';
 
 // Directory for storing captured photos
 const PHOTOS_DIR = `${RNFS.DocumentDirectoryPath}/photos`;
+const THUMBNAILS_DIR = `${PHOTOS_DIR}/thumbnails`;
 
 export interface CapturedPhoto {
   id: string;
   localPath: string;
+  thumbnailPath?: string;
   filename: string;
   mimeType: string;
   size: number;
@@ -26,6 +31,15 @@ export interface CapturedPhoto {
   accuracy?: number;
   timestamp: string;
   componentType: 'photo' | 'selfie';
+}
+
+interface SavePhotoOptions {
+  locationOverride?: {
+    latitude?: number;
+    longitude?: number;
+    accuracy?: number;
+    timestamp?: string;
+  } | null;
 }
 
 class CameraServiceClass {
@@ -42,6 +56,10 @@ class CameraServiceClass {
     const exists = await RNFS.exists(PHOTOS_DIR);
     if (!exists) {
       await RNFS.mkdir(PHOTOS_DIR);
+    }
+    const thumbnailsExist = await RNFS.exists(THUMBNAILS_DIR);
+    if (!thumbnailsExist) {
+      await RNFS.mkdir(THUMBNAILS_DIR);
     }
 
     this.initialized = true;
@@ -87,6 +105,7 @@ class CameraServiceClass {
     sourcePath: string,
     taskId: string,
     componentType: 'photo' | 'selfie' = 'photo',
+    options?: SavePhotoOptions,
   ): Promise<CapturedPhoto | null> {
     try {
       await this.initialize();
@@ -102,22 +121,20 @@ class CameraServiceClass {
 
       // Get file size
       const stat = await RNFS.stat(destPath);
+      const thumbnailPath = await this.createThumbnail(destPath, id, extension);
 
-      // Capture location at the moment the photo is saved
-      const location = await LocationService.getCurrentLocation();
-      const taskRows = await DatabaseService.query<{
-        verificationType?: string | null;
-        verificationTypeCode?: string | null;
-        verificationTypeName?: string | null;
-        verificationTaskId?: string | null;
-      }>(
-        `SELECT verification_type, verification_type_code, verification_type_name, verification_task_id
-         FROM tasks
-         WHERE id = ?
-         LIMIT 1`,
-        [taskId],
-      );
-      const taskMeta = taskRows[0];
+      const override = options?.locationOverride || null;
+      const resolvedLocation =
+        override && typeof override.latitude === 'number' && typeof override.longitude === 'number'
+          ? {
+              latitude: override.latitude,
+              longitude: override.longitude,
+              accuracy: override.accuracy ?? 0,
+              timestamp: override.timestamp || new Date().toISOString(),
+              source: 'GPS' as const,
+            }
+          : await LocationService.getCurrentLocation();
+      const taskMeta = await TaskRepository.getTaskIdentity(taskId);
       const formTypeKey = resolveFormTypeKey({
         verificationTypeCode: taskMeta?.verificationTypeCode || null,
         verificationTypeName: taskMeta?.verificationTypeName || null,
@@ -129,44 +146,36 @@ class CameraServiceClass {
       const photo: CapturedPhoto = {
         id,
         localPath: destPath,
+        thumbnailPath: thumbnailPath || undefined,
         filename,
         mimeType: extension === 'png' ? 'image/png' : 'image/jpeg',
         size: parseInt(String(stat.size), 10),
-        latitude: location?.latitude,
-        longitude: location?.longitude,
-        accuracy: location?.accuracy,
+        latitude: resolvedLocation?.latitude,
+        longitude: resolvedLocation?.longitude,
+        accuracy: resolvedLocation?.accuracy,
         timestamp,
         componentType,
       };
 
       // Save to local database
-      await DatabaseService.execute(
-        `INSERT INTO attachments
-          (id, task_id, filename, original_name, mime_type, size,
-           local_path, uploaded_at, latitude, longitude, accuracy,
-           location_timestamp, component_type, sync_status, sync_attempts)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 0)`,
-        [
-          id,
-          taskId,
-          filename,
-          filename,
-          photo.mimeType,
-          photo.size,
-          destPath,
-          timestamp,
-          photo.latitude || null,
-          photo.longitude || null,
-          photo.accuracy || null,
-          location?.timestamp || null,
-          componentType,
-        ],
-      );
+      await AttachmentRepository.create({
+        id,
+        taskId,
+        filename,
+        mimeType: photo.mimeType,
+        size: photo.size,
+        localPath: destPath,
+        thumbnailPath,
+        uploadedAt: timestamp,
+        latitude: photo.latitude,
+        longitude: photo.longitude,
+        accuracy: photo.accuracy,
+        locationTimestamp: resolvedLocation?.timestamp || null,
+        componentType,
+      });
 
       // Queue for sync
-      await SyncQueue.enqueue(
-        'CREATE',
-        'ATTACHMENT',
+      await SyncGateway.enqueueAttachment(
         id,
         {
           id,
@@ -179,12 +188,12 @@ class CameraServiceClass {
           componentType,
           photoType: componentType === 'selfie' ? 'selfie' : 'verification',
           ...(verificationType ? { verificationType } : {}),
-          geoLocation: location
+          geoLocation: resolvedLocation
             ? {
-                latitude: location.latitude,
-                longitude: location.longitude,
-                accuracy: location.accuracy,
-                timestamp: location.timestamp,
+                latitude: resolvedLocation.latitude,
+                longitude: resolvedLocation.longitude,
+                accuracy: resolvedLocation.accuracy,
+                timestamp: resolvedLocation.timestamp,
               }
             : null,
         },
@@ -203,37 +212,62 @@ class CameraServiceClass {
     }
   }
 
+  private async createThumbnail(
+    sourcePath: string,
+    photoId: string,
+    extension: string,
+  ): Promise<string | null> {
+    try {
+      const thumbnail = await ImageResizer.createResizedImage(
+        sourcePath,
+        320,
+        320,
+        extension === 'png' ? 'PNG' : 'JPEG',
+        72,
+        0,
+        THUMBNAILS_DIR,
+        false,
+        {
+          mode: 'contain',
+          onlyScaleDown: true,
+        },
+      );
+
+      const thumbnailExtension = thumbnail.name?.split('.').pop() || extension || 'jpg';
+      const finalPath = `${THUMBNAILS_DIR}/thumb_${photoId}.${thumbnailExtension}`;
+
+      if (thumbnail.path !== finalPath) {
+        if (await RNFS.exists(finalPath)) {
+          await RNFS.unlink(finalPath);
+        }
+        await RNFS.moveFile(thumbnail.path, finalPath);
+      }
+
+      return finalPath;
+    } catch (error) {
+      Logger.warn(TAG, 'Failed to create thumbnail, falling back to full image', error);
+      return null;
+    }
+  }
+
   /**
    * Get all photos for a task
    */
   async getPhotosForTask(taskId: string): Promise<CapturedPhoto[]> {
-    const rows = await DatabaseService.query<{
-      id: string;
-      local_path: string;
-      filename: string;
-      mime_type: string;
-      size: number;
-      latitude: number | null;
-      longitude: number | null;
-      accuracy: number | null;
-      uploaded_at: string;
-      component_type: string;
-    }>(
-      'SELECT * FROM attachments WHERE task_id = ? ORDER BY uploaded_at ASC',
-      [taskId],
-    );
+    const rows = await AttachmentRepository.listForTask(taskId);
 
     return rows.map(row => ({
       id: row.id,
-      localPath: row.local_path,
+      localPath: row.localPath,
+      thumbnailPath: row.thumbnailPath ?? undefined,
       filename: row.filename,
-      mimeType: row.mime_type,
+      mimeType: row.mimeType,
       size: row.size,
       latitude: row.latitude ?? undefined,
       longitude: row.longitude ?? undefined,
       accuracy: row.accuracy ?? undefined,
-      timestamp: row.uploaded_at,
-      componentType: row.component_type as 'photo' | 'selfie',
+      timestamp: row.uploadedAt,
+      componentType: row.componentType as 'photo' | 'selfie',
     }));
   }
 
@@ -241,32 +275,15 @@ class CameraServiceClass {
    * Delete a photo from local storage and database
    */
   async deletePhoto(photoId: string): Promise<void> {
-    const rows = await DatabaseService.query<{ local_path: string }>(
-      'SELECT local_path FROM attachments WHERE id = ?',
-      [photoId],
-    );
-
-    if (rows.length > 0) {
-      const filePath = rows[0].local_path;
-      const exists = await RNFS.exists(filePath);
-      if (exists) {
-        await RNFS.unlink(filePath);
-      }
-    }
-
-    await DatabaseService.execute('DELETE FROM attachments WHERE id = ?', [
-      photoId,
-    ]);
+    await AttachmentRepository.deleteLocalFilesById(photoId);
+    await AttachmentRepository.deleteById(photoId);
   }
 
   /**
    * Get total storage used by photos (in bytes)
    */
   async getStorageUsed(): Promise<number> {
-    const result = await DatabaseService.query<{ total: number }>(
-      'SELECT COALESCE(SUM(size), 0) as total FROM attachments',
-    );
-    return result[0]?.total ?? 0;
+    return AttachmentRepository.getTotalStorageUsed();
   }
 
   /**

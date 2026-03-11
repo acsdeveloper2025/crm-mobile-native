@@ -1,9 +1,9 @@
-import { useState, useCallback, useMemo } from 'react';
-import { DatabaseService } from '../database/DatabaseService';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { LocalLocation } from '../types/mobile';
 import { Logger } from '../utils/logger';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTaskManager } from '../context/TaskContext';
+import { LocationRepository } from '../repositories/LocationRepository';
 
 const TAG = 'useTask';
 
@@ -17,10 +17,15 @@ export const useTask = (taskId: string) => {
   const [locations, setLocations] = useState<LocalLocation[]>([]);
   const [isLoading, setIsLoading] = useState(managerLoading);
   const [error, setError] = useState<string | null>(null);
+  const getTaskRef = useRef(getTask);
   const task = useMemo(
     () => tasks.find(item => item.id === taskId) || null,
     [taskId, tasks],
   );
+
+  useEffect(() => {
+    getTaskRef.current = getTask;
+  }, [getTask]);
 
   const fetchTaskDetails = useCallback(async () => {
     if (!taskId) return;
@@ -29,16 +34,13 @@ export const useTask = (taskId: string) => {
       setIsLoading(true);
       setError(null);
 
-      const nextTask = await getTask(taskId);
+      const nextTask = await getTaskRef.current(taskId);
       if (!nextTask) {
         setError('Task not found');
       }
 
       // Fetch associated locations (if needed for the timeline)
-      const locationResult = await DatabaseService.query<LocalLocation>(
-        'SELECT * FROM locations WHERE task_id = ? ORDER BY timestamp DESC',
-        [taskId]
-      );
+      const locationResult = await LocationRepository.listForTask(taskId);
       setLocations(locationResult || []);
       
     } catch (err: any) {
@@ -47,7 +49,7 @@ export const useTask = (taskId: string) => {
     } finally {
       setIsLoading(false);
     }
-  }, [getTask, taskId]);
+  }, [taskId]);
 
   // Refresh data when screen comes into focus
   useFocusEffect(

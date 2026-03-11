@@ -1,7 +1,7 @@
 // SQLite Database Schema and Migrations
 // Offline-first schema for field verification data
 
-export const DB_VERSION = 5;
+export const DB_VERSION = 8;
 
 /**
  * All CREATE TABLE statements for the local SQLite database.
@@ -154,7 +154,9 @@ CREATE TABLE IF NOT EXISTS sync_queue (
   attempts INTEGER NOT NULL DEFAULT 0,
   max_attempts INTEGER NOT NULL DEFAULT 3,
   last_error TEXT,
-  next_retry_at TEXT
+  next_retry_at TEXT,
+  started_at TEXT,
+  lease_expires_at TEXT
 );
 
 -- Sync metadata (singleton - tracks last sync times)
@@ -181,8 +183,6 @@ CREATE TABLE IF NOT EXISTS user_session (
   profile_photo_url TEXT,
   assigned_pincodes_json TEXT NOT NULL DEFAULT '[]',
   assigned_areas_json TEXT NOT NULL DEFAULT '[]',
-  access_token TEXT NOT NULL,
-  refresh_token TEXT NOT NULL,
   token_expires_at TEXT NOT NULL,
   logged_in_at TEXT NOT NULL
 );
@@ -217,6 +217,53 @@ CREATE TABLE IF NOT EXISTS key_value_store (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
 );
+
+-- Task list projection (read-optimized list view)
+CREATE TABLE IF NOT EXISTS task_list_projection (
+  id TEXT PRIMARY KEY,
+  case_id INTEGER NOT NULL,
+  verification_task_id TEXT NOT NULL,
+  verification_task_number TEXT,
+  title TEXT NOT NULL,
+  customer_name TEXT NOT NULL,
+  address_street TEXT,
+  address_city TEXT,
+  address_state TEXT,
+  address_pincode TEXT,
+  status TEXT NOT NULL,
+  priority TEXT DEFAULT 'MEDIUM',
+  assigned_at TEXT,
+  updated_at TEXT,
+  completed_at TEXT,
+  verification_type TEXT,
+  verification_type_name TEXT,
+  is_saved INTEGER NOT NULL DEFAULT 0,
+  is_revoked INTEGER NOT NULL DEFAULT 0,
+  revoked_at TEXT,
+  in_progress_at TEXT,
+  saved_at TEXT,
+  attachment_count INTEGER NOT NULL DEFAULT 0,
+  search_text TEXT
+);
+
+-- Task detail projection (read-optimized case detail view)
+CREATE TABLE IF NOT EXISTS task_detail_projection (
+  id TEXT PRIMARY KEY,
+  task_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
+-- Dashboard projection (singleton row)
+CREATE TABLE IF NOT EXISTS dashboard_projection (
+  id INTEGER PRIMARY KEY CHECK (id = 1),
+  assigned_count INTEGER NOT NULL DEFAULT 0,
+  in_progress_count INTEGER NOT NULL DEFAULT 0,
+  completed_count INTEGER NOT NULL DEFAULT 0,
+  saved_count INTEGER NOT NULL DEFAULT 0,
+  active_count INTEGER NOT NULL DEFAULT 0,
+  last_sync_at TEXT,
+  updated_at TEXT NOT NULL
+);
 `;
 
 /**
@@ -227,9 +274,12 @@ CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_sync_status ON tasks(sync_status);
 CREATE INDEX IF NOT EXISTS idx_tasks_verification_task_id ON tasks(verification_task_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_case_id ON tasks(case_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_active_status_saved ON tasks(is_revoked, status, is_saved, assigned_at);
+CREATE INDEX IF NOT EXISTS idx_tasks_updated_at ON tasks(updated_at);
 
 CREATE INDEX IF NOT EXISTS idx_attachments_task_id ON attachments(task_id);
 CREATE INDEX IF NOT EXISTS idx_attachments_sync_status ON attachments(sync_status);
+CREATE INDEX IF NOT EXISTS idx_attachments_task_component_uploaded ON attachments(task_id, component_type, uploaded_at);
 
 CREATE INDEX IF NOT EXISTS idx_locations_task_id ON locations(task_id);
 CREATE INDEX IF NOT EXISTS idx_locations_sync_status ON locations(sync_status);
@@ -243,9 +293,14 @@ CREATE INDEX IF NOT EXISTS idx_form_templates_lookup ON form_templates(verificat
 CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue(status);
 CREATE INDEX IF NOT EXISTS idx_sync_queue_priority ON sync_queue(priority, created_at);
 CREATE INDEX IF NOT EXISTS idx_sync_queue_entity ON sync_queue(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_sync_queue_pending_window ON sync_queue(status, next_retry_at, priority, created_at);
 
 CREATE INDEX IF NOT EXISTS idx_audit_log_synced ON audit_log(synced);
 CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);
+
+CREATE INDEX IF NOT EXISTS idx_task_list_projection_status_saved ON task_list_projection(status, is_saved, is_revoked, assigned_at);
+CREATE INDEX IF NOT EXISTS idx_task_list_projection_search ON task_list_projection(search_text);
+CREATE INDEX IF NOT EXISTS idx_task_detail_projection_updated ON task_detail_projection(updated_at);
 `;
 
 /**
@@ -307,6 +362,172 @@ export const MIGRATIONS: Migration[] = [
     description: 'Add backend attachment linkage to attachments',
     sql: `
       ALTER TABLE attachments ADD COLUMN backend_attachment_id TEXT;
+    `,
+  },
+  {
+    version: 6,
+    description: 'Add performance indexes for task lists, attachments, and sync queue',
+    sql: `
+      CREATE INDEX IF NOT EXISTS idx_tasks_active_status_saved ON tasks(is_revoked, status, is_saved, assigned_at);
+      CREATE INDEX IF NOT EXISTS idx_tasks_updated_at ON tasks(updated_at);
+      CREATE INDEX IF NOT EXISTS idx_attachments_task_component_uploaded ON attachments(task_id, component_type, uploaded_at);
+      CREATE INDEX IF NOT EXISTS idx_sync_queue_pending_window ON sync_queue(status, next_retry_at, priority, created_at);
+    `,
+  },
+  {
+    version: 7,
+    description: 'Add queue lease tracking columns for crash recovery',
+    sql: `
+      ALTER TABLE sync_queue ADD COLUMN started_at TEXT;
+      ALTER TABLE sync_queue ADD COLUMN lease_expires_at TEXT;
+    `,
+  },
+  {
+    version: 8,
+    description: 'Add projection tables for list/detail/dashboard read optimization',
+    sql: `
+      CREATE TABLE IF NOT EXISTS task_list_projection (
+        id TEXT PRIMARY KEY,
+        case_id INTEGER NOT NULL,
+        verification_task_id TEXT NOT NULL,
+        verification_task_number TEXT,
+        title TEXT NOT NULL,
+        customer_name TEXT NOT NULL,
+        address_street TEXT,
+        address_city TEXT,
+        address_state TEXT,
+        address_pincode TEXT,
+        status TEXT NOT NULL,
+        priority TEXT DEFAULT 'MEDIUM',
+        assigned_at TEXT,
+        updated_at TEXT,
+        completed_at TEXT,
+        verification_type TEXT,
+        verification_type_name TEXT,
+        is_saved INTEGER NOT NULL DEFAULT 0,
+        is_revoked INTEGER NOT NULL DEFAULT 0,
+        revoked_at TEXT,
+        in_progress_at TEXT,
+        saved_at TEXT,
+        attachment_count INTEGER NOT NULL DEFAULT 0,
+        search_text TEXT
+      );
+      CREATE TABLE IF NOT EXISTS task_detail_projection (
+        id TEXT PRIMARY KEY,
+        task_json TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS dashboard_projection (
+        id INTEGER PRIMARY KEY CHECK (id = 1),
+        assigned_count INTEGER NOT NULL DEFAULT 0,
+        in_progress_count INTEGER NOT NULL DEFAULT 0,
+        completed_count INTEGER NOT NULL DEFAULT 0,
+        saved_count INTEGER NOT NULL DEFAULT 0,
+        active_count INTEGER NOT NULL DEFAULT 0,
+        last_sync_at TEXT,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_task_list_projection_status_saved ON task_list_projection(status, is_saved, is_revoked, assigned_at);
+      CREATE INDEX IF NOT EXISTS idx_task_list_projection_search ON task_list_projection(search_text);
+      CREATE INDEX IF NOT EXISTS idx_task_detail_projection_updated ON task_detail_projection(updated_at);
+      INSERT OR REPLACE INTO task_list_projection
+      SELECT
+        id,
+        case_id,
+        verification_task_id,
+        verification_task_number,
+        title,
+        customer_name,
+        address_street,
+        address_city,
+        address_state,
+        address_pincode,
+        status,
+        priority,
+        assigned_at,
+        updated_at,
+        completed_at,
+        verification_type,
+        verification_type_name,
+        is_saved,
+        is_revoked,
+        revoked_at,
+        in_progress_at,
+        saved_at,
+        attachment_count,
+        TRIM(
+          LOWER(
+            COALESCE(customer_name, '') || ' ' ||
+            COALESCE(address_city, '') || ' ' ||
+            COALESCE(verification_task_number, '') || ' ' ||
+            COALESCE(case_id, '')
+          )
+        )
+      FROM tasks;
+      INSERT OR REPLACE INTO task_detail_projection (id, task_json, updated_at)
+      SELECT id, json_object(
+        'id', id,
+        'caseId', case_id,
+        'verificationTaskId', verification_task_id,
+        'verificationTaskNumber', verification_task_number,
+        'title', title,
+        'description', description,
+        'customerName', customer_name,
+        'customerCallingCode', customer_calling_code,
+        'customerPhone', customer_phone,
+        'customerEmail', customer_email,
+        'addressStreet', address_street,
+        'addressCity', address_city,
+        'addressState', address_state,
+        'addressPincode', address_pincode,
+        'latitude', latitude,
+        'longitude', longitude,
+        'status', status,
+        'priority', priority,
+        'assignedAt', assigned_at,
+        'updatedAt', updated_at,
+        'completedAt', completed_at,
+        'notes', notes,
+        'verificationType', verification_type,
+        'verificationOutcome', verification_outcome,
+        'applicantType', applicant_type,
+        'backendContactNumber', backend_contact_number,
+        'createdByBackendUser', created_by_backend_user,
+        'assignedToFieldUser', assigned_to_field_user,
+        'clientId', client_id,
+        'clientName', client_name,
+        'clientCode', client_code,
+        'productId', product_id,
+        'productName', product_name,
+        'productCode', product_code,
+        'verificationTypeId', verification_type_id,
+        'verificationTypeName', verification_type_name,
+        'verificationTypeCode', verification_type_code,
+        'formDataJson', form_data_json,
+        'is_revoked', is_revoked,
+        'revoked_at', revoked_at,
+        'revoked_by_name', revoked_by_name,
+        'revoke_reason', revoke_reason,
+        'in_progress_at', in_progress_at,
+        'saved_at', saved_at,
+        'is_saved', is_saved,
+        'attachment_count', attachment_count,
+        'syncStatus', sync_status,
+        'lastSyncedAt', last_synced_at,
+        'localUpdatedAt', local_updated_at
+      ), COALESCE(updated_at, assigned_at, local_updated_at, CURRENT_TIMESTAMP)
+      FROM tasks;
+      INSERT OR REPLACE INTO dashboard_projection
+      SELECT
+        1,
+        COALESCE(SUM(CASE WHEN status = 'ASSIGNED' AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN is_saved = 1 AND status != 'COMPLETED' THEN 1 ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
+        (SELECT last_download_sync_at FROM sync_metadata WHERE id = 1),
+        CURRENT_TIMESTAMP
+      FROM tasks;
     `,
   },
 ];

@@ -11,7 +11,7 @@ const LOG_LEVELS = {
 type LogLevel = keyof typeof LOG_LEVELS;
 
 class LoggerClass {
-  private level: LogLevel = __DEV__ ? 'DEBUG' : 'WARN';
+  private level: LogLevel = __DEV__ ? 'INFO' : 'WARN';
 
   setLevel(level: LogLevel): void {
     this.level = level;

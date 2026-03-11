@@ -1,20 +1,84 @@
-import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, Image, ActivityIndicator, Alert } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot, { captureRef } from 'react-native-view-shot';
-import MapView, { Marker } from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
-import { CameraService } from '../../services/CameraService';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { CameraService } from '../../services/CameraService';
+
+type PreviewLocation = {
+  lat: number;
+  lng: number;
+  alt: number;
+  spd: number;
+  accuracy?: number;
+  timestamp?: string;
+};
+
+const resolveFastLocation = (): Promise<PreviewLocation | null> =>
+  new Promise(resolve => {
+    Geolocation.getCurrentPosition(
+      pos => {
+        resolve({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          alt: pos.coords.altitude || 0,
+          spd: pos.coords.speed || 0,
+          accuracy: pos.coords.accuracy || 0,
+          timestamp: new Date(pos.timestamp).toISOString(),
+        });
+      },
+      () => {
+        resolve(null);
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 3500,
+        maximumAge: 120000,
+      },
+    );
+  });
+
+const resolveHighAccuracyLocation = (): Promise<PreviewLocation | null> =>
+  new Promise(resolve => {
+    Geolocation.getCurrentPosition(
+      pos => {
+        resolve({
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          alt: pos.coords.altitude || 0,
+          spd: pos.coords.speed || 0,
+          accuracy: pos.coords.accuracy || 0,
+          timestamp: new Date(pos.timestamp).toISOString(),
+        });
+      },
+      () => resolve(null),
+      {
+        enableHighAccuracy: true,
+        timeout: 6500,
+        maximumAge: 30000,
+      },
+    );
+  });
 
 export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
   const { photoPath, taskId, componentType } = route.params;
-  const viewShotRef = useRef(null);
-  
-  const [isSaving, setIsSaving] = useState(false);
-  const [location, setLocation] = useState<{lat: number; lng: number; alt: number; spd: number} | null>(null);
-  const [timestamp, setTimestamp] = useState('');
+  const viewShotRef = useRef<ViewShot>(null);
   const insets = useSafeAreaInsets();
+
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLocating, setIsLocating] = useState(true);
+  const [location, setLocation] = useState<PreviewLocation | null>(null);
+  const [timestamp, setTimestamp] = useState('');
+
   const dynamicStyles = useMemo(
     () =>
       StyleSheet.create({
@@ -29,46 +93,62 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
   );
 
   useEffect(() => {
-    // 1. Get accurate time
     const now = new Date();
-    // Native Date formatting string mapping
     const formattedDate = `${now.getDate()} ${now.toLocaleString('default', { month: 'short' })} ${now.getFullYear()} ${now.toLocaleTimeString()}`;
     setTimestamp(formattedDate);
 
-    // 2. High-accuracy GPS logic
-    Geolocation.getCurrentPosition(
-      (pos) => {
-        setLocation({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          alt: pos.coords.altitude || 0,
-          spd: pos.coords.speed || 0,
-        });
-      },
-      (err) => {
-        console.warn('Geolocation Error on Watermark:', err);
-        // Render 0 coordinates so block proceeds if sensor fails completely
-        setLocation({ lat: 0, lng: 0, alt: 0, spd: 0 });
-      },
-      { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
-    );
+    let active = true;
+    const loadLocation = async () => {
+      setIsLocating(true);
+
+      const fast = await resolveFastLocation();
+      if (!active) {
+        return;
+      }
+      if (fast) {
+        setLocation(fast);
+        setIsLocating(false);
+        return;
+      }
+
+      const precise = await resolveHighAccuracyLocation();
+      if (!active) {
+        return;
+      }
+      if (precise) {
+        setLocation(precise);
+      }
+      setIsLocating(false);
+    };
+
+    loadLocation();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const handleSave = async () => {
     try {
       setIsSaving(true);
-      // Capture the composited view
       const uri = await captureRef(viewShotRef, {
         format: 'jpg',
-        quality: 0.9,
+        quality: 0.85,
       });
-      
-      // Save flattened image into local SQLite as usual via CameraService
+
       const cleanPath = uri.replace('file://', '');
-      const savedPhoto = await CameraService.savePhoto(cleanPath, taskId, componentType);
-      
+      const savedPhoto = await CameraService.savePhoto(cleanPath, taskId, componentType, {
+        locationOverride: location
+          ? {
+              latitude: location.lat,
+              longitude: location.lng,
+              accuracy: location.accuracy,
+              timestamp: location.timestamp,
+            }
+          : null,
+      });
+
       if (savedPhoto) {
-        // Pop the Camera UI stack (Watermark -> Camera -> Form)
         navigation.pop(2);
       } else {
         throw new Error('Database insertion failed.');
@@ -79,80 +159,65 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
     }
   };
 
-  if (!location) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={styles.loadingText}>Acquiring high-accuracy GPS...</Text>
-        <Text style={styles.loadingSubText}>Please keep the device steady for geo-tagging.</Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
-      {/* 🎯 ViewShot boundary */}
-      <ViewShot ref={viewShotRef} style={styles.viewShotContainer} options={{ format: 'jpg', quality: 0.9 }}>
-        {/* Raw Photo Background */}
-        <Image 
-          source={{ uri: `file://${photoPath}` }} 
-          style={StyleSheet.absoluteFillObject} 
-          resizeMode="cover" 
-        />
-        
-        {/* Watermark Overlay pinned to bottom left exactly like User reference */}
+      <ViewShot ref={viewShotRef} style={styles.viewShotContainer} options={{ format: 'jpg', quality: 0.85 }}>
+        <Image source={{ uri: `file://${photoPath}` }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+
         <View style={[styles.watermarkBase, dynamicStyles.watermarkBase]}>
-          
           <View style={styles.watermarkRow}>
-            {/* 1. Mini map snippet */}
-            <View style={styles.mapContainer}>
-              <MapView 
-                style={styles.map}
-                scrollEnabled={false}
-                zoomEnabled={false}
-                pitchEnabled={false}
-                rotateEnabled={false}
-                initialRegion={{
-                  latitude: location.lat,
-                  longitude: location.lng,
-                  latitudeDelta: 0.005,
-                  longitudeDelta: 0.005,
-                }}>
-                <Marker coordinate={{ latitude: location.lat, longitude: location.lng }} />
-              </MapView>
+            <View style={styles.geoCard}>
+              <Icon name="location-outline" size={20} color="#ffffff" />
+              <Text style={styles.geoCardTitle}>Geo-tagged Evidence</Text>
+              <Text style={styles.geoCardValue}>
+                {location ? `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}` : 'Locating'}
+              </Text>
             </View>
-            
-            {/* 2. Hard Data block over transparent black padding */}
+
             <View style={styles.dataContainer}>
               <Text style={styles.dataTextLarge}>{timestamp}</Text>
-              <Text style={styles.dataTextSmall}>{location.lat.toFixed(6)}N {location.lng.toFixed(6)}E</Text>
-              <Text style={styles.dataTextSmall}>CRM Core Execution</Text>
-              <Text style={styles.dataTextSmall}>Altitude: {location.alt.toFixed(1)}m</Text>
-              <Text style={styles.dataTextSmall}>Speed: {(location.spd * 3.6).toFixed(1)}km/h</Text>
+              {location ? (
+                <>
+                  <Text style={styles.dataTextSmall}>{location.lat.toFixed(6)}N {location.lng.toFixed(6)}E</Text>
+                  <Text style={styles.dataTextSmall}>CRM Core Execution</Text>
+                  <Text style={styles.dataTextSmall}>Altitude: {location.alt.toFixed(1)}m</Text>
+                  <Text style={styles.dataTextSmall}>Speed: {(location.spd * 3.6).toFixed(1)}km/h</Text>
+                </>
+              ) : (
+                <Text style={styles.dataTextSmall}>
+                  {isLocating ? 'Getting GPS coordinates...' : 'GPS unavailable - image will still be saved.'}
+                </Text>
+              )}
             </View>
           </View>
         </View>
       </ViewShot>
 
-      {/* Action constraints NOT captured in viewshot, overlaid on top */}
       <View style={[styles.actionOverlay, dynamicStyles.actionOverlay]}>
         <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()}>
-          <Icon name="close" size={24} color="white" />
+          <Icon name="close" size={22} color="white" />
           <Text style={styles.btnText}>Retake</Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isSaving}>
-          {isSaving ? <ActivityIndicator color="white" /> : (
+          {isSaving ? (
+            <ActivityIndicator color="white" />
+          ) : (
             <>
-              <Icon name="checkmark" size={24} color="white" />
+              <Icon name="checkmark" size={22} color="white" />
               <Text style={styles.btnText}>Save</Text>
             </>
           )}
         </TouchableOpacity>
       </View>
+
       <View style={[styles.bottomHintWrap, { bottom: Math.max(insets.bottom, 12) }]}>
         <Text style={styles.bottomHintText}>
-          {isSaving ? 'Saving photo and returning to form...' : 'Review watermark and save to continue.'}
+          {isSaving
+            ? 'Saving photo and returning...'
+            : isLocating
+              ? 'Preview ready. GPS is being fetched in background.'
+              : 'Review and save to continue.'}
         </Text>
       </View>
     </View>
@@ -164,30 +229,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black',
   },
-  centerContainer: {
+  viewShotContainer: {
     flex: 1,
     backgroundColor: 'black',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: 'white',
-    marginTop: 12,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  loadingSubText: {
-    color: '#D1D5DB',
-    marginTop: 6,
-    fontSize: 12,
-  },
-  viewShotContainer: {
-    flex: 1, 
-    backgroundColor: 'black'
   },
   watermarkBase: {
     position: 'absolute',
-    bottom: 16,
     left: 16,
     right: 16,
     padding: 8,
@@ -195,31 +242,41 @@ const styles = StyleSheet.create({
   watermarkRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
   },
-  mapContainer: {
-    width: 130,
-    height: 130,
+  geoCard: {
+    width: 108,
+    minHeight: 108,
     borderRadius: 8,
-    borderWidth: 2,
-    borderColor: 'white',
-    overflow: 'hidden',
-    backgroundColor: '#CCC'
+    backgroundColor: 'rgba(15,23,42,0.82)',
+    padding: 10,
+    justifyContent: 'space-between',
   },
-  map: {
-    ...StyleSheet.absoluteFillObject,
+  geoCardTitle: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '600',
+    marginTop: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  geoCardValue: {
+    color: '#e5e7eb',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 10,
   },
   dataContainer: {
     flex: 1,
     marginLeft: 10,
     alignItems: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.42)',
     padding: 8,
     borderRadius: 8,
   },
   dataTextLarge: {
     color: 'white',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700',
     textShadowColor: 'black',
     textShadowOffset: { width: 1, height: 1 },
@@ -227,16 +284,16 @@ const styles = StyleSheet.create({
   },
   dataTextSmall: {
     color: 'white',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '500',
     textShadowColor: 'black',
     textShadowOffset: { width: 1, height: 1 },
     textShadowRadius: 2,
     marginTop: 2,
+    textAlign: 'right',
   },
   actionOverlay: {
     position: 'absolute',
-    top: 16,
     left: 16,
     right: 16,
     flexDirection: 'row',
@@ -244,24 +301,26 @@ const styles = StyleSheet.create({
   },
   cancelBtn: {
     backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 24,
     flexDirection: 'row',
     alignItems: 'center',
   },
   saveBtn: {
-    backgroundColor: '#2563EB',
-    paddingHorizontal: 16,
+    backgroundColor: '#16a34a',
+    paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 24,
     flexDirection: 'row',
     alignItems: 'center',
+    minWidth: 92,
+    justifyContent: 'center',
   },
   btnText: {
     color: 'white',
     fontWeight: '700',
-    fontSize: 16,
+    fontSize: 15,
     marginLeft: 4,
   },
   bottomHintWrap: {

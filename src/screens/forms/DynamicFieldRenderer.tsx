@@ -15,7 +15,7 @@ export interface DynamicFieldProps {
   error?: string;
 }
 
-export const DynamicFieldRenderer: React.FC<DynamicFieldProps> = ({ field, value, onChange, error }) => {
+const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, value, onChange, error }) => {
   const { theme } = useTheme();
   const placeholder = `Enter ${field.label.toLowerCase()}`;
   const options = Array.isArray(field.options) ? field.options : [];
@@ -148,6 +148,34 @@ export const DynamicFieldRenderer: React.FC<DynamicFieldProps> = ({ field, value
     </View>
   );
 };
+
+const areEqual = (prev: DynamicFieldProps, next: DynamicFieldProps): boolean => {
+  const prevOptions = Array.isArray(prev.field.options) ? prev.field.options : [];
+  const nextOptions = Array.isArray(next.field.options) ? next.field.options : [];
+
+  if (prevOptions.length !== nextOptions.length) {
+    return false;
+  }
+  for (let i = 0; i < prevOptions.length; i += 1) {
+    if (
+      prevOptions[i].label !== nextOptions[i].label ||
+      prevOptions[i].value !== nextOptions[i].value
+    ) {
+      return false;
+    }
+  }
+
+  return (
+    prev.field.id === next.field.id &&
+    prev.field.label === next.field.label &&
+    prev.field.type === next.field.type &&
+    prev.field.required === next.field.required &&
+    prev.value === next.value &&
+    prev.error === next.error
+  );
+};
+
+export const DynamicFieldRenderer = React.memo(DynamicFieldRendererComponent, areEqual);
 
 const styles = StyleSheet.create({
   container: {

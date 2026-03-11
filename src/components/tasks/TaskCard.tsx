@@ -7,9 +7,8 @@ import { TaskInfoModal } from './TaskInfoModal';
 import { TaskRevokeModal } from './TaskRevokeModal';
 import { useTaskManager } from '../../context/TaskContext';
 import { RevokeReason } from '../../types/api';
-import { SyncService } from '../../services/SyncService';
-import { LocationService } from '../../services/LocationService';
 import { TaskTimeline } from './TaskTimeline';
+import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
 
 interface TaskCardProps {
   task: LocalTask;
@@ -25,7 +24,7 @@ interface TaskCardProps {
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
 
-export const TaskCard: React.FC<TaskCardProps> = ({
+const TaskCardComponent: React.FC<TaskCardProps> = ({
   task,
   onPress,
   onStatusChange,
@@ -37,7 +36,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   onMoveDown,
 }) => {
   const { theme } = useTheme();
-  const { startTask, revokeTask } = useTaskManager();
+  const { revokeTask } = useTaskManager();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
@@ -106,28 +105,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const handleAccept = async () => {
     setIsAccepting(true);
     try {
-      const validation = await SyncService.validateVisitStart(task.id);
-      if (!validation.allowed) {
-        Alert.alert(
-          'Cannot Start Visit',
-          validation.reason || 'Distance validation failed.',
-        );
-        return;
-      }
-
-      const recordedLocation = await LocationService.recordLocation(
-        task.id,
-        'CASE_START',
-      );
-      if (!recordedLocation) {
-        Alert.alert(
-          'Cannot Start Visit',
-          'Location capture is required before starting the visit.',
-        );
-        return;
-      }
-
-      await startTask(task.id);
+      await startVisitUseCase(task.id);
       onStatusChange?.();
       onPress({ ...task, status: 'IN_PROGRESS' });
     } catch (e: any) {
@@ -290,6 +268,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     </>
   );
 };
+
+export const TaskCard = React.memo(TaskCardComponent);
 
 const styles = StyleSheet.create({
   card: {
