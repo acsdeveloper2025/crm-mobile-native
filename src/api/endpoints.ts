@@ -81,4 +81,9 @@ export const ENDPOINTS = {
     CHECK: '/auth/version-check',
     CONFIG: '/auth/config',
   },
+
+  // Telemetry
+  TELEMETRY: {
+    INGEST: '/telemetry/mobile/ingest',
+  },
 } as const;

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { useTheme } from '../../context/ThemeContext';
@@ -88,12 +88,12 @@ export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
 }) => {
   const { theme } = useTheme();
 
-  const handleFieldChange = (fieldId: string, value: any) => {
+  const handleFieldChange = useCallback((fieldId: string, value: any) => {
     onValuesChange({
       ...formValues,
       [fieldId]: value
     });
-  };
+  }, [formValues, onValuesChange]);
 
   if (!template) {
     return (

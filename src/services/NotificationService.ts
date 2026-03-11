@@ -1,10 +1,10 @@
 import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
-import { DatabaseService } from '../database/DatabaseService';
 import { AuthService } from './AuthService';
 import { PushTokenService } from './PushTokenService';
 import { Logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
+import { NotificationRepository } from '../repositories/NotificationRepository';
 
 const TAG = 'NotificationService';
 
@@ -46,22 +46,7 @@ class NotificationServiceImpl {
    */
   async loadFromDb(): Promise<void> {
     try {
-      const rows = await DatabaseService.query<any>(
-        'SELECT * FROM notifications ORDER BY timestamp DESC'
-      );
-      
-      this.cache = rows.map(row => ({
-        id: row.id,
-        type: row.type,
-        title: row.title,
-        message: row.message,
-        priority: row.priority,
-        isRead: Boolean(row.is_read),
-        taskId: row.task_id,
-        caseNumber: row.case_number,
-        actionUrl: row.action_url,
-        timestamp: row.timestamp,
-      }));
+      this.cache = await NotificationRepository.listAll();
       
       this.notifySubscribers();
     } catch (e) {
@@ -100,11 +85,7 @@ class NotificationServiceImpl {
     if (!taskId) {
       return false;
     }
-    const rows = await DatabaseService.query<{ id: string }>(
-      'SELECT id FROM notifications WHERE type = ? AND task_id = ? LIMIT 1',
-      [type, taskId],
-    );
-    return rows.length > 0;
+    return NotificationRepository.existsByTypeAndTask(type, taskId);
   }
 
   private async upsertBackendNotifications(
@@ -122,27 +103,7 @@ class NotificationServiceImpl {
       updatedAt?: string;
     }>,
   ): Promise<void> {
-    await DatabaseService.transaction(async tx => {
-      for (const notification of notifications || []) {
-        await tx.executeSql(
-          `INSERT OR REPLACE INTO notifications
-           (id, type, title, message, priority, is_read, task_id, case_number, action_url, timestamp)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            notification.id,
-            notification.type,
-            notification.title,
-            notification.message,
-            notification.priority || 'NORMAL',
-            notification.isRead ? 1 : 0,
-            notification.taskId || null,
-            notification.caseNumber || null,
-            notification.actionUrl || null,
-            notification.updatedAt || notification.createdAt || new Date().toISOString(),
-          ],
-        );
-      }
-    });
+    await NotificationRepository.upsertBatch(notifications);
   }
 
   private async handleIncomingRemoteMessage(remoteMessage: any, source: 'foreground' | 'opened' | 'initial'): Promise<void> {
@@ -293,22 +254,7 @@ class NotificationServiceImpl {
   async addNotification(notification: Omit<NotificationData, 'id' | 'isRead'>): Promise<string> {
     const id = uuidv4();
     try {
-      await DatabaseService.execute(
-        `INSERT INTO notifications 
-        (id, type, title, message, priority, is_read, task_id, case_number, action_url, timestamp)
-        VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
-        [
-          id, 
-          notification.type, 
-          notification.title, 
-          notification.message, 
-          notification.priority || 'NORMAL', 
-          notification.taskId || null, 
-          notification.caseNumber || null, 
-          notification.actionUrl || null, 
-          notification.timestamp || new Date().toISOString()
-        ]
-      );
+      await NotificationRepository.insert(notification, id);
       await this.loadFromDb();
       return id;
     } catch (e) {
@@ -325,7 +271,7 @@ class NotificationServiceImpl {
     }
 
     try {
-      await DatabaseService.execute('UPDATE notifications SET is_read = 1 WHERE id = ?', [id]);
+      await NotificationRepository.markAsRead(id);
       await this.loadFromDb();
     } catch (e) {
       Logger.error(TAG, 'Failed to mark as read', e);
@@ -340,7 +286,7 @@ class NotificationServiceImpl {
     }
 
     try {
-      await DatabaseService.execute('UPDATE notifications SET is_read = 1 WHERE is_read = 0');
+      await NotificationRepository.markAllAsRead();
       await this.loadFromDb();
     } catch (e) {
       Logger.error(TAG, 'Failed to mark all read', e);
@@ -355,7 +301,7 @@ class NotificationServiceImpl {
     }
 
     try {
-      await DatabaseService.execute('DELETE FROM notifications');
+      await NotificationRepository.clearAll();
       await this.loadFromDb();
     } catch (e) {
       Logger.error(TAG, 'Failed to clear all notifications', e);

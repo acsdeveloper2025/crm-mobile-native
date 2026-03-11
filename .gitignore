@@ -41,6 +41,12 @@ local.properties
 *.crt
 *.der
 .kotlin/
+android/.idea/
+android/.gradle/
+android/app/build/
+android/app/.cxx/
+ios/Pods/
+ios/build/
 
 # node.js
 #

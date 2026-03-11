@@ -1,21 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { DatabaseService } from '../../database/DatabaseService';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
-
-interface SyncQueueItem {
-  id: string;
-  action_type: string;
-  entity_type: string;
-  entity_id: string;
-  status: string;
-  attempts: number;
-  last_error: string | null;
-  created_at: string;
-  payload_json: string;
-}
+import { SyncQueueRepository } from '../../repositories/SyncQueueRepository';
+import type { SyncQueueItem } from '../../types/mobile';
 
 export const SyncLogsScreen = () => {
   const { theme } = useTheme();
@@ -28,11 +17,7 @@ export const SyncLogsScreen = () => {
   const loadLogs = useCallback(async () => {
     try {
       setLoading(true);
-      const query = filter === 'FAILED'
-        ? `SELECT * FROM sync_queue WHERE status = 'FAILED' ORDER BY created_at DESC LIMIT 100`
-        : `SELECT * FROM sync_queue ORDER BY created_at DESC LIMIT 100`;
-        
-      const results = await DatabaseService.query<SyncQueueItem>(query);
+      const results = await SyncQueueRepository.listLogs(filter);
       setLogs(results);
     } catch (e) {
       console.error('Failed to load sync logs', e);
@@ -48,9 +33,7 @@ export const SyncLogsScreen = () => {
   const handleRetryAll = async () => {
     try {
       // Re-queue all failed items
-      await DatabaseService.execute(
-        `UPDATE sync_queue SET status = 'PENDING', attempts = 0, next_retry_at = NULL WHERE status = 'FAILED'`
-      );
+      await SyncQueueRepository.retryAllFailed();
       Alert.alert('Success', 'All failed sync items have been reset to PENDING.', [
         { text: 'OK', onPress: loadLogs }
       ]);
@@ -60,17 +43,21 @@ export const SyncLogsScreen = () => {
   };
 
   const handleClearLogs = async () => {
+    if (!__DEV__) {
+      return;
+    }
+
     Alert.alert(
       'Clear Logs',
-      'Are you sure you want to permanently delete all completed and failed sync logs? Un-synced data may be lost forever.',
+      'Delete completed sync history only? Unsynced queue items will be preserved.',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
-          text: 'Clear All', 
+          text: 'Clear Completed', 
           style: 'destructive',
           onPress: async () => {
             try {
-              await DatabaseService.execute(`DELETE FROM sync_queue`);
+              await SyncQueueRepository.clearCompleted();
               loadLogs();
             } catch (e: any) {
               Alert.alert('Error', e.message);
@@ -91,7 +78,7 @@ export const SyncLogsScreen = () => {
         isError && [styles.logCardError, { borderColor: theme.colors.danger }]
       ]}>
         <View style={styles.logHeader}>
-          <Text style={[styles.logType, { color: theme.colors.text }]}>{item.action_type} {item.entity_type}</Text>
+          <Text style={[styles.logType, { color: theme.colors.text }]}>{item.actionType} {item.entityType}</Text>
           <View style={[
             styles.badge, 
             { backgroundColor: theme.colors.surfaceAlt },
@@ -105,14 +92,14 @@ export const SyncLogsScreen = () => {
           </View>
         </View>
         
-        <Text style={[styles.logMeta, { color: theme.colors.textSecondary }]}>ID: {item.entity_id}</Text>
+        <Text style={[styles.logMeta, { color: theme.colors.textSecondary }]}>ID: {item.entityId}</Text>
         <Text style={[styles.logMeta, { color: theme.colors.textSecondary }]}>Attempts: {item.attempts}</Text>
-        <Text style={[styles.logDate, { color: theme.colors.textMuted }]}>{new Date(item.created_at).toLocaleString()}</Text>
-        
-        {isError && item.last_error && (
+        <Text style={[styles.logDate, { color: theme.colors.textMuted }]}>{new Date(item.createdAt).toLocaleString()}</Text>
+
+        {isError && item.lastError && (
           <View style={[styles.errorContainer, { backgroundColor: theme.colors.danger + '10', borderLeftColor: theme.colors.danger }]}>
             <Text style={[styles.errorTitle, { color: theme.colors.danger }]}>Error Message:</Text>
-            <Text style={[styles.errorText, { color: theme.colors.text }]}>{item.last_error}</Text>
+            <Text style={[styles.errorText, { color: theme.colors.text }]}>{item.lastError}</Text>
           </View>
         )}
       </View>
@@ -202,12 +189,14 @@ export const SyncLogsScreen = () => {
             Retry Failed {failedCount > 0 ? `(${failedCount})` : ''}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
-          style={[styles.actionButton, styles.dangerButton, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.danger }]} 
-          onPress={handleClearLogs}>
-          <Icon name="trash-outline" size={20} color={theme.colors.danger} />
-          <Text style={[styles.actionButtonText, styles.dangerText, { color: theme.colors.danger }]}>Clear Logs</Text>
-        </TouchableOpacity>
+        {__DEV__ ? (
+          <TouchableOpacity 
+            style={[styles.actionButton, styles.dangerButton, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.danger }]} 
+            onPress={handleClearLogs}>
+            <Icon name="trash-outline" size={20} color={theme.colors.danger} />
+            <Text style={[styles.actionButtonText, styles.dangerText, { color: theme.colors.danger }]}>Clear Completed</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
     </SafeAreaView>
   );

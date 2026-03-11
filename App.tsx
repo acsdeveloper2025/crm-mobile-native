@@ -25,6 +25,11 @@ import { NetworkService } from './src/services/NetworkService';
 import { CameraService } from './src/services/CameraService';
 import { Logger } from './src/utils/logger';
 import { notificationService } from './src/services/NotificationService';
+import { SyncQueue } from './src/services/SyncQueue';
+import ErrorBoundary from './src/components/ErrorBoundary';
+import { ProjectionUpdater } from './src/projections/ProjectionUpdater';
+import { BackgroundSyncDaemon } from './src/sync/BackgroundSyncDaemon';
+import { MobileTelemetryService } from './src/telemetry/MobileTelemetryService';
 
 const TAG = 'App';
 const STARTUP_PERMISSIONS_KEY = 'startup_permissions_requested_v1';
@@ -112,6 +117,8 @@ function App(): React.JSX.Element {
   const [initError, setInitError] = useState<string | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+
     const initializeApp = async () => {
       try {
         Logger.info(TAG, 'Starting app initialization...');
@@ -119,31 +126,53 @@ function App(): React.JSX.Element {
         await DatabaseService.initialize();
         Logger.info(TAG, 'Database initialized');
 
+        await SyncQueue.recoverExpiredLeases();
+        Logger.info(TAG, 'Queue lease recovery completed');
+
+        await ProjectionUpdater.rebuildAll();
+        Logger.info(TAG, 'Projection rebuild completed');
+
         NetworkService.initialize();
         Logger.info(TAG, 'Network monitoring started');
-
-        await CameraService.initialize();
-        Logger.info(TAG, 'Camera service initialized');
-
-        await requestStartupPermissionsIfNeeded();
-        Logger.info(TAG, 'Startup permission check completed');
 
         await notificationService.loadFromDb();
         notificationService.initializePushListeners();
         Logger.info(TAG, 'Notification service initialized');
+
+        await BackgroundSyncDaemon.start();
+        Logger.info(TAG, 'Background sync daemon started');
+
+        MobileTelemetryService.initialize();
+        Logger.info(TAG, 'Mobile telemetry initialized');
+
+        if (mounted) {
+          setIsInitializing(false);
+        }
+
+        // Non-blocking startup tasks (do not delay first app paint)
+        CameraService.initialize()
+          .then(() => Logger.info(TAG, 'Camera service initialized'))
+          .catch(error => Logger.warn(TAG, 'Camera service deferred init failed', error));
+
+        requestStartupPermissionsIfNeeded()
+          .then(() => Logger.info(TAG, 'Startup permission check completed'))
+          .catch(error => Logger.warn(TAG, 'Startup permission check failed', error));
       } catch (error: any) {
         Logger.error(TAG, 'Initialization failed', error);
-        setInitError(error?.message || 'Failed to initialize app');
-      } finally {
-        setIsInitializing(false);
+        if (mounted) {
+          setInitError(error?.message || 'Failed to initialize app');
+          setIsInitializing(false);
+        }
       }
     };
 
     initializeApp();
 
     return () => {
+      mounted = false;
       NetworkService.destroy();
       notificationService.destroyPushListeners();
+      void BackgroundSyncDaemon.stop();
     };
   }, []);
 
@@ -176,7 +205,9 @@ function App(): React.JSX.Element {
       <ThemeProvider>
         <AuthProvider>
           <TaskProvider>
-            <RootNavigator />
+            <ErrorBoundary>
+              <RootNavigator />
+            </ErrorBoundary>
           </TaskProvider>
         </AuthProvider>
       </ThemeProvider>

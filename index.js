@@ -1,23 +1,14 @@
 /**
  * @format
  */
-/* global globalThis */
 
-if (!globalThis.crypto) {
-  globalThis.crypto = {};
-}
-
-if (typeof globalThis.crypto.getRandomValues !== 'function') {
-  globalThis.crypto.getRandomValues = typedArray => {
-    for (let i = 0; i < typedArray.length; i += 1) {
-      typedArray[i] = Math.floor(Math.random() * 256);
-    }
-    return typedArray;
-  };
-}
-
+import 'react-native-get-random-values';
 import { AppRegistry } from 'react-native';
 import App from './App';
 import { name as appName } from './app.json';
+import { BackgroundSyncDaemon } from './src/sync/BackgroundSyncDaemon';
 
 AppRegistry.registerComponent(appName, () => App);
+AppRegistry.registerHeadlessTask('BackgroundSyncTask', () => async () => {
+  await BackgroundSyncDaemon.runHeadlessTask();
+});

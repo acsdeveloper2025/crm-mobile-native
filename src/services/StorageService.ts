@@ -2,7 +2,8 @@
 // All key-value storage uses SQLite key_value_store table (no AsyncStorage)
 
 import RNFS from 'react-native-fs';
-import { DatabaseService } from '../database/DatabaseService';
+import { KeyValueRepository } from '../repositories/KeyValueRepository';
+import { MaintenanceRepository } from '../repositories/MaintenanceRepository';
 import { Logger } from '../utils/logger';
 
 const TAG = 'StorageService';
@@ -21,26 +22,15 @@ class StorageServiceClass {
    */
   async getStats(): Promise<StorageStats> {
     try {
-      // Photo storage
-      const photoResult = await DatabaseService.query<{
-        total_size: number;
-        total_count: number;
-      }>(
-        'SELECT COUNT(*) as total_count FROM attachments',
-      );
-
-      // Pending sync
-      const pendingResult = await DatabaseService.query<{ count: number }>(
-        "SELECT COUNT(*) as count FROM sync_queue WHERE status IN ('PENDING', 'FAILED')",
-      );
-
       // Free space
       const freeSpace = await RNFS.getFSInfo();
+      const totalPhotoCount = await MaintenanceRepository.getAttachmentCount();
+      const pendingSyncCount = await MaintenanceRepository.getPendingSyncCount();
 
       return {
         totalPhotosBytes: 0, // Calculated dynamically in CameraService instead
-        totalPhotoCount: photoResult[0]?.total_count ?? 0,
-        pendingSyncCount: pendingResult[0]?.count ?? 0,
+        totalPhotoCount,
+        pendingSyncCount,
         dbSizeBytes: 0, // SQLite doesn't easily expose this
         freeSpaceBytes: freeSpace.freeSpace,
       };
@@ -88,23 +78,18 @@ class StorageServiceClass {
 
     try {
       // Delete synced photo files
-      const syncedPhotos = await DatabaseService.query<{
-        id: string;
-        file_path: string;
-      }>(
-        "SELECT id, file_path FROM attachments WHERE sync_status = 'SYNCED' AND uploaded_at < ?",
-        [cutoff],
-      );
+      const syncedPhotos = await MaintenanceRepository.listSyncedAttachmentsOlderThan(cutoff);
 
       for (const photo of syncedPhotos) {
         try {
-          const exists = await RNFS.exists(photo.file_path);
+          const exists = await RNFS.exists(photo.localPath);
           if (exists) {
-            await RNFS.unlink(photo.file_path);
+            await RNFS.unlink(photo.localPath);
           }
-          await DatabaseService.execute('DELETE FROM attachments WHERE id = ?', [
-            photo.id,
-          ]);
+          if (photo.thumbnailPath && await RNFS.exists(photo.thumbnailPath)) {
+            await RNFS.unlink(photo.thumbnailPath);
+          }
+          await MaintenanceRepository.deleteAttachmentById(photo.id);
           deletedPhotos++;
         } catch (err) {
           Logger.warn(TAG, `Failed to delete photo ${photo.id}`, err);
@@ -112,24 +97,13 @@ class StorageServiceClass {
       }
 
       // Delete synced locations
-      const locResult = await DatabaseService.execute(
-        "DELETE FROM locations WHERE sync_status = 'SYNCED' AND timestamp < ?",
-        [cutoff],
-      );
-      deletedLocations = locResult.rowsAffected;
+      deletedLocations = await MaintenanceRepository.deleteSyncedLocationsOlderThan(cutoff);
 
       // Delete completed sync queue items
-      const syncResult = await DatabaseService.execute(
-        "DELETE FROM sync_queue WHERE status = 'COMPLETED' AND processed_at < ?",
-        [cutoff],
-      );
-      deletedSyncItems = syncResult.rowsAffected;
+      deletedSyncItems = await MaintenanceRepository.deleteCompletedSyncItemsOlderThan(cutoff);
 
       // Delete synced audit logs
-      await DatabaseService.execute(
-        'DELETE FROM audit_log WHERE synced = 1 AND timestamp < ?',
-        [cutoff],
-      );
+      await MaintenanceRepository.deleteSyncedAuditLogsOlderThan(cutoff);
 
       Logger.info(
         TAG,
@@ -148,31 +122,21 @@ class StorageServiceClass {
    * Store a key-value pair
    */
   async set(key: string, value: string): Promise<void> {
-    await DatabaseService.execute(
-      'INSERT OR REPLACE INTO key_value_store (key, value) VALUES (?, ?)',
-      [key, value],
-    );
+    await KeyValueRepository.set(key, value);
   }
 
   /**
    * Get a stored value
    */
   async get(key: string): Promise<string | null> {
-    const rows = await DatabaseService.query<{ value: string }>(
-      'SELECT value FROM key_value_store WHERE key = ?',
-      [key],
-    );
-    return rows.length > 0 ? rows[0].value : null;
+    return KeyValueRepository.get(key);
   }
 
   /**
    * Remove a stored value
    */
   async remove(key: string): Promise<void> {
-    await DatabaseService.execute(
-      'DELETE FROM key_value_store WHERE key = ?',
-      [key],
-    );
+    await KeyValueRepository.remove(key);
   }
 
   /**
@@ -204,11 +168,11 @@ class StorageServiceClass {
   async clearAllData(): Promise<void> {
     try {
       // Delete photo files
-      const visitsDir = `${RNFS.DocumentDirectoryPath}/visits`;
-      const exists = await RNFS.exists(visitsDir);
+      const photosDir = `${RNFS.DocumentDirectoryPath}/photos`;
+      const exists = await RNFS.exists(photosDir);
       if (exists) {
-        await RNFS.unlink(visitsDir);
-        await RNFS.mkdir(visitsDir);
+        await RNFS.unlink(photosDir);
+        await RNFS.mkdir(photosDir);
       }
 
       // Clear database tables (order matters for foreign keys)
@@ -224,9 +188,7 @@ class StorageServiceClass {
         'key_value_store',
       ];
 
-      for (const table of tables) {
-        await DatabaseService.execute(`DELETE FROM ${table}`);
-      }
+      await MaintenanceRepository.clearAllTables(tables);
 
       Logger.info(TAG, 'All local data cleared');
     } catch (error) {

@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { useColorScheme } from 'react-native';
 import { lightTheme, darkTheme, Theme } from '../theme/Theme';
-import { DatabaseService } from '../database/DatabaseService';
 import { Logger } from '../utils/logger';
+import { SettingsRepository } from '../repositories/SettingsRepository';
 
 export type ThemePreference = 'system' | 'light' | 'dark';
 
@@ -24,11 +24,9 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     const loadThemePref = async () => {
       try {
-        const result = await DatabaseService.query(
-          "SELECT value FROM key_value_store WHERE key = 'theme_preference'"
-        );
-        if (result.length> 0) {
-          setThemePreferenceState(result[0].value as ThemePreference);
+        const value = await SettingsRepository.getValue('theme_preference');
+        if (value) {
+          setThemePreferenceState(value as ThemePreference);
         }
       } catch {
         Logger.warn('ThemeContext', 'Failed to load theme preference from SQLite');
@@ -50,10 +48,7 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const setThemePreference = async (pref: ThemePreference) => {
     setThemePreferenceState(pref);
     try {
-      await DatabaseService.execute(
-        "INSERT OR REPLACE INTO key_value_store (key, value) VALUES ('theme_preference', ?)",
-        [pref]
-      );
+      await SettingsRepository.setValue('theme_preference', pref);
     } catch (err) {
       Logger.error('ThemeContext', 'Failed to save theme preference', err);
     }

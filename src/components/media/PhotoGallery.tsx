@@ -1,12 +1,21 @@
-import React, { useState, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Image, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import React, { useCallback, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { DatabaseService } from '../../database/DatabaseService';
-import { LocalAttachment } from '../../types/mobile';
-import { useFocusEffect } from '@react-navigation/native';
 import RNFS from 'react-native-fs';
-
+import { useFocusEffect } from '@react-navigation/native';
+import type { LocalAttachment } from '../../types/mobile';
 import { useTheme } from '../../context/ThemeContext';
+import { AttachmentRepository } from '../../repositories/AttachmentRepository';
 
 interface PhotoGalleryProps {
   taskId: string;
@@ -18,6 +27,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
   const [photos, setPhotos] = useState<LocalAttachment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<LocalAttachment | null>(null);
   const isMountedRef = useRef(true);
   const requestIdRef = useRef(0);
 
@@ -33,22 +43,14 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
 
     try {
       setIsLoading(true);
-      let query = 'SELECT * FROM attachments WHERE task_id = ?';
-      const params = [taskId];
-      
-      if (componentType) {
-        query += ' AND component_type = ?';
-        params.push(componentType);
-      }
-      
-      query += ' ORDER BY uploaded_at DESC';
-      
+
       const results = await Promise.race<LocalAttachment[]>([
-        DatabaseService.query<LocalAttachment>(query, params),
+        AttachmentRepository.listForTask(taskId, componentType),
         new Promise<LocalAttachment[]>((_, reject) =>
-          setTimeout(() => reject(new Error('Attachment query timed out')), 4000)
+          setTimeout(() => reject(new Error('Attachment query timed out')), 3000),
         ),
       ]);
+
       if (isMountedRef.current && requestId === requestIdRef.current) {
         setPhotos(results || []);
       }
@@ -69,56 +71,77 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
   useFocusEffect(
     useCallback(() => {
       loadPhotos();
-    }, [loadPhotos])
+    }, [loadPhotos]),
   );
 
-  const handleDelete = (id: string, localPath: string) => {
-    Alert.alert(
-      "Delete Photo",
-      "Are you sure you want to delete this photo?",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete", 
-          style: "destructive",
-          onPress: async () => {
-            try {
-              // 1. Delete DB record
-              await DatabaseService.execute('DELETE FROM attachments WHERE id = ?', [id]);
-              // 2. Delete physical file
-              if (await RNFS.exists(localPath)) {
-                await RNFS.unlink(localPath);
-              }
-              // 3. Refresh UI
-              loadPhotos();
-            } catch {
-              Alert.alert('Error', 'Failed to delete photo.');
-            }
+  const handleDelete = (id: string, _localPath: string, _thumbnailPath?: string) => {
+    Alert.alert('Delete Photo', 'Are you sure you want to delete this photo?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await AttachmentRepository.deleteLocalFilesById(id);
+            await AttachmentRepository.deleteById(id);
+            loadPhotos();
+          } catch {
+            Alert.alert('Error', 'Failed to delete photo.');
           }
-        }
-      ]
-    );
+        },
+      },
+    ]);
+  };
+
+  const openPreview = async (item: LocalAttachment) => {
+    const exists = await RNFS.exists(item.localPath);
+    if (!exists) {
+      Alert.alert('Unavailable', 'Image file not found on device.');
+      return;
+    }
+    setSelectedPhoto(item);
   };
 
   const renderPhotoItem = ({ item }: { item: LocalAttachment }) => (
-    <View style={[styles.photoContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-      <Image 
-        source={{ uri: `file://${item.localPath}` }} 
-        style={styles.thumbnail}
-      />
+    <View
+      style={[
+        styles.photoContainer,
+        { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
+      ]}>
+      <TouchableOpacity activeOpacity={0.9} onPress={() => openPreview(item)} style={styles.thumbnailPress}>
+        <Image
+          source={{ uri: `file://${item.thumbnailPath || item.localPath}` }}
+          style={styles.thumbnail}
+        />
+        <View style={styles.previewHint}>
+          <Icon name="expand-outline" size={14} color="#ffffff" />
+        </View>
+      </TouchableOpacity>
+
       <View style={[styles.photoMeta, { backgroundColor: theme.colors.surfaceAlt }]}>
         <View style={styles.badgeRow}>
-          <View style={[styles.badge, item.componentType === 'selfie' ? styles.badgeSelfie : { backgroundColor: theme.colors.primary }]}>
-            <Text style={[styles.badgeText, { color: theme.colors.surface }]}>{item.componentType.toUpperCase()}</Text>
+          <View
+            style={[
+              styles.badge,
+              item.componentType === 'selfie'
+                ? styles.badgeSelfie
+                : { backgroundColor: theme.colors.primary },
+            ]}>
+            <Text style={[styles.badgeText, { color: theme.colors.surface }]}>
+              {item.componentType.toUpperCase()}
+            </Text>
           </View>
           <View style={[styles.badge, { backgroundColor: theme.colors.textMuted }]}>
-            <Text style={[styles.badgeText, { color: theme.colors.surface }]}>{item.syncStatus}</Text>
+            <Text style={[styles.badgeText, { color: theme.colors.surface }]}>
+              {item.syncStatus}
+            </Text>
           </View>
         </View>
       </View>
-      <TouchableOpacity 
-        style={styles.deleteButton} 
-        onPress={() => handleDelete(item.id, item.localPath)}
+
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => handleDelete(item.id, item.localPath, item.thumbnailPath)}
         disabled={item.syncStatus === 'UPLOADING' || item.syncStatus === 'SYNCED'}>
         <Icon name="trash" size={18} color="white" />
       </TouchableOpacity>
@@ -135,9 +158,15 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
 
   if (photos.length === 0) {
     return (
-      <View style={[styles.emptyContainer, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
+      <View
+        style={[
+          styles.emptyContainer,
+          { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border },
+        ]}>
         <Icon name="images-outline" size={24} color={theme.colors.textMuted} />
-        <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>No {componentType ? componentType : 'photos'} captured yet.</Text>
+        <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
+          No {componentType || 'photos'} captured yet.
+        </Text>
       </View>
     );
   }
@@ -147,11 +176,39 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
       <FlatList
         horizontal
         data={photos}
-        keyExtractor={(item) => item.id}
+        keyExtractor={item => item.id}
         renderItem={renderPhotoItem}
         contentContainerStyle={styles.listContainer}
         showsHorizontalScrollIndicator={false}
+        removeClippedSubviews
       />
+
+      <Modal
+        visible={Boolean(selectedPhoto)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedPhoto(null)}>
+        <View style={styles.previewOverlay}>
+          <View style={[styles.previewHeader, { borderBottomColor: theme.colors.border }]}>
+            <Text style={styles.previewTitle} numberOfLines={1}>
+              {selectedPhoto?.filename || 'Preview'}
+            </Text>
+            <TouchableOpacity onPress={() => setSelectedPhoto(null)} style={styles.previewClose}>
+              <Icon name="close" size={24} color="#ffffff" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.previewBody}>
+            {selectedPhoto ? (
+              <Image
+                source={{ uri: `file://${selectedPhoto.localPath}` }}
+                style={styles.previewImage}
+                resizeMode="contain"
+              />
+            ) : null}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -160,48 +217,12 @@ const styles = StyleSheet.create({
   container: {
     marginVertical: 16,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'baseline',
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  countText: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
-    gap: 12, // React Native supports gap
-  },
-  actionButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#DBEAFE', // blue-100
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  actionButtonText: {
-    color: '#1D4ED8', // blue-700
-    fontWeight: '500',
-    marginLeft: 6,
-  },
   emptyContainer: {
     padding: 24,
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
     borderRadius: 8,
     borderWidth: 1,
     borderStyle: 'dashed',
-    borderColor: '#D1D5DB',
   },
   emptyText: {
     fontSize: 14,
@@ -216,25 +237,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   photoContainer: {
-    width: 140,
-    height: 180,
-    backgroundColor: 'white',
-    borderRadius: 8,
+    width: 142,
+    height: 184,
+    borderRadius: 10,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
     position: 'relative',
     marginRight: 12,
   },
-  thumbnail: {
+  thumbnailPress: {
     width: '100%',
     height: 140,
+  },
+  thumbnail: {
+    width: '100%',
+    height: '100%',
     resizeMode: 'cover',
+  },
+  previewHint: {
+    position: 'absolute',
+    right: 8,
+    bottom: 8,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   photoMeta: {
     padding: 8,
-    backgroundColor: '#F9FAFB',
-    height: 40,
+    height: 44,
     justifyContent: 'center',
   },
   badgeRow: {
@@ -249,28 +282,60 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   badgeSelfie: {
-    backgroundColor: '#8B5CF6', // violet-500
-  },
-  badgePhoto: {
-    backgroundColor: '#3B82F6', // blue-500
-  },
-  badgeStatus: {
-    backgroundColor: '#4B5563', // gray-600
+    backgroundColor: '#0ea5e9',
   },
   badgeText: {
-    color: 'white',
     fontSize: 8,
-    fontWeight: 'bold',
+    fontWeight: '700',
   },
   deleteButton: {
     position: 'absolute',
     top: 8,
     right: 8,
-    backgroundColor: 'rgba(239, 68, 68, 0.8)', // red-500 with opacity
+    backgroundColor: 'rgba(239, 68, 68, 0.85)',
     width: 32,
     height: 32,
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-  }
+  },
+  previewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.94)',
+  },
+  previewHeader: {
+    paddingTop: 44,
+    paddingHorizontal: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  previewTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '700',
+    flex: 1,
+    marginRight: 12,
+  },
+  previewClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  previewBody: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+    paddingBottom: 20,
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+  },
 });

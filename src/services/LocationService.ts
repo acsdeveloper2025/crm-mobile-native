@@ -7,8 +7,9 @@ import Geolocation, {
 } from '@react-native-community/geolocation';
 import { Platform, PermissionsAndroid } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
-import { DatabaseService } from '../database/DatabaseService';
-import { SyncQueue, SYNC_PRIORITY } from './SyncQueue';
+import { LocationRepository } from '../repositories/LocationRepository';
+import { SyncGateway } from './SyncGateway';
+import { SYNC_PRIORITY } from './SyncQueue';
 import { Logger } from '../utils/logger';
 import type { MobileLocationCaptureRequest } from '../types/api';
 
@@ -112,20 +113,16 @@ class LocationServiceClass {
     const id = uuidv4();
 
     // Save to local DB
-    await DatabaseService.execute(
-      `INSERT INTO locations (id, latitude, longitude, accuracy, timestamp, source, task_id, activity_type, sync_status)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING')`,
-      [
-        id,
-        location.latitude,
-        location.longitude,
-        location.accuracy,
-        location.timestamp,
-        location.source,
-        taskId || null,
-        activityType || null,
-      ],
-    );
+    await LocationRepository.create({
+      id,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      accuracy: location.accuracy,
+      timestamp: location.timestamp,
+      source: location.source,
+      taskId,
+      activityType,
+    });
 
     // Queue for server sync
     const payload: MobileLocationCaptureRequest = {
@@ -138,9 +135,7 @@ class LocationServiceClass {
       activityType,
     };
 
-    await SyncQueue.enqueue(
-      'CREATE',
-      'LOCATION',
+    await SyncGateway.enqueueLocation(
       id,
       payload as unknown as Record<string, unknown>,
       SYNC_PRIORITY.CRITICAL,
@@ -204,15 +199,16 @@ class LocationServiceClass {
   private async recordLocationDirect(location: LocationResult): Promise<void> {
     const id = uuidv4();
 
-    await DatabaseService.execute(
-      `INSERT INTO locations (id, latitude, longitude, accuracy, timestamp, source, activity_type, sync_status)
-       VALUES (?, ?, ?, ?, ?, ?, 'TRAVEL', 'PENDING')`,
-      [id, location.latitude, location.longitude, location.accuracy, location.timestamp, location.source],
-    );
+    await LocationRepository.createTracked({
+      id,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      accuracy: location.accuracy,
+      timestamp: location.timestamp,
+      source: location.source,
+    });
 
-    await SyncQueue.enqueue(
-      'CREATE',
-      'LOCATION',
+    await SyncGateway.enqueueLocation(
       id,
       location as unknown as Record<string, unknown>,
       SYNC_PRIORITY.LOW,

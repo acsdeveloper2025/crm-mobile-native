@@ -3,13 +3,14 @@ import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Scr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme, ThemePreference } from '../../context/ThemeContext';
-import { SyncService } from '../../services/SyncService';
-import { DatabaseService } from '../../database/DatabaseService';
 import { NotificationCenter } from '../../components/ui/NotificationCenter';
 import { notificationService } from '../../services/NotificationService';
 import { Logger } from '../../utils/logger';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { TaskRepository } from '../../repositories/TaskRepository';
+import { SyncTasksUseCase } from '../../usecases/SyncTasksUseCase';
+import { DashboardProjection } from '../../projections/DashboardProjection';
 
 export const DashboardScreen = () => {
   const TAG = 'DashboardScreen';
@@ -28,46 +29,21 @@ export const DashboardScreen = () => {
 
   const loadStats = useCallback(async () => {
     try {
-      const assignedResult = await DatabaseService.query<{ count: number }>(
-        "SELECT COUNT(*) as count FROM tasks WHERE status = 'ASSIGNED' AND (is_revoked IS NULL OR is_revoked = 0)"
-      );
-      const inProgressResult = await DatabaseService.query<{ count: number }>(
-        "SELECT COUNT(*) as count FROM tasks WHERE status = 'IN_PROGRESS' AND (is_revoked IS NULL OR is_revoked = 0)"
-      );
-      const completedResult = await DatabaseService.query<{ count: number }>(
-        "SELECT COUNT(*) as count FROM tasks WHERE status = 'COMPLETED'"
-      );
-      const savedResult = await DatabaseService.query<{ count: number }>(
-        "SELECT COUNT(*) as count FROM tasks WHERE is_saved = 1 AND status != 'COMPLETED'"
-      );
-      setAssignedTasks(assignedResult[0]?.count ?? 0);
-      setInProgressTasks(inProgressResult[0]?.count ?? 0);
-      setCompletedTasks(completedResult[0]?.count ?? 0);
-      setSavedTasks(savedResult[0]?.count ?? 0);
+      const stats = await TaskRepository.getDashboardStats();
+      setAssignedTasks(stats.assignedCount);
+      setInProgressTasks(stats.inProgressCount);
+      setCompletedTasks(stats.completedCount);
+      setSavedTasks(stats.savedCount);
     } catch { /* ignore */ }
   }, []);
 
   const loadRecentActivity = useCallback(async () => {
     try {
-      const lastSyncRows = await DatabaseService.query<{ last_download_sync_at: string | null }>(
-        'SELECT last_download_sync_at FROM sync_metadata WHERE id = 1',
-      );
-      const taskRows = await DatabaseService.query<{
-        id: string;
-        customer_name: string;
-        status: string;
-        verification_task_number: string | null;
-        updated_at: string | null;
-      }>(
-        `SELECT id, customer_name, status, verification_task_number, updated_at
-         FROM tasks
-         WHERE is_revoked IS NULL OR is_revoked = 0
-         ORDER BY datetime(COALESCE(updated_at, assigned_at)) DESC
-         LIMIT 3`,
-      );
+      const dashboard = await DashboardProjection.getStats();
+      const lastSync = dashboard.lastSyncAt;
+      const taskRows = await TaskRepository.listRecentActivity(3);
 
       const items: Array<{ id: string; text: string }> = [];
-      const lastSync = lastSyncRows[0]?.last_download_sync_at;
       if (lastSync) {
         setLastSyncLabel(new Date(lastSync).toLocaleString());
         items.push({
@@ -79,11 +55,11 @@ export const DashboardScreen = () => {
       }
 
       for (const row of taskRows) {
-        const taskLabel = row.verification_task_number || row.id.slice(0, 8);
-        const when = row.updated_at ? ` (${new Date(row.updated_at).toLocaleString()})` : '';
+        const taskLabel = row.verificationTaskNumber || row.id.slice(0, 8);
+        const when = row.updatedAt ? ` (${new Date(row.updatedAt).toLocaleString()})` : '';
         items.push({
           id: row.id,
-          text: `${taskLabel} - ${row.customer_name} - ${row.status.replace('_', ' ')}${when}`,
+          text: `${taskLabel} - ${row.customerName} - ${row.status.replace('_', ' ')}${when}`,
         });
       }
 
@@ -98,24 +74,18 @@ export const DashboardScreen = () => {
       notificationService.refreshFromBackend().catch(error => {
         Logger.warn(TAG, 'Failed to refresh notifications on focus', error);
       });
-      loadStats();
-      loadRecentActivity();
+      Promise.all([loadStats(), loadRecentActivity()]).catch(() => undefined);
     }, [loadStats, loadRecentActivity])
   );
 
   const getActiveTaskCount = useCallback(async (): Promise<number> => {
-    const rows = await DatabaseService.query<{ count: number }>(
-      `SELECT COUNT(*) as count
-       FROM tasks
-       WHERE (is_revoked IS NULL OR is_revoked = 0)`,
-    );
-    return rows[0]?.count ?? 0;
+    return TaskRepository.getActiveTaskCount();
   }, []);
 
   const handleForceSync = useCallback(async () => {
     try {
       setIsSyncing(true);
-      const result = await SyncService.performSync();
+      const { result } = await SyncTasksUseCase.execute();
       const activeTasks = await getActiveTaskCount();
       
       if (result.success) {

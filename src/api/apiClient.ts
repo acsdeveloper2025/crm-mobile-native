@@ -9,12 +9,22 @@ import axios, {
 } from 'axios';
 import { config } from '../config';
 import { Logger } from '../utils/logger';
-import { AuthService } from '../services/AuthService';
+import { SessionStore } from '../services/SessionStore';
+
+type RefreshHandler = () => Promise<string | null>;
+type UnauthorizedHandler = () => Promise<void> | void;
+
+interface RefreshSubscriber {
+  resolve: (token: string) => void;
+  reject: (error: unknown) => void;
+}
 
 class ApiClientClass {
   private client: AxiosInstance;
   private isRefreshing = false;
-  private refreshSubscribers: Array<(token: string) => void> = [];
+  private refreshSubscribers: RefreshSubscriber[] = [];
+  private refreshHandler: RefreshHandler | null = null;
+  private unauthorizedHandler: UnauthorizedHandler | null = null;
 
   constructor() {
     this.client = axios.create({
@@ -34,7 +44,7 @@ class ApiClientClass {
     // Request interceptor - attach auth token
     this.client.interceptors.request.use(
       async (requestConfig: InternalAxiosRequestConfig) => {
-        const token = await AuthService.getAccessToken();
+        const token = await SessionStore.getAccessToken();
         if (token && requestConfig.headers) {
           requestConfig.headers.Authorization = `Bearer ${token}`;
         }
@@ -64,35 +74,52 @@ class ApiClientClass {
         if (error.response?.status === 401 && !originalRequest._retry) {
           if (this.isRefreshing) {
             // Queue this request until token is refreshed
-            return new Promise(resolve => {
-              this.refreshSubscribers.push((token: string) => {
-                if (originalRequest.headers) {
-                  originalRequest.headers.Authorization = `Bearer ${token}`;
-                }
-                resolve(this.client(originalRequest));
+            return new Promise((resolve, reject) => {
+              this.refreshSubscribers.push({
+                resolve: (token: string) => {
+                  if (originalRequest.headers) {
+                    originalRequest.headers.Authorization = `Bearer ${token}`;
+                  }
+                  resolve(this.client(originalRequest));
+                },
+                reject,
               });
             });
+          }
+
+          if (!this.refreshHandler) {
+            if (this.unauthorizedHandler) {
+              await this.unauthorizedHandler();
+            }
+            return Promise.reject(error);
           }
 
           originalRequest._retry = true;
           this.isRefreshing = true;
 
           try {
-            const newToken = await AuthService.refreshAccessToken();
+            const newToken = await this.refreshHandler();
             if (newToken) {
-              // Notify queued requests
-              this.refreshSubscribers.forEach(cb => cb(newToken));
-              this.refreshSubscribers = [];
-
+              this.resolveRefreshSubscribers(newToken);
               if (originalRequest.headers) {
                 originalRequest.headers.Authorization = `Bearer ${newToken}`;
               }
               return this.client(originalRequest);
             }
+
+            const refreshFailure = new Error('Token refresh returned no token');
+            this.rejectRefreshSubscribers(refreshFailure);
+            if (this.unauthorizedHandler) {
+              await this.unauthorizedHandler();
+            }
+            return Promise.reject(refreshFailure);
           } catch (refreshError) {
             Logger.error('ApiClient', 'Token refresh failed', refreshError);
-            // Force logout
-            await AuthService.logout();
+            this.rejectRefreshSubscribers(refreshError);
+            if (this.unauthorizedHandler) {
+              await this.unauthorizedHandler();
+            }
+            return Promise.reject(refreshError);
           } finally {
             this.isRefreshing = false;
           }
@@ -122,6 +149,24 @@ class ApiClientClass {
         return Promise.reject(error);
       },
     );
+  }
+
+  private resolveRefreshSubscribers(token: string): void {
+    this.refreshSubscribers.forEach(subscriber => subscriber.resolve(token));
+    this.refreshSubscribers = [];
+  }
+
+  private rejectRefreshSubscribers(error: unknown): void {
+    this.refreshSubscribers.forEach(subscriber => subscriber.reject(error));
+    this.refreshSubscribers = [];
+  }
+
+  setRefreshHandler(handler: RefreshHandler | null): void {
+    this.refreshHandler = handler;
+  }
+
+  setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+    this.unauthorizedHandler = handler;
   }
 
   /**
