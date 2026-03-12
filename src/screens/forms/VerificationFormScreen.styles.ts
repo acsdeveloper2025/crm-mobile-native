@@ -164,6 +164,17 @@ export const styles = StyleSheet.create(
     paddingBottom: 12,
     borderTopWidth: 1,
   },
+  footerFloating: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: 14,
+    paddingHorizontal: 16,
+    borderTopWidth: 1,
+    zIndex: 100,
+    elevation: 20,
+  },
   submitButton: {
     flexDirection: 'row',
     height: 56,

@@ -292,7 +292,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContentWithFooter}
+        contentContainerStyle={[styles.scrollContentWithFooter, { paddingBottom: Math.max(insets.bottom, 16) + 140 }]}
         showsVerticalScrollIndicator={false}>
 
         {/* Media Block */}
@@ -367,21 +367,20 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
 
       </ScrollView>
 
-      {/* Submit Action Footer */}
       <View
         style={[
-          styles.footer,
+          styles.footerFloating,
           {
             backgroundColor: theme.colors.surface,
             borderTopColor: theme.colors.border,
             paddingBottom: Math.max(insets.bottom, 12),
           },
         ]}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
-            styles.submitButton, 
+            styles.submitButton,
             { backgroundColor: selectedOutcome ? theme.colors.primary : theme.colors.border },
-            (!selectedOutcome || isSubmitting) && styles.submitButtonDisabled
+            (!selectedOutcome || isSubmitting) && styles.submitButtonDisabled,
           ]}
           onPress={handleSubmit}
           disabled={isSubmitting || !selectedOutcome}>
