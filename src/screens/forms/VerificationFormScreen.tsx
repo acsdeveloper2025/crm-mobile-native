@@ -292,7 +292,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContentWithFooter, { paddingBottom: Math.max(insets.bottom, 16) + 140 }]}
+        contentContainerStyle={[styles.scrollContentWithFooter, { paddingBottom: Math.max(insets.bottom, 16) + 24 }]}
         showsVerticalScrollIndicator={false}>
 
         {/* Media Block */}
@@ -365,44 +365,47 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
           )}
         </View>
 
-      </ScrollView>
-
-      <View
-        style={[
-          styles.footerFloating,
-          {
-            backgroundColor: theme.colors.surface,
-            borderTopColor: theme.colors.border,
-            paddingBottom: Math.max(insets.bottom, 12),
-          },
-        ]}>
-        <TouchableOpacity
+        <View
           style={[
-            styles.submitButton,
-            { backgroundColor: selectedOutcome ? theme.colors.primary : theme.colors.border },
-            (!selectedOutcome || isSubmitting) && styles.submitButtonDisabled,
-          ]}
-          onPress={handleSubmit}
-          disabled={isSubmitting || !selectedOutcome}>
-          {isSubmitting ? (
-            <>
-              <ActivityIndicator color={theme.colors.surface} />
-              <Text style={[styles.submitText, { color: theme.colors.surface }]}>Saving...</Text>
-            </>
-          ) : (
-            <>
-              <Icon
-                name={selectedOutcome ? 'cloud-upload-outline' : 'lock-closed-outline'}
-                size={20}
-                color={theme.colors.surface}
-              />
-              <Text style={[styles.submitText, { color: theme.colors.surface }]}>
-                {selectedOutcome ? 'Submit Verification' : 'Select Outcome First'}
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
+            styles.footer,
+            {
+              backgroundColor: theme.colors.surface,
+              borderTopColor: theme.colors.border,
+              marginBottom: Math.max(insets.bottom, 12),
+            },
+          ]}>
+          <TouchableOpacity
+            style={[
+              styles.submitButton,
+              selectedOutcome ? styles.submitButtonEnabled : styles.submitButtonInactive,
+              selectedOutcome
+                ? { backgroundColor: theme.colors.primary }
+                : { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border },
+              (!selectedOutcome || isSubmitting) && styles.submitButtonDisabled,
+            ]}
+            onPress={handleSubmit}
+            disabled={isSubmitting || !selectedOutcome}>
+            {isSubmitting ? (
+              <>
+                <ActivityIndicator color={theme.colors.surface} />
+                <Text style={[styles.submitText, { color: theme.colors.surface }]}>Saving...</Text>
+              </>
+            ) : (
+              <>
+                <Icon
+                  name={selectedOutcome ? 'cloud-upload-outline' : 'lock-closed-outline'}
+                  size={20}
+                  color={selectedOutcome ? theme.colors.surface : theme.colors.textMuted}
+                />
+                <Text style={[styles.submitText, { color: selectedOutcome ? theme.colors.surface : theme.colors.textMuted }]}>
+                  {selectedOutcome ? 'Submit Verification' : 'Select Outcome First'}
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+      </ScrollView>
     </SafeAreaView>
   );
 };

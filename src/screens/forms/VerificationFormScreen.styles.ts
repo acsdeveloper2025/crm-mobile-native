@@ -182,6 +182,12 @@ export const styles = StyleSheet.create(
     justifyContent: 'center',
     alignItems: 'center',
   },
+  submitButtonEnabled: {
+    borderWidth: 0,
+  },
+  submitButtonInactive: {
+    borderWidth: 1,
+  },
   submitButtonDisabled: {
     opacity: 1,
   },
