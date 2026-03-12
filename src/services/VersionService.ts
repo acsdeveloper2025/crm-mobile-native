@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import axios from 'axios';
 import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import { config } from '../config';
@@ -61,7 +62,19 @@ class VersionServiceClass {
       return this.getDefaultUpdateInfo();
       
     } catch (error) {
-      Logger.error(TAG, 'Failed to check app version against backend', error);
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status || 0;
+        if (status >= 500 || status === 404) {
+          Logger.warn(
+            TAG,
+            `Recoverable version check failure (${status}); using default update policy`,
+          );
+        } else {
+          Logger.error(TAG, `Version check failed (${status})`, error);
+        }
+      } else {
+        Logger.warn(TAG, 'Recoverable version check failure; using default update policy');
+      }
       return this.getDefaultUpdateInfo();
     }
   }
