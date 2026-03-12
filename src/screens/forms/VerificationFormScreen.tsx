@@ -291,7 +291,8 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) + 140 }]}
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContentWithFooter}
         showsVerticalScrollIndicator={false}>
 
         {/* Media Block */}
@@ -373,7 +374,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
           {
             backgroundColor: theme.colors.surface,
             borderTopColor: theme.colors.border,
-            bottom: Math.max(insets.bottom, 0),
+            paddingBottom: Math.max(insets.bottom, 12),
           },
         ]}>
         <TouchableOpacity 

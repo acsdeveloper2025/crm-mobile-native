@@ -5,8 +5,15 @@ export const styles = StyleSheet.create(
   container: {
     flex: 1,
   },
+  scrollView: {
+    flex: 1,
+  },
   scrollContent: {
     padding: 16,
+  },
+  scrollContentWithFooter: {
+    padding: 16,
+    paddingBottom: 24,
   },
   centerContainer: {
     flex: 1,
@@ -152,15 +159,10 @@ export const styles = StyleSheet.create(
     flex: 1,
   },
   footer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
     paddingTop: 14,
     paddingHorizontal: 16,
-    paddingBottom: 16,
+    paddingBottom: 12,
     borderTopWidth: 1,
-    zIndex: 20,
-    elevation: 10,
   },
   submitButton: {
     flexDirection: 'row',
