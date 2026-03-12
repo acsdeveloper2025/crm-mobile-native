@@ -126,12 +126,18 @@ class ApiClientClass {
         }
 
         const requestUrl = error.config?.url || '';
+        const requestMethod = (error.config?.method || '').toUpperCase();
+        const responseStatus = error.response?.status || 0;
         const isNotificationRegisterError = requestUrl.includes('/auth/notifications/register');
+        const isNotificationListError =
+          requestMethod === 'GET' &&
+          requestUrl.includes('/notifications') &&
+          responseStatus >= 500;
         const isTelemetryIngestError = requestUrl.includes('/telemetry/mobile/ingest');
         const isAutoSaveForbidden =
-          requestUrl.includes('/auto-save') && error.response?.status === 403;
+          requestUrl.includes('/auto-save') && responseStatus === 403;
         const isAutoSaveServerError =
-          requestUrl.includes('/auto-save') && (error.response?.status || 0) >= 500;
+          requestUrl.includes('/auto-save') && responseStatus >= 500;
 
         if (isTelemetryIngestError) {
           // Telemetry ingestion is optional; avoid log spam when endpoint is not enabled.
@@ -142,18 +148,19 @@ class ApiClientClass {
           );
         } else if (
           isNotificationRegisterError ||
+          isNotificationListError ||
           isAutoSaveForbidden ||
           isAutoSaveServerError
         ) {
           Logger.warn(
             'ApiClient',
-            `Recoverable API Error: ${error.response?.status} ${requestUrl}`,
+            `Recoverable API Error: ${responseStatus} ${requestUrl}`,
             error.response?.data,
           );
         } else {
           Logger.error(
             'ApiClient',
-            `API Error: ${error.response?.status} ${requestUrl}`,
+            `API Error: ${responseStatus} ${requestUrl}`,
             error.response?.data,
           );
         }
