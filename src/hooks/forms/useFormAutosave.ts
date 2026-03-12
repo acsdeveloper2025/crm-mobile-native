@@ -30,13 +30,42 @@ export const useFormAutosave = ({
 }: UseFormAutosaveParams): { isInitialized: boolean } => {
   const [isInitialized, setIsInitialized] = useState(false);
   const isMountedRef = useRef(true);
+  const latestFormValuesRef = useRef(formValues);
+  const latestTaskIdRef = useRef(taskId);
+  const latestTaskFormTypeRef = useRef(taskFormTypeKey);
+
+  useEffect(() => {
+    latestFormValuesRef.current = formValues;
+  }, [formValues]);
+
+  useEffect(() => {
+    latestTaskIdRef.current = taskId;
+  }, [taskId]);
+
+  useEffect(() => {
+    latestTaskFormTypeRef.current = taskFormTypeKey;
+  }, [taskFormTypeKey]);
 
   useEffect(() => {
     isMountedRef.current = true;
     return () => {
+      const currentTaskId = latestTaskIdRef.current;
+      const latestValues = latestFormValuesRef.current;
+      if (currentTaskId && Object.keys(latestValues).length > 0) {
+        updateTaskFormData(currentTaskId, latestValues).catch(() => {});
+        persistAutoSave(currentTaskId, {
+          formType: latestTaskFormTypeRef.current || 'DEFAULT',
+          formData: latestValues,
+          timestamp: new Date().toISOString(),
+        }).catch(() => {});
+      }
       isMountedRef.current = false;
     };
-  }, []);
+  }, [persistAutoSave, updateTaskFormData]);
+
+  useEffect(() => {
+    setIsInitialized(false);
+  }, [taskId]);
 
   useEffect(() => {
     if (!taskId || isInitialized) {
@@ -54,9 +83,15 @@ export const useFormAutosave = ({
           const savedDraft = await getAutoSavedForm(taskId, taskFormTypeKey);
           if (savedDraft) {
             setFormValues(savedDraft);
-            await updateTaskFormData(taskId, savedDraft);
+            try {
+              await updateTaskFormData(taskId, savedDraft);
+            } catch {
+              // Keep restored UI state even if persistence fails temporarily.
+            }
           }
         }
+      } catch {
+        // Ignore malformed cached drafts and continue with empty form state.
       } finally {
         if (isActive && isMountedRef.current) {
           setIsInitialized(true);
