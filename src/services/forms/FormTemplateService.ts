@@ -7,29 +7,140 @@ import { toBackendFormType, type FormTypeKey } from '../../utils/formTypeKey';
 const toOptions = (values: string[]): { label: string; value: string }[] =>
   values.map(value => ({ label: value, value }));
 
+const COMMON_MET_PERSON_OPTIONS = [
+  'Applicant Self',
+  'Self',
+  'Reception',
+  'Reception Security',
+  'Company Security',
+  'Manager / H.R.',
+  'SR. Officer',
+  'Accountant',
+  'Admin',
+  'Office Staff',
+  'Clark',
+  'Principal',
+  'Security',
+  'Neighbour',
+  'Other',
+];
+
+const COMMON_DESIGNATION_OPTIONS = [
+  'Manager',
+  'Executive',
+  'Clerk',
+  'Developer',
+  'Analyst',
+  'Assistant',
+  'Reception',
+  'Reception Security',
+  'Company Security',
+  'Owner',
+  'Tenant',
+  'Other',
+];
+
+const COMMON_BUSINESS_TYPE_OPTIONS = [
+  'PVT. LTD. Company',
+  'LTD. Company',
+  'LLP Company',
+  'Proprietorship Firm',
+  'Partnership Firm',
+];
+
+const COMMON_OWNERSHIP_TYPE_OPTIONS = ['Are Partners', 'Are Directors', 'Is Proprietor'];
+const COMMON_ADDRESS_STATUS_OPTIONS = [
+  'On a Self Owned Basis',
+  'On a Rental Basis',
+  'On a Pagadi System',
+  'In Share Work Place',
+];
+
 const RESIDENCE_DICTIONARY: Record<string, string[]> = {
-  metPersonName: ['Self', 'Father', 'Mother', 'Spouse', 'Brother', 'Sister', 'Neighbour', 'Security', 'Receptionist', 'Other'],
+  metPersonName: [
+    'Self',
+    'Father',
+    'Mother',
+    'Spouse',
+    'Brother',
+    'Sister',
+    'Neighbour',
+    'Security',
+    'Receptionist',
+    'Other',
+  ],
+  metPerson: COMMON_MET_PERSON_OPTIONS,
 };
 
 const OFFICE_DICTIONARY: Record<string, string[]> = {
-  metPerson: ['Applicant Self', 'Reception', 'Reception Security', 'Company Security', 'Manager / H.R.', 'SR. Officer', 'Accountant', 'Admin', 'Office Staff', 'Clark', 'Principal', 'Other'],
-  metPersonName: ['Applicant Self', 'Reception', 'Reception Security', 'Company Security', 'Manager / H.R.', 'SR. Officer', 'Accountant', 'Admin', 'Office Staff', 'Clark', 'Principal', 'Other'],
-  designation: ['Manager', 'Executive', 'Clerk', 'Developer', 'Analyst', 'Assistant', 'Reception', 'Reception Security', 'Company Security', 'Other'],
+  metPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonName: COMMON_MET_PERSON_OPTIONS,
+  designation: COMMON_DESIGNATION_OPTIONS,
 };
 
 const BUSINESS_DICTIONARY: Record<string, string[]> = {
-  metPerson: ['Applicant Self', 'Reception', 'Reception Security', 'Company Security', 'Manager / H.R.', 'SR. Officer', 'Accountant', 'Admin', 'Office Staff', 'Clark', 'Principal', 'Other'],
-  metPersonName: ['Applicant Self', 'Reception', 'Reception Security', 'Company Security', 'Manager / H.R.', 'SR. Officer', 'Accountant', 'Admin', 'Office Staff', 'Clark', 'Principal', 'Other'],
-  designation: ['Applicant Self', 'Reception', 'Reception Security', 'Company Security', 'Manager / H.R.', 'SR. Officer', 'Accountant', 'Admin', 'Office Staff', 'Clark', 'Principal', 'Other'],
-  businessType: ['PVT. LTD. Company', 'LTD. Company', 'LLP Company', 'Proprietorship Firm', 'Partnership Firm'],
-  ownershipType: ['Are Partners', 'Are Directors', 'Is Proprietor'],
-  addressStatus: ['On a Self Owned Basis', 'On a Rental Basis', 'On a Pagadi System', 'In Share Work Place'],
+  metPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonName: COMMON_MET_PERSON_OPTIONS,
+  designation: COMMON_DESIGNATION_OPTIONS,
+  businessType: COMMON_BUSINESS_TYPE_OPTIONS,
+  ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
+  addressStatus: COMMON_ADDRESS_STATUS_OPTIONS,
+};
+
+const RESIDENCE_CUM_OFFICE_DICTIONARY: Record<string, string[]> = {
+  metPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonName: COMMON_MET_PERSON_OPTIONS,
+  designation: COMMON_DESIGNATION_OPTIONS,
+};
+
+const BUILDER_DICTIONARY: Record<string, string[]> = {
+  metPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonName: COMMON_MET_PERSON_OPTIONS,
+  designation: COMMON_DESIGNATION_OPTIONS,
+  businessType: COMMON_BUSINESS_TYPE_OPTIONS,
+  ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
+  addressStatus: COMMON_ADDRESS_STATUS_OPTIONS,
+};
+
+const NOC_DICTIONARY: Record<string, string[]> = {
+  metPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonName: COMMON_MET_PERSON_OPTIONS,
+  designation: COMMON_DESIGNATION_OPTIONS,
+  ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
+};
+
+const DSA_CONNECTOR_DICTIONARY: Record<string, string[]> = {
+  metPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonName: COMMON_MET_PERSON_OPTIONS,
+  designation: COMMON_DESIGNATION_OPTIONS,
+  businessType: COMMON_BUSINESS_TYPE_OPTIONS,
+};
+
+const PROPERTY_INDIVIDUAL_DICTIONARY: Record<string, string[]> = {
+  metPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonName: COMMON_MET_PERSON_OPTIONS,
+  designation: COMMON_DESIGNATION_OPTIONS,
+  ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
+};
+
+const PROPERTY_APF_DICTIONARY: Record<string, string[]> = {
+  metPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonName: COMMON_MET_PERSON_OPTIONS,
+  designation: COMMON_DESIGNATION_OPTIONS,
+  businessType: COMMON_BUSINESS_TYPE_OPTIONS,
+  ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
 };
 
 const DICTIONARY_BY_FORM_TYPE: Partial<Record<FormTypeKey, Record<string, string[]>>> = {
   residence: RESIDENCE_DICTIONARY,
+  'residence-cum-office': RESIDENCE_CUM_OFFICE_DICTIONARY,
   office: OFFICE_DICTIONARY,
   business: BUSINESS_DICTIONARY,
+  builder: BUILDER_DICTIONARY,
+  noc: NOC_DICTIONARY,
+  'dsa-connector': DSA_CONNECTOR_DICTIONARY,
+  'property-individual': PROPERTY_INDIVIDUAL_DICTIONARY,
+  'property-apf': PROPERTY_APF_DICTIONARY,
 };
 
 const shouldUpgradeFieldToDropdown = (field: FormFieldTemplate): boolean =>
@@ -98,7 +209,7 @@ export interface LoadFormTemplateParams {
 }
 
 class FormTemplateServiceClass {
-  private applyPhase2Dictionary(template: FormTemplate, verificationType: FormTypeKey): FormTemplate {
+  private applyDropdownDictionary(template: FormTemplate, verificationType: FormTypeKey): FormTemplate {
     const dictionary = DICTIONARY_BY_FORM_TYPE[verificationType];
     if (!dictionary) {
       return template;
@@ -140,7 +251,7 @@ class FormTemplateServiceClass {
   }: LoadFormTemplateParams): Promise<FormTemplate | null> {
     const legacyTemplate = getLegacyTemplate(verificationType, outcome);
     if (legacyTemplate) {
-      return this.applyPhase2Dictionary(legacyTemplate, verificationType);
+      return this.applyDropdownDictionary(legacyTemplate, verificationType);
     }
 
     const tplData = await FormRepository.getCachedTemplate(verificationType, outcome);
@@ -172,7 +283,7 @@ class FormTemplateServiceClass {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      return this.applyPhase2Dictionary(cachedTemplate, verificationType);
+      return this.applyDropdownDictionary(cachedTemplate, verificationType);
     }
 
     const backendFormType = toBackendFormType(verificationType);
@@ -205,7 +316,7 @@ class FormTemplateServiceClass {
       ...backendTemplate,
       outcome,
     };
-    return this.applyPhase2Dictionary(finalTemplate, verificationType);
+    return this.applyDropdownDictionary(finalTemplate, verificationType);
   }
 }
 
