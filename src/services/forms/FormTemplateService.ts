@@ -55,6 +55,19 @@ const COMMON_ADDRESS_STATUS_OPTIONS = [
   'On a Pagadi System',
   'In Share Work Place',
 ];
+const COMMON_RELATIONSHIP_OPTIONS = [
+  'Father',
+  'Mother',
+  'Spouse',
+  'Son',
+  'Daughter',
+  'Brother',
+  'Sister',
+  'Self',
+  'Owner',
+  'Tenant',
+  'Other',
+];
 
 const RESIDENCE_DICTIONARY: Record<string, string[]> = {
   metPersonName: [
@@ -70,65 +83,83 @@ const RESIDENCE_DICTIONARY: Record<string, string[]> = {
     'Other',
   ],
   metPerson: COMMON_MET_PERSON_OPTIONS,
+  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
+  relationship: COMMON_RELATIONSHIP_OPTIONS,
 };
 
 const OFFICE_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
   metPersonName: COMMON_MET_PERSON_OPTIONS,
+  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
+  relationship: COMMON_RELATIONSHIP_OPTIONS,
 };
 
 const BUSINESS_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
   metPersonName: COMMON_MET_PERSON_OPTIONS,
+  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   businessType: COMMON_BUSINESS_TYPE_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
   addressStatus: COMMON_ADDRESS_STATUS_OPTIONS,
+  relationship: COMMON_RELATIONSHIP_OPTIONS,
 };
 
 const RESIDENCE_CUM_OFFICE_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
   metPersonName: COMMON_MET_PERSON_OPTIONS,
+  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
+  relationship: COMMON_RELATIONSHIP_OPTIONS,
 };
 
 const BUILDER_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
   metPersonName: COMMON_MET_PERSON_OPTIONS,
+  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   businessType: COMMON_BUSINESS_TYPE_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
   addressStatus: COMMON_ADDRESS_STATUS_OPTIONS,
+  relationship: COMMON_RELATIONSHIP_OPTIONS,
 };
 
 const NOC_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
   metPersonName: COMMON_MET_PERSON_OPTIONS,
+  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
+  relationship: COMMON_RELATIONSHIP_OPTIONS,
 };
 
 const DSA_CONNECTOR_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
   metPersonName: COMMON_MET_PERSON_OPTIONS,
+  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   businessType: COMMON_BUSINESS_TYPE_OPTIONS,
+  relationship: COMMON_RELATIONSHIP_OPTIONS,
 };
 
 const PROPERTY_INDIVIDUAL_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
   metPersonName: COMMON_MET_PERSON_OPTIONS,
+  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
+  relationship: COMMON_RELATIONSHIP_OPTIONS,
 };
 
 const PROPERTY_APF_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
   metPersonName: COMMON_MET_PERSON_OPTIONS,
+  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   businessType: COMMON_BUSINESS_TYPE_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
+  relationship: COMMON_RELATIONSHIP_OPTIONS,
 };
 
 const DICTIONARY_BY_FORM_TYPE: Partial<Record<FormTypeKey, Record<string, string[]>>> = {
