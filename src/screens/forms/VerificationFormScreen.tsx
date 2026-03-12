@@ -1,6 +1,7 @@
 // cspell:words Pagadi Accomodation Adhar Neighbour Bunglow Chawl Patra Resi Existance authorised Authorised
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTask } from '../../hooks/useTask';
 import { PhotoGallery } from '../../components/media/PhotoGallery';
@@ -74,28 +75,11 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     [],
   );
   const outcomeOptions = React.useMemo(() => {
-    const colorByOutcome: Record<LegacyOutcome, string> = {
-      POSITIVE: theme.colors.success,
-      SHIFTED: theme.colors.warning,
-      NSP: theme.colors.info,
-      ENTRY_RESTRICTED: theme.colors.primary,
-      UNTRACEABLE: theme.colors.textMuted,
-    };
-    const iconByOutcome: Record<LegacyOutcome, string> = {
-      POSITIVE: 'checkmark-circle-outline',
-      SHIFTED: 'swap-horizontal-outline',
-      NSP: 'person-remove-outline',
-      ENTRY_RESTRICTED: 'hand-left-outline',
-      UNTRACEABLE: 'locate-outline',
-    };
-
     return getAllowedOutcomesForFormType(taskFormTypeKey).map(outcome => ({
       value: outcome,
       label: getOutcomeLabelForFormType(taskFormTypeKey, outcome),
-      icon: iconByOutcome[outcome],
-      color: colorByOutcome[outcome],
     }));
-  }, [taskFormTypeKey, theme.colors.info, theme.colors.primary, theme.colors.success, theme.colors.textMuted, theme.colors.warning]);
+  }, [taskFormTypeKey]);
 
   // Sync state once task is loaded
   useEffect(() => {
@@ -202,6 +186,12 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
       console.error('Failed to set outcome', e);
     }
   };
+  const handleOutcomeChange = (outcome: string) => {
+    if (!outcome) {
+      return;
+    }
+    handleOutcomeSelect(outcome as LegacyOutcome).catch(() => {});
+  };
 
   const handleSubmit = async () => {
     if (!task) return;
@@ -262,43 +252,25 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
       <View style={styles.stepHeader}>
         <View style={[styles.stepBadge, { backgroundColor: theme.colors.primary }]}>
-          <Text style={[styles.stepBadgeText, { color: theme.colors.surface }]}>1</Text>
+          <Text style={[styles.stepBadgeText, { color: theme.colors.surface }]}>2</Text>
         </View>
         <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>Select Outcome</Text>
       </View>
-      <View style={styles.outcomeWrapper}>
-        {outcomeOptions.map(option => {
-          const isActive = selectedOutcome === option.value;
-
-          return (
-            <TouchableOpacity
-              key={option.value}
-              style={[
-                styles.outcomeBtn,
-                { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border },
-                isActive && [
-                  styles.outcomeBtnActive,
-                  { backgroundColor: `${option.color}20`, borderColor: option.color },
-                ],
-              ]}
-              onPress={() => handleOutcomeSelect(option.value)}>
-              <Icon
-                name={option.icon}
-                size={24}
-                color={isActive ? option.color : theme.colors.textMuted}
-              />
-              <Text
-                style={[
-                  styles.outcomeText,
-                  { color: theme.colors.textSecondary },
-                  isActive && styles.activeOutcomeText,
-                  isActive && { color: option.color },
-                ]}>
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
+      <View
+        style={[
+          styles.outcomePickerContainer,
+          { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border },
+        ]}>
+        <Picker
+          selectedValue={selectedOutcome ?? ''}
+          onValueChange={handleOutcomeChange}
+          dropdownIconColor={theme.colors.text}
+          style={{ color: theme.colors.text }}>
+          <Picker.Item label="Select Outcome" value="" color={theme.colors.textMuted} />
+          {outcomeOptions.map(option => (
+            <Picker.Item key={option.value} label={option.label} value={option.value} />
+          ))}
+        </Picker>
       </View>
       {!selectedOutcome ? (
         <Text style={[styles.stateHintText, { color: theme.colors.textSecondary }]}>
@@ -319,16 +291,14 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <ScrollView
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) + 32 }]}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) + 140 }]}
         showsVerticalScrollIndicator={false}>
-
-        {renderOutcomeSelector()}
 
         {/* Media Block */}
         <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <View style={styles.stepHeader}>
             <View style={[styles.stepBadge, { backgroundColor: theme.colors.primary }]}>
-              <Text style={[styles.stepBadgeText, { color: theme.colors.surface }]}>2</Text>
+              <Text style={[styles.stepBadgeText, { color: theme.colors.surface }]}>1</Text>
             </View>
             <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>Verification Photos</Text>
           </View>
@@ -354,6 +324,8 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
           <PhotoGallery taskId={effectiveTaskId} componentType="selfie" />
         </View>
 
+        {renderOutcomeSelector()}
+
         {/* Dynamic Form Block */}
         <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <View style={styles.stepHeader}>
@@ -366,7 +338,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
             <View style={[styles.stateCard, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
               <Icon name="information-circle-outline" size={18} color={theme.colors.textMuted} />
               <Text style={[styles.stateCardText, { color: theme.colors.textSecondary }]}>
-                Choose an outcome in Step 1 to continue.
+                Choose an outcome in Step 2 to continue.
               </Text>
             </View>
           ) : templateLoading ? (
@@ -392,7 +364,6 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
           )}
         </View>
 
-        <View style={styles.spacer} />
       </ScrollView>
 
       {/* Submit Action Footer */}
@@ -402,7 +373,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
           {
             backgroundColor: theme.colors.surface,
             borderTopColor: theme.colors.border,
-            paddingBottom: Math.max(insets.bottom, 16),
+            bottom: Math.max(insets.bottom, 0),
           },
         ]}>
         <TouchableOpacity 
