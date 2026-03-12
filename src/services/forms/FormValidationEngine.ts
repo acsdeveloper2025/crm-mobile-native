@@ -40,6 +40,8 @@ export const validateTemplateRequiredFields = (
   values: Record<string, unknown>,
 ): { isValid: boolean; missingFields: string[] } => {
   const missingFields: string[] = [];
+  const isEnumField = (fieldType: string): boolean =>
+    fieldType === 'select' || fieldType === 'radio' || fieldType === 'multiselect';
 
   for (const section of currentTemplate.sections) {
     if (section.conditional && !evaluateFieldCondition(section.conditional, values)) {
@@ -59,8 +61,26 @@ export const validateTemplateRequiredFields = (
           : false;
 
       const valueKey = field.name || field.id;
-      if ((requiredByDefault || requiredWhen) && isEmptyFieldValue(values[valueKey])) {
+      const value = values[valueKey];
+      if ((requiredByDefault || requiredWhen) && isEmptyFieldValue(value)) {
         missingFields.push(field.label);
+        continue;
+      }
+
+      if (isEnumField(field.type) && Array.isArray(field.options) && field.options.length > 0) {
+        const allowed = new Set(field.options.map(option => String(option.value)));
+        if (field.type === 'multiselect') {
+          const arr = Array.isArray(value) ? value : [];
+          const hasInvalidValue = arr.some(item => !allowed.has(String(item)));
+          if (hasInvalidValue) {
+            missingFields.push(field.label);
+          }
+          continue;
+        }
+
+        if (!isEmptyFieldValue(value) && !allowed.has(String(value))) {
+          missingFields.push(field.label);
+        }
       }
     }
   }

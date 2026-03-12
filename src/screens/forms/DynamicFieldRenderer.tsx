@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TextInput, StyleSheet, Switch, TouchableOpacity } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Switch } from 'react-native';
+import { Picker } from '@react-native-picker/picker';
 import { useTheme } from '../../context/ThemeContext';
 
 export interface DynamicFieldProps {
@@ -110,25 +111,32 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
       case 'select':
       case 'radio':
         return (
-          <View style={styles.radioGroup}>
-            {options.map((opt, index) => (
-              <TouchableOpacity
-                key={`${field.id}_${String(opt.value)}_${index}`}
-                style={[
-                  styles.radioButton,
-                  { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-                  value === opt.value && [styles.radioButtonSelected, { backgroundColor: theme.colors.primary + '20', borderColor: theme.colors.primary }]
-                ]}
-                onPress={() => onChange(field.id, opt.value)}>
-                <Text style={[
-                  styles.radioText,
-                  { color: theme.colors.textSecondary },
-                  value === opt.value && [styles.radioTextSelected, { color: theme.colors.primary }]
-                ]}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View
+            style={[
+              styles.pickerContainer,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: error ? theme.colors.danger : theme.colors.border,
+              },
+            ]}>
+            <Picker
+              selectedValue={value ?? ''}
+              onValueChange={selectedValue => onChange(field.id, selectedValue)}
+              dropdownIconColor={theme.colors.text}
+              style={{ color: theme.colors.text }}>
+              <Picker.Item
+                label={`Select ${field.label}`}
+                value=""
+                color={theme.colors.textMuted}
+              />
+              {options.map((opt, index) => (
+                <Picker.Item
+                  key={`${field.id}_${String(opt.value)}_${index}`}
+                  label={opt.label}
+                  value={opt.value}
+                />
+              ))}
+            </Picker>
           </View>
         );
 
@@ -231,25 +239,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  radioGroup: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  radioButton: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 24,
+  pickerContainer: {
     borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
   },
-  radioButtonSelected: {
-    borderWidth: 1.5,
-  },
-  radioText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  radioTextSelected: {
-    fontWeight: '700',
-  }
 });
