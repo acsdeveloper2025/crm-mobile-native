@@ -180,7 +180,8 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
         renderItem={renderPhotoItem}
         contentContainerStyle={styles.listContainer}
         showsHorizontalScrollIndicator={false}
-        removeClippedSubviews
+        initialNumToRender={6}
+        windowSize={5}
       />
 
       <Modal
