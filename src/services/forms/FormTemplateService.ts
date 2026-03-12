@@ -3,6 +3,7 @@ import { ENDPOINTS } from '../../api/endpoints';
 import { FormRepository } from '../../repositories/FormRepository';
 import type { FormTemplate } from '../../types/api';
 import { toBackendFormType, type FormTypeKey } from '../../utils/formTypeKey';
+import { FormOptionDictionaryService } from './FormOptionDictionaryService';
 
 const buildTemplateFromBackend = (
   verificationType: string,
@@ -67,6 +68,10 @@ export interface LoadFormTemplateParams {
 }
 
 class FormTemplateServiceClass {
+  private applyPhase2Dictionary(template: FormTemplate, verificationType: FormTypeKey): FormTemplate {
+    return FormOptionDictionaryService.enhanceTemplate(template, verificationType);
+  }
+
   async loadTemplate({
     verificationType,
     outcome,
@@ -74,7 +79,7 @@ class FormTemplateServiceClass {
   }: LoadFormTemplateParams): Promise<FormTemplate | null> {
     const legacyTemplate = getLegacyTemplate(verificationType, outcome);
     if (legacyTemplate) {
-      return legacyTemplate;
+      return this.applyPhase2Dictionary(legacyTemplate, verificationType);
     }
 
     const tplData = await FormRepository.getCachedTemplate(verificationType, outcome);
@@ -88,7 +93,7 @@ class FormTemplateServiceClass {
         }
       })();
 
-      return {
+      const cachedTemplate: FormTemplate = {
         id: 'local',
         formType: verificationType,
         verificationType,
@@ -106,6 +111,7 @@ class FormTemplateServiceClass {
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
+      return this.applyPhase2Dictionary(cachedTemplate, verificationType);
     }
 
     const backendFormType = toBackendFormType(verificationType);
@@ -134,10 +140,11 @@ class FormTemplateServiceClass {
       version: backendTemplate.version,
     });
 
-    return {
+    const finalTemplate: FormTemplate = {
       ...backendTemplate,
       outcome,
     };
+    return this.applyPhase2Dictionary(finalTemplate, verificationType);
   }
 }
 
