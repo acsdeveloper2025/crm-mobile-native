@@ -53,6 +53,12 @@ export const styles = StyleSheet.create(
     flexWrap: 'wrap',
     justifyContent: 'space-between',
   },
+  outcomePickerContainer: {
+    borderWidth: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
   stateHintText: {
     marginTop: 2,
     fontSize: 13,
@@ -146,10 +152,15 @@ export const styles = StyleSheet.create(
     flex: 1,
   },
   footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
     paddingTop: 14,
     paddingHorizontal: 16,
-    paddingBottom: 40,
+    paddingBottom: 16,
     borderTopWidth: 1,
+    zIndex: 20,
+    elevation: 10,
   },
   submitButton: {
     flexDirection: 'row',
@@ -173,6 +184,6 @@ export const styles = StyleSheet.create(
     gap: 8,
   },
   spacer: {
-    height: 100,
-  }
+    height: 0,
+  },
 });
