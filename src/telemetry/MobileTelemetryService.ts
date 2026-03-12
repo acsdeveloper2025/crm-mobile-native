@@ -3,6 +3,7 @@ import { ENDPOINTS } from '../api/endpoints';
 import { config } from '../config';
 import type { SyncHealthMetrics } from '../sync/SyncHealthService';
 import { Logger } from '../utils/logger';
+import axios from 'axios';
 
 type Severity = 'debug' | 'info' | 'warning' | 'error';
 type TelemetryCategory = 'sync' | 'queue' | 'upload' | 'background';
@@ -34,6 +35,7 @@ const TAG = 'MobileTelemetry';
 const FLUSH_INTERVAL_MS = 5000;
 const FLUSH_BATCH_SIZE = 25;
 const BACKLOG_THROTTLE_MS = 60000;
+const INTERNAL_API_BACKOFF_MS = 10 * 60 * 1000;
 
 class MobileTelemetryServiceClass {
   private queue: TelemetryEvent[] = [];
@@ -43,6 +45,8 @@ class MobileTelemetryServiceClass {
   private datadog: DatadogModule | null = null;
   private initialized = false;
   private lastBacklogAt = 0;
+  private internalApiDisabledUntil = 0;
+  private internalApi404Logged = false;
 
   initialize(): void {
     if (this.initialized) {
@@ -52,7 +56,6 @@ class MobileTelemetryServiceClass {
 
     try {
       // Optional dependency; telemetry pipeline should never crash if missing.
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       this.sentry = require('@sentry/react-native') as SentryModule;
     } catch {
       this.sentry = null;
@@ -60,7 +63,6 @@ class MobileTelemetryServiceClass {
 
     try {
       // Optional dependency; telemetry pipeline should never crash if missing.
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       this.datadog = require('@datadog/mobile-react-native') as DatadogModule;
     } catch {
       this.datadog = null;
@@ -77,7 +79,9 @@ class MobileTelemetryServiceClass {
     }
     this.flushTimer = setTimeout(() => {
       this.flushTimer = null;
-      void this.flush();
+      this.flush().catch(error => {
+        Logger.warn(TAG, 'Scheduled telemetry flush failed', error);
+      });
     }, FLUSH_INTERVAL_MS);
   }
 
@@ -89,7 +93,9 @@ class MobileTelemetryServiceClass {
     });
 
     if (this.queue.length >= FLUSH_BATCH_SIZE) {
-      void this.flush();
+      this.flush().catch(error => {
+        Logger.warn(TAG, 'Immediate telemetry flush failed', error);
+      });
       return;
     }
     this.scheduleFlush();
@@ -126,6 +132,11 @@ class MobileTelemetryServiceClass {
   }
 
   private async sendToInternalApi(events: TelemetryEvent[]): Promise<void> {
+    const now = Date.now();
+    if (now < this.internalApiDisabledUntil) {
+      return;
+    }
+
     await ApiClient.post(ENDPOINTS.TELEMETRY.INGEST, {
       platform: config.platform,
       appVersion: config.appVersion,
@@ -148,6 +159,20 @@ class MobileTelemetryServiceClass {
       }
       await this.sendToInternalApi(batch);
     } catch (error) {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status || 0;
+        if (status === 404) {
+          this.internalApiDisabledUntil = Date.now() + INTERNAL_API_BACKOFF_MS;
+          if (!this.internalApi404Logged) {
+            this.internalApi404Logged = true;
+            Logger.info(
+              TAG,
+              'Telemetry ingest endpoint not available (404). Internal telemetry upload disabled temporarily.',
+            );
+          }
+          return;
+        }
+      }
       Logger.warn(TAG, 'Telemetry batch flush failed', error);
     } finally {
       this.flushing = false;

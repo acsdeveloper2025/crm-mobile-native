@@ -127,12 +127,24 @@ class ApiClientClass {
 
         const requestUrl = error.config?.url || '';
         const isNotificationRegisterError = requestUrl.includes('/auth/notifications/register');
+        const isTelemetryIngestError = requestUrl.includes('/telemetry/mobile/ingest');
         const isAutoSaveForbidden =
           requestUrl.includes('/auto-save') && error.response?.status === 403;
         const isAutoSaveServerError =
           requestUrl.includes('/auto-save') && (error.response?.status || 0) >= 500;
 
-        if (isNotificationRegisterError || isAutoSaveForbidden || isAutoSaveServerError) {
+        if (isTelemetryIngestError) {
+          // Telemetry ingestion is optional; avoid log spam when endpoint is not enabled.
+          Logger.debug(
+            'ApiClient',
+            `Telemetry API Error: ${error.response?.status} ${requestUrl}`,
+            error.response?.data,
+          );
+        } else if (
+          isNotificationRegisterError ||
+          isAutoSaveForbidden ||
+          isAutoSaveServerError
+        ) {
           Logger.warn(
             'ApiClient',
             `Recoverable API Error: ${error.response?.status} ${requestUrl}`,

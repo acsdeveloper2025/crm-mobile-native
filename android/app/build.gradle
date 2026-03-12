@@ -1,5 +1,4 @@
 apply plugin: "com.android.application"
-apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
 apply plugin: "com.google.gms.google-services"
 apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
@@ -140,15 +139,7 @@ android {
             signingConfig hasReleaseKeystore ? signingConfigs.release : signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             shrinkResources enableProguardInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
-        }
-    }
-}
-
-android.applicationVariants.configureEach { variant ->
-    if (variant.buildType.name == "release") {
-        variant.outputs.configureEach {
-            outputFileName = "crm-mobile-native-v${variant.versionName}.apk"
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
 }

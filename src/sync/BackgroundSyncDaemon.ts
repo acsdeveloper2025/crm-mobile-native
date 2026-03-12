@@ -74,12 +74,16 @@ class BackgroundSyncDaemonClass {
     this.appStateSubscription = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       this.appState = nextState;
       if (nextState === 'background') {
-        void this.tick();
+        this.tick().catch(error => {
+          Logger.warn(TAG, 'Background tick launch failed', error);
+        });
       }
     });
 
     this.timer = setInterval(() => {
-      void this.tick();
+      this.tick().catch(error => {
+        Logger.warn(TAG, 'Scheduled background tick launch failed', error);
+      });
     }, intervalMs);
 
     const bridge = this.getBridge();

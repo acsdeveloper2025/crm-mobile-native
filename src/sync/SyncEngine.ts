@@ -118,7 +118,9 @@ class SyncEngineClass {
     let lastProgressAt = Date.now();
 
     const watchdog = setInterval(() => {
-      void SyncWatchdogService.heartbeat();
+      SyncWatchdogService.heartbeat().catch(error => {
+        Logger.warn(TAG, 'Watchdog heartbeat failed in interval', error);
+      });
       if (Date.now() - lastProgressAt > WATCHDOG_TIMEOUT_MS) {
         watchdogTriggered = true;
         Logger.error(TAG, 'Sync watchdog detected stalled sync cycle');
@@ -140,7 +142,9 @@ class SyncEngineClass {
         shouldAbort: () => watchdogTriggered,
         onProgress: () => {
           lastProgressAt = Date.now();
-          void SyncWatchdogService.heartbeat();
+          SyncWatchdogService.heartbeat().catch(error => {
+            Logger.warn(TAG, 'Watchdog heartbeat failed on progress', error);
+          });
         },
       });
       uploadedItems = uploadResult.uploaded;

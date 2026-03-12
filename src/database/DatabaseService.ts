@@ -159,9 +159,18 @@ class DatabaseServiceClass {
     operations: (tx: SQLiteDatabase) => Promise<void>,
   ): Promise<void> {
     const db = this.getDb();
-    await db.transaction(async (tx: any) => {
-      await operations(tx);
-    });
+    await db.executeSql('BEGIN TRANSACTION;');
+    try {
+      await operations(db);
+      await db.executeSql('COMMIT;');
+    } catch (error) {
+      try {
+        await db.executeSql('ROLLBACK;');
+      } catch (rollbackError) {
+        Logger.error('DatabaseService', 'Transaction rollback failed', rollbackError);
+      }
+      throw error;
+    }
   }
 
   /**

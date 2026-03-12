@@ -1,0 +1,41 @@
+diff --git a/node_modules/react-native-safe-area-context/android/build.gradle b/node_modules/react-native-safe-area-context/android/build.gradle
+index f324b9a..fa87948 100644
+--- a/node_modules/react-native-safe-area-context/android/build.gradle
++++ b/node_modules/react-native-safe-area-context/android/build.gradle
+@@ -24,16 +24,10 @@ def getExtOrDefault(name, defaultValue) {
+ }
+ 
+ def isNewArchitectureEnabled() {
+-    // To opt-in for the New Architecture, you can either:
+-    // - Set `newArchEnabled` to true inside the `gradle.properties` file
+-    // - Invoke gradle with `-newArchEnabled=true`
+-    // - Set an environment variable `ORG_GRADLE_PROJECT_newArchEnabled=true`
+-    return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
++    return false
+ }
+ 
+ apply plugin: 'com.android.library'
+-apply plugin: 'kotlin-android'
+-
+ if (isNewArchitectureEnabled()) {
+     apply plugin: "com.facebook.react"
+ }
+@@ -94,6 +88,18 @@ android {
+                 ]
+             }
+         }
++        kotlin {
++            if (isNewArchitectureEnabled()) {
++                srcDirs += [
++                    "src/fabric/java",
++                    "${project.buildDir}/generated/source/codegen/java"
++                ]
++            } else {
++                srcDirs += [
++                    "src/paper/java"
++                ]
++            }
++        }
+     }
+ }
+ 

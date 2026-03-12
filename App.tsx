@@ -172,7 +172,9 @@ function App(): React.JSX.Element {
       mounted = false;
       NetworkService.destroy();
       notificationService.destroyPushListeners();
-      void BackgroundSyncDaemon.stop();
+      BackgroundSyncDaemon.stop().catch(error => {
+        Logger.warn(TAG, 'Background sync daemon stop failed during unmount', error);
+      });
     };
   }, []);
 
