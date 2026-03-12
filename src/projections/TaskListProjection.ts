@@ -1,7 +1,42 @@
 import { DatabaseService } from '../database/DatabaseService';
+import { ProjectionUpdater } from './ProjectionUpdater';
+import { Logger } from '../utils/logger';
 import type { LocalTask } from '../types/mobile';
 
+const TAG = 'TaskListProjection';
+
 class TaskListProjectionClass {
+  private async hasTasksForFilter(statusFilter?: string): Promise<boolean> {
+    if (statusFilter === 'SAVED') {
+      const rows = await DatabaseService.query<{ count: number }>(
+        `SELECT COUNT(*) as count
+         FROM tasks
+         WHERE is_saved = 1
+           AND status != 'COMPLETED'
+           AND (is_revoked IS NULL OR is_revoked = 0)`,
+      );
+      return (rows[0]?.count ?? 0) > 0;
+    }
+
+    if (!statusFilter) {
+      const rows = await DatabaseService.query<{ count: number }>(
+        `SELECT COUNT(*) as count
+         FROM tasks
+         WHERE (is_revoked IS NULL OR is_revoked = 0)`,
+      );
+      return (rows[0]?.count ?? 0) > 0;
+    }
+
+    const rows = await DatabaseService.query<{ count: number }>(
+      `SELECT COUNT(*) as count
+       FROM tasks
+       WHERE status = ?
+         AND (is_revoked IS NULL OR is_revoked = 0)`,
+      [statusFilter],
+    );
+    return (rows[0]?.count ?? 0) > 0;
+  }
+
   async list(statusFilter?: string, searchQuery?: string): Promise<LocalTask[]> {
     let sql = `SELECT * FROM task_list_projection WHERE (is_revoked IS NULL OR is_revoked = 0)`;
     const params: Array<string | number | null> = [];
@@ -28,6 +63,21 @@ class TaskListProjectionClass {
       END,
       assigned_at DESC`;
 
+    const projected = await DatabaseService.query<LocalTask>(sql, params);
+    if (projected.length > 0 || (searchQuery?.trim() ?? '').length > 0) {
+      return projected;
+    }
+
+    const hasRawTasks = await this.hasTasksForFilter(statusFilter);
+    if (!hasRawTasks) {
+      return projected;
+    }
+
+    Logger.warn(
+      TAG,
+      `Projection stale for filter ${statusFilter || 'ALL'}, rebuilding projections`,
+    );
+    await ProjectionUpdater.rebuildAll();
     return DatabaseService.query<LocalTask>(sql, params);
   }
 

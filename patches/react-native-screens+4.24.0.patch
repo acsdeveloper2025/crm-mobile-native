@@ -1,0 +1,44 @@
+diff --git a/node_modules/react-native-screens/android/build.gradle b/node_modules/react-native-screens/android/build.gradle
+index 885faa6..64ce3b5 100644
+--- a/node_modules/react-native-screens/android/build.gradle
++++ b/node_modules/react-native-screens/android/build.gradle
+@@ -31,11 +31,7 @@ def isRunningInContextOfScreensRepo() {
+ }
+ 
+ def isNewArchitectureEnabled() {
+-    // To opt-in for the New Architecture, you can either:
+-    // - Set `newArchEnabled` to true inside the `gradle.properties` file
+-    // - Invoke gradle with `-newArchEnabled=true`
+-    // - Set an environment variable `ORG_GRADLE_PROJECT_newArchEnabled=true`
+-    return project.hasProperty("newArchEnabled") && project.newArchEnabled == "true"
++    return false
+ }
+ 
+ def areDebugLogsEnabled() {
+@@ -94,8 +90,6 @@ if (isNewArchitectureEnabled()) {
+     apply plugin: "com.facebook.react"
+ }
+ apply plugin: 'com.android.library'
+-apply plugin: 'kotlin-android'
+-
+ def reactNativeArchitectures() {
+     def value = project.getProperties().get("reactNativeArchitectures")
+     return value ? value.split(",") : ["armeabi-v7a", "x86", "x86_64", "arm64-v8a"]
+@@ -199,6 +193,17 @@ android {
+                 ]
+             }
+         }
++        kotlin {
++            if (IS_NEW_ARCHITECTURE_ENABLED) {
++                srcDirs += [
++                    "src/fabric/java",
++                ]
++            } else {
++                srcDirs += [
++                    "src/paper/java",
++                ]
++            }
++        }
+         res {
+             if (safeExtGet(['compileSdkVersion', 'compileSdk'], rnsDefaultCompileSdkVersion) >= 33) {
+                 srcDirs = ["${androidResDir}/base", "${androidResDir}/v33"]

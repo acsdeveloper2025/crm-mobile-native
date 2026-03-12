@@ -3,6 +3,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import { useTaskManager } from '../context/TaskContext';
 import { LocalTask } from '../types/mobile';
 import { TaskListProjection } from '../projections/TaskListProjection';
+import { Logger } from '../utils/logger';
+
+const TAG = 'useTasks';
 
 export const useTasks = (statusFilter?: string, searchQuery?: string): any => {
   const {
@@ -26,13 +29,22 @@ export const useTasks = (statusFilter?: string, searchQuery?: string): any => {
   const [tasks, setTasks] = useState<LocalTask[]>([]);
 
   const loadProjectedTasks = useCallback(async () => {
-    const projected = await TaskListProjection.list(statusFilter, searchQuery);
-    setTasks(projected);
+    try {
+      const projected = await TaskListProjection.list(statusFilter, searchQuery);
+      setTasks(projected);
+    } catch (projectionError) {
+      Logger.warn(TAG, 'Failed to load projected tasks', projectionError);
+      setTasks([]);
+    }
   }, [searchQuery, statusFilter]);
 
   const refreshProjectedTasks = useCallback(async () => {
-    await refreshTasks();
-    await loadProjectedTasks();
+    try {
+      await refreshTasks();
+      await loadProjectedTasks();
+    } catch (refreshError) {
+      Logger.warn(TAG, 'Failed to refresh projected tasks', refreshError);
+    }
   }, [loadProjectedTasks, refreshTasks]);
 
   useFocusEffect(

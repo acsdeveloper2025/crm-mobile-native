@@ -1,3 +1,11 @@
+import groovy.xml.XmlSlurper
+
+gradle.beforeProject { project ->
+    if (project.name in ["react-native-safe-area-context", "react-native-screens"]) {
+        project.ext.set("newArchEnabled", "false")
+    }
+}
+
 buildscript {
     ext {
         buildToolsVersion = "36.0.0"
@@ -12,7 +20,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle")
+        classpath("com.android.tools.build:gradle:9.1.0")
         classpath("com.facebook.react:react-native-gradle-plugin")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
         classpath("com.google.gms:google-services:4.4.2")
@@ -20,3 +28,30 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+subprojects { subproject ->
+    subproject.plugins.withId("com.android.library") {
+        def androidExt = subproject.extensions.findByName("android")
+        if (androidExt == null) {
+            return
+        }
+
+        if (androidExt.hasProperty("compileSdk") && androidExt.compileSdk == null) {
+            androidExt.compileSdk = rootProject.ext.compileSdkVersion
+        }
+
+        if (androidExt.hasProperty("buildFeatures") && androidExt.buildFeatures != null) {
+            androidExt.buildFeatures.buildConfig = true
+        }
+
+        if (androidExt.hasProperty("namespace") && !androidExt.namespace) {
+            def manifestFile = new File(subproject.projectDir, "src/main/AndroidManifest.xml")
+            if (manifestFile.exists()) {
+                def manifestPackage = new XmlSlurper(false, false).parse(manifestFile).'@package'.text()
+                if (manifestPackage) {
+                    androidExt.namespace = manifestPackage
+                }
+            }
+        }
+    }
+}

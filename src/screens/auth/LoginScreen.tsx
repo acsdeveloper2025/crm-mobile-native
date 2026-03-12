@@ -44,12 +44,19 @@ export const LoginScreen = () => {
 
   const extractErrorMessage = React.useCallback((e: any): string => {
     const status = e?.response?.status;
-    const backendMessage = e?.response?.data?.message;
-    const backendError = e?.response?.data?.error;
-    const nestedError = e?.response?.data?.data?.error;
+    const responseData = e?.response?.data;
+    const backendMessage =
+      typeof responseData === 'string' ? '' : responseData?.message;
+    const backendError =
+      typeof responseData === 'string' ? '' : responseData?.error;
+    const nestedError =
+      typeof responseData === 'string' ? '' : responseData?.data?.error;
 
     if (status === 401) {
       return 'Invalid username or password.';
+    }
+    if (status >= 500) {
+      return 'Server is temporarily unavailable. Please try again shortly.';
     }
 
     if (typeof backendError === 'string' && backendError.trim().length > 0) {
