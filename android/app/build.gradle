@@ -184,8 +184,8 @@ gradle.projectsEvaluated {
     def generatedAutolinkingCmake = file("$buildDir/generated/autolinking/src/main/jni/Android-autolinking.cmake")
     def generatedAutolinkingCpp = file("$buildDir/generated/autolinking/src/main/jni/autolinking.cpp")
     def sanitizeGeneratedAutolinking = {
+        def missingAutolinkTargets = [] as Set
         if (generatedAutolinkingCmake.exists()) {
-            def missingAutolinkTargets = [] as Set
             def addSubdirectoryPattern = ~/add_subdirectory\("([^"]+)"\s+([A-Za-z0-9_]+)\)/
             def retainedAutolinkTargets = [] as List
             def filteredLines = generatedAutolinkingCmake.readLines().findAll { line ->
