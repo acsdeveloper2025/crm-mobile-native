@@ -185,11 +185,26 @@ gradle.projectsEvaluated {
     def generatedAutolinkingCpp = file("$buildDir/generated/autolinking/src/main/jni/autolinking.cpp")
     def sanitizeGeneratedAutolinking = {
         if (generatedAutolinkingCmake.exists()) {
+            def missingAutolinkTargets = [] as Set
+            def addSubdirectoryPattern = ~/add_subdirectory\("([^"]+)"\s+([A-Za-z0-9_]+)\)/
             def filteredLines = generatedAutolinkingCmake.readLines().findAll { line ->
+                def matcher = line =~ addSubdirectoryPattern
+                if (matcher.find()) {
+                    def sourceDir = matcher.group(1)
+                    def buildTarget = matcher.group(2)
+                    if (!file(sourceDir).exists()) {
+                        if (buildTarget.endsWith("_autolinked_build")) {
+                            missingAutolinkTargets << "react_codegen_${buildTarget - '_autolinked_build'}"
+                        }
+                        return false
+                    }
+                }
+
                 !line.contains("react-native-safe-area-context") &&
                 !line.contains("react-native-screens") &&
                 line.trim() != "react_codegen_safeareacontext" &&
-                line.trim() != "react_codegen_rnscreens"
+                line.trim() != "react_codegen_rnscreens" &&
+                !missingAutolinkTargets.contains(line.trim())
             }
 
             generatedAutolinkingCmake.text = filteredLines.join(System.lineSeparator()) + System.lineSeparator()
