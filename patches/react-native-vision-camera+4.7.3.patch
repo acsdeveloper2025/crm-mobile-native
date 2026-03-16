@@ -1,8 +1,8 @@
 diff --git a/node_modules/react-native-vision-camera/android/build.gradle b/node_modules/react-native-vision-camera/android/build.gradle
-index 6c12afb..78c6a32 100644
+index 6c12afb..53b2d90 100644
 --- a/node_modules/react-native-vision-camera/android/build.gradle
 +++ b/node_modules/react-native-vision-camera/android/build.gradle
-@@ -4,20 +4,6 @@
+@@ -4,23 +4,6 @@
  def agpVersion = Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0].toInteger()
  def androidManifestPath = agpVersion >= 7 ? 'src/main/AndroidManifest.xml' : 'src/hasNamespace/AndroidManifest.xml'
  
@@ -26,3 +26,25 @@ index 6c12afb..78c6a32 100644
  def resolveBuildType() {
      Gradle gradle = getGradle()
      String tskReqStr = gradle.getStartParameter().getTaskRequests()["args"].toString()
+@@ -39,9 +22,7 @@
+ if (isNewArchitectureEnabled()) {
+   apply plugin: "com.facebook.react"
+ }
+-apply plugin: "com.android.library"
+-apply plugin: "kotlin-android"
+-
++apply plugin: 'com.android.library'
+ def safeExtGet(prop, fallback) {
+   rootProject.ext.has(prop) ? rootProject.ext.get(prop) : fallback
+ }
+@@ -96,6 +77,10 @@
+ }
+ 
+ android {
++  buildFeatures {
++    buildConfig true
++  }
++
+   if (agpVersion >= 7) {
+     namespace "com.mrousavy.camera"
+   }
