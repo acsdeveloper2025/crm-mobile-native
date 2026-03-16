@@ -207,6 +207,8 @@ gradle.projectsEvaluated {
             ~/(?m)^#include <react\/renderer\/components\/rnscreens\/ComponentDescriptors\.h>\R?/,
             ~/(?ms)auto module_safeareacontext = safeareacontext_ModuleProvider\(moduleName, params\);\Rif \(module_safeareacontext != nullptr\) \{\Rreturn module_safeareacontext;\R\}\R?/,
             ~/(?ms)auto module_rnscreens = rnscreens_ModuleProvider\(moduleName, params\);\Rif \(module_rnscreens != nullptr\) \{\Rreturn module_rnscreens;\R\}\R?/,
+            ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNC(?:SafeAreaProvider|SafeAreaView)ComponentDescriptor>\(\)\);\R?/,
+            ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNS[A-Za-z0-9]+ComponentDescriptor>\(\)\);\R?/,
             ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNCSafeAreaProviderComponentDescriptor>\(\)\);\R?/,
             ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNCSafeAreaViewComponentDescriptor>\(\)\);\R?/,
             ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNSFullWindowOverlayComponentDescriptor>\(\)\);\R?/,
@@ -227,6 +229,10 @@ gradle.projectsEvaluated {
         cppReplacements.each { pattern ->
             cppText = cppText.replaceAll(pattern, "")
         }
+
+        cppText = cppText
+            .replaceAll(/(?m)^\s*providerRegistry->add\(concreteComponentDescriptorProvider<RNS[A-Za-z0-9]+ComponentDescriptor>\(\)\);\R?/, "")
+            .replaceAll(/(?m)^\s*providerRegistry->add\(concreteComponentDescriptorProvider<RNC(?:SafeAreaProvider|SafeAreaView)ComponentDescriptor>\(\)\);\R?/, "")
 
         generatedAutolinkingCpp.text = cppText
     }
