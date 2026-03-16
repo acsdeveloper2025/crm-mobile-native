@@ -64,10 +64,6 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
     }
   }, [taskId, componentType]);
 
-  React.useEffect(() => {
-    loadPhotos();
-  }, [loadPhotos]);
-
   useFocusEffect(
     useCallback(() => {
       loadPhotos();
@@ -112,6 +108,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
         <Image
           source={{ uri: `file://${item.thumbnailPath || item.localPath}` }}
           style={styles.thumbnail}
+          resizeMethod="resize"
         />
         <View style={styles.previewHint}>
           <Icon name="expand-outline" size={14} color="#ffffff" />
@@ -205,6 +202,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
                 source={{ uri: `file://${selectedPhoto.localPath}` }}
                 style={styles.previewImage}
                 resizeMode="contain"
+                resizeMethod="resize"
               />
             ) : null}
           </View>

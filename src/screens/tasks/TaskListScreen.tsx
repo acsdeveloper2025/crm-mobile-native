@@ -10,6 +10,11 @@ import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTaskManager } from '../../context/TaskContext';
 import { TaskRepository, type TaskListCounts } from '../../repositories/TaskRepository';
+import { TaskInfoModal } from '../../components/tasks/TaskInfoModal';
+import { TaskRevokeModal } from '../../components/tasks/TaskRevokeModal';
+import { RevokeReason } from '../../types/api';
+import { selectTaskById, getTaskSnapshot } from '../../store/selectors/taskSelectors';
+import { useSelector } from '../../store/useSelector';
 
 // Updated tab bar filters for tasks to include Saved and Revoked
 const FILTER_TABS = [
@@ -19,6 +24,53 @@ const FILTER_TABS = [
   { id: 'COMPLETED', label: 'Completed', value: 'COMPLETED' },
   { id: 'SAVED', label: 'Saved', value: 'SAVED' },
 ];
+
+const TaskListRow = React.memo(({
+  taskId,
+  canMoveDown,
+  canMoveUp,
+  canReorder,
+  handleAttachmentsPress,
+  handleInfoPress,
+  handleMoveTask,
+  handleRevokePress,
+  handleTaskPress,
+  refetch,
+  reorderMode,
+}: {
+  taskId: string;
+  canMoveDown: boolean;
+  canMoveUp: boolean;
+  canReorder: boolean;
+  handleAttachmentsPress: (task: LocalTask) => void;
+  handleInfoPress: (task: LocalTask) => void;
+  handleMoveTask: (taskId: string, direction: 'up' | 'down') => Promise<void>;
+  handleRevokePress: (task: LocalTask) => void;
+  handleTaskPress: (task: LocalTask) => void;
+  refetch: () => Promise<void>;
+  reorderMode: boolean;
+}) => {
+  const task = useSelector(selectTaskById(taskId));
+
+  if (!task) {
+    return null;
+  }
+
+  return (
+    <TaskCard
+      task={task}
+      onPress={handleTaskPress}
+      onStatusChange={refetch}
+      onAttachmentsPress={handleAttachmentsPress}
+      onInfoPress={handleInfoPress}
+      onRevokePress={handleRevokePress}
+      isReorderEnabled={reorderMode && canReorder}
+      canMoveUp={canMoveUp}
+      canMoveDown={canMoveDown}
+      onMoveTask={handleMoveTask}
+    />
+  );
+});
 
 export const TaskListScreen = ({
   navigation,
@@ -39,6 +91,9 @@ export const TaskListScreen = ({
   const [activeTab, setActiveTab] = useState(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
+  const [selectedInfoTask, setSelectedInfoTask] = useState<LocalTask | null>(null);
+  const [selectedRevokeTask, setSelectedRevokeTask] = useState<LocalTask | null>(null);
+  const [isRevokingTask, setIsRevokingTask] = useState(false);
   const [counts, setCounts] = useState<TaskListCounts>({
     ALL: 0,
     ASSIGNED: 0,
@@ -47,10 +102,10 @@ export const TaskListScreen = ({
     SAVED: 0,
   });
   const insets = useSafeAreaInsets();
-  const { setTaskPriority } = useTaskManager();
+  const { setTaskPriority, revokeTask } = useTaskManager();
   
   const statusFilter = lockedFilter ? initialFilter : activeTab.value;
-  const { tasks, isLoading, error, refetch } = useTasks(statusFilter, deferredSearchQuery);
+  const { taskIds, isLoading, error, refetch } = useTasks(statusFilter, deferredSearchQuery);
   const canReorder = lockedFilter && (initialFilter === 'ASSIGNED' || initialFilter === 'IN_PROGRESS');
 
   useEffect(() => {
@@ -106,12 +161,14 @@ export const TaskListScreen = ({
 
   const renderedTasks = useMemo(() => {
     if (initialFilter !== 'IN_PROGRESS' || !lockedFilter || sortMode === 'order') {
-      return tasks;
+      return taskIds;
     }
 
-    return [...tasks].sort((left, right) => {
-      const leftPriority = left.priority ? Number(left.priority) : 0;
-      const rightPriority = right.priority ? Number(right.priority) : 0;
+    return [...taskIds].sort((leftId, rightId) => {
+      const left = getTaskSnapshot(leftId);
+      const right = getTaskSnapshot(rightId);
+      const leftPriority = left?.priority ? Number(left.priority) : 0;
+      const rightPriority = right?.priority ? Number(right.priority) : 0;
       if (leftPriority > 0 && rightPriority > 0) {
         return leftPriority - rightPriority;
       }
@@ -123,16 +180,18 @@ export const TaskListScreen = ({
       }
       return 0;
     });
-  }, [initialFilter, lockedFilter, sortMode, tasks]);
+  }, [initialFilter, lockedFilter, sortMode, taskIds]);
 
   useEffect(() => {
     if (!reorderMode) {
       return;
     }
 
-    const sortedByPriority = [...renderedTasks].sort((left, right) => {
-      const leftPriority = left.priority ? Number(left.priority) : 0;
-      const rightPriority = right.priority ? Number(right.priority) : 0;
+    const sortedByPriority = [...renderedTasks].sort((leftId, rightId) => {
+      const left = getTaskSnapshot(leftId);
+      const right = getTaskSnapshot(rightId);
+      const leftPriority = left?.priority ? Number(left.priority) : 0;
+      const rightPriority = right?.priority ? Number(right.priority) : 0;
 
       if (leftPriority > 0 && rightPriority > 0) {
         return leftPriority - rightPriority;
@@ -146,7 +205,7 @@ export const TaskListScreen = ({
       return 0;
     });
 
-    setReorderIds(sortedByPriority.map((task: LocalTask) => task.id));
+    setReorderIds(sortedByPriority);
   }, [reorderMode, renderedTasks]);
 
   const visibleTasks = useMemo(() => {
@@ -154,11 +213,9 @@ export const TaskListScreen = ({
       return renderedTasks;
     }
 
-    const map = new Map(renderedTasks.map((task: LocalTask) => [task.id, task]));
-    const ordered = reorderIds
-      .map(id => map.get(id))
-      .filter((task): task is LocalTask => Boolean(task));
-    const remaining = renderedTasks.filter((task: LocalTask) => !reorderIds.includes(task.id));
+    const renderedTaskIds = new Set(renderedTasks);
+    const ordered = reorderIds.filter((id: string) => renderedTaskIds.has(id));
+    const remaining = renderedTasks.filter((id: string) => !reorderIds.includes(id));
     return [...ordered, ...remaining];
   }, [reorderIds, renderedTasks, reorderMode]);
 
@@ -199,6 +256,30 @@ export const TaskListScreen = ({
     });
   }, [navigation]);
 
+  const handleInfoPress = useCallback((task: LocalTask) => {
+    setSelectedInfoTask(task);
+  }, []);
+
+  const handleRevokePress = useCallback((task: LocalTask) => {
+    setSelectedRevokeTask(task);
+  }, []);
+
+  const handleRevokeConfirm = useCallback(async (reason: RevokeReason) => {
+    if (!selectedRevokeTask) {
+      return;
+    }
+    try {
+      setIsRevokingTask(true);
+      await revokeTask(selectedRevokeTask.id, reason);
+      setSelectedRevokeTask(null);
+      await refetch();
+    } catch (revokeError: any) {
+      Alert.alert('Error', 'Failed to revoke task: ' + (revokeError?.message || 'Unknown error'));
+    } finally {
+      setIsRevokingTask(false);
+    }
+  }, [refetch, revokeTask, selectedRevokeTask]);
+
   const handleMoveTask = useCallback(async (taskId: string, direction: 'up' | 'down') => {
     if (!reorderMode || isSavingOrder) {
       return;
@@ -229,27 +310,31 @@ export const TaskListScreen = ({
     }
   }, [isSavingOrder, refetch, reorderIds, reorderMode, setTaskPriority]);
 
-  const keyExtractor = useCallback((item: LocalTask) => item.id, []);
+  const keyExtractor = useCallback((item: string) => item, []);
 
   const renderTaskItem = useCallback(
-    ({ item, index }: { item: LocalTask; index: number }) => (
-      <TaskCard
-        task={item}
-        onPress={handleTaskPress}
-        onStatusChange={refetch}
-        onAttachmentsPress={handleAttachmentsPress}
-        isReorderEnabled={reorderMode && canReorder}
+    ({ item, index }: { item: string; index: number }) => (
+      <TaskListRow
+        taskId={item}
+        handleTaskPress={handleTaskPress}
+        handleAttachmentsPress={handleAttachmentsPress}
+        handleInfoPress={handleInfoPress}
+        handleRevokePress={handleRevokePress}
+        handleMoveTask={handleMoveTask}
+        refetch={refetch}
+        reorderMode={reorderMode}
+        canReorder={canReorder}
         canMoveUp={index > 0}
         canMoveDown={index < visibleTasks.length - 1}
-        onMoveUp={() => handleMoveTask(item.id, 'up')}
-        onMoveDown={() => handleMoveTask(item.id, 'down')}
       />
     ),
     [
       canReorder,
       handleAttachmentsPress,
+      handleInfoPress,
       handleMoveTask,
       handleTaskPress,
+      handleRevokePress,
       reorderMode,
       refetch,
       visibleTasks.length,
@@ -390,6 +475,19 @@ export const TaskListScreen = ({
           onRefresh={refetch}
         />
       )}
+
+      <TaskInfoModal
+        visible={Boolean(selectedInfoTask)}
+        task={selectedInfoTask}
+        onClose={() => setSelectedInfoTask(null)}
+      />
+
+      <TaskRevokeModal
+        visible={Boolean(selectedRevokeTask)}
+        isRevoking={isRevokingTask}
+        onClose={() => setSelectedRevokeTask(null)}
+        onRevoke={handleRevokeConfirm}
+      />
     </SafeAreaView>
   );
 };

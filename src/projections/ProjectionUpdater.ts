@@ -3,8 +3,101 @@ import { Logger } from '../utils/logger';
 
 const TAG = 'ProjectionUpdater';
 
+export type ProjectionChangeEvent =
+  | { type: 'all' }
+  | { type: 'task'; taskId: string }
+  | { type: 'dashboard' };
+
+type ProjectionListener = (event: ProjectionChangeEvent) => void;
+
 class ProjectionUpdaterClass {
   private rebuilding = false;
+  private listeners = new Set<ProjectionListener>();
+  private pendingTaskIds = new Set<string>();
+  private pendingRebuildAll = false;
+  private flushTimer: ReturnType<typeof setTimeout> | null = null;
+  private flushPromise: Promise<void> | null = null;
+  private resolveFlush: (() => void) | null = null;
+
+  subscribe(listener: ProjectionListener): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notify(event: ProjectionChangeEvent): void {
+    this.listeners.forEach(listener => {
+      try {
+        listener(event);
+      } catch (error) {
+        Logger.warn(TAG, 'Projection listener failed', error);
+      }
+    });
+  }
+
+  private ensureFlushScheduled(): Promise<void> {
+    if (!this.flushPromise) {
+      this.flushPromise = new Promise(resolve => {
+        this.resolveFlush = resolve;
+      });
+    }
+    if (!this.flushTimer) {
+      this.flushTimer = setTimeout(() => {
+        this.flushPendingRebuilds()
+          .catch(error => {
+            Logger.warn(TAG, 'Deferred projection flush failed', error);
+          })
+          .finally(() => {
+            if (this.flushTimer) {
+              clearTimeout(this.flushTimer);
+              this.flushTimer = null;
+            }
+            this.resolveFlush?.();
+            this.resolveFlush = null;
+            this.flushPromise = null;
+          });
+      }, 0);
+    }
+    return this.flushPromise;
+  }
+
+  async scheduleTaskRebuild(taskId: string): Promise<void> {
+    this.pendingTaskIds.add(taskId);
+    return this.ensureFlushScheduled();
+  }
+
+  async scheduleAllRebuild(): Promise<void> {
+    this.pendingRebuildAll = true;
+    this.pendingTaskIds.clear();
+    return this.ensureFlushScheduled();
+  }
+
+  private async flushPendingRebuilds(): Promise<void> {
+    if (this.pendingRebuildAll) {
+      this.pendingRebuildAll = false;
+      this.pendingTaskIds.clear();
+      await this.rebuildAll();
+      return;
+    }
+
+    const taskIds = Array.from(this.pendingTaskIds);
+    this.pendingTaskIds.clear();
+    if (taskIds.length === 0) {
+      return;
+    }
+
+    for (const taskId of taskIds) {
+      await this.rebuildTask(taskId, false, false);
+    }
+    await this.rebuildDashboard(false);
+    if (taskIds.length === 1) {
+      this.notify({ type: 'task', taskId: taskIds[0] });
+    } else {
+      this.notify({ type: 'all' });
+    }
+    this.notify({ type: 'dashboard' });
+  }
 
   async rebuildAll(): Promise<void> {
     if (this.rebuilding) {
@@ -115,9 +208,14 @@ class ProjectionUpdaterClass {
     } finally {
       this.rebuilding = false;
     }
+    this.notify({ type: 'all' });
   }
 
-  async rebuildTask(taskId: string): Promise<void> {
+  async rebuildTask(
+    taskId: string,
+    shouldNotify: boolean = true,
+    shouldRebuildDashboard: boolean = true,
+  ): Promise<void> {
     try {
       await DatabaseService.transaction(async tx => {
         await tx.executeSql('DELETE FROM task_list_projection WHERE id = ?', [taskId]);
@@ -203,14 +301,23 @@ class ProjectionUpdaterClass {
           [taskId],
         );
       });
-      await this.rebuildDashboard();
+      if (shouldRebuildDashboard) {
+        await this.rebuildDashboard(false);
+      }
     } catch (error) {
       Logger.warn(TAG, `Failed to rebuild task projections for ${taskId}, triggering full rebuild`, error);
       await this.rebuildAll();
+      return;
+    }
+    if (shouldNotify) {
+      this.notify({ type: 'task', taskId });
+      if (shouldRebuildDashboard) {
+        this.notify({ type: 'dashboard' });
+      }
     }
   }
 
-  async rebuildDashboard(): Promise<void> {
+  async rebuildDashboard(shouldNotify: boolean = true): Promise<void> {
     await DatabaseService.execute('DELETE FROM dashboard_projection WHERE id = 1');
     await DatabaseService.execute(
       `INSERT INTO dashboard_projection
@@ -225,6 +332,9 @@ class ProjectionUpdaterClass {
          CURRENT_TIMESTAMP
        FROM tasks`,
     );
+    if (shouldNotify) {
+      this.notify({ type: 'dashboard' });
+    }
   }
 }
 

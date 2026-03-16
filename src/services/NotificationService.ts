@@ -32,26 +32,35 @@ type AssignmentSyncHandler = (trigger: AssignmentSyncTrigger) => Promise<void> |
 class NotificationServiceImpl {
   private subscribers: Set<NotificationSubscriber> = new Set();
   private cache: NotificationData[] = [];
+  private loaded = false;
   private listenersInitialized = false;
   private foregroundUnsubscribe: (() => void) | null = null;
   private assignmentSyncHandler: AssignmentSyncHandler | null = null;
   private assignmentSyncInFlight = false;
   private assignmentSyncQueued = false;
   private lastAssignmentSyncAt = 0;
+  private queuedSyncTimeout: ReturnType<typeof setTimeout> | null = null;
 
   private static readonly ASSIGNMENT_SYNC_THROTTLE_MS = 8000;
 
   /**
    * Initialize and load notifications from SQLite into memory
    */
-  async loadFromDb(): Promise<void> {
+  async loadFromDb(force: boolean = false): Promise<void> {
+    if (this.loaded && !force) {
+      return;
+    }
     try {
-      this.cache = await NotificationRepository.listAll();
-      
+      this.cache = this.sortNotifications(await NotificationRepository.listAll());
+      this.loaded = true;
       this.notifySubscribers();
     } catch (e) {
       Logger.error(TAG, 'Failed to load notifications from DB', e);
     }
+  }
+
+  async ensureLoaded(): Promise<void> {
+    await this.loadFromDb();
   }
 
   getNotifications(): NotificationData[] {
@@ -69,8 +78,44 @@ class NotificationServiceImpl {
   }
 
   private notifySubscribers() {
-    const data = this.getNotifications();
+    const data = [...this.cache];
     this.subscribers.forEach((callback) => callback(data));
+  }
+
+  private sortNotifications(notifications: NotificationData[]): NotificationData[] {
+    return [...notifications].sort((left, right) => right.timestamp.localeCompare(left.timestamp));
+  }
+
+  private replaceCache(notifications: NotificationData[]): void {
+    this.cache = this.sortNotifications(notifications);
+    this.loaded = true;
+    this.notifySubscribers();
+  }
+
+  private upsertIntoCache(notification: NotificationData): void {
+    const next = this.cache.filter(item => item.id !== notification.id);
+    next.push(notification);
+    this.replaceCache(next);
+  }
+
+  private mergeIntoCache(notifications: NotificationData[]): void {
+    const map = new Map(this.cache.map(item => [item.id, item]));
+    notifications.forEach(notification => {
+      map.set(notification.id, notification);
+    });
+    this.replaceCache(Array.from(map.values()));
+  }
+
+  private markCacheAsRead(id: string): void {
+    this.replaceCache(
+      this.cache.map(notification =>
+        notification.id === id ? { ...notification, isRead: true } : notification,
+      ),
+    );
+  }
+
+  private markAllCacheAsRead(): void {
+    this.replaceCache(this.cache.map(notification => ({ ...notification, isRead: true })));
   }
 
   private toNotificationPriority(priority: unknown): NotificationData['priority'] {
@@ -104,6 +149,20 @@ class NotificationServiceImpl {
     }>,
   ): Promise<void> {
     await NotificationRepository.upsertBatch(notifications);
+    this.mergeIntoCache(
+      (notifications || []).map(notification => ({
+        id: notification.id,
+        type: notification.type,
+        title: notification.title,
+        message: notification.message,
+        priority: this.toNotificationPriority(notification.priority),
+        isRead: Boolean(notification.isRead),
+        taskId: notification.taskId || undefined,
+        caseNumber: notification.caseNumber || undefined,
+        actionUrl: notification.actionUrl || undefined,
+        timestamp: notification.updatedAt || notification.createdAt || new Date().toISOString(),
+      })),
+    );
   }
 
   private async handleIncomingRemoteMessage(remoteMessage: any, source: 'foreground' | 'opened' | 'initial'): Promise<void> {
@@ -181,13 +240,17 @@ class NotificationServiceImpl {
 
     if (this.assignmentSyncQueued) {
       this.assignmentSyncQueued = false;
-      setTimeout(() => {
+      if (this.queuedSyncTimeout) {
+        clearTimeout(this.queuedSyncTimeout);
+      }
+      this.queuedSyncTimeout = setTimeout(() => {
         this.triggerAssignmentSync({
           ...trigger,
           source: 'queued',
         }).catch(error => {
           Logger.warn(TAG, 'Queued assignment sync trigger failed', error);
         });
+        this.queuedSyncTimeout = null;
       }, 400);
     }
   }
@@ -245,6 +308,10 @@ class NotificationServiceImpl {
       }
       this.foregroundUnsubscribe = null;
     }
+    if (this.queuedSyncTimeout) {
+      clearTimeout(this.queuedSyncTimeout);
+      this.queuedSyncTimeout = null;
+    }
     this.listenersInitialized = false;
   }
 
@@ -255,7 +322,11 @@ class NotificationServiceImpl {
     const id = uuidv4();
     try {
       await NotificationRepository.insert(notification, id);
-      await this.loadFromDb();
+      this.upsertIntoCache({
+        id,
+        isRead: false,
+        ...notification,
+      });
       return id;
     } catch (e) {
       Logger.error(TAG, 'Failed to add notification', e);
@@ -272,7 +343,7 @@ class NotificationServiceImpl {
 
     try {
       await NotificationRepository.markAsRead(id);
-      await this.loadFromDb();
+      this.markCacheAsRead(id);
     } catch (e) {
       Logger.error(TAG, 'Failed to mark as read', e);
     }
@@ -287,7 +358,7 @@ class NotificationServiceImpl {
 
     try {
       await NotificationRepository.markAllAsRead();
-      await this.loadFromDb();
+      this.markAllCacheAsRead();
     } catch (e) {
       Logger.error(TAG, 'Failed to mark all read', e);
     }
@@ -302,7 +373,7 @@ class NotificationServiceImpl {
 
     try {
       await NotificationRepository.clearAll();
-      await this.loadFromDb();
+      this.replaceCache([]);
     } catch (e) {
       Logger.error(TAG, 'Failed to clear all notifications', e);
     }
@@ -370,7 +441,7 @@ class NotificationServiceImpl {
       Logger.warn(TAG, 'Failed to refresh notifications from backend; using local cache', e);
     }
 
-    await this.loadFromDb();
+    await this.ensureLoaded();
   }
 }
 

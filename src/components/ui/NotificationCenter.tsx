@@ -33,6 +33,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   useEffect(() => {
     if (visible) {
+      notificationService.ensureLoaded().catch(() => undefined);
       loadNotifications();
     }
   }, [visible]);

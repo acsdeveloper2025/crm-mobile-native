@@ -113,31 +113,30 @@ export const RootNavigator = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { theme } = useTheme();
   
-  const [isVersionChecking, setIsVersionChecking] = useState(true);
   const [versionResult, setVersionResult] = useState<UpdateInfo | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
+
     const checkAppVersion = async () => {
       try {
-        const timeoutFallback = new Promise<UpdateInfo | null>(resolve => {
-          setTimeout(() => resolve(null), 2500);
-        });
-        const result = await Promise.race([
-          VersionService.checkVersion(),
-          timeoutFallback,
-        ]);
-        setVersionResult(result);
+        const result = await VersionService.checkVersion();
+        if (isMounted) {
+          setVersionResult(result);
+        }
       } catch (e) {
         console.error('Failed to check version:', e);
-      } finally {
-        setIsVersionChecking(false);
       }
     };
 
     checkAppVersion();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  if (authLoading || isVersionChecking) {
+  if (authLoading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />

@@ -70,7 +70,7 @@ if (hasReleaseKeystore) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 def debugAbiFilters = ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
-def releaseAbiFilters = ["arm64-v8a"]
+def releaseAbiFilters = ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
 def isReleaseTask = gradle.startParameter.taskNames.any { it.toLowerCase().contains("release") }
 def targetAbiFilters = isReleaseTask ? releaseAbiFilters : debugAbiFilters
 
@@ -97,7 +97,7 @@ android {
         abi {
             enable true
             reset()
-            universalApk false
+            universalApk true
             include(*targetAbiFilters)
         }
     }
@@ -153,5 +153,69 @@ dependencies {
         implementation("com.facebook.react:hermes-android")
     } else {
         implementation jscFlavor
+    }
+}
+
+gradle.projectsEvaluated {
+    def prefabReleaseDependencies = [
+        ":react-native-vision-camera:prefabReleasePackage",
+    ]
+    def generatedAutolinkingCmake = file("$buildDir/generated/autolinking/src/main/jni/Android-autolinking.cmake")
+    def generatedAutolinkingCpp = file("$buildDir/generated/autolinking/src/main/jni/autolinking.cpp")
+
+    tasks.matching { it.name.startsWith("configureCMakeRelWithDebInfo") }.configureEach {
+        prefabReleaseDependencies.each { dependsOn(it) }
+    }
+
+    tasks.matching { it.name == "generateAutolinkingNewArchitectureFiles" }.configureEach {
+        doLast {
+            if (!generatedAutolinkingCmake.exists()) {
+                return
+            }
+
+            def filteredLines = generatedAutolinkingCmake.readLines().findAll { line ->
+                !line.contains("react-native-safe-area-context/android/src/main/jni/") &&
+                !line.contains("react-native-screens/android/src/main/jni/") &&
+                line.trim() != "react_codegen_safeareacontext" &&
+                line.trim() != "react_codegen_rnscreens"
+            }
+
+            generatedAutolinkingCmake.text = filteredLines.join(System.lineSeparator()) + System.lineSeparator()
+
+            if (!generatedAutolinkingCpp.exists()) {
+                return
+            }
+
+            def cppText = generatedAutolinkingCpp.text
+            def cppReplacements = [
+                ~/(?m)^#include <safeareacontext\.h>\R?/,
+                ~/(?m)^#include <react\/renderer\/components\/safeareacontext\/ComponentDescriptors\.h>\R?/,
+                ~/(?m)^#include <rnscreens\.h>\R?/,
+                ~/(?m)^#include <react\/renderer\/components\/rnscreens\/ComponentDescriptors\.h>\R?/,
+                ~/(?ms)auto module_safeareacontext = safeareacontext_ModuleProvider\(moduleName, params\);\Rif \(module_safeareacontext != nullptr\) \{\Rreturn module_safeareacontext;\R\}\R?/,
+                ~/(?ms)auto module_rnscreens = rnscreens_ModuleProvider\(moduleName, params\);\Rif \(module_rnscreens != nullptr\) \{\Rreturn module_rnscreens;\R\}\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNCSafeAreaProviderComponentDescriptor>\(\)\);\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNCSafeAreaViewComponentDescriptor>\(\)\);\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNSFullWindowOverlayComponentDescriptor>\(\)\);\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNSScreenContainerComponentDescriptor>\(\)\);\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNSScreenNavigationContainerComponentDescriptor>\(\)\);\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNSScreenStackHeaderConfigComponentDescriptor>\(\)\);\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNSScreenStackHeaderSubviewComponentDescriptor>\(\)\);\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNSScreenStackComponentDescriptor>\(\)\);\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNSSearchBarComponentDescriptor>\(\)\);\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNSScreenComponentDescriptor>\(\)\);\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNSScreenFooterComponentDescriptor>\(\)\);\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNSScreenContentWrapperComponentDescriptor>\(\)\);\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNSModalScreenComponentDescriptor>\(\)\);\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNSTabsHostComponentDescriptor>\(\)\);\R?/,
+                ~/(?m)^providerRegistry->add\(concreteComponentDescriptorProvider<RNSSafeAreaViewComponentDescriptor>\(\)\);\R?/
+            ]
+
+            cppReplacements.each { pattern ->
+                cppText = cppText.replaceAll(pattern, "")
+            }
+
+            generatedAutolinkingCpp.text = cppText
+        }
     }
 }

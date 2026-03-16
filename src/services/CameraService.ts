@@ -220,10 +220,10 @@ class CameraServiceClass {
     try {
       const thumbnail = await ImageResizer.createResizedImage(
         sourcePath,
-        320,
-        320,
+        240,
+        240,
         extension === 'png' ? 'PNG' : 'JPEG',
-        72,
+        60,
         0,
         THUMBNAILS_DIR,
         false,

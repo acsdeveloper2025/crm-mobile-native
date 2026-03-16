@@ -1,51 +1,48 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTaskManager } from '../context/TaskContext';
-import { LocalTask } from '../types/mobile';
-import { TaskListProjection } from '../projections/TaskListProjection';
+import { ProjectionStore } from '../store/ProjectionStore';
+import { selectTasksByStatus } from '../store/selectors/taskSelectors';
+import { useSelector } from '../store/useSelector';
 import { Logger } from '../utils/logger';
 
 const TAG = 'useTasks';
 
 export const useTasks = (statusFilter?: string, searchQuery?: string): any => {
   const {
-    tasks: allTasks,
-    isLoading,
-    error,
     refreshTasks,
     updateTaskStatus,
     updateVerificationOutcome,
     toggleSaveTask,
     revokeTask,
     setTaskPriority,
-    getTaskPriority,
-    getTasksWithPriorities,
     updateTaskSubmissionStatus,
     verifyTaskSubmissionStatus,
     syncTasks,
     updateTaskFormData,
   } = useTaskManager();
 
-  const [tasks, setTasks] = useState<LocalTask[]>([]);
-
-  const loadProjectedTasks = useCallback(async () => {
-    try {
-      const projected = await TaskListProjection.list(statusFilter, searchQuery);
-      setTasks(projected);
-    } catch (projectionError) {
-      Logger.warn(TAG, 'Failed to load projected tasks', projectionError);
-      setTasks([]);
-    }
-  }, [searchQuery, statusFilter]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const selector = useMemo(
+    () => selectTasksByStatus(statusFilter, searchQuery),
+    [searchQuery, statusFilter],
+  );
+  const taskIds = useSelector(selector);
 
   const refreshProjectedTasks = useCallback(async () => {
     try {
+      setIsLoading(true);
+      setError(null);
       await refreshTasks();
-      await loadProjectedTasks();
+      await ProjectionStore.ensureSelector(selector, { force: true });
     } catch (refreshError) {
       Logger.warn(TAG, 'Failed to refresh projected tasks', refreshError);
+      setError(refreshError instanceof Error ? refreshError.message : 'Failed to refresh tasks');
+    } finally {
+      setIsLoading(false);
     }
-  }, [loadProjectedTasks, refreshTasks]);
+  }, [refreshTasks, selector]);
 
   useFocusEffect(
     useCallback(() => {
@@ -53,12 +50,8 @@ export const useTasks = (statusFilter?: string, searchQuery?: string): any => {
     }, [refreshProjectedTasks]),
   );
 
-  useEffect(() => {
-    loadProjectedTasks().catch(() => undefined);
-  }, [allTasks.length, loadProjectedTasks]);
-
   return {
-    tasks,
+    taskIds,
     isLoading,
     error,
     refetch: refreshProjectedTasks,
@@ -68,8 +61,6 @@ export const useTasks = (statusFilter?: string, searchQuery?: string): any => {
     toggleSaveTask,
     revokeTask,
     setTaskPriority,
-    getTaskPriority,
-    getTasksWithPriorities,
     updateTaskSubmissionStatus,
     verifyTaskSubmissionStatus,
     syncTasks,

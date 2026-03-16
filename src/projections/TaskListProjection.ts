@@ -6,6 +6,33 @@ import type { LocalTask } from '../types/mobile';
 const TAG = 'TaskListProjection';
 
 class TaskListProjectionClass {
+  private buildSearchText(task: LocalTask): string {
+    return [
+      task.customerName,
+      task.addressCity,
+      task.verificationTaskNumber,
+      task.caseId,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLowerCase();
+  }
+
+  private matchesSearch(task: LocalTask, searchQuery?: string): boolean {
+    const normalizedQuery = searchQuery?.trim().toLowerCase();
+    if (!normalizedQuery) {
+      return true;
+    }
+
+    const tokens = normalizedQuery.split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) {
+      return true;
+    }
+
+    const searchText = this.buildSearchText(task);
+    return tokens.every(token => searchText.includes(token));
+  }
+
   private async hasTasksForFilter(statusFilter?: string): Promise<boolean> {
     if (statusFilter === 'SAVED') {
       const rows = await DatabaseService.query<{ count: number }>(
@@ -48,12 +75,6 @@ class TaskListProjectionClass {
       params.push(statusFilter);
     }
 
-    const normalizedQuery = searchQuery?.trim().toLowerCase();
-    if (normalizedQuery) {
-      sql += ` AND search_text LIKE ?`;
-      params.push(`%${normalizedQuery}%`);
-    }
-
     sql += ` ORDER BY
       CASE
         WHEN status = 'IN_PROGRESS' THEN 0
@@ -64,13 +85,14 @@ class TaskListProjectionClass {
       assigned_at DESC`;
 
     const projected = await DatabaseService.query<LocalTask>(sql, params);
-    if (projected.length > 0 || (searchQuery?.trim() ?? '').length > 0) {
-      return projected;
+    const filtered = projected.filter(task => this.matchesSearch(task, searchQuery));
+    if (filtered.length > 0 || (searchQuery?.trim() ?? '').length > 0) {
+      return filtered;
     }
 
     const hasRawTasks = await this.hasTasksForFilter(statusFilter);
     if (!hasRawTasks) {
-      return projected;
+      return filtered;
     }
 
     Logger.warn(
@@ -78,7 +100,8 @@ class TaskListProjectionClass {
       `Projection stale for filter ${statusFilter || 'ALL'}, rebuilding projections`,
     );
     await ProjectionUpdater.rebuildAll();
-    return DatabaseService.query<LocalTask>(sql, params);
+    const refreshed = await DatabaseService.query<LocalTask>(sql, params);
+    return refreshed.filter(task => this.matchesSearch(task, searchQuery));
   }
 
   async getCounts(): Promise<{

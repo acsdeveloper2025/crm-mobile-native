@@ -67,15 +67,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const profile = AuthService.getCurrentUser();
 
       if (authenticated && profile) {
-        await notificationService.registerCurrentDevice();
-        SyncService.startPeriodicSync();
-        try {
-          await SyncService.performSync();
-        } catch (syncError) {
-          Logger.warn(TAG, 'Initial sync after auth restore failed', syncError);
-        }
         setIsAuthenticated(true);
         setUser(profile);
+
+        SyncService.startPeriodicSync();
+
+        notificationService.registerCurrentDevice().catch(error => {
+          Logger.warn(TAG, 'Notification device registration after auth restore failed', error);
+        });
+        SyncService.performSync().catch(syncError => {
+          Logger.warn(TAG, 'Initial sync after auth restore failed', syncError);
+        });
       } else {
         setIsAuthenticated(false);
         setUser(null);
@@ -102,15 +104,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!result.success) {
         throw new Error(result.message);
       }
-      await notificationService.registerCurrentDevice();
-      SyncService.startPeriodicSync();
-      try {
-        await SyncService.performSync();
-      } catch (syncError) {
-        Logger.warn(TAG, 'Initial sync after login failed', syncError);
-      }
       setIsAuthenticated(true);
       setUser(profile);
+      SyncService.startPeriodicSync();
+      notificationService.registerCurrentDevice().catch(error => {
+        Logger.warn(TAG, 'Notification device registration after login failed', error);
+      });
+      SyncService.performSync().catch(syncError => {
+        Logger.warn(TAG, 'Initial sync after login failed', syncError);
+      });
     } catch (e) {
       Logger.error(TAG, 'Login failed in context', e);
       throw e;

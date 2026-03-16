@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { useTheme } from '../../context/ThemeContext';
@@ -76,24 +76,46 @@ const isFieldRequired = (
 export interface DynamicFormBuilderProps {
   template: FormTemplate | null;
   formValues: Record<string, any>;
-  onValuesChange: (values: Record<string, any>) => void;
+  onFieldChange: (fieldId: string, value: any) => void;
   validationErrors?: Record<string, string>;
 }
 
 export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
   template,
   formValues,
-  onValuesChange,
+  onFieldChange,
   validationErrors = {}
 }) => {
   const { theme } = useTheme();
 
-  const handleFieldChange = useCallback((fieldId: string, value: any) => {
-    onValuesChange({
-      ...formValues,
-      [fieldId]: value
-    });
-  }, [formValues, onValuesChange]);
+  const visibleSections = useMemo(() => {
+    if (!template) {
+      return [];
+    }
+
+    return (Array.isArray(template.sections) ? template.sections : [])
+      .filter((section: FormSectionTemplate) => isSectionVisible(section, formValues))
+      .map((section: FormSectionTemplate, index: number) => {
+        const sectionKey = section.id || `${section.title || 'section'}_${index}`;
+        const visibleFields = (Array.isArray(section.fields) ? section.fields : [])
+          .filter(field => isFieldVisible(field, formValues))
+          .map(field => {
+            const valueKey = field.name || field.id;
+            return {
+              key: valueKey,
+              field: { ...field, id: valueKey, required: isFieldRequired(field, formValues) },
+            };
+          });
+
+        return {
+          index,
+          section,
+          sectionKey,
+          visibleFields,
+        };
+      })
+      .filter(section => section.visibleFields.length > 0);
+  }, [formValues, template]);
 
   if (!template) {
     return (
@@ -110,48 +132,33 @@ export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
         <Text style={[styles.formDescription, { color: theme.colors.textSecondary }]}>{template.description}</Text>
       ) : null}
 
-      {(Array.isArray(template.sections) ? template.sections : [])
-        .filter((section: FormSectionTemplate) => isSectionVisible(section, formValues))
-        .map((section: FormSectionTemplate, index: number) => {
-          const sectionKey = section.id || `${section.title || 'section'}_${index}`;
-          const visibleFields = (Array.isArray(section.fields) ? section.fields : [])
-            .filter(field => isFieldVisible(field, formValues));
-
-          if (visibleFields.length === 0) {
-            return null;
-          }
-
-          return (
-            <View key={sectionKey} style={[styles.sectionContainer, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
-              <View style={[styles.sectionHeader, { backgroundColor: theme.colors.surfaceAlt, borderBottomColor: theme.colors.border }]}>
-                <View style={[styles.sectionBadge, { backgroundColor: theme.colors.primary }]}>
-                  <Text style={[styles.sectionBadgeText, { color: theme.colors.surface }]}>{index + 1}</Text>
-                </View>
-                <View style={styles.sectionTextWrap}>
-                  <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{section.title}</Text>
-                  {section.description ? (
-                    <Text style={[styles.sectionDesc, { color: theme.colors.textSecondary }]}>{section.description}</Text>
-                  ) : null}
-                </View>
-              </View>
-
-              <View style={styles.fieldsContainer}>
-                {visibleFields.map((field, fieldIndex) => {
-                  const valueKey = field.name || field.id;
-                  return (
-                    <DynamicFieldRenderer
-                      key={`${sectionKey}_${field.id || 'field'}_${fieldIndex}`}
-                      field={{ ...field, id: valueKey, required: isFieldRequired(field, formValues) }}
-                      value={formValues[valueKey]}
-                      onChange={handleFieldChange}
-                      error={validationErrors[valueKey]}
-                    />
-                  );
-                })}
-              </View>
+      {visibleSections.map(({ index, section, sectionKey, visibleFields }) => (
+        <View key={sectionKey} style={[styles.sectionContainer, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
+          <View style={[styles.sectionHeader, { backgroundColor: theme.colors.surfaceAlt, borderBottomColor: theme.colors.border }]}>
+            <View style={[styles.sectionBadge, { backgroundColor: theme.colors.primary }]}>
+              <Text style={[styles.sectionBadgeText, { color: theme.colors.surface }]}>{index + 1}</Text>
             </View>
-          );
-        })}
+            <View style={styles.sectionTextWrap}>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{section.title}</Text>
+              {section.description ? (
+                <Text style={[styles.sectionDesc, { color: theme.colors.textSecondary }]}>{section.description}</Text>
+              ) : null}
+            </View>
+          </View>
+
+          <View style={styles.fieldsContainer}>
+            {visibleFields.map(({ key, field }) => (
+              <DynamicFieldRenderer
+                key={`${sectionKey}_${key}`}
+                field={field}
+                value={formValues[key]}
+                onChange={onFieldChange}
+                error={validationErrors[key]}
+              />
+            ))}
+          </View>
+        </View>
+      ))}
     </View>
   );
 };
