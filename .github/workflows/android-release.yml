@@ -44,11 +44,37 @@ jobs:
           )"
           fi
 
-          COMPILE_SDK="$(sed -n 's/.*compileSdkVersion = \([0-9][0-9]*\).*/\1/p' android/build.gradle | head -n1)"
-          BUILD_TOOLS_VERSION="$(sed -n 's/.*buildToolsVersion = \"\\([^\"]*\\)\".*/\1/p' android/build.gradle | head -n1)"
-          NDK_VERSION="$(sed -n 's/.*ndkVersion = \"\\([^\"]*\\)\".*/\1/p' android/build.gradle | head -n1)"
-          AGP_VERSION="$(sed -n 's/.*com.android.tools.build:gradle:\\([0-9][^"]*\\)\".*/\1/p' android/build.gradle | head -n1)"
-          GRADLE_VERSION="$(sed -n 's/.*gradle-\\([0-9][^-/]*\\)-bin.zip.*/\1/p' android/gradle/wrapper/gradle-wrapper.properties | head -n1)"
+          eval "$(
+            python3 - <<'PY'
+            import re
+            from pathlib import Path
+
+            build = Path('android/build.gradle').read_text(encoding='utf-8')
+            wrapper = Path('android/gradle/wrapper/gradle-wrapper.properties').read_text(encoding='utf-8')
+
+            patterns = {
+                'COMPILE_SDK': r'compileSdkVersion = (\d+)',
+                'BUILD_TOOLS_VERSION': r'buildToolsVersion = "([^"]+)"',
+                'NDK_VERSION': r'ndkVersion = "([^"]+)"',
+                'AGP_VERSION': r'com\.android\.tools\.build:gradle:([0-9.]+)',
+                'GRADLE_VERSION': r'gradle-([0-9][^-/]*)-bin\.zip',
+            }
+
+            values = {
+                'COMPILE_SDK': build,
+                'BUILD_TOOLS_VERSION': build,
+                'NDK_VERSION': build,
+                'AGP_VERSION': build,
+                'GRADLE_VERSION': wrapper,
+            }
+
+            for key, pattern in patterns.items():
+                match = re.search(pattern, values[key])
+                if not match:
+                    raise SystemExit(f'Missing {key} in project configuration')
+                print(f"{key}='{match.group(1)}'")
+            PY
+          )"
 
           AGP_MAJOR="${AGP_VERSION%%.*}"
           if [[ -z "$AGP_MAJOR" || "$AGP_MAJOR" -ge 8 ]]; then
@@ -56,8 +82,6 @@ jobs:
           else
             JAVA_VERSION="11"
           fi
-
-          VERSION_NAME="$(sed -n 's/.*versionName \"\\([^\"]*\\)\".*/\1/p' android/app/build.gradle | head -n1)"
 
           {
             echo "node_version=$NODE_VERSION"
@@ -67,7 +91,6 @@ jobs:
             echo "ndk_version=$NDK_VERSION"
             echo "agp_version=$AGP_VERSION"
             echo "gradle_version=$GRADLE_VERSION"
-            echo "version_name=$VERSION_NAME"
           } >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
