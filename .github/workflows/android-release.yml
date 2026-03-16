@@ -29,69 +29,55 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
 
-          if [[ -f .nvmrc ]]; then
-            NODE_VERSION="$(tr -d '[:space:]' < .nvmrc)"
-          else
-            NODE_VERSION="$(python3 - <<'PY'
-              import json, re
-              with open('package.json', 'r', encoding='utf-8') as fh:
-                  pkg = json.load(fh)
-              engine = pkg.get('engines', {}).get('node', '')
-              match = re.search(r'(\d+(?:\.\d+){0,2})', engine)
-              print(match.group(1) if match else '22')
+          root = Path(".")
+          package_json = json.loads((root / "package.json").read_text(encoding="utf-8"))
+          build_gradle = (root / "android/build.gradle").read_text(encoding="utf-8")
+          wrapper_props = (root / "android/gradle/wrapper/gradle-wrapper.properties").read_text(encoding="utf-8")
+
+          nvmrc = root / ".nvmrc"
+          if nvmrc.exists():
+              node_version = nvmrc.read_text(encoding="utf-8").strip()
+          else:
+              engine = package_json.get("engines", {}).get("node", "")
+              match = re.search(r"(\d+(?:\.\d+){0,2})", engine)
+              node_version = match.group(1) if match else "22"
+
+          patterns = {
+              "compile_sdk": r"compileSdkVersion = (\d+)",
+              "build_tools_version": r'buildToolsVersion = "([^"]+)"',
+              "ndk_version": r'ndkVersion = "([^"]+)"',
+              "agp_version": r"com\.android\.tools\.build:gradle:([0-9.]+)",
+              "gradle_version": r"gradle-([0-9][^-/]*)-bin\.zip",
+          }
+
+          sources = {
+              "compile_sdk": build_gradle,
+              "build_tools_version": build_gradle,
+              "ndk_version": build_gradle,
+              "agp_version": build_gradle,
+              "gradle_version": wrapper_props,
+          }
+
+          values = {"node_version": node_version}
+          for key, pattern in patterns.items():
+              match = re.search(pattern, sources[key])
+              if not match:
+                  raise SystemExit(f"Missing {key} in project configuration")
+              values[key] = match.group(1)
+
+          agp_major = int(values["agp_version"].split(".", 1)[0])
+          values["java_version"] = "17" if agp_major >= 8 else "11"
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              for key, value in values.items():
+                  fh.write(f"{key}={value}\n")
           PY
-          )"
-          fi
-
-          eval "$(
-            python3 - <<'PY'
-            import re
-            from pathlib import Path
-
-            build = Path('android/build.gradle').read_text(encoding='utf-8')
-            wrapper = Path('android/gradle/wrapper/gradle-wrapper.properties').read_text(encoding='utf-8')
-
-            patterns = {
-                'COMPILE_SDK': r'compileSdkVersion = (\d+)',
-                'BUILD_TOOLS_VERSION': r'buildToolsVersion = "([^"]+)"',
-                'NDK_VERSION': r'ndkVersion = "([^"]+)"',
-                'AGP_VERSION': r'com\.android\.tools\.build:gradle:([0-9.]+)',
-                'GRADLE_VERSION': r'gradle-([0-9][^-/]*)-bin\.zip',
-            }
-
-            values = {
-                'COMPILE_SDK': build,
-                'BUILD_TOOLS_VERSION': build,
-                'NDK_VERSION': build,
-                'AGP_VERSION': build,
-                'GRADLE_VERSION': wrapper,
-            }
-
-            for key, pattern in patterns.items():
-                match = re.search(pattern, values[key])
-                if not match:
-                    raise SystemExit(f'Missing {key} in project configuration')
-                print(f"{key}='{match.group(1)}'")
-            PY
-          )"
-
-          AGP_MAJOR="${AGP_VERSION%%.*}"
-          if [[ -z "$AGP_MAJOR" || "$AGP_MAJOR" -ge 8 ]]; then
-            JAVA_VERSION="17"
-          else
-            JAVA_VERSION="11"
-          fi
-
-          {
-            echo "node_version=$NODE_VERSION"
-            echo "java_version=$JAVA_VERSION"
-            echo "compile_sdk=$COMPILE_SDK"
-            echo "build_tools_version=$BUILD_TOOLS_VERSION"
-            echo "ndk_version=$NDK_VERSION"
-            echo "agp_version=$AGP_VERSION"
-            echo "gradle_version=$GRADLE_VERSION"
-          } >> "$GITHUB_OUTPUT"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
