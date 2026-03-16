@@ -148,6 +148,7 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew clean assembleRelease bundleRelease \
+            -PnewArchEnabled=false \
             -PversionName=${{ steps.version.outputs.version_name }} \
             -PversionCode=${{ steps.version.outputs.version_code }}
 
