@@ -263,9 +263,13 @@ gradle.projectsEvaluated {
 
         missingAutolinkTargets.each { missingTarget ->
             def moduleName = missingTarget.replaceFirst(/^react_codegen_/, "")
+            def modulePrefix = moduleName.replaceFirst(/Specs?$/, "")
             cppText = cppText
                 .replaceAll("(?m)^#include <${java.util.regex.Pattern.quote(moduleName)}\\.h>\\R?", "")
+                .replaceAll("(?m)^#include <react/renderer/components/${java.util.regex.Pattern.quote(moduleName)}/ComponentDescriptors\\.h>\\R?", "")
+                .replaceAll("(?m)^#include <react/renderer/components/${java.util.regex.Pattern.quote(modulePrefix)}/ComponentDescriptors\\.h>\\R?", "")
                 .replaceAll("(?ms)auto module_${java.util.regex.Pattern.quote(moduleName)} = ${java.util.regex.Pattern.quote(moduleName)}_ModuleProvider\\(moduleName, params\\);\\Rif \\(module_${java.util.regex.Pattern.quote(moduleName)} != nullptr\\) \\{\\Rreturn module_${java.util.regex.Pattern.quote(moduleName)};\\R\\}\\R?", "")
+                .replaceAll("(?m)^\\s*providerRegistry->add\\(concreteComponentDescriptorProvider<${java.util.regex.Pattern.quote(modulePrefix)}[A-Za-z0-9]*ComponentDescriptor>\\(\\)\\);\\R?", "")
         }
 
         generatedAutolinkingCpp.text = cppText
