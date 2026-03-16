@@ -64,7 +64,7 @@ class TaskRepositoryClass {
         );
       }
     }
-    await ProjectionUpdater.rebuildAll();
+    await ProjectionUpdater.scheduleAllRebuild();
   }
 
   async listTasks(): Promise<LocalTask[]> {
@@ -128,7 +128,7 @@ class TaskRepositoryClass {
     sql += ' WHERE id = ?';
     params.push(taskId);
     await DatabaseService.execute(sql, params);
-    await ProjectionUpdater.rebuildTask(taskId);
+    await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }
 
   async updateVerificationOutcome(taskId: string, outcome: string | null): Promise<void> {
@@ -138,7 +138,7 @@ class TaskRepositoryClass {
        WHERE id = ?`,
       [outcome, new Date().toISOString(), taskId],
     );
-    await ProjectionUpdater.rebuildTask(taskId);
+    await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }
 
   async updateFormData(taskId: string, formData: Record<string, unknown>, status: string): Promise<void> {
@@ -153,7 +153,7 @@ class TaskRepositoryClass {
        WHERE id = ?`,
       [JSON.stringify(formData), status, status, now, now, taskId],
     );
-    await ProjectionUpdater.rebuildTask(taskId);
+    await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }
 
   async toggleSavedState(taskId: string, isSaved: boolean, nextStatus: string): Promise<void> {
@@ -168,7 +168,7 @@ class TaskRepositoryClass {
        WHERE id = ?`,
       [isSaved ? 1 : 0, isSaved ? now : null, nextStatus, now, taskId],
     );
-    await ProjectionUpdater.rebuildTask(taskId);
+    await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }
 
   async revokeTask(taskId: string, reason: string): Promise<void> {
@@ -185,7 +185,7 @@ class TaskRepositoryClass {
        WHERE id = ?`,
       [reason, now, now, taskId],
     );
-    await ProjectionUpdater.rebuildTask(taskId);
+    await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }
 
   async setPriority(taskId: string, priority: number): Promise<void> {
@@ -195,7 +195,7 @@ class TaskRepositoryClass {
        WHERE id = ?`,
       [String(priority), new Date().toISOString(), taskId],
     );
-    await ProjectionUpdater.rebuildTask(taskId);
+    await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }
 
   async updateSubmissionMeta(
@@ -216,7 +216,7 @@ class TaskRepositoryClass {
          WHERE id = ?`,
         [now, now, now, JSON.stringify(formData), taskId],
       );
-      await ProjectionUpdater.rebuildTask(taskId);
+      await ProjectionUpdater.scheduleTaskRebuild(taskId);
       return;
     }
 
@@ -226,7 +226,7 @@ class TaskRepositoryClass {
        WHERE id = ?`,
       [JSON.stringify(formData), now, taskId],
     );
-    await ProjectionUpdater.rebuildTask(taskId);
+    await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }
 
   async markTaskSynced(taskId: string): Promise<void> {
@@ -239,7 +239,7 @@ class TaskRepositoryClass {
        WHERE id = ?`,
       [now, now, taskId],
     );
-    await ProjectionUpdater.rebuildTask(taskId);
+    await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }
 
   async getDashboardStats(): Promise<DashboardStats> {
@@ -351,7 +351,7 @@ class TaskRepositoryClass {
         now, now,
       ],
     );
-    await ProjectionUpdater.rebuildTask(canonicalTaskId);
+    await ProjectionUpdater.scheduleTaskRebuild(canonicalTaskId);
   }
 }
 

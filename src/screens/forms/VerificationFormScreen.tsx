@@ -193,6 +193,18 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     handleOutcomeSelect(outcome as LegacyOutcome).catch(() => {});
   };
 
+  const handleFieldChange = React.useCallback((fieldId: string, value: any) => {
+    setFormValues(currentValues => {
+      if (currentValues[fieldId] === value) {
+        return currentValues;
+      }
+      return {
+        ...currentValues,
+        [fieldId]: value,
+      };
+    });
+  }, []);
+
   const handleSubmit = async () => {
     if (!task) return;
 
@@ -353,7 +365,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
             <DynamicFormBuilder
               template={template}
               formValues={formValues}
-              onValuesChange={setFormValues}
+              onFieldChange={handleFieldChange}
             />
           ) : (
             <View style={[styles.stateCard, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>

@@ -152,10 +152,11 @@ export const DashboardScreen = () => {
     const unsubscribe = notificationService.subscribe((notifications) => {
       setUnreadNotifications(notifications.filter(n => !n.isRead).length);
     });
-    // Ensure notifications are loaded
-    notificationService.loadFromDb();
+    notificationService.ensureLoaded().catch(error => {
+      Logger.warn(TAG, 'Failed to ensure notification cache is loaded', error);
+    });
     return unsubscribe;
-  }, []);
+  }, [TAG]);
 
   return (
     <>

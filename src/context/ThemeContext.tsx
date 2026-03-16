@@ -18,9 +18,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const systemColorScheme = useColorScheme(); // 'light' or 'dark' from OS
   const [themePreference, setThemePreferenceState] = useState<ThemePreference>('system');
-  const [isReady, setIsReady] = useState(false);
 
-  // 1. Load persisted preference on mount
   useEffect(() => {
     const loadThemePref = async () => {
       try {
@@ -30,21 +28,17 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
         }
       } catch {
         Logger.warn('ThemeContext', 'Failed to load theme preference from SQLite');
-      } finally {
-        setIsReady(true);
       }
     };
     loadThemePref();
   }, []);
 
-  // 2. Computed values
   const isDark = 
     themePreference === 'dark' || 
     (themePreference === 'system' && systemColorScheme === 'dark');
 
   const theme = isDark ? darkTheme : lightTheme;
 
-  // 3. User toggle action
   const setThemePreference = async (pref: ThemePreference) => {
     setThemePreferenceState(pref);
     try {
@@ -53,9 +47,6 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
       Logger.error('ThemeContext', 'Failed to save theme preference', err);
     }
   };
-
-  // Don't render until offline pref is loaded to prevent flash
-  if (!isReady) return null;
 
   return (
     <ThemeContext.Provider value={{ theme, themePreference, isDark, setThemePreference }}>

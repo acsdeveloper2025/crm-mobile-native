@@ -27,7 +27,6 @@ import { Logger } from './src/utils/logger';
 import { notificationService } from './src/services/NotificationService';
 import { SyncQueue } from './src/services/SyncQueue';
 import ErrorBoundary from './src/components/ErrorBoundary';
-import { ProjectionUpdater } from './src/projections/ProjectionUpdater';
 import { BackgroundSyncDaemon } from './src/sync/BackgroundSyncDaemon';
 import { MobileTelemetryService } from './src/telemetry/MobileTelemetryService';
 
@@ -129,27 +128,33 @@ function App(): React.JSX.Element {
         await SyncQueue.recoverExpiredLeases();
         Logger.info(TAG, 'Queue lease recovery completed');
 
-        await ProjectionUpdater.rebuildAll();
-        Logger.info(TAG, 'Projection rebuild completed');
-
         NetworkService.initialize();
         Logger.info(TAG, 'Network monitoring started');
-
-        await notificationService.loadFromDb();
-        notificationService.initializePushListeners();
-        Logger.info(TAG, 'Notification service initialized');
-
-        await BackgroundSyncDaemon.start();
-        Logger.info(TAG, 'Background sync daemon started');
-
-        MobileTelemetryService.initialize();
-        Logger.info(TAG, 'Mobile telemetry initialized');
 
         if (mounted) {
           setIsInitializing(false);
         }
 
         // Non-blocking startup tasks (do not delay first app paint)
+        notificationService
+          .ensureLoaded()
+          .then(() => {
+            notificationService.initializePushListeners();
+            Logger.info(TAG, 'Notification service initialized');
+          })
+          .catch(error => Logger.warn(TAG, 'Notification service deferred init failed', error));
+
+        BackgroundSyncDaemon.start()
+          .then(() => Logger.info(TAG, 'Background sync daemon started'))
+          .catch(error => Logger.warn(TAG, 'Background sync daemon deferred init failed', error));
+
+        Promise.resolve()
+          .then(() => {
+            MobileTelemetryService.initialize();
+            Logger.info(TAG, 'Mobile telemetry initialized');
+          })
+          .catch(error => Logger.warn(TAG, 'Mobile telemetry deferred init failed', error));
+
         CameraService.initialize()
           .then(() => Logger.info(TAG, 'Camera service initialized'))
           .catch(error => Logger.warn(TAG, 'Camera service deferred init failed', error));

@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import Geolocation from '@react-native-community/geolocation';
 import Icon from 'react-native-vector-icons/Ionicons';
+import RNFS from 'react-native-fs';
 import { CameraService } from '../../services/CameraService';
 
 type PreviewLocation = {
@@ -149,6 +150,9 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
       });
 
       if (savedPhoto) {
+        if (photoPath !== cleanPath && await RNFS.exists(photoPath)) {
+          await RNFS.unlink(photoPath);
+        }
         navigation.pop(2);
       } else {
         throw new Error('Database insertion failed.');

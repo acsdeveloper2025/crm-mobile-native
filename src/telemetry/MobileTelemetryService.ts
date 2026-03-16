@@ -1,7 +1,6 @@
 import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import { config } from '../config';
-import type { SyncHealthMetrics } from '../sync/SyncHealthService';
 import { Logger } from '../utils/logger';
 import axios from 'axios';
 
@@ -15,6 +14,14 @@ interface TelemetryEvent {
   severity: Severity;
   timestamp: string;
   payload: Record<string, unknown>;
+}
+
+interface SyncHealthMetrics {
+  queueLength: number;
+  retryCount: number;
+  lastSuccessfulSyncAt: string | null;
+  averageSyncDurationMs: number;
+  failedOperations: number;
 }
 
 type SentryModule = {

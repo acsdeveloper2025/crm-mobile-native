@@ -3,11 +3,6 @@ import { View, Text, StyleSheet, TouchableOpacity, Animated, ActivityIndicator, 
 import { LocalTask } from '../../types/mobile';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
-import { TaskInfoModal } from './TaskInfoModal';
-import { TaskRevokeModal } from './TaskRevokeModal';
-import { useTaskManager } from '../../context/TaskContext';
-import { RevokeReason } from '../../types/api';
-import { TaskTimeline } from './TaskTimeline';
 import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
 
 interface TaskCardProps {
@@ -15,11 +10,12 @@ interface TaskCardProps {
   onPress: (task: LocalTask) => void;
   onStatusChange?: () => void;
   onAttachmentsPress?: (task: LocalTask) => void;
+  onInfoPress?: (task: LocalTask) => void;
+  onRevokePress?: (task: LocalTask) => void;
   isReorderEnabled?: boolean;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
-  onMoveUp?: () => void;
-  onMoveDown?: () => void;
+  onMoveTask?: (taskId: string, direction: 'up' | 'down') => void;
 }
 
 const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
@@ -29,21 +25,18 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
   onPress,
   onStatusChange,
   onAttachmentsPress,
+  onInfoPress,
+  onRevokePress,
   isReorderEnabled = false,
   canMoveUp = false,
   canMoveDown = false,
-  onMoveUp,
-  onMoveDown,
+  onMoveTask,
 }) => {
   const { theme } = useTheme();
-  const { revokeTask } = useTaskManager();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
   const [isAccepting, setIsAccepting] = useState(false);
-  const [isRevoking, setIsRevoking] = useState(false);
-  const [infoModalVisible, setInfoModalVisible] = useState(false);
-  const [revokeModalVisible, setRevokeModalVisible] = useState(false);
 
   useEffect(() => {
     Animated.parallel([
@@ -115,161 +108,156 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
     }
   };
 
-  const handleRevoke = async (reason: RevokeReason) => {
-    setIsRevoking(true);
-    try {
-      await revokeTask(task.id, reason);
-      setRevokeModalVisible(false);
-      onStatusChange?.();
-    } catch (e: any) {
-      Alert.alert('Error', 'Failed to revoke task: ' + e.message);
-    } finally {
-      setIsRevoking(false);
-    }
-  };
-
   return (
-    <>
-      <AnimatedTouchableOpacity 
-        style={[
-          styles.card, 
-          { 
-            backgroundColor: theme.colors.surface,
-            borderColor: theme.colors.border,
-            borderLeftColor: getCardAccentColor(task.status),
-          },
-          (task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS' || task.status === 'COMPLETED') && styles.cardStatusAccent,
-          { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
-        ]} 
-        onPress={() => onPress(task)} 
-        activeOpacity={0.7}>
-        <View style={styles.header}>
-          <Text style={[styles.verificationType, { color: theme.colors.primary }]}>
-            {task.verificationTypeName || task.verificationType || 'VERIFICATION'}
-          </Text>
-          {task.is_saved === 1 && (
-            <View style={[styles.savedBadge, { backgroundColor: theme.colors.warning + '20', borderColor: theme.colors.warning + '50' }]}>
-              <Text style={[styles.savedBadgeText, { color: theme.colors.warning }]}>📝 Draft Saved</Text>
-            </View>
-          )}
-        </View>
-
-        <Text style={[styles.caseId, { color: theme.colors.text }]}>
-          Case ID: #{task.caseId}  |  VT ID: {task.verificationTaskNumber || 'N/A'}
+    <AnimatedTouchableOpacity 
+      style={[
+        styles.card, 
+        { 
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+          borderLeftColor: getCardAccentColor(task.status),
+        },
+        (task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS' || task.status === 'COMPLETED') && styles.cardStatusAccent,
+        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
+      ]} 
+      onPress={() => onPress(task)} 
+      activeOpacity={0.7}>
+      <View style={styles.header}>
+        <Text style={[styles.verificationType, { color: theme.colors.primary }]}>
+          {task.verificationTypeName || task.verificationType || 'VERIFICATION'}
         </Text>
-        <Text style={[styles.customerName, { color: theme.colors.text }]}>{task.customerName}</Text>
-        
-        <View style={styles.addressContainer}>
-          <Text style={styles.addressIcon}>📍</Text>
-          <Text style={[styles.addressText, { color: theme.colors.textSecondary }]} numberOfLines={2}>
-            {task.addressStreet}, {task.addressCity}, {task.addressState} {task.addressPincode}
-          </Text>
+        {task.is_saved === 1 && (
+          <View style={[styles.savedBadge, { backgroundColor: theme.colors.warning + '20', borderColor: theme.colors.warning + '50' }]}>
+            <Text style={[styles.savedBadgeText, { color: theme.colors.warning }]}>Draft Saved</Text>
+          </View>
+        )}
+      </View>
+
+      <Text style={[styles.caseId, { color: theme.colors.text }]}>
+        Case ID: #{task.caseId}  |  VT ID: {task.verificationTaskNumber || 'N/A'}
+      </Text>
+      <Text style={[styles.customerName, { color: theme.colors.text }]}>{task.customerName}</Text>
+      
+      <View style={styles.addressContainer}>
+        <Text style={styles.addressIcon}>📍</Text>
+        <Text style={[styles.addressText, { color: theme.colors.textSecondary }]} numberOfLines={2}>
+          {task.addressStreet}, {task.addressCity}, {task.addressState} {task.addressPincode}
+        </Text>
+      </View>
+
+      <Text style={[styles.timestamp, { color: theme.colors.textMuted }]}>{getDynamicTimestamp()}</Text>
+      
+      {task.is_revoked === 1 && (
+        <View style={[styles.revokedBanner, { backgroundColor: theme.colors.danger + '20' }]}>
+          <Text style={[styles.revokedBannerText, { color: theme.colors.danger }]}>REVOKED</Text>
         </View>
+      )}
 
-        <Text style={[styles.timestamp, { color: theme.colors.textMuted }]}>{getDynamicTimestamp()}</Text>
-        
-        {task.is_revoked === 1 && (
-          <View style={[styles.revokedBanner, { backgroundColor: theme.colors.danger + '20' }]}>
-            <Text style={[styles.revokedBannerText, { color: theme.colors.danger }]}>REVOKED</Text>
-          </View>
-        )}
+      <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
+        <View style={styles.actionButtons}>
+          {(task.status === 'ASSIGNED' && task.is_revoked !== 1) && (
+            <>
+              <TouchableOpacity style={styles.iconButton} onPress={handleAccept} disabled={isAccepting}>
+                {isAccepting ? (
+                  <ActivityIndicator size="small" color={theme.colors.success} />
+                ) : (
+                  <Icon name="checkmark-circle" size={32} color={theme.colors.success} />
+                )}
+                <Text style={[styles.actionLabel, { color: theme.colors.success }]}>
+                  {isAccepting ? 'Accepting...' : 'Accept'}
+                </Text>
+              </TouchableOpacity>
 
-        {task.status === 'COMPLETED' && (
-          <View style={styles.timelineWrap}>
-            <TaskTimeline task={task} />
-          </View>
-        )}
+              <TouchableOpacity style={styles.iconButton} onPress={() => onRevokePress?.(task)}>
+                <Icon name="close-circle" size={32} color={theme.colors.danger} />
+                <Text style={[styles.actionLabel, { color: theme.colors.danger }]}>Revoke</Text>
+              </TouchableOpacity>
+            </>
+          )}
 
-        <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
-          <View style={styles.actionButtons}>
-            {(task.status === 'ASSIGNED' && task.is_revoked !== 1) && (
-              <>
-                <TouchableOpacity style={styles.iconButton} onPress={handleAccept} disabled={isAccepting}>
-                  {isAccepting ? (
-                    <ActivityIndicator size="small" color={theme.colors.success} />
-                  ) : (
-                    <Icon name="checkmark-circle" size={32} color={theme.colors.success} />
-                  )}
-                  <Text style={[styles.actionLabel, { color: theme.colors.success }]}>
-                    {isAccepting ? 'Accepting...' : 'Accept'}
-                  </Text>
-                </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton} onPress={() => onInfoPress?.(task)}>
+            <Icon name="information-circle" size={32} color={theme.colors.info || '#3b82f6'} />
+            <Text style={[styles.actionLabel, { color: theme.colors.info || '#3b82f6' }]}>Info</Text>
+          </TouchableOpacity>
 
-                <TouchableOpacity style={styles.iconButton} onPress={() => setRevokeModalVisible(true)}>
-                  <Icon name="close-circle" size={32} color={theme.colors.danger} />
-                  <Text style={[styles.actionLabel, { color: theme.colors.danger }]}>Revoke</Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            <TouchableOpacity style={styles.iconButton} onPress={() => setInfoModalVisible(true)}>
-              <Icon name="information-circle" size={32} color={theme.colors.info || '#3b82f6'} />
-              <Text style={[styles.actionLabel, { color: theme.colors.info || '#3b82f6' }]}>Info</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.iconButton} onPress={() => (onAttachmentsPress ? onAttachmentsPress(task) : onPress(task))}>
-              <Icon name="attach" size={28} color={theme.colors.primary} />
-              {(task.attachment_count || 0)> 0 && (
-                <View style={[styles.badgeContainer, { backgroundColor: theme.colors.danger }]}>
-                  <Text style={styles.badgeText}>{task.attachment_count}</Text>
-                </View>
-              )}
-              <Text style={[styles.actionLabel, { color: theme.colors.primary }]}>Attachments</Text>
-            </TouchableOpacity>
-          </View>
-          
-          <View style={styles.statusBadgeContainer}>
-            {isReorderEnabled && (
-              <View style={styles.reorderButtons}>
-                <TouchableOpacity
-                  style={[styles.reorderButton, !canMoveUp && styles.reorderButtonDisabled]}
-                  onPress={onMoveUp}
-                  disabled={!canMoveUp}>
-                  <Icon
-                    name="chevron-up-outline"
-                    size={16}
-                    color={canMoveUp ? theme.colors.textSecondary : theme.colors.textMuted}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.reorderButton, !canMoveDown && styles.reorderButtonDisabled]}
-                  onPress={onMoveDown}
-                  disabled={!canMoveDown}>
-                  <Icon
-                    name="chevron-down-outline"
-                    size={16}
-                    color={canMoveDown ? theme.colors.textSecondary : theme.colors.textMuted}
-                  />
-                </TouchableOpacity>
+          <TouchableOpacity style={styles.iconButton} onPress={() => (onAttachmentsPress ? onAttachmentsPress(task) : onPress(task))}>
+            <Icon name="attach" size={28} color={theme.colors.primary} />
+            {(task.attachment_count || 0)> 0 && (
+              <View style={[styles.badgeContainer, { backgroundColor: theme.colors.danger }]}>
+                <Text style={styles.badgeText}>{task.attachment_count}</Text>
               </View>
             )}
-            <View style={[styles.badge, { backgroundColor: getStatusColor(task.status) }]}>
-              <Text style={[styles.statusText, { color: theme.colors.surface }]}>{task.status ? task.status.replace('_', ' ') : 'UNKNOWN'}</Text>
-            </View>
-            {(task.status === 'IN_PROGRESS' || task.status === 'REVISIT') && (
-              <Icon name="chevron-forward" size={20} color={theme.colors.textMuted} />
-            )}
-          </View>
+            <Text style={[styles.actionLabel, { color: theme.colors.primary }]}>Attachments</Text>
+          </TouchableOpacity>
         </View>
-      </AnimatedTouchableOpacity>
-
-      <TaskInfoModal 
-        visible={infoModalVisible} 
-        task={task} 
-        onClose={() => setInfoModalVisible(false)} 
-      />
-
-      <TaskRevokeModal 
-        visible={revokeModalVisible} 
-        isRevoking={isRevoking}
-        onClose={() => setRevokeModalVisible(false)} 
-        onRevoke={handleRevoke}
-      />
-    </>
+        
+        <View style={styles.statusBadgeContainer}>
+          {isReorderEnabled && (
+            <View style={styles.reorderButtons}>
+              <TouchableOpacity
+                style={[styles.reorderButton, !canMoveUp && styles.reorderButtonDisabled]}
+                onPress={() => onMoveTask?.(task.id, 'up')}
+                disabled={!canMoveUp}>
+                <Icon
+                  name="chevron-up-outline"
+                  size={16}
+                  color={canMoveUp ? theme.colors.textSecondary : theme.colors.textMuted}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.reorderButton, !canMoveDown && styles.reorderButtonDisabled]}
+                onPress={() => onMoveTask?.(task.id, 'down')}
+                disabled={!canMoveDown}>
+                <Icon
+                  name="chevron-down-outline"
+                  size={16}
+                  color={canMoveDown ? theme.colors.textSecondary : theme.colors.textMuted}
+                />
+              </TouchableOpacity>
+            </View>
+          )}
+          <View style={[styles.badge, { backgroundColor: getStatusColor(task.status) }]}>
+            <Text style={[styles.statusText, { color: theme.colors.surface }]}>{task.status ? task.status.replace('_', ' ') : 'UNKNOWN'}</Text>
+          </View>
+          {(task.status === 'IN_PROGRESS' || task.status === 'REVISIT') && (
+            <Icon name="chevron-forward" size={20} color={theme.colors.textMuted} />
+          )}
+        </View>
+      </View>
+    </AnimatedTouchableOpacity>
   );
 };
 
-export const TaskCard = React.memo(TaskCardComponent);
+const areEqual = (prev: TaskCardProps, next: TaskCardProps): boolean => {
+  const prevTask = prev.task;
+  const nextTask = next.task;
+  return (
+    prevTask.id === nextTask.id &&
+    prevTask.status === nextTask.status &&
+    prevTask.is_saved === nextTask.is_saved &&
+    prevTask.saved_at === nextTask.saved_at &&
+    prevTask.is_revoked === nextTask.is_revoked &&
+    prevTask.revoked_at === nextTask.revoked_at &&
+    prevTask.completedAt === nextTask.completedAt &&
+    prevTask.in_progress_at === nextTask.in_progress_at &&
+    prevTask.assignedAt === nextTask.assignedAt &&
+    prevTask.attachment_count === nextTask.attachment_count &&
+    prevTask.priority === nextTask.priority &&
+    prevTask.customerName === nextTask.customerName &&
+    prevTask.addressStreet === nextTask.addressStreet &&
+    prevTask.addressCity === nextTask.addressCity &&
+    prevTask.addressState === nextTask.addressState &&
+    prevTask.addressPincode === nextTask.addressPincode &&
+    prevTask.verificationTypeName === nextTask.verificationTypeName &&
+    prevTask.verificationType === nextTask.verificationType &&
+    prevTask.verificationTaskNumber === nextTask.verificationTaskNumber &&
+    prev.canMoveUp === next.canMoveUp &&
+    prev.canMoveDown === next.canMoveDown &&
+    prev.isReorderEnabled === next.isReorderEnabled
+  );
+};
+
+export const TaskCard = React.memo(TaskCardComponent, areEqual);
 
 const styles = StyleSheet.create({
   card: {
@@ -346,9 +334,6 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 12,
     letterSpacing: 1,
-  },
-  timelineWrap: {
-    marginBottom: 10,
   },
   footer: {
     flexDirection: 'row',

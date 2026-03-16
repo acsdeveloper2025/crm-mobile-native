@@ -6,7 +6,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 
 interface TaskInfoModalProps {
   visible: boolean;
-  task: LocalTask;
+  task: LocalTask | null;
   onClose: () => void;
 }
 
@@ -19,6 +19,10 @@ const InfoRow = ({ label, value, theme }: { label: string; value: string; theme:
 
 export const TaskInfoModal: React.FC<TaskInfoModalProps> = ({ visible, task, onClose }) => {
   const { theme } = useTheme();
+
+  if (!task) {
+    return null;
+  }
 
   const getPriorityText = (priority: string): string => {
     switch (priority) {

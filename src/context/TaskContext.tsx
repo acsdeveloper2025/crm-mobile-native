@@ -2,10 +2,7 @@ import React, {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
-  useRef,
-  useState,
 } from 'react';
 import { RevokeReason } from '../types/api';
 import type { LocalTask } from '../types/mobile';
@@ -48,9 +45,6 @@ interface SubmissionStatusResult {
 }
 
 interface TaskContextValue {
-  tasks: LocalTask[];
-  isLoading: boolean;
-  error: string | null;
   refreshTasks: () => Promise<void>;
   getTask: (taskId: string) => Promise<LocalTask | null>;
   startTask: (taskId: string) => Promise<void>;
@@ -60,8 +54,6 @@ interface TaskContextValue {
   toggleSaveTask: (taskId: string, isSaved: boolean) => Promise<void>;
   revokeTask: (taskId: string, reason: RevokeReason) => Promise<void>;
   setTaskPriority: (taskId: string, priority: number | null) => Promise<void>;
-  getTaskPriority: (taskId: string) => number | null;
-  getTasksWithPriorities: () => LocalTask[];
   submitTaskForm: (input: SubmitTaskFormInput) => Promise<void>;
   persistAutoSave: (taskId: string, payload: AutoSavePayload) => Promise<void>;
   getAutoSavedForm: (taskId: string, formType: string) => Promise<Record<string, unknown> | null>;
@@ -89,14 +81,6 @@ const parseFormData = (raw?: string | null): Record<string, unknown> => {
   }
 };
 
-const parsePriority = (value?: string | null): number | null => {
-  if (!value) {
-    return null;
-  }
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : null;
-};
-
 const resolveBackendTaskId = (task: LocalTask): string => {
   const preferred = (task.verificationTaskId || '').trim();
   if (UUID_REGEX.test(preferred)) {
@@ -109,69 +93,17 @@ const resolveBackendTaskId = (task: LocalTask): string => {
 };
 
 export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [tasks, setTasks] = useState<LocalTask[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const refreshInFlightRef = useRef<Promise<void> | null>(null);
-  const lastRefreshAtRef = useRef(0);
-
   const refreshTasks = useCallback(async () => {
-    const now = Date.now();
-    if (refreshInFlightRef.current) {
-      return refreshInFlightRef.current;
+    try {
+      await FetchAssignmentsUseCase.execute();
+    } catch (err: any) {
+      Logger.error(TAG, 'Failed to load tasks', err);
+      throw err;
     }
-    if (tasks.length > 0 && now - lastRefreshAtRef.current < 700) {
-      return;
-    }
-
-    const run = (async () => {
-      try {
-        if (tasks.length === 0) {
-          setIsLoading(true);
-        }
-        setError(null);
-        const nextTasks = await FetchAssignmentsUseCase.execute();
-        setTasks(nextTasks);
-        lastRefreshAtRef.current = Date.now();
-      } catch (err: any) {
-        Logger.error(TAG, 'Failed to load tasks', err);
-        setError(err?.message || 'Failed to load tasks');
-      } finally {
-        setIsLoading(false);
-        refreshInFlightRef.current = null;
-      }
-    })();
-
-    refreshInFlightRef.current = run;
-    return run;
-  }, [tasks.length]);
-
-  useEffect(() => {
-    refreshTasks();
-  }, [refreshTasks]);
+  }, []);
 
   const getTask = useCallback(async (taskId: string): Promise<LocalTask | null> => {
-    const detailed = await TaskRepository.getTaskById(taskId);
-    if (detailed) {
-      return detailed;
-    }
-    return tasks.find(task => task.id === taskId) || null;
-  }, [tasks]);
-
-  const reloadTask = useCallback(async (taskId: string) => {
-    const nextTask = await TaskRepository.getTaskById(taskId);
-    setTasks(current => {
-      const index = current.findIndex(task => task.id === taskId);
-      if (!nextTask) {
-        return current.filter(task => task.id !== taskId);
-      }
-      if (index === -1) {
-        return [nextTask, ...current];
-      }
-      const next = [...current];
-      next[index] = nextTask;
-      return next;
-    });
+    return TaskRepository.getTaskById(taskId);
   }, []);
 
   const syncIfOnline = useCallback(async () => {
@@ -193,7 +125,6 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (status === TaskStatus.Completed) {
       await CompleteTaskUseCase.execute(taskId);
-      await reloadTask(taskId);
       await syncIfOnline();
       return;
     }
@@ -209,8 +140,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
       await syncIfOnline();
     }
-    await reloadTask(taskId);
-  }, [getTask, reloadTask, syncIfOnline]);
+  }, [getTask, syncIfOnline]);
 
   const startTask = useCallback(async (taskId: string) => {
     await updateTaskStatus(taskId, TaskStatus.InProgress);
@@ -218,13 +148,11 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const updateVerificationOutcome = useCallback(async (taskId: string, outcome: string | null) => {
     await TaskRepository.updateVerificationOutcome(taskId, outcome);
-    await reloadTask(taskId);
-  }, [reloadTask]);
+  }, []);
 
   const updateTaskFormData = useCallback(async (taskId: string, patch: Record<string, unknown>) => {
     await SaveDraftUseCase.execute(taskId, patch);
-    await reloadTask(taskId);
-  }, [reloadTask]);
+  }, []);
 
   const toggleSaveTask = useCallback(async (taskId: string, isSaved: boolean) => {
     const task = await getTask(taskId);
@@ -244,13 +172,11 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       { isSaved, savedAt: isSaved ? new Date().toISOString() : null },
       SYNC_PRIORITY.CRITICAL,
     );
-    await reloadTask(taskId);
-  }, [getTask, reloadTask]);
+  }, [getTask]);
 
   const revokeTask = useCallback(async (taskId: string, reason: RevokeReason) => {
     await RevokeTaskUseCase.execute(taskId, reason);
-    await reloadTask(taskId);
-  }, [reloadTask]);
+  }, []);
 
   const setTaskPriority = useCallback(async (taskId: string, priority: number | null) => {
     if (priority === null) {
@@ -269,20 +195,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       { action: 'priority', priority },
       SYNC_PRIORITY.NORMAL,
     );
-    await reloadTask(taskId);
-  }, [getTask, reloadTask]);
-
-  const getTaskPriority = useCallback((taskId: string): number | null => {
-    return parsePriority(tasks.find(task => task.id === taskId)?.priority);
-  }, [tasks]);
-
-  const getTasksWithPriorities = useCallback(() => {
-    return [...tasks].sort((left, right) => {
-      const leftPriority = parsePriority(left.priority) ?? 0;
-      const rightPriority = parsePriority(right.priority) ?? 0;
-      return rightPriority - leftPriority;
-    });
-  }, [tasks]);
+  }, [getTask]);
 
   const clearAutoSave = useCallback(async (taskId: string) => {
     await StorageService.remove(AUTO_SAVE_KEY(taskId));
@@ -300,8 +213,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const submitTaskForm = useCallback(async (input: SubmitTaskFormInput) => {
     await SubmitVerificationUseCase.execute(input);
-    await reloadTask(input.taskId);
-  }, [reloadTask]);
+  }, []);
 
   const updateTaskSubmissionStatus = useCallback(async (
     taskId: string,
@@ -322,8 +234,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
       },
     };
     await TaskRepository.updateSubmissionMeta(taskId, nextFormData);
-    await reloadTask(taskId);
-  }, [getTask, reloadTask]);
+  }, [getTask]);
 
   const verifyTaskSubmissionStatus = useCallback(async (taskId: string): Promise<SubmissionStatusResult> => {
     const task = await getTask(taskId);
@@ -348,9 +259,6 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [refreshTasks]);
 
   const value = useMemo<TaskContextValue>(() => ({
-    tasks,
-    isLoading,
-    error,
     refreshTasks,
     getTask,
     startTask,
@@ -360,8 +268,6 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     toggleSaveTask,
     revokeTask,
     setTaskPriority,
-    getTaskPriority,
-    getTasksWithPriorities,
     submitTaskForm,
     persistAutoSave,
     getAutoSavedForm,
@@ -371,12 +277,8 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     syncTasks,
   }), [
     clearAutoSave,
-    error,
     getAutoSavedForm,
     getTask,
-    getTaskPriority,
-    getTasksWithPriorities,
-    isLoading,
     persistAutoSave,
     refreshTasks,
     revokeTask,
@@ -384,7 +286,6 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     startTask,
     submitTaskForm,
     syncTasks,
-    tasks,
     toggleSaveTask,
     updateTaskFormData,
     updateTaskStatus,
