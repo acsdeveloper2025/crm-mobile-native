@@ -81,6 +81,8 @@ yarn-error.log
 .env
 .env.*
 !.env.example
+*.sql
+*.dump
 android/keystore.properties
 android/app/google-services.json
 ios/GoogleService-Info.plist

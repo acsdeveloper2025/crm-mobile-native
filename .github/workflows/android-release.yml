@@ -1,0 +1,96 @@
+name: Android Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Release tag to publish, for example v4.0.1"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Restore signing and Firebase files
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          test -n "$ANDROID_KEYSTORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          test -n "$GOOGLE_SERVICES_JSON"
+
+          mkdir -p android/app
+
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+          cat > android/keystore.properties <<EOF
+          storeFile=app/release.keystore
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOF
+
+          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew clean assembleRelease
+
+      - name: Prepare release artifacts
+        id: artifacts
+        env:
+          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+        run: |
+          VERSION="${RELEASE_TAG#v}"
+          mkdir -p release-artifacts
+
+          cp android/app/build/outputs/apk/release/app-universal-release.apk \
+            "release-artifacts/crm-mobile-native-v${VERSION}.apk"
+
+          echo "artifact_path=release-artifacts/crm-mobile-native-v${VERSION}.apk" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=crm-mobile-native-v${VERSION}.apk" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifacts.outputs.artifact_name }}
+          path: ${{ steps.artifacts.outputs.artifact_path }}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.artifacts.outputs.release_tag }}
+          generate_release_notes: true
+          files: ${{ steps.artifacts.outputs.artifact_path }}
