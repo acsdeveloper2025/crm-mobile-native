@@ -187,6 +187,7 @@ gradle.projectsEvaluated {
         if (generatedAutolinkingCmake.exists()) {
             def missingAutolinkTargets = [] as Set
             def addSubdirectoryPattern = ~/add_subdirectory\("([^"]+)"\s+([A-Za-z0-9_]+)\)/
+            def retainedAutolinkTargets = [] as List
             def filteredLines = generatedAutolinkingCmake.readLines().findAll { line ->
                 def matcher = line =~ addSubdirectoryPattern
                 if (matcher.find()) {
@@ -198,6 +199,9 @@ gradle.projectsEvaluated {
                         }
                         return false
                     }
+                    if (buildTarget.endsWith("_autolinked_build")) {
+                        retainedAutolinkTargets << "react_codegen_${buildTarget - '_autolinked_build'}"
+                    }
                 }
 
                 !line.contains("react-native-safe-area-context") &&
@@ -207,7 +211,15 @@ gradle.projectsEvaluated {
                 !missingAutolinkTargets.contains(line.trim())
             }
 
-            generatedAutolinkingCmake.text = filteredLines.join(System.lineSeparator()) + System.lineSeparator()
+            def cmakeText = filteredLines.join(System.lineSeparator()) + System.lineSeparator()
+            def autolinkLibrariesPattern = ~/(?ms)set\(AUTOLINKED_LIBRARIES\s*(.*?)\)/
+            cmakeText = cmakeText.replaceAll(autolinkLibrariesPattern) {
+                def librariesBlock = retainedAutolinkTargets.collect { "  ${it}" }.join(System.lineSeparator())
+                librariesBlock ? "set(AUTOLINKED_LIBRARIES${System.lineSeparator()}${librariesBlock}${System.lineSeparator()})"
+                    : "set(AUTOLINKED_LIBRARIES)"
+            }
+
+            generatedAutolinkingCmake.text = cmakeText
         }
 
         if (!generatedAutolinkingCpp.exists()) {
