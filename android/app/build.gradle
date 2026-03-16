@@ -1,7 +1,6 @@
 apply plugin: "com.android.application"
 apply plugin: "com.facebook.react"
 apply plugin: "com.google.gms.google-services"
-apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
 
 /**
  * This is the configuration block to customize your React Native Android app.
@@ -60,6 +59,9 @@ react {
  */
 def enableProguardInReleaseBuilds = true
 def googleMapsApiKey = project.findProperty("GOOGLE_MAPS_API_KEY") ?: ""
+def vectorIconsConfig = project.hasProperty("vectoricons") ? project.vectoricons : [:]
+def vectorIconFontsDir = vectorIconsConfig.iconFontsDir ?: "../../node_modules/react-native-vector-icons/Fonts"
+def vectorIconFontNames = vectorIconsConfig.iconFontNames ?: ["*.ttf"]
 def appDebugKeystore = file('debug.keystore')
 def userDebugKeystore = new File(System.getProperty("user.home"), ".android/debug.keystore")
 def debugKeystoreFile = appDebugKeystore.exists() ? appDebugKeystore : userDebugKeystore
@@ -88,6 +90,19 @@ def releaseVersionCode = (project.findProperty("versionCode") ?: "1").toString()
  * this variant is about 6MiB larger per architecture than default.
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
+
+android.sourceSets.main.assets.srcDirs += file("$buildDir/intermediates/ReactNativeVectorIcons")
+
+def copyReactNativeVectorIconFonts = tasks.register("copyReactNativeVectorIconFonts", Copy) {
+    description = "Copy vector icon fonts into the Android assets bundle."
+    into("$buildDir/intermediates/ReactNativeVectorIcons/fonts")
+
+    vectorIconFontNames.each { fontName ->
+        from(vectorIconFontsDir) {
+            include(fontName)
+        }
+    }
+}
 
 android {
     ndkVersion rootProject.ext.ndkVersion
@@ -144,6 +159,10 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
         }
     }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(copyReactNativeVectorIconFonts)
 }
 
 dependencies {
