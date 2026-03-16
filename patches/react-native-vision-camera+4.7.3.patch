@@ -1,0 +1,28 @@
+diff --git a/node_modules/react-native-vision-camera/android/build.gradle b/node_modules/react-native-vision-camera/android/build.gradle
+index 6c12afb..78c6a32 100644
+--- a/node_modules/react-native-vision-camera/android/build.gradle
++++ b/node_modules/react-native-vision-camera/android/build.gradle
+@@ -4,20 +4,6 @@
+ def agpVersion = Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0].toInteger()
+ def androidManifestPath = agpVersion >= 7 ? 'src/main/AndroidManifest.xml' : 'src/hasNamespace/AndroidManifest.xml'
+ 
+-buildscript {
+-  def kotlin_version = rootProject.ext.has("kotlinVersion") ? rootProject.ext.get("kotlinVersion") : project.properties["VisionCamera_kotlinVersion"]
+-
+-  repositories {
+-    maven {
+-      url "https://plugins.gradle.org/m2/"
+-    }
+-    mavenCentral()
+-    google()
+-  }
+-
+-  dependencies {
+-    classpath "com.android.tools.build:gradle:8.7.2"
+-    classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+-  }
+-}
+-
+ def resolveBuildType() {
+     Gradle gradle = getGradle()
+     String tskReqStr = gradle.getStartParameter().getTaskRequests()["args"].toString()
