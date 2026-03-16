@@ -147,7 +147,12 @@ jobs:
         working-directory: android
         run: |
           chmod +x ./gradlew
-          ./gradlew clean assembleRelease bundleRelease \
+          ./gradlew clean assembleRelease \
+            -PenableAbiSplits=true \
+            -PversionName=${{ steps.version.outputs.version_name }} \
+            -PversionCode=${{ steps.version.outputs.version_code }}
+          ./gradlew clean bundleRelease \
+            -PenableAbiSplits=false \
             -PversionName=${{ steps.version.outputs.version_name }} \
             -PversionCode=${{ steps.version.outputs.version_code }}
 
