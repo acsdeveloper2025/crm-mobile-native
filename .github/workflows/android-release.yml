@@ -3,7 +3,7 @@ name: Android Release
 on:
   push:
     tags:
-      - "v*"
+      - "v4*"
   workflow_dispatch:
     inputs:
       release_tag:
@@ -17,22 +17,94 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Detect project toolchain
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -f .nvmrc ]]; then
+            NODE_VERSION="$(tr -d '[:space:]' < .nvmrc)"
+          else
+            NODE_VERSION="$(python3 - <<'PY'
+              import json, re
+              with open('package.json', 'r', encoding='utf-8') as fh:
+                  pkg = json.load(fh)
+              engine = pkg.get('engines', {}).get('node', '')
+              match = re.search(r'(\d+(?:\.\d+){0,2})', engine)
+              print(match.group(1) if match else '22')
+          PY
+          )"
+          fi
+
+          COMPILE_SDK="$(sed -n 's/.*compileSdkVersion = \([0-9][0-9]*\).*/\1/p' android/build.gradle | head -n1)"
+          BUILD_TOOLS_VERSION="$(sed -n 's/.*buildToolsVersion = \"\\([^\"]*\\)\".*/\1/p' android/build.gradle | head -n1)"
+          NDK_VERSION="$(sed -n 's/.*ndkVersion = \"\\([^\"]*\\)\".*/\1/p' android/build.gradle | head -n1)"
+          AGP_VERSION="$(sed -n 's/.*com.android.tools.build:gradle:\\([0-9][^"]*\\)\".*/\1/p' android/build.gradle | head -n1)"
+          GRADLE_VERSION="$(sed -n 's/.*gradle-\\([0-9][^-/]*\\)-bin.zip.*/\1/p' android/gradle/wrapper/gradle-wrapper.properties | head -n1)"
+
+          AGP_MAJOR="${AGP_VERSION%%.*}"
+          if [[ -z "$AGP_MAJOR" || "$AGP_MAJOR" -ge 8 ]]; then
+            JAVA_VERSION="17"
+          else
+            JAVA_VERSION="11"
+          fi
+
+          VERSION_NAME="$(sed -n 's/.*versionName \"\\([^\"]*\\)\".*/\1/p' android/app/build.gradle | head -n1)"
+
+          {
+            echo "node_version=$NODE_VERSION"
+            echo "java_version=$JAVA_VERSION"
+            echo "compile_sdk=$COMPILE_SDK"
+            echo "build_tools_version=$BUILD_TOOLS_VERSION"
+            echo "ndk_version=$NDK_VERSION"
+            echo "agp_version=$AGP_VERSION"
+            echo "gradle_version=$GRADLE_VERSION"
+            echo "version_name=$VERSION_NAME"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version: ${{ steps.detect.outputs.node_version }}
           cache: "npm"
+
+      - name: Derive release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION_NAME="${RELEASE_TAG#v}"
+          VERSION_CODE="$(date +%s)"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: "temurin"
-          java-version: "17"
+          java-version: ${{ steps.detect.outputs.java_version }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK components
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-${{ steps.detect.outputs.compile_sdk }}" \
+            "build-tools;${{ steps.detect.outputs.build_tools_version }}" \
+            "ndk;${{ steps.detect.outputs.ndk_version }}"
 
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
@@ -45,35 +117,41 @@ jobs:
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
-          test -n "$ANDROID_KEYSTORE_BASE64"
-          test -n "$ANDROID_KEYSTORE_PASSWORD"
-          test -n "$ANDROID_KEY_ALIAS"
-          test -n "$ANDROID_KEY_PASSWORD"
           test -n "$GOOGLE_SERVICES_JSON"
 
           mkdir -p android/app
 
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
-          cat > android/keystore.properties <<EOF
-          storeFile=app/release.keystore
-          storePassword=$ANDROID_KEYSTORE_PASSWORD
-          keyAlias=$ANDROID_KEY_ALIAS
-          keyPassword=$ANDROID_KEY_PASSWORD
-          EOF
+          if [[ -n "$ANDROID_KEYSTORE_BASE64" && -n "$ANDROID_KEYSTORE_PASSWORD" && -n "$ANDROID_KEY_ALIAS" && -n "$ANDROID_KEY_PASSWORD" ]]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+            cat > android/keystore.properties <<EOF
+            storeFile=app/release.keystore
+            storePassword=$ANDROID_KEYSTORE_PASSWORD
+            keyAlias=$ANDROID_KEY_ALIAS
+            keyPassword=$ANDROID_KEY_PASSWORD
+            EOF
+          else
+            echo "Release keystore secrets not set. Build will use the project's fallback signing configuration."
+          fi
 
           printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
       - name: Build release APK
         working-directory: android
-        run: ./gradlew clean assembleRelease
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean assembleRelease \
+            -PversionName=${{ steps.version.outputs.version_name }} \
+            -PversionCode=${{ steps.version.outputs.version_code }}
 
       - name: Prepare release artifacts
         id: artifacts
-        env:
-          RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
+        shell: bash
         run: |
-          VERSION="${RELEASE_TAG#v}"
+          set -euo pipefail
+          VERSION="${{ steps.version.outputs.version_name }}"
           mkdir -p release-artifacts
+
+          test -f android/app/build/outputs/apk/release/app-universal-release.apk
 
           cp android/app/build/outputs/apk/release/app-universal-release.apk \
             "release-artifacts/crm-mobile-native-v${VERSION}.apk"
@@ -92,5 +170,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.artifacts.outputs.release_tag }}
+          name: CRM Mobile Native ${{ steps.artifacts.outputs.release_tag }}
           generate_release_notes: true
           files: ${{ steps.artifacts.outputs.artifact_path }}
