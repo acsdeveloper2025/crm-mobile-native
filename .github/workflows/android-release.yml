@@ -132,7 +132,7 @@ jobs:
           if [[ -n "$ANDROID_KEYSTORE_BASE64" && -n "$ANDROID_KEYSTORE_PASSWORD" && -n "$ANDROID_KEY_ALIAS" && -n "$ANDROID_KEY_PASSWORD" ]]; then
             echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
             printf '%s\n' \
-              "storeFile=app/release.keystore" \
+              "storeFile=release.keystore" \
               "storePassword=$ANDROID_KEYSTORE_PASSWORD" \
               "keyAlias=$ANDROID_KEY_ALIAS" \
               "keyPassword=$ANDROID_KEY_PASSWORD" \
