@@ -261,6 +261,13 @@ gradle.projectsEvaluated {
             .replaceAll(/(?m)^\s*providerRegistry->add\(concreteComponentDescriptorProvider<RNS[A-Za-z0-9]+ComponentDescriptor>\(\)\);\R?/, "")
             .replaceAll(/(?m)^\s*providerRegistry->add\(concreteComponentDescriptorProvider<RNC(?:SafeAreaProvider|SafeAreaView)ComponentDescriptor>\(\)\);\R?/, "")
 
+        missingAutolinkTargets.each { missingTarget ->
+            def moduleName = missingTarget.replaceFirst(/^react_codegen_/, "")
+            cppText = cppText
+                .replaceAll("(?m)^#include <${java.util.regex.Pattern.quote(moduleName)}\\.h>\\R?", "")
+                .replaceAll("(?ms)auto module_${java.util.regex.Pattern.quote(moduleName)} = ${java.util.regex.Pattern.quote(moduleName)}_ModuleProvider\\(moduleName, params\\);\\Rif \\(module_${java.util.regex.Pattern.quote(moduleName)} != nullptr\\) \\{\\Rreturn module_${java.util.regex.Pattern.quote(moduleName)};\\R\\}\\R?", "")
+        }
+
         generatedAutolinkingCpp.text = cppText
     }
 
