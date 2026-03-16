@@ -143,11 +143,11 @@ jobs:
 
           printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
-      - name: Build release APK
+      - name: Build release artifacts
         working-directory: android
         run: |
           chmod +x ./gradlew
-          ./gradlew clean assembleRelease \
+          ./gradlew clean assembleRelease bundleRelease \
             -PversionName=${{ steps.version.outputs.version_name }} \
             -PversionCode=${{ steps.version.outputs.version_code }}
 
@@ -160,19 +160,28 @@ jobs:
           mkdir -p release-artifacts
 
           test -f android/app/build/outputs/apk/release/app-universal-release.apk
+          test -f android/app/build/outputs/bundle/release/app-release.aab
 
           cp android/app/build/outputs/apk/release/app-universal-release.apk \
             "release-artifacts/crm-mobile-native-v${VERSION}.apk"
+          cp android/app/build/outputs/bundle/release/app-release.aab \
+            "release-artifacts/crm-mobile-native-v${VERSION}.aab"
 
-          echo "artifact_path=release-artifacts/crm-mobile-native-v${VERSION}.apk" >> "$GITHUB_OUTPUT"
-          echo "artifact_name=crm-mobile-native-v${VERSION}.apk" >> "$GITHUB_OUTPUT"
+          echo "apk_name=crm-mobile-native-v${VERSION}.apk" >> "$GITHUB_OUTPUT"
+          echo "aab_name=crm-mobile-native-v${VERSION}.aab" >> "$GITHUB_OUTPUT"
           echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+          {
+            echo "release_files<<EOF"
+            echo "release-artifacts/crm-mobile-native-v${VERSION}.apk"
+            echo "release-artifacts/crm-mobile-native-v${VERSION}.aab"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
-      - name: Upload APK artifact
+      - name: Upload release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ steps.artifacts.outputs.artifact_name }}
-          path: ${{ steps.artifacts.outputs.artifact_path }}
+          name: crm-mobile-native-${{ steps.artifacts.outputs.release_tag }}-artifacts
+          path: release-artifacts/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -180,4 +189,4 @@ jobs:
           tag_name: ${{ steps.artifacts.outputs.release_tag }}
           name: CRM Mobile Native ${{ steps.artifacts.outputs.release_tag }}
           generate_release_notes: true
-          files: ${{ steps.artifacts.outputs.artifact_path }}
+          files: ${{ steps.artifacts.outputs.release_files }}

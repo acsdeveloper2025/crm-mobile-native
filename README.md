@@ -1,16 +1,16 @@
 This is the React Native mobile client for the CRM platform.
 
-# Download APK
+# Download Android Builds
 
 Android release builds are published through GitHub Releases.
 
-To download the latest APK:
+To download the latest APK or App Bundle:
 
 1. Open the repository Releases page.
 2. Select the latest `v4.x.x` release.
-3. Download the attached `crm-mobile-native-vX.X.X.apk` asset.
+3. Download the attached `crm-mobile-native-vX.X.X.apk` or `crm-mobile-native-vX.X.X.aab` asset.
 
-Release publishing is automated by [android-release.yml](./.github/workflows/android-release.yml). Pushing a tag like `v4.0.0` builds the universal release APK and attaches it to the GitHub Release.
+Release publishing is automated by [android-release.yml](./.github/workflows/android-release.yml). Pushing a tag like `v4.0.0` builds the universal release APK and Android App Bundle, then attaches both to the GitHub Release.
 
 # Getting Started
 
