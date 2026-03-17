@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme, ThemePreference } from '../../context/ThemeContext';
 import { NotificationCenter } from '../../components/ui/NotificationCenter';
@@ -17,6 +17,7 @@ export const DashboardScreen = () => {
   const { user } = useAuth();
   const { theme, themePreference, setThemePreference } = useTheme();
   const navigation = useNavigation<any>();
+  const insets = useSafeAreaInsets();
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [assignedTasks, setAssignedTasks] = useState(0);
   const [inProgressTasks, setInProgressTasks] = useState(0);
@@ -160,10 +161,10 @@ export const DashboardScreen = () => {
 
   return (
     <>
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <ScrollView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
-        contentContainerStyle={styles.contentContainer}
+        contentContainerStyle={[styles.contentContainer, { paddingTop: Math.max(insets.top, 16) + 8 }]}
       >
         <View style={styles.header}>
         <View style={styles.headerLeft}>
@@ -293,6 +294,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
+    paddingTop: 24,
     flexGrow: 1,
   },
   header: {
