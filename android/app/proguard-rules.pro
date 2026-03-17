@@ -17,3 +17,8 @@
 -keep class * extends androidx.work.ListenableWorker {
     <init>(android.content.Context, androidx.work.WorkerParameters);
 }
+
+# NetInfo is resolved through the React Native package registry / TurboModule
+# path. Keep its package and generated spec intact in release builds so the
+# native module remains discoverable under R8.
+-keep class com.reactnativecommunity.netinfo.** { *; }
