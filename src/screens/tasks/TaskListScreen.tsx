@@ -368,9 +368,17 @@ export const TaskListScreen = ({
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       {lockedFilter && (
-        <View style={[styles.titleContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
+        <View
+          style={[
+            styles.titleContainer,
+            {
+              backgroundColor: theme.colors.surface,
+              borderBottomColor: theme.colors.border,
+              paddingTop: Math.max(insets.top, 16) + 4,
+            },
+          ]}>
           <Text style={[styles.title, { color: theme.colors.text }]}>{metadata.title}</Text>
         </View>
       )}
