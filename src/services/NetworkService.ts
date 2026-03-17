@@ -1,7 +1,7 @@
 // NetworkService - Online/offline detection
 // Central service for monitoring network connectivity
 
-import NetInfo, {
+import type {
   NetInfoState,
   NetInfoSubscription,
 } from '@react-native-community/netinfo';
@@ -16,12 +16,45 @@ class NetworkServiceClass {
   private connectionType: string = 'unknown';
   private subscribers: NetworkChangeCallback[] = [];
   private unsubscribeNetInfo: NetInfoSubscription | null = null;
+  private netInfoModule: {
+    addEventListener: (listener: (state: NetInfoState) => void) => NetInfoSubscription;
+    fetch: () => Promise<NetInfoState>;
+  } | null = null;
+  private netInfoUnavailable = false;
+
+  private getNetInfoModule() {
+    if (this.netInfoModule || this.netInfoUnavailable) {
+      return this.netInfoModule;
+    }
+
+    try {
+      const requiredModule = require('@react-native-community/netinfo');
+      this.netInfoModule = requiredModule.default ?? requiredModule;
+      return this.netInfoModule;
+    } catch (error) {
+      this.netInfoUnavailable = true;
+      Logger.warn(
+        TAG,
+        'NetInfo native module unavailable. Falling back to optimistic online mode.',
+        error,
+      );
+      return null;
+    }
+  }
 
   /**
    * Start monitoring network connectivity
    */
   initialize(): void {
-    this.unsubscribeNetInfo = NetInfo.addEventListener(
+    const netInfo = this.getNetInfoModule();
+
+    if (!netInfo) {
+      this.isOnline = true;
+      this.connectionType = 'unknown';
+      return;
+    }
+
+    this.unsubscribeNetInfo = netInfo.addEventListener(
       (state: NetInfoState) => {
         const wasOnline = this.isOnline;
         this.isOnline = state.isConnected === true && state.isInternetReachable !== false;
@@ -72,7 +105,13 @@ class NetworkServiceClass {
    * Force-check the current network state
    */
   async checkConnection(): Promise<boolean> {
-    const state = await NetInfo.fetch();
+    const netInfo = this.getNetInfoModule();
+
+    if (!netInfo) {
+      return this.isOnline;
+    }
+
+    const state = await netInfo.fetch();
     this.isOnline = state.isConnected === true && state.isInternetReachable !== false;
     this.connectionType = state.type;
     return this.isOnline;
