@@ -19,7 +19,7 @@ import { useTheme } from '../../context/ThemeContext';
 import {
   attachmentService,
   RemoteTaskAttachment,
-} from '../../services/AttachmentService';
+} from '../../services/attachmentService';
 
 export const TaskAttachmentsScreen = ({ route }: any) => {
   const { theme } = useTheme();
