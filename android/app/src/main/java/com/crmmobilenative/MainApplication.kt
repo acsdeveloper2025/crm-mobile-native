@@ -1,6 +1,7 @@
 package com.crmmobilenative
 
 import android.app.Application
+import com.reactnativecommunity.netinfo.NetInfoPackage
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
@@ -14,8 +15,7 @@ class MainApplication : Application(), ReactApplication {
       context = applicationContext,
       packageList =
         PackageList(this).packages.apply {
-          // Packages that cannot be autolinked yet can be added manually here, for example:
-          // add(MyReactNativePackage())
+          add(NetInfoPackage())
           add(BackgroundSyncBridgePackage())
         },
     )
