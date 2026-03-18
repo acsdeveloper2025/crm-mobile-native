@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme, ThemePreference } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { DataCleanupManager } from '../../components/profile/DataCleanupManager';
+import { config } from '../../config';
 
 export const ProfileScreen = ({ navigation }: any) => {
   const { user, logout } = useAuth();
@@ -91,7 +92,9 @@ export const ProfileScreen = ({ navigation }: any) => {
           </View>
           <View style={styles.detailRow}>
             <Text style={[styles.label, { color: theme.colors.textMuted }]}>App Version</Text>
-            <Text style={[styles.value, styles.versionValue, { color: theme.colors.textSecondary }]}>4.0.0 (Build 84)</Text>
+            <Text style={[styles.value, styles.versionValue, { color: theme.colors.textSecondary }]}>
+              {config.appVersion} (Build {config.buildNumber})
+            </Text>
           </View>
         </View>
 
@@ -123,16 +126,16 @@ export const ProfileScreen = ({ navigation }: any) => {
             </Text>
             <Icon name="chevron-forward" size={20} color={theme.colors.textMuted} />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.danger }]}
+            onPress={logout}>
+            <Icon name="log-out-outline" size={22} color={theme.colors.danger} />
+            <Text style={[styles.actionText, { color: theme.colors.danger, fontWeight: '700' }]}>Logout</Text>
+          </TouchableOpacity>
         </View>
 
         {showCleanupManager && <DataCleanupManager />}
-
-        <TouchableOpacity 
-          style={[styles.logoutButton, { backgroundColor: theme.colors.danger + '10', borderColor: theme.colors.danger }]} 
-          onPress={logout}>
-          <Icon name="log-out-outline" size={22} color={theme.colors.danger} />
-          <Text style={[styles.logoutText, { color: theme.colors.danger }]}>Logout</Text>
-        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -259,19 +262,5 @@ const styles = StyleSheet.create({
     marginLeft: 12,
     fontSize: 16,
     fontWeight: '500',
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderStyle: 'dashed',
-  },
-  logoutText: {
-    marginLeft: 10,
-    fontSize: 16,
-    fontWeight: 'bold',
   },
 });

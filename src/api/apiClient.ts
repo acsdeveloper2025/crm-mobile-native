@@ -69,9 +69,18 @@ class ApiClientClass {
         const originalRequest = error.config as InternalAxiosRequestConfig & {
           _retry?: boolean;
         };
+        const requestUrl = error.config?.url || '';
+        const requestMethod = (error.config?.method || '').toUpperCase();
+        const isAuthLogin = requestUrl.includes('/auth/login');
+        const isAuthRefresh = requestUrl.includes('/auth/refresh');
 
         // If 401 and haven't retried yet, try refreshing the token
-        if (error.response?.status === 401 && !originalRequest._retry) {
+        if (
+          error.response?.status === 401 &&
+          !originalRequest._retry &&
+          !isAuthLogin &&
+          !isAuthRefresh
+        ) {
           if (this.isRefreshing) {
             // Queue this request until token is refreshed
             return new Promise((resolve, reject) => {
@@ -125,8 +134,6 @@ class ApiClientClass {
           }
         }
 
-        const requestUrl = error.config?.url || '';
-        const requestMethod = (error.config?.method || '').toUpperCase();
         const responseStatus = error.response?.status || 0;
         const isNotificationRegisterError = requestUrl.includes('/auth/notifications/register');
         const isNotificationListError =
