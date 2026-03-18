@@ -67,8 +67,8 @@ const ENV_CONFIGS = {
     wsUrl: 'wss://example.com',
   },
   production: {
-    apiBaseUrl: 'https://example.com/api/mobile',
-    wsUrl: 'wss://example.com',
+    apiBaseUrl: 'https://crm.allcheckservices.com/api/mobile',
+    wsUrl: 'wss://crm.allcheckservices.com',
   },
 };
 
