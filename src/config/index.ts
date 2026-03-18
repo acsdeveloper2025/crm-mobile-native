@@ -1,7 +1,7 @@
 // CRM Mobile Native - Configuration
 // Environment-based configuration for the mobile app
 
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
 
 export interface AppConfig {
   apiBaseUrl: string;
@@ -31,9 +31,13 @@ export interface AppConfig {
   dbVersion: number;
 }
 
+const nativeAppInfo = (NativeModules as { AppInfo?: { versionName?: string; versionCode?: number | string } }).AppInfo;
+const resolvedAppVersion = nativeAppInfo?.versionName || '4.0.0';
+const resolvedBuildNumber = nativeAppInfo?.versionCode?.toString() || '84';
+
 const BASE_CONFIG: Omit<AppConfig, 'apiBaseUrl' | 'wsUrl' | 'environment'> = {
-  appVersion: '4.0.0',
-  buildNumber: '84',
+  appVersion: resolvedAppVersion,
+  buildNumber: resolvedBuildNumber,
   platform: Platform.OS === 'ios' ? 'IOS' : 'ANDROID',
 
   // Sync: every 5 minutes when online
