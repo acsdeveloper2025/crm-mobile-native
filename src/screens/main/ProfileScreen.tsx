@@ -55,7 +55,9 @@ export const ProfileScreen = ({ navigation }: any) => {
     <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>
       <ScrollView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
-        contentContainerStyle={{ paddingBottom: Math.max(insets.bottom, 16) + 16 }}
+        contentContainerStyle={{
+          paddingBottom: Math.max(insets.bottom, 16) + 96,
+        }}
         showsVerticalScrollIndicator={false}>
         <Text style={[styles.title, { color: theme.colors.text }]}>Profile</Text>
 
