@@ -282,6 +282,28 @@ class AuthServiceClass {
   }
 
   /**
+   * Update profile photo URL for current user and persist to SQLite.
+   */
+  async updateProfilePhoto(profilePhotoUrl: string): Promise<UserProfile | null> {
+    if (!this.currentUser) {
+      return null;
+    }
+
+    const updatedUser: UserProfile = {
+      ...this.currentUser,
+      profilePhotoUrl,
+    };
+
+    this.currentUser = updatedUser;
+
+    if (UserSessionRepository.isReady()) {
+      await UserSessionRepository.updateProfilePhoto(profilePhotoUrl);
+    }
+
+    return updatedUser;
+  }
+
+  /**
    * Check if user is authenticated
    */
   isAuthenticated(): boolean {

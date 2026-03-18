@@ -53,6 +53,13 @@ class UserSessionRepositoryClass {
     await DatabaseService.execute('DELETE FROM user_session');
   }
 
+  async updateProfilePhoto(profilePhotoUrl: string | null): Promise<void> {
+    await DatabaseService.execute(
+      'UPDATE user_session SET profile_photo_url = ? WHERE id = 1',
+      [profilePhotoUrl],
+    );
+  }
+
   async saveUser(user: UserProfile, expiresAt: string): Promise<void> {
     await this.clearSession();
     await DatabaseService.execute(

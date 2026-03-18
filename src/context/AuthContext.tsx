@@ -18,6 +18,7 @@ interface AuthContextType {
     expiresIn?: number,
   ) => Promise<void>;
   logout: () => Promise<void>;
+  updateProfilePhoto: (profilePhotoUrl: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType>({
@@ -26,6 +27,7 @@ export const AuthContext = createContext<AuthContextType>({
   user: null,
   login: async () => {},
   logout: async () => {},
+  updateProfilePhoto: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -130,8 +132,19 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  const updateProfilePhoto = async (profilePhotoUrl: string) => {
+    try {
+      const updatedUser = await AuthService.updateProfilePhoto(profilePhotoUrl);
+      if (updatedUser) {
+        setUser(updatedUser);
+      }
+    } catch (e) {
+      Logger.error(TAG, 'Profile photo update failed', e);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, login, logout, updateProfilePhoto }}>
       {children}
     </AuthContext.Provider>
   );

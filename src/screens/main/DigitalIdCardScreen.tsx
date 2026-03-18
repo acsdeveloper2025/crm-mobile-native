@@ -15,6 +15,7 @@ export const DigitalIdCardScreen = () => {
     designation: user?.role === 'AGENT' ? 'Field Verification Agent' : user?.role,
     email: user?.email,
     validUntil: '31 Dec 2026',
+    profilePhoto: user?.profilePhotoUrl,
   };
 
   return (
