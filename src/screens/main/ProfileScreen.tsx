@@ -60,12 +60,19 @@ export const ProfileScreen = ({ navigation }: any) => {
         <Text style={[styles.title, { color: theme.colors.text }]}>Profile</Text>
 
         <View style={styles.avatarSection}>
-          <View style={[styles.avatarContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-            {user?.profilePhotoUrl ? (
-              <Image source={{ uri: user.profilePhotoUrl }} style={styles.avatarImage} />
-            ) : (
-              <Icon name="person" size={44} color={theme.colors.textSecondary} />
-            )}
+          <View style={styles.avatarWrapper}>
+            <View style={[styles.avatarContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+              {user?.profilePhotoUrl ? (
+                <Image source={{ uri: user.profilePhotoUrl }} style={styles.avatarImage} />
+              ) : (
+                <Icon name="person" size={44} color={theme.colors.textSecondary} />
+              )}
+            </View>
+            <TouchableOpacity
+              style={[styles.avatarEditButton, { backgroundColor: theme.colors.primary }]}
+              onPress={() => navigation.navigate('ProfilePhotoCapture')}>
+              <Icon name="camera" size={16} color={theme.colors.surface} />
+            </TouchableOpacity>
           </View>
           <Text style={[styles.avatarName, { color: theme.colors.text }]}>{user?.name || 'Agent'}</Text>
           <Text style={[styles.avatarSubtext, { color: theme.colors.textSecondary }]}>
@@ -98,13 +105,6 @@ export const ProfileScreen = ({ navigation }: any) => {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={[styles.logoutCallout, { backgroundColor: theme.colors.danger + '10', borderColor: theme.colors.danger }]}
-          onPress={logout}>
-          <Icon name="log-out-outline" size={22} color={theme.colors.danger} />
-          <Text style={[styles.logoutCalloutText, { color: theme.colors.danger }]}>Logout</Text>
-        </TouchableOpacity>
-
         {renderThemeToggle()}
 
         <View style={styles.actionsContainer}>
@@ -136,6 +136,13 @@ export const ProfileScreen = ({ navigation }: any) => {
         </View>
 
         {showCleanupManager && <DataCleanupManager />}
+
+        <TouchableOpacity
+          style={[styles.logoutCallout, { backgroundColor: theme.colors.danger + '10', borderColor: theme.colors.danger }]}
+          onPress={logout}>
+          <Icon name="log-out-outline" size={22} color={theme.colors.danger} />
+          <Text style={[styles.logoutCalloutText, { color: theme.colors.danger }]}>Logout</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -171,6 +178,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 18,
   },
+  avatarWrapper: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
   avatarContainer: {
     width: 108,
     height: 108,
@@ -179,6 +192,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
+  },
+  avatarEditButton: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   avatarImage: {
     width: '100%',

@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { DashboardScreen } from '../screens/main/DashboardScreen';
 import { ProfileScreen } from '../screens/main/ProfileScreen';
+import { ProfilePhotoCaptureScreen } from '../screens/main/ProfilePhotoCaptureScreen';
 import { DigitalIdCardScreen } from '../screens/main/DigitalIdCardScreen';
 import { AssignedTasksScreen } from '../screens/tasks/AssignedTasksScreen';
 import { InProgressTasksScreen } from '../screens/tasks/InProgressTasksScreen';
@@ -209,6 +210,11 @@ export const RootNavigator = () => {
               name="DigitalIdCard"
               component={DigitalIdCardScreen}
               options={{ headerShown: true, title: 'Digital ID Card', headerBackTitle: 'Back' }}
+            />
+            <Stack.Screen
+              name="ProfilePhotoCapture"
+              component={ProfilePhotoCaptureScreen}
+              options={{ headerShown: false, presentation: 'fullScreenModal' }}
             />
           </>
         )}
