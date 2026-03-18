@@ -98,6 +98,13 @@ export const ProfileScreen = ({ navigation }: any) => {
           </View>
         </View>
 
+        <TouchableOpacity
+          style={[styles.logoutCallout, { backgroundColor: theme.colors.danger + '10', borderColor: theme.colors.danger }]}
+          onPress={logout}>
+          <Icon name="log-out-outline" size={22} color={theme.colors.danger} />
+          <Text style={[styles.logoutCalloutText, { color: theme.colors.danger }]}>Logout</Text>
+        </TouchableOpacity>
+
         {renderThemeToggle()}
 
         <View style={styles.actionsContainer}>
@@ -125,13 +132,6 @@ export const ProfileScreen = ({ navigation }: any) => {
               {showCleanupManager ? 'Hide Data Cleanup' : 'Data Cleanup Manager'}
             </Text>
             <Icon name="chevron-forward" size={20} color={theme.colors.textMuted} />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.danger }]}
-            onPress={logout}>
-            <Icon name="log-out-outline" size={22} color={theme.colors.danger} />
-            <Text style={[styles.actionText, { color: theme.colors.danger, fontWeight: '700' }]}>Logout</Text>
           </TouchableOpacity>
         </View>
 
@@ -248,6 +248,20 @@ const styles = StyleSheet.create({
   },
   actionsContainer: {
     marginBottom: 24,
+  },
+  logoutCallout: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 20,
+  },
+  logoutCalloutText: {
+    marginLeft: 10,
+    fontSize: 16,
+    fontWeight: '700',
   },
   actionButton: {
     flexDirection: 'row',
