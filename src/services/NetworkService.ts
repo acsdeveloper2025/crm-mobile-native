@@ -28,8 +28,42 @@ class NetworkServiceClass {
     }
 
     try {
-      const requiredModule = require('@react-native-community/netinfo');
-      this.netInfoModule = requiredModule.default ?? requiredModule;
+      const {
+        NativeEventEmitter,
+        NativeModules,
+        TurboModuleRegistry,
+      } = require('react-native') as typeof import('react-native');
+      const nativeNetInfo =
+        TurboModuleRegistry?.get?.('RNCNetInfo') ?? NativeModules?.RNCNetInfo;
+
+      if (!nativeNetInfo) {
+        this.netInfoUnavailable = true;
+        Logger.warn(TAG, 'NetInfo native module unavailable. Falling back to optimistic online mode.');
+        return null;
+      }
+
+      const eventEmitter = new NativeEventEmitter(nativeNetInfo);
+      this.netInfoModule = {
+        addEventListener: (listener: (state: NetInfoState) => void) => {
+          const subscription = eventEmitter.addListener(
+            'netInfo.networkStatusDidChange',
+            (state: NetInfoState) => listener(this.normalizeState(state)),
+          );
+
+          nativeNetInfo
+            .getCurrentState?.()
+            .then((state: NetInfoState) => listener(this.normalizeState(state)))
+            .catch((error: unknown) => {
+              Logger.warn(TAG, 'Initial NetInfo state fetch failed', error);
+            });
+
+          return () => subscription.remove();
+        },
+        fetch: async () => {
+          const state = await nativeNetInfo.getCurrentState?.();
+          return this.normalizeState(state);
+        },
+      };
       return this.netInfoModule;
     } catch (error) {
       this.netInfoUnavailable = true;
@@ -40,6 +74,18 @@ class NetworkServiceClass {
       );
       return null;
     }
+  }
+
+  private normalizeState(state: Partial<NetInfoState> | null | undefined): NetInfoState {
+    const isConnected = state?.isConnected ?? null;
+    return {
+      type: state?.type ?? 'unknown',
+      isConnected,
+      isInternetReachable:
+        state?.isInternetReachable ?? (isConnected === null ? null : isConnected),
+      details: state?.details ?? null,
+      isWifiEnabled: state?.isWifiEnabled,
+    } as NetInfoState;
   }
 
   /**
