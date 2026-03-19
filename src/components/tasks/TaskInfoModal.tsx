@@ -67,7 +67,7 @@ export const TaskInfoModal: React.FC<TaskInfoModalProps> = ({ visible, task, onC
             <View style={styles.infoRow}>
               <Text style={[styles.infoLabel, { color: theme.colors.textMuted }]}>Address</Text>
               <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-                {task.addressStreet}, {task.addressCity}, {task.addressState} {task.addressPincode}
+                {task.addressStreet || [task.addressCity, task.addressState, task.addressPincode].filter(Boolean).join(' ').trim()}
               </Text>
             </View>
           </ScrollView>

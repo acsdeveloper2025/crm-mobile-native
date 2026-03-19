@@ -1,8 +1,10 @@
 const fs = require('fs');
 const path = require('path');
 
-const sourcePath = path.resolve(__dirname, '../src/screens/forms/VerificationFormScreen.tsx');
-const source = fs.readFileSync(sourcePath, 'utf8');
+const legacySourcePath = path.resolve(__dirname, '../src/screens/forms/LegacyFormTemplateBuilders.ts');
+const legacySource = fs.readFileSync(legacySourcePath, 'utf8');
+const screenSourcePath = path.resolve(__dirname, '../src/screens/forms/VerificationFormScreen.tsx');
+const screenSource = fs.readFileSync(screenSourcePath, 'utf8');
 
 const extractStringValues = body =>
   Array.from(body.matchAll(/'([^']+)'/g)).map(match => match[1]);
@@ -10,7 +12,7 @@ const extractStringValues = body =>
 describe('VerificationForm legacy parity guards', () => {
   it('keeps callRemark in all Untraceable templates', () => {
     const untraceableTemplates = Array.from(
-      source.matchAll(/const\s+(legacyUntraceable\w+Fields)\s*=\s*withLegacy\w+Order\(\[([\s\S]*?)\]\);/g),
+      legacySource.matchAll(/const\s+(legacyUntraceable\w+Fields)\s*=\s*withLegacy\w+Order\(\[([\s\S]*?)\]\);/g),
     );
 
     expect(untraceableTemplates).toHaveLength(9);
@@ -30,7 +32,7 @@ describe('VerificationForm legacy parity guards', () => {
       'Refused to Guide Address',
     ];
 
-    const optionBlocks = Array.from(source.matchAll(/callRemarkUntraceable:\s*\[([\s\S]*?)\]/g));
+    const optionBlocks = Array.from(legacySource.matchAll(/callRemarkUntraceable:\s*\[([\s\S]*?)\]/g));
     expect(optionBlocks.length).toBeGreaterThan(0);
 
     for (const [, block] of optionBlocks) {
@@ -39,7 +41,7 @@ describe('VerificationForm legacy parity guards', () => {
   });
 
   it('keeps APF outcome map strictly limited to allowed outcomes', () => {
-    const apfMapMatch = source.match(
+    const apfMapMatch = legacySource.match(
       /const\s+legacyPropertyApfFieldsByOutcome[\s\S]*?=\s*\{([\s\S]*?)\};/,
     );
     expect(apfMapMatch).not.toBeNull();
@@ -54,7 +56,7 @@ describe('VerificationForm legacy parity guards', () => {
   });
 
   it('keeps Property Individual map free of unreachable SHIFTED entry', () => {
-    const mapMatch = source.match(
+    const mapMatch = legacySource.match(
       /const\s+legacyPropertyIndividualFieldsByOutcome[\s\S]*?=\s*\{([\s\S]*?)\};/,
     );
     expect(mapMatch).not.toBeNull();
@@ -68,9 +70,9 @@ describe('VerificationForm legacy parity guards', () => {
   });
 
   it('has explicit coercion warning path (not silent fallback)', () => {
-    expect(source).toMatch(/type\s+OutcomeCoercionResult[\s\S]*warning:\s*string\s*\|\s*null/);
-    expect(source).toMatch(/Outcome "\$\{rawValue\}" is invalid for/);
-    expect(source).toMatch(/Logger\.warn\('VerificationFormScreen',\s*'Outcome was coerced/);
-    expect(source).toMatch(/setOutcomeWarning\(/);
+    expect(legacySource).toMatch(/type\s+OutcomeCoercionResult[\s\S]*warning:\s*string\s*\|\s*null/);
+    expect(legacySource).toMatch(/Outcome "\$\{rawValue\}" is invalid for/);
+    expect(screenSource).toMatch(/Logger\.warn\('VerificationFormScreen',\s*'Outcome was coerced/);
+    expect(screenSource).toMatch(/setOutcomeWarning\(/);
   });
 });

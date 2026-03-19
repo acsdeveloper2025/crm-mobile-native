@@ -4,6 +4,7 @@ import type { UserProfile } from '../types/api';
 import { Logger } from '../utils/logger';
 import { SyncService } from '../services/SyncService';
 import { notificationService } from '../services/NotificationService';
+import { DataCleanupService } from '../services/DataCleanupService';
 
 const TAG = 'AuthContext';
 
@@ -73,6 +74,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(profile);
 
         SyncService.startPeriodicSync();
+        DataCleanupService.initializeAutoCleanup().catch(error => {
+          Logger.warn(TAG, 'Auto-cleanup initialization failed', error);
+        });
 
         notificationService.registerCurrentDevice().catch(error => {
           Logger.warn(TAG, 'Notification device registration after auth restore failed', error);
@@ -109,6 +113,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setIsAuthenticated(true);
       setUser(profile);
       SyncService.startPeriodicSync();
+      DataCleanupService.initializeAutoCleanup().catch(error => {
+        Logger.warn(TAG, 'Auto-cleanup initialization failed', error);
+      });
       notificationService.registerCurrentDevice().catch(error => {
         Logger.warn(TAG, 'Notification device registration after login failed', error);
       });
