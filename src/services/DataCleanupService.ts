@@ -2,11 +2,13 @@ import { Logger } from '../utils/logger';
 import RNFS from 'react-native-fs';
 import { KeyValueRepository } from '../repositories/KeyValueRepository';
 import { DataCleanupRepository } from '../repositories/DataCleanupRepository';
+import { ProjectionUpdater } from '../projections/ProjectionUpdater';
 
 const TAG = 'DataCleanupService';
 const AUTO_CLEANUP_ENABLED_KEY = 'auto_cleanup_enabled';
 const LAST_CLEANUP_DATE_KEY = 'last_cleanup_date';
 const RETENTION_DAYS = 45;
+const ATTACHMENT_CACHE_DIR = `${RNFS.CachesDirectoryPath}/attachments`;
 
 export interface CleanupResult {
   success: boolean;
@@ -109,6 +111,7 @@ export class DataCleanupService {
       }
 
       if (result.errors.length > 0) result.success = false;
+      await ProjectionUpdater.rebuildDashboard();
 
     } catch (err: any) {
       result.success = false;
@@ -124,16 +127,9 @@ export class DataCleanupService {
    */
   static async clearCacheAndSync(): Promise<void> {
     try {
-      const attachments = await DataCleanupRepository.listAllAttachments();
-      for (const att of attachments) {
-         if (att.localPath && await RNFS.exists(att.localPath)) {
-            await RNFS.unlink(att.localPath);
-         }
-         if (att.thumbnailPath && await RNFS.exists(att.thumbnailPath)) {
-            await RNFS.unlink(att.thumbnailPath);
-         }
-      }
+      await this.clearAttachmentCache();
       await DataCleanupRepository.clearCacheAndSyncTables();
+      await ProjectionUpdater.rebuildAll();
     } catch (error: any) {
       Logger.error(TAG, 'Error clearing cache', error);
       throw error;
@@ -146,20 +142,28 @@ export class DataCleanupService {
   static async clearAttachmentCache(): Promise<{ deleted: number, size: number }> {
     let deletedFiles = 0;
     let deletedSize = 0;
+    const cutoff = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000;
     try {
-      const attachments = await DataCleanupRepository.listAllAttachments();
+      const exists = await RNFS.exists(ATTACHMENT_CACHE_DIR);
+      if (!exists) {
+        return { deleted: 0, size: 0 };
+      }
 
-      for (const att of attachments) {
-        if (att.localPath && await RNFS.exists(att.localPath)) {
-          const stat = await RNFS.stat(att.localPath);
-          deletedSize += stat.size;
-          await RNFS.unlink(att.localPath);
-          deletedFiles++;
+      const entries = await RNFS.readDir(ATTACHMENT_CACHE_DIR);
+      for (const entry of entries) {
+        if (!entry.isFile()) {
+          continue;
         }
-        if (att.thumbnailPath && await RNFS.exists(att.thumbnailPath)) {
-          await RNFS.unlink(att.thumbnailPath);
+
+        const stats = await RNFS.stat(entry.path);
+        const modifiedAt = stats.mtime ? new Date(stats.mtime).getTime() : 0;
+        if (modifiedAt && modifiedAt > cutoff) {
+          continue;
         }
-        await DataCleanupRepository.deleteAttachmentById(att.id);
+
+        deletedFiles++;
+        deletedSize += stats.size || 0;
+        await RNFS.unlink(entry.path);
       }
     } catch (err) {
       Logger.error(TAG, 'Error clearing attachments cache', err);

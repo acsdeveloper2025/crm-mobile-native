@@ -5,7 +5,25 @@ class DataCleanupRepositoryClass {
     const rows = await DatabaseService.query<{ id: string }>(
       `SELECT id FROM tasks
        WHERE (updated_at < ? OR completed_at < ?)
-       AND status IN ('COMPLETED', 'REVOKED')`,
+       AND status IN ('COMPLETED', 'REVOKED')
+       AND sync_status = 'SYNCED'
+       AND NOT EXISTS (
+         SELECT 1 FROM attachments
+         WHERE task_id = tasks.id
+           AND sync_status != 'SYNCED'
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM form_submissions
+         WHERE task_id = tasks.id
+           AND sync_status != 'SYNCED'
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM sync_queue
+         WHERE entity_id = tasks.id
+            OR json_extract(payload_json, '$.localTaskId') = tasks.id
+            OR json_extract(payload_json, '$.taskId') = tasks.id
+            OR json_extract(payload_json, '$.visitId') = tasks.id
+       )`,
       [cutoffIso, cutoffIso],
     );
     return rows.map(row => row.id);
@@ -35,6 +53,8 @@ class DataCleanupRepositoryClass {
       );
       await tx.executeSql(`DELETE FROM key_value_store WHERE key LIKE ?`, [`auto_save_${taskId}%`]);
       await tx.executeSql(`DELETE FROM tasks WHERE id = ?`, [taskId]);
+      await tx.executeSql(`DELETE FROM task_list_projection WHERE id = ?`, [taskId]);
+      await tx.executeSql(`DELETE FROM task_detail_projection WHERE id = ?`, [taskId]);
     });
   }
 
@@ -46,12 +66,10 @@ class DataCleanupRepositoryClass {
 
   async clearCacheAndSyncTables(): Promise<void> {
     await DatabaseService.transaction(async tx => {
-      await tx.executeSql('DELETE FROM sync_queue');
-      await tx.executeSql('DELETE FROM form_submissions');
-      await tx.executeSql('DELETE FROM attachments');
-      await tx.executeSql('DELETE FROM locations');
-      await tx.executeSql('DELETE FROM tasks');
       await tx.executeSql('DELETE FROM form_templates');
+      await tx.executeSql('DELETE FROM task_list_projection');
+      await tx.executeSql('DELETE FROM task_detail_projection');
+      await tx.executeSql('DELETE FROM dashboard_projection');
       await tx.executeSql(`DELETE FROM key_value_store WHERE key LIKE 'auto_save_%'`);
     });
   }

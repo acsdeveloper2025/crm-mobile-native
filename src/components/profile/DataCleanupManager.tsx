@@ -26,7 +26,7 @@ export const DataCleanupManager = () => {
   const handleManualCleanup = async () => {
     Alert.alert(
       'Manual Cleanup',
-      'This will delete tasks and attachments older than 45 days. Proceed?',
+      'This will delete completed or revoked cases older than 45 days that are already synced. Proceed?',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -58,7 +58,7 @@ export const DataCleanupManager = () => {
   const handleClearCacheAndSync = () => {
     Alert.alert(
       'Clear Cache & Sync',
-      'This will delete ALL local tasks/attachments and fetch fresh data from the server. Unsynced work will be lost. Proceed?',
+      'This will clear cached lists/templates and refresh from the server. Tasks within the last 45 days are preserved.',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -88,7 +88,7 @@ export const DataCleanupManager = () => {
   const handleClearAttachmentCache = () => {
     Alert.alert(
       'Clear Offline Attachments',
-      'This will delete all offline downloaded photos to free up space.',
+      'This will delete cached attachment downloads older than 45 days to free up space.',
       [
         { text: 'Cancel', style: 'cancel' },
         { 
@@ -114,7 +114,7 @@ export const DataCleanupManager = () => {
     <View style={[styles.container, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>Data Management</Text>
       <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
-        Manage your local storage and sync preferences. Automatic cleanup runs daily to remove cases older than 45 days.
+        Manage your local storage and sync preferences. Cleanup never removes data newer than 45 days.
       </Text>
 
       <View style={styles.toggleRow}>
