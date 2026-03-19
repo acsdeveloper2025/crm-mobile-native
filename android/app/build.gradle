@@ -61,7 +61,8 @@ def enableProguardInReleaseBuilds = (project.findProperty("enableProguardInRelea
 def googleMapsApiKey = project.findProperty("GOOGLE_MAPS_API_KEY") ?: ""
 def vectorIconsConfig = project.hasProperty("vectoricons") ? project.vectoricons : [:]
 def vectorIconFontsDir = vectorIconsConfig.iconFontsDir ?: "../../node_modules/react-native-vector-icons/Fonts"
-def vectorIconFontNames = vectorIconsConfig.iconFontNames ?: ["*.ttf"]
+// The app imports Ionicons only, so avoid bundling the full icon-font set.
+def vectorIconFontNames = vectorIconsConfig.iconFontNames ?: ["Ionicons.ttf"]
 def appDebugKeystore = file('debug.keystore')
 def userDebugKeystore = new File(System.getProperty("user.home"), ".android/debug.keystore")
 def debugKeystoreFile = appDebugKeystore.exists() ? appDebugKeystore : userDebugKeystore
@@ -72,7 +73,8 @@ if (hasReleaseKeystore) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 def debugAbiFilters = ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
-def releaseAbiFilters = ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
+// Publish a single production APK for the dominant device architecture to keep size down.
+def releaseAbiFilters = ["arm64-v8a"]
 def isReleaseTask = gradle.startParameter.taskNames.any { it.toLowerCase().contains("release") }
 def targetAbiFilters = isReleaseTask ? releaseAbiFilters : debugAbiFilters
 def defaultAbiSplitsEnabled = !gradle.startParameter.taskNames.any { it.toLowerCase().contains("bundle") }
@@ -116,7 +118,7 @@ android {
         abi {
             enable abiSplitsEnabled
             reset()
-            universalApk abiSplitsEnabled
+            universalApk false
             if (abiSplitsEnabled) {
                 include(*targetAbiFilters)
             }
