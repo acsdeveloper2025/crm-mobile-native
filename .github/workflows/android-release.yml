@@ -199,19 +199,19 @@ jobs:
           set -euo pipefail
           VERSION="${{ needs.detect.outputs.version_name }}"
           mkdir -p release-artifacts
-          test -f android/app/build/outputs/apk/release/app-arm64-v8a-release.apk
-          cp android/app/build/outputs/apk/release/app-arm64-v8a-release.apk \
-            "release-artifacts/crm-mobile-native-v${VERSION}-arm64-v8a.apk"
-          sha256sum "release-artifacts/crm-mobile-native-v${VERSION}-arm64-v8a.apk" \
-            > "release-artifacts/crm-mobile-native-v${VERSION}-arm64-v8a.apk.sha256"
+          test -f android/app/build/outputs/apk/release/app-universal-release.apk
+          cp android/app/build/outputs/apk/release/app-universal-release.apk \
+            "release-artifacts/crm-mobile-native-v${VERSION}.apk"
+          sha256sum "release-artifacts/crm-mobile-native-v${VERSION}.apk" \
+            > "release-artifacts/crm-mobile-native-v${VERSION}.apk.sha256"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: apk-release
           path: |
-            release-artifacts/crm-mobile-native-v${{ needs.detect.outputs.version_name }}-arm64-v8a.apk
-            release-artifacts/crm-mobile-native-v${{ needs.detect.outputs.version_name }}-arm64-v8a.apk.sha256
+            release-artifacts/crm-mobile-native-v${{ needs.detect.outputs.version_name }}.apk
+            release-artifacts/crm-mobile-native-v${{ needs.detect.outputs.version_name }}.apk.sha256
 
   build-aab:
     runs-on: ubuntu-latest

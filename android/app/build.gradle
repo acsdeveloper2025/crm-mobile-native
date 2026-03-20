@@ -73,8 +73,8 @@ if (hasReleaseKeystore) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 def debugAbiFilters = ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
-// Publish a single production APK for the dominant device architecture to keep size down.
-def releaseAbiFilters = ["arm64-v8a"]
+// Publish a universal production APK so it installs on a wider range of devices.
+def releaseAbiFilters = debugAbiFilters
 def isReleaseTask = gradle.startParameter.taskNames.any { it.toLowerCase().contains("release") }
 def targetAbiFilters = isReleaseTask ? releaseAbiFilters : debugAbiFilters
 def defaultAbiSplitsEnabled = !gradle.startParameter.taskNames.any { it.toLowerCase().contains("bundle") }
@@ -118,7 +118,7 @@ android {
         abi {
             enable abiSplitsEnabled
             reset()
-            universalApk false
+            universalApk true
             if (abiSplitsEnabled) {
                 include(*targetAbiFilters)
             }
