@@ -199,7 +199,8 @@ gradle.projectsEvaluated {
                 if (matcher.find()) {
                     def sourceDir = matcher.group(1)
                     def buildTarget = matcher.group(2)
-                    if (!file(sourceDir).exists()) {
+                    def isGeneratedCodegenDir = sourceDir.contains("/build/generated/source/codegen/jni")
+                    if (!file(sourceDir).exists() && !isGeneratedCodegenDir) {
                         if (buildTarget.endsWith("_autolinked_build")) {
                             missingAutolinkTargets << "react_codegen_${buildTarget - '_autolinked_build'}"
                         }

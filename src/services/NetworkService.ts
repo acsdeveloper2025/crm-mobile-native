@@ -1,9 +1,9 @@
 // NetworkService - Online/offline detection
 // Central service for monitoring network connectivity
 
-import type {
-  NetInfoState,
-  NetInfoSubscription,
+import NetInfo, {
+  type NetInfoState,
+  type NetInfoSubscription,
 } from '@react-native-community/netinfo';
 import { Logger } from '../utils/logger';
 
@@ -16,65 +16,7 @@ class NetworkServiceClass {
   private connectionType: string = 'unknown';
   private subscribers: NetworkChangeCallback[] = [];
   private unsubscribeNetInfo: NetInfoSubscription | null = null;
-  private netInfoModule: {
-    addEventListener: (listener: (state: NetInfoState) => void) => NetInfoSubscription;
-    fetch: () => Promise<NetInfoState>;
-  } | null = null;
   private netInfoUnavailable = false;
-
-  private getNetInfoModule() {
-    if (this.netInfoModule || this.netInfoUnavailable) {
-      return this.netInfoModule;
-    }
-
-    try {
-      const {
-        NativeEventEmitter,
-        NativeModules,
-        TurboModuleRegistry,
-      } = require('react-native') as typeof import('react-native');
-      const nativeNetInfo =
-        TurboModuleRegistry?.get?.('RNCNetInfo') ?? NativeModules?.RNCNetInfo;
-
-      if (!nativeNetInfo) {
-        this.netInfoUnavailable = true;
-        Logger.warn(TAG, 'NetInfo native module unavailable. Falling back to optimistic online mode.');
-        return null;
-      }
-
-      const eventEmitter = new NativeEventEmitter(nativeNetInfo);
-      this.netInfoModule = {
-        addEventListener: (listener: (state: NetInfoState) => void) => {
-          const subscription = eventEmitter.addListener(
-            'netInfo.networkStatusDidChange',
-            (state: NetInfoState) => listener(this.normalizeState(state)),
-          );
-
-          nativeNetInfo
-            .getCurrentState?.()
-            .then((state: NetInfoState) => listener(this.normalizeState(state)))
-            .catch((error: unknown) => {
-              Logger.warn(TAG, 'Initial NetInfo state fetch failed', error);
-            });
-
-          return () => subscription.remove();
-        },
-        fetch: async () => {
-          const state = await nativeNetInfo.getCurrentState?.();
-          return this.normalizeState(state);
-        },
-      };
-      return this.netInfoModule;
-    } catch (error) {
-      this.netInfoUnavailable = true;
-      Logger.warn(
-        TAG,
-        'NetInfo native module unavailable. Falling back to optimistic online mode.',
-        error,
-      );
-      return null;
-    }
-  }
 
   private normalizeState(state: Partial<NetInfoState> | null | undefined): NetInfoState {
     const isConnected = state?.isConnected ?? null;
@@ -92,29 +34,40 @@ class NetworkServiceClass {
    * Start monitoring network connectivity
    */
   initialize(): void {
-    const netInfo = this.getNetInfoModule();
-
-    if (!netInfo) {
+    if (this.netInfoUnavailable) {
       this.isOnline = true;
       this.connectionType = 'unknown';
       return;
     }
 
-    this.unsubscribeNetInfo = netInfo.addEventListener(
-      (state: NetInfoState) => {
+    try {
+      this.unsubscribeNetInfo = NetInfo.addEventListener((state: NetInfoState) => {
+        const normalizedState = this.normalizeState(state);
         const wasOnline = this.isOnline;
-        this.isOnline = state.isConnected === true && state.isInternetReachable !== false;
-        this.connectionType = state.type;
+        this.isOnline =
+          normalizedState.isConnected === true &&
+          normalizedState.isInternetReachable !== false;
+        this.connectionType = normalizedState.type;
 
         if (wasOnline !== this.isOnline) {
           Logger.info(
             TAG,
-            `Network status changed: ${this.isOnline ? 'ONLINE' : 'OFFLINE'} (${state.type})`,
+            `Network status changed: ${this.isOnline ? 'ONLINE' : 'OFFLINE'} (${normalizedState.type})`,
           );
           this.notifySubscribers();
         }
-      },
-    );
+      });
+    } catch (error) {
+      this.netInfoUnavailable = true;
+      this.isOnline = true;
+      this.connectionType = 'unknown';
+      Logger.warn(
+        TAG,
+        'NetInfo initialization failed. Falling back to optimistic online mode.',
+        error,
+      );
+      return;
+    }
 
     Logger.info(TAG, 'Network monitoring initialized');
   }
@@ -151,15 +104,24 @@ class NetworkServiceClass {
    * Force-check the current network state
    */
   async checkConnection(): Promise<boolean> {
-    const netInfo = this.getNetInfoModule();
-
-    if (!netInfo) {
+    if (this.netInfoUnavailable) {
       return this.isOnline;
     }
 
-    const state = await netInfo.fetch();
-    this.isOnline = state.isConnected === true && state.isInternetReachable !== false;
-    this.connectionType = state.type;
+    try {
+      const state = this.normalizeState(await NetInfo.fetch());
+      this.isOnline = state.isConnected === true && state.isInternetReachable !== false;
+      this.connectionType = state.type;
+    } catch (error) {
+      this.netInfoUnavailable = true;
+      this.isOnline = true;
+      this.connectionType = 'unknown';
+      Logger.warn(
+        TAG,
+        'NetInfo fetch failed. Falling back to optimistic online mode.',
+        error,
+      );
+    }
     return this.isOnline;
   }
 
