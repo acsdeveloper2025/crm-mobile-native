@@ -8,6 +8,8 @@ import com.facebook.react.ReactNativeHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
+import com.facebook.react.internal.featureflags.ReactNativeFeatureFlags
+import com.facebook.react.internal.featureflags.ReactNativeNewArchitectureFeatureFlagsDefaults
 
 class MainApplication : Application(), ReactApplication {
 
@@ -34,5 +36,10 @@ class MainApplication : Application(), ReactApplication {
   override fun onCreate() {
     super.onCreate()
     loadReactNative(this)
+    ReactNativeFeatureFlags.dangerouslyForceOverride(
+      object : ReactNativeNewArchitectureFeatureFlagsDefaults() {
+        override fun disableMountItemReorderingAndroid(): Boolean = true
+      }
+    )
   }
 }

@@ -91,6 +91,7 @@ ios/.xcode.env.local
 *.orig
 *.tmp
 *.swp
+release-artifacts/
 
 # Temporary files created by Metro to check the health of the file watcher
 .metro-health-check*

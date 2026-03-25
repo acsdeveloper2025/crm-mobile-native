@@ -111,25 +111,95 @@ index 7815576..f5e3cd4 100644
  module.exports = {
    dependency: {
      platforms: {
--      android: {
--        componentDescriptors: [
--          "RNSFullWindowOverlayComponentDescriptor",
--          "RNSScreenContainerComponentDescriptor",
--          "RNSScreenNavigationContainerComponentDescriptor",
--          "RNSScreenStackHeaderConfigComponentDescriptor",
--          "RNSScreenStackHeaderSubviewComponentDescriptor",
--          "RNSScreenStackComponentDescriptor",
--          "RNSSearchBarComponentDescriptor",
--          'RNSScreenComponentDescriptor',
--          "RNSScreenFooterComponentDescriptor",
--          "RNSScreenContentWrapperComponentDescriptor",
--          'RNSModalScreenComponentDescriptor',
--          'RNSTabsHostComponentDescriptor',
--          'RNSSafeAreaViewComponentDescriptor'
--        ],
--        cmakeListsPath: "../android/src/main/jni/CMakeLists.txt"
--      },
-+      android: {},
+ -      android: {
+ -        componentDescriptors: [
+ -          "RNSFullWindowOverlayComponentDescriptor",
+ -          "RNSScreenContainerComponentDescriptor",
+ -          "RNSScreenNavigationContainerComponentDescriptor",
+ -          "RNSScreenStackHeaderConfigComponentDescriptor",
+ -          "RNSScreenStackHeaderSubviewComponentDescriptor",
+ -          "RNSScreenStackComponentDescriptor",
+ -          "RNSSearchBarComponentDescriptor",
+ -          'RNSScreenComponentDescriptor',
+ -          "RNSScreenFooterComponentDescriptor",
+ -          "RNSScreenContentWrapperComponentDescriptor",
+ -          'RNSModalScreenComponentDescriptor',
+ -          'RNSTabsHostComponentDescriptor',
+ -          'RNSSafeAreaViewComponentDescriptor'
+ -        ],
+ -        cmakeListsPath: "../android/src/main/jni/CMakeLists.txt"
+ -      },
+ +      android: {},
      },
    },
  };
+diff --git a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/Screen.kt b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/Screen.kt
+index 0224a9e..2cbcf9a 100644
+--- a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/Screen.kt
++++ b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/Screen.kt
+@@ -423,9 +423,12 @@ class Screen(
+         reactContext.runOnNativeModulesQueueThread(
+             object : GuardedRunnable(reactContext.exceptionHandler) {
+                 override fun runGuarded() {
+-                    reactContext
+-                        .getNativeModule(UIManagerModule::class.java)
+-                        ?.updateNodeSize(id, width, height)
++                    val uiManager =
++                        runCatching {
++                            reactContext.getNativeModule(UIManagerModule::class.java)
++                        }.getOrNull()
++
++                    uiManager?.updateNodeSize(id, width, height)
+                 }
+             },
+         )
+diff --git a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/safearea/SafeAreaView.kt b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/safearea/SafeAreaView.kt
+index b61c25a..265f361 100644
+--- a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/safearea/SafeAreaView.kt
++++ b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/safearea/SafeAreaView.kt
+@@ -191,7 +191,10 @@ class SafeAreaView(
+                     edges = edges ?: SafeAreaViewEdges.ZERO,
+                 )
+             val reactContext = getReactContext(this)
+-            val uiManager = reactContext.getNativeModule(UIManagerModule::class.java)
++            val uiManager =
++                runCatching {
++                    reactContext.getNativeModule(UIManagerModule::class.java)
++                }.getOrNull()
+             if (uiManager != null) {
+                 uiManager.setViewLocalData(id, localData)
+                 // Sadly there doesn't seem to be a way to properly dirty a yoga node from java, so
+diff --git a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreensShadowNode.kt b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreensShadowNode.kt
+index 9a7d10f..66d5cb0 100644
+--- a/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreensShadowNode.kt
++++ b/node_modules/react-native-screens/android/src/main/java/com/swmansion/rnscreens/ScreensShadowNode.kt
+@@ -10,7 +10,11 @@ internal class ScreensShadowNode(
+ ) : LayoutShadowNode() {
+     override fun onBeforeLayout(nativeViewHierarchyOptimizer: NativeViewHierarchyOptimizer) {
+         super.onBeforeLayout(nativeViewHierarchyOptimizer)
+-        (context.getNativeModule(UIManagerModule::class.java))?.addUIBlock { nativeViewHierarchyManager: NativeViewHierarchyManager? ->
++        val uiManager =
++            runCatching {
++                context.getNativeModule(UIManagerModule::class.java)
++            }.getOrNull()
++        uiManager?.addUIBlock { nativeViewHierarchyManager: NativeViewHierarchyManager? ->
+             if (nativeViewHierarchyManager == null) {
+                 return@addUIBlock
+             }
+diff --git a/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/FabricEnabledHeaderConfigViewGroup.kt b/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/FabricEnabledHeaderConfigViewGroup.kt
+index 7583109..f32af3d 100644
+--- a/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/FabricEnabledHeaderConfigViewGroup.kt
++++ b/node_modules/react-native-screens/android/src/paper/java/com/swmansion/rnscreens/FabricEnabledHeaderConfigViewGroup.kt
+@@ -45,6 +45,11 @@ abstract class FabricEnabledHeaderConfigViewGroup(
+         lastHeight = height
+ 
+         val reactContext = context as? ReactContext
+-        val uiManagerModule = reactContext?.getNativeModule(UIManagerModule::class.java)
++        val uiManagerModule =
++            reactContext?.let {
++                runCatching {
++                    it.getNativeModule(UIManagerModule::class.java)
++                }.getOrNull()
++            }
+         uiManagerModule?.setViewLocalData(this.id, PaddingBundle(height.toFloat(), paddingStart.toFloat(), paddingEnd.toFloat()))
+     }

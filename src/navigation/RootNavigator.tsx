@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -29,6 +29,12 @@ import { useTheme } from '../context/ThemeContext';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+const getCameraScreenOptions = (): NativeStackNavigationOptions => ({
+  headerShown: false,
+  presentation: Platform.OS === 'ios' ? 'fullScreenModal' : 'card',
+  animation: Platform.OS === 'ios' ? 'default' : 'fade',
+});
 
 const TabBarIcon = ({ route, focused, color, size }: any) => {
   let iconName = 'list';
@@ -184,12 +190,12 @@ export const RootNavigator = () => {
             <Stack.Screen 
               name="CameraCapture" 
               component={CameraCaptureScreen} 
-              options={{ headerShown: false, presentation: 'fullScreenModal' }} 
+              options={getCameraScreenOptions()} 
             />
             <Stack.Screen 
               name="WatermarkPreview" 
               component={WatermarkPreviewScreen} 
-              options={{ headerShown: false, presentation: 'fullScreenModal' }} 
+              options={getCameraScreenOptions()} 
             />
             <Stack.Screen 
               name="VerificationForm" 
@@ -214,7 +220,7 @@ export const RootNavigator = () => {
             <Stack.Screen
               name="ProfilePhotoCapture"
               component={ProfilePhotoCaptureScreen}
-              options={{ headerShown: false, presentation: 'fullScreenModal' }}
+              options={getCameraScreenOptions()}
             />
           </>
         )}
