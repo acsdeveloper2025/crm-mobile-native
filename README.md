@@ -8,7 +8,7 @@ To download the latest APK or App Bundle:
 
 1. Open the repository Releases page.
 2. Select the latest `v4.x.x` release.
-3. Download the attached `crm-mobile-native-vX.X.X-arm64-v8a.apk` or `crm-mobile-native-vX.X.X.aab` asset.
+3. Download the attached `crm-mobile-native-vX.X.X.apk` or `crm-mobile-native-vX.X.X.aab` asset.
 4. Verify the attached `.sha256` checksum file before distribution if needed.
 
 Release publishing is automated by [android-release.yml](./.github/workflows/android-release.yml).
@@ -22,7 +22,7 @@ Production releases are tag-driven.
 3. Push the tag to GitHub.
 4. GitHub Actions runs type-check, lint, a debug smoke build, release APK build, and release AAB build.
 5. The workflow publishes a GitHub Release with:
-   - `crm-mobile-native-vX.X.X-arm64-v8a.apk`
+   - `crm-mobile-native-vX.X.X.apk`
    - `crm-mobile-native-vX.X.X.aab`
    - matching `.sha256` files
 

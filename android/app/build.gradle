@@ -73,7 +73,7 @@ if (hasReleaseKeystore) {
     keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
 }
 def debugAbiFilters = ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
-// Publish a universal production APK so it installs on a wider range of devices.
+// Publish a universal production APK so one direct-download artifact works across more devices.
 def releaseAbiFilters = debugAbiFilters
 def isReleaseTask = gradle.startParameter.taskNames.any { it.toLowerCase().contains("release") }
 def targetAbiFilters = isReleaseTask ? releaseAbiFilters : debugAbiFilters
