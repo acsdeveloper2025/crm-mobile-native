@@ -289,6 +289,12 @@ gradle.projectsEvaluated {
         }
     }
 
+    tasks.matching { it.name.startsWith("configureCMakeDebug") }.configureEach {
+        doFirst {
+            sanitizeGeneratedAutolinking()
+        }
+    }
+
     tasks.matching { it.name == "generateAutolinkingNewArchitectureFiles" }.configureEach {
         doLast {
             sanitizeGeneratedAutolinking()

@@ -85,3 +85,19 @@ index 2b1309f..9777dc3 100644
        },
        macos: null,
        windows: null,
+diff --git a/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt b/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt
+index f52072c..a0da160 100644
+--- a/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt
++++ b/node_modules/react-native-safe-area-context/android/src/main/java/com/th3rdwave/safeareacontext/SafeAreaView.kt
+@@ -47,7 +47,10 @@ class SafeAreaView(context: Context?) :
+       } else {
+         val localData = SafeAreaViewLocalData(insets = insets, mode = mMode, edges = edges)
+         val reactContext = getReactContext(this)
+-        val uiManager = reactContext.getNativeModule(UIManagerModule::class.java)
++        val uiManager =
++            runCatching {
++              reactContext.getNativeModule(UIManagerModule::class.java)
++            }.getOrNull()
+         if (uiManager != null) {
+           uiManager.setViewLocalData(id, localData)
+           // Sadly there doesn't seem to be a way to properly dirty a yoga node from java, so if we
