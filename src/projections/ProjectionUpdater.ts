@@ -318,20 +318,23 @@ class ProjectionUpdaterClass {
   }
 
   async rebuildDashboard(shouldNotify: boolean = true): Promise<void> {
-    await DatabaseService.execute('DELETE FROM dashboard_projection WHERE id = 1');
-    await DatabaseService.execute(
-      `INSERT INTO dashboard_projection
-       SELECT
-         1,
-         COALESCE(SUM(CASE WHEN status = 'ASSIGNED' AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
-         COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
-         COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END), 0),
-         COALESCE(SUM(CASE WHEN is_saved = 1 AND status != 'COMPLETED' THEN 1 ELSE 0 END), 0),
-         COALESCE(SUM(CASE WHEN (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
-         (SELECT last_download_sync_at FROM sync_metadata WHERE id = 1),
-         CURRENT_TIMESTAMP
-       FROM tasks`,
-    );
+    // Wrap in transaction so dashboard is never empty between DELETE and INSERT
+    await DatabaseService.transaction(async (tx) => {
+      await tx.executeSql('DELETE FROM dashboard_projection WHERE id = 1');
+      await tx.executeSql(
+        `INSERT INTO dashboard_projection
+         SELECT
+           1,
+           COALESCE(SUM(CASE WHEN status = 'ASSIGNED' AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
+           COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
+           COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END), 0),
+           COALESCE(SUM(CASE WHEN is_saved = 1 AND status != 'COMPLETED' THEN 1 ELSE 0 END), 0),
+           COALESCE(SUM(CASE WHEN (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
+           (SELECT last_download_sync_at FROM sync_metadata WHERE id = 1),
+           CURRENT_TIMESTAMP
+         FROM tasks`,
+      );
+    });
     if (shouldNotify) {
       this.notify({ type: 'dashboard' });
     }

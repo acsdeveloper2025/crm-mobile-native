@@ -59,8 +59,18 @@ class MaintenanceRepositoryClass {
     );
   }
 
+  /** Whitelist of tables safe to bulk-clear during maintenance */
+  private static readonly CLEARABLE_TABLES = new Set([
+    'tasks', 'attachments', 'locations', 'form_submissions', 'form_templates',
+    'sync_queue', 'sync_metadata', 'audit_log', 'notifications', 'key_value_store',
+    'task_list_projection', 'task_detail_projection', 'dashboard_projection',
+  ]);
+
   async clearAllTables(tableNames: string[]): Promise<void> {
     for (const table of tableNames) {
+      if (!MaintenanceRepositoryClass.CLEARABLE_TABLES.has(table)) {
+        throw new Error(`Table "${table}" is not allowed for bulk clear`);
+      }
       await DatabaseService.execute(`DELETE FROM ${table}`);
     }
   }
