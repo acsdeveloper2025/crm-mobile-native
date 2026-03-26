@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useEffect, useRef, useState } from 'react';
+import { NavigationContainer, type NavigationContainerRef } from '@react-navigation/native';
 import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import messaging from '@react-native-firebase/messaging';
 
 import Icon from 'react-native-vector-icons/Ionicons';
 
@@ -117,11 +118,37 @@ const MainTabs = () => {
   );
 };
 
+// Exported navigation ref for use outside React tree (e.g., notification handlers)
+export const navigationRef = React.createRef<NavigationContainerRef<Record<string, unknown>>>();
+
 export const RootNavigator = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const { theme } = useTheme();
-  
+  const isNavigationReady = useRef(false);
+
   const [versionResult, setVersionResult] = useState<UpdateInfo | null>(null);
+
+  // Handle push notification taps — navigate to TaskDetail when user taps a notification
+  useEffect(() => {
+    // Handle notification that opened the app from quit state
+    messaging()
+      .getInitialNotification()
+      .then(remoteMessage => {
+        if (remoteMessage?.data?.taskId && isNavigationReady.current) {
+          navigationRef.current?.navigate('TaskDetail' as never, { taskId: remoteMessage.data.taskId } as never);
+        }
+      })
+      .catch(err => Logger.warn('RootNavigator', 'getInitialNotification failed', err));
+
+    // Handle notification taps when app is in background
+    const unsubscribe = messaging().onNotificationOpenedApp(remoteMessage => {
+      if (remoteMessage?.data?.taskId && isNavigationReady.current) {
+        navigationRef.current?.navigate('TaskDetail' as never, { taskId: remoteMessage.data.taskId } as never);
+      }
+    });
+
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -171,7 +198,7 @@ export const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef} onReady={() => { isNavigationReady.current = true; }}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={LoginScreen} />
