@@ -11,12 +11,17 @@ const TAG = 'NetworkService';
 
 type NetworkChangeCallback = (isOnline: boolean) => void;
 
+// Debounce network state changes to prevent rapid sync triggers
+// from WiFi/cellular handoffs (common on field devices)
+const NETWORK_DEBOUNCE_MS = 3000;
+
 class NetworkServiceClass {
   private isOnline = true;
   private connectionType: string = 'unknown';
   private subscribers: NetworkChangeCallback[] = [];
   private unsubscribeNetInfo: NetInfoSubscription | null = null;
   private netInfoUnavailable = false;
+  private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
   private normalizeState(state: Partial<NetInfoState> | null | undefined): NetInfoState {
     const isConnected = state?.isConnected ?? null;
@@ -54,7 +59,14 @@ class NetworkServiceClass {
             TAG,
             `Network status changed: ${this.isOnline ? 'ONLINE' : 'OFFLINE'} (${normalizedState.type})`,
           );
-          this.notifySubscribers();
+          // Debounce to prevent rapid sync triggers from WiFi/cellular handoffs
+          if (this.debounceTimer) {
+            clearTimeout(this.debounceTimer);
+          }
+          this.debounceTimer = setTimeout(() => {
+            this.debounceTimer = null;
+            this.notifySubscribers();
+          }, NETWORK_DEBOUNCE_MS);
         }
       });
     } catch (error) {
@@ -129,6 +141,10 @@ class NetworkServiceClass {
    * Stop monitoring
    */
   destroy(): void {
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
     if (this.unsubscribeNetInfo) {
       this.unsubscribeNetInfo();
       this.unsubscribeNetInfo = null;
