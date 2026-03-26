@@ -74,8 +74,8 @@ export const ProfilePhotoCaptureScreen = ({ navigation }: any) => {
 
       await updateProfilePhoto(`file://${destPath}`);
       navigation.goBack();
-    } catch (err: any) {
-      Alert.alert('Capture Error', err?.message || 'Failed to capture photo.');
+    } catch (err: unknown) {
+      Alert.alert('Capture Error', err instanceof Error ? err.message : String(err) || 'Failed to capture photo.');
     } finally {
       setIsCapturing(false);
     }

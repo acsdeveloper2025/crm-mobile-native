@@ -192,12 +192,12 @@ class SyncEngineClass {
         conflicts,
         errors,
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       Logger.error(TAG, 'Sync failed', error);
-      errors.push(error?.message || 'Unknown sync error');
+      errors.push(error instanceof Error ? error.message : String(error) || 'Unknown sync error');
       SyncHealthService.recordCycleResult(Date.now() - startedAt, false);
       MobileTelemetryService.trackSyncError('sync_cycle_failed', {
-        message: error?.message || 'Unknown sync error',
+        message: error instanceof Error ? error.message : String(error) || 'Unknown sync error',
         uploadedItems,
         downloadedTasks,
         conflicts,

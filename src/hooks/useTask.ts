@@ -46,11 +46,11 @@ export const useTask = (taskId: string) => {
       if (!ProjectionStore.getTaskSnapshot(taskId)) {
         setError('Task not found');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       Logger.error(TAG, `Failed to fetch task ${taskId}`, err);
       if (requestId === requestIdRef.current) {
         setLocations([]);
-        setError(err?.message || 'An error occurred fetching the task');
+        setError(err instanceof Error ? err.message : String(err) || 'An error occurred fetching the task');
       }
     } finally {
       if (requestId === requestIdRef.current) {
