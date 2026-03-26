@@ -6,6 +6,7 @@ import { SyncQueueRepository } from '../repositories/SyncQueueRepository';
 import { SyncEngineRepository } from '../repositories/SyncEngineRepository';
 import { syncRetryPolicy } from '../sync/SyncRetryPolicy';
 import { inferOperationType, priorityForOperationType } from '../sync/SyncOperationLog';
+import { StorageService } from './StorageService';
 import { Logger } from '../utils/logger';
 import type { SyncQueueItem } from '../types/mobile';
 
@@ -55,6 +56,23 @@ class SyncQueueClass {
     payload: Record<string, unknown>,
     priority: number = SYNC_PRIORITY.NORMAL,
   ): Promise<string> {
+    // Enforce storage quota — reject enqueue if device storage is critically low.
+    // This prevents silent write failures that would lose data.
+    const hasSpace = await StorageService.hasEnoughSpace(50); // 50MB minimum
+    if (!hasSpace) {
+      // Run emergency cleanup of synced data to free space
+      Logger.warn(TAG, 'Low storage detected — running emergency cleanup before enqueue');
+      await StorageService.cleanupSyncedData(1); // Clean data synced 1+ day ago
+
+      // Re-check after cleanup
+      const hasSpaceAfterCleanup = await StorageService.hasEnoughSpace(10); // 10MB absolute minimum
+      if (!hasSpaceAfterCleanup) {
+        const errorMsg = 'Device storage critically low — cannot queue operation. Please free storage and try again.';
+        Logger.error(TAG, errorMsg);
+        throw new Error(errorMsg);
+      }
+    }
+
     if (entityType === 'TASK_STATUS') {
       // Keep only the latest pending status mutation per task to avoid stale regressions.
       await SyncQueueRepository.deletePendingStatusItems(entityId);
