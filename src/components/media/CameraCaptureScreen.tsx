@@ -8,7 +8,7 @@ import { Logger } from '../../utils/logger';
 
 const TAG = 'CameraCaptureScreen';
 
-export const CameraCaptureScreen = ({ route, navigation }: any) => {
+export const CameraCaptureScreen = ({ route, navigation }: { route: Record<string, unknown>; navigation: Record<string, unknown> }) => {
   const { taskId, componentType } = route.params;
   const device = useCameraDevice(componentType === 'selfie' ? 'front' : 'back');
   const camera = useRef<Camera>(null);

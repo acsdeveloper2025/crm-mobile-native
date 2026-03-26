@@ -11,8 +11,8 @@ export interface DynamicFieldProps {
     required?: boolean;
     options?: { label: string; value: string }[];
   };
-  value: any;
-  onChange: (id: string, value: any) => void;
+  value: unknown;
+  onChange: (id: string, value: unknown) => void;
   error?: string;
 }
 

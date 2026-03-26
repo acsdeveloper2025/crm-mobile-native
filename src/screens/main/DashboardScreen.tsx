@@ -16,7 +16,7 @@ export const DashboardScreen = () => {
   const TAG = 'DashboardScreen';
   const { user } = useAuth();
   const { theme, themePreference, setThemePreference } = useTheme();
-  const navigation = useNavigation<any>();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [assignedTasks, setAssignedTasks] = useState(0);

@@ -7,7 +7,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { DataCleanupManager } from '../../components/profile/DataCleanupManager';
 import { config } from '../../config';
 
-export const ProfileScreen = ({ navigation }: any) => {
+export const ProfileScreen = ({ navigation }: { navigation: Record<string, unknown> }) => {
   const { user, logout } = useAuth();
   const { theme, themePreference, setThemePreference } = useTheme();
   const [showCleanupManager, setShowCleanupManager] = useState(false);

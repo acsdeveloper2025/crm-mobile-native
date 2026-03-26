@@ -13,7 +13,7 @@ const isEmptyFieldValue = (value: unknown): boolean => {
   return false;
 };
 
-const evaluateCondition = (condition: any, values: Record<string, unknown>): boolean => {
+const evaluateCondition = (condition: Record<string, unknown>, values: Record<string, unknown>): boolean => {
   const actualValue = values[condition.field];
   const expectedValue = condition.value;
 
@@ -76,7 +76,7 @@ const isFieldRequired = (
 export interface DynamicFormBuilderProps {
   template: FormTemplate | null;
   formValues: Record<string, any>;
-  onFieldChange: (fieldId: string, value: any) => void;
+  onFieldChange: (fieldId: string, value: unknown) => void;
   validationErrors?: Record<string, string>;
 }
 

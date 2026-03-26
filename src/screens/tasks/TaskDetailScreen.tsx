@@ -15,7 +15,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { TaskTimeline } from '../../components/tasks/TaskTimeline';
 import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
 
-export const TaskDetailScreen = ({ route, navigation }: any) => {
+export const TaskDetailScreen = ({ route, navigation }: { route: Record<string, unknown>; navigation: Record<string, unknown> }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { taskId } = route.params;

@@ -5,7 +5,7 @@ interface SkeletonProps {
   width?: number | string;
   height?: number | string;
   borderRadius?: number;
-  style?: any;
+  style?: object;
 }
 
 export const SkeletonBox: React.FC<SkeletonProps> = ({ 

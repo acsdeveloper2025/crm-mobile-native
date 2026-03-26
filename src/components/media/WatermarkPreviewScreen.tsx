@@ -70,7 +70,7 @@ const resolveHighAccuracyLocation = (): Promise<PreviewLocation | null> =>
     );
   });
 
-export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
+export const WatermarkPreviewScreen = ({ route, navigation }: { route: Record<string, unknown>; navigation: Record<string, unknown> }) => {
   const { photoPath, taskId, componentType } = route.params;
   const viewShotRef = useRef<ViewShot>(null);
   const insets = useSafeAreaInsets();
@@ -157,8 +157,8 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
       } else {
         throw new Error('Database insertion failed.');
       }
-    } catch (e: any) {
-      Alert.alert('Save Error', e.message || 'Failed to capture watermark');
+    } catch (e: unknown) {
+      Alert.alert('Save Error', (e instanceof Error ? e.message : String(e)) || 'Failed to capture watermark');
       setIsSaving(false);
     }
   };

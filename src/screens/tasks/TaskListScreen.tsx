@@ -80,7 +80,7 @@ export const TaskListScreen = ({
   defaultSearchPlaceholder,
 }: any) => {
   const { theme } = useTheme();
-  const route = useRoute<any>();
+  const route = useRoute();
   const initialFilter = route.params?.filter ?? defaultFilter;
   const initialTab = FILTER_TABS.find(tab => tab.value === initialFilter) || FILTER_TABS[0];
   const lockedFilter = Boolean(route.params?.lockedFilter ?? defaultLockedFilter);

@@ -56,7 +56,7 @@ export const SafeAreaProvider: React.FC<SafeAreaProviderProps> = ({ children }) 
 
 interface SafeAreaViewProps {
   children: React.ReactNode;
-  style?: any;
+  style?: object;
   edges?: Edge[];
 }
 
@@ -74,7 +74,7 @@ export const SafeAreaView: React.FC<SafeAreaViewProps> = ({
 
 interface MobileContainerProps {
   children: React.ReactNode;
-  style?: any;
+  style?: object;
 }
 
 export const MobileContainer: React.FC<MobileContainerProps> = ({

@@ -28,7 +28,7 @@ import {
   type LegacyOutcome,
 } from './LegacyFormTemplateBuilders';
 
-export const VerificationFormScreen = ({ route, navigation }: any) => {
+export const VerificationFormScreen = ({ route, navigation }: { route: Record<string, unknown>; navigation: Record<string, unknown> }) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const {
@@ -195,7 +195,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     handleOutcomeSelect(outcome as LegacyOutcome).catch(() => {});
   };
 
-  const handleFieldChange = React.useCallback((fieldId: string, value: any) => {
+  const handleFieldChange = React.useCallback((fieldId: string, value: unknown) => {
     setFormValues(currentValues => {
       if (currentValues[fieldId] === value) {
         return currentValues;

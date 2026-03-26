@@ -21,7 +21,7 @@ import {
   RemoteTaskAttachment,
 } from '../../services/AttachmentService';
 
-export const TaskAttachmentsScreen = ({ route }: any) => {
+export const TaskAttachmentsScreen = ({ route }: { route: Record<string, unknown> }) => {
   const { theme } = useTheme();
   const { taskId, taskNumber } = route.params;
   const [remoteAttachments, setRemoteAttachments] = useState<RemoteTaskAttachment[]>([]);
