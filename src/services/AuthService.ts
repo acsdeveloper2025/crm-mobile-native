@@ -265,12 +265,35 @@ class AuthServiceClass {
   }
 
   /**
-   * Get current access token
+   * Get current access token.
+   * Proactively refreshes if token is within 2 minutes of expiry to avoid
+   * sending expired tokens and triggering unnecessary 401→refresh cycles.
    */
   async getAccessToken(): Promise<string | null> {
     if (!this.accessToken) {
       this.accessToken = await SessionStore.getAccessToken();
     }
+
+    // Proactive refresh: if token expires within 2 minutes, refresh now
+    if (this.accessToken) {
+      try {
+        const expiryStr = await this.kvGet(TOKEN_EXPIRY_KEY);
+        if (expiryStr) {
+          const expiresAt = new Date(expiryStr).getTime();
+          const twoMinutes = 2 * 60 * 1000;
+          if (Date.now() > expiresAt - twoMinutes) {
+            Logger.info(TAG, 'Token near expiry, refreshing proactively');
+            const newToken = await this.refreshAccessToken();
+            if (newToken) {
+              return newToken;
+            }
+          }
+        }
+      } catch {
+        // Non-critical: fall through with existing token
+      }
+    }
+
     return this.accessToken;
   }
 
