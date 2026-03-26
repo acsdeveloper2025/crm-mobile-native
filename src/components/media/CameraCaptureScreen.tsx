@@ -1,15 +1,18 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator, Alert } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator, Alert, Platform, AppState } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Camera, useCameraDevice, useCameraFormat } from 'react-native-vision-camera';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
+import { Logger } from '../../utils/logger';
+
+const TAG = 'CameraCaptureScreen';
 
 export const CameraCaptureScreen = ({ route, navigation }: any) => {
   const { taskId, componentType } = route.params;
   const device = useCameraDevice(componentType === 'selfie' ? 'front' : 'back');
   const camera = useRef<Camera>(null);
-  
+
   const [hasPermission, setHasPermission] = useState<boolean>(false);
   const [isActive, setIsActive] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
@@ -23,14 +26,21 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
 
   const requestPermissions = useCallback(async () => {
     setIsPreparing(true);
+    // Deactivate camera while requesting permissions — VisionCamera on real
+    // Android devices silently fails if isActive=true before permission grant.
+    setIsActive(false);
     try {
       const cameraPermission = await Camera.requestCameraPermission();
-      setHasPermission(cameraPermission === 'granted');
-      if (cameraPermission !== 'granted') {
+      const granted = cameraPermission === 'granted';
+      setHasPermission(granted);
+      Logger.info(TAG, `Camera permission: ${cameraPermission}`);
+
+      if (!granted) {
         Alert.alert('Permission needed', 'Camera permission is required to take photos.');
         navigation.goBack();
         return;
       }
+
       // Also request location so GPS coordinates are available for photo watermark
       const { LocationService } = require('../../services/LocationService');
       const locationGranted = await LocationService.requestPermissions();
@@ -41,6 +51,17 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
           [{ text: 'Continue Anyway' }]
         );
       }
+
+      // Activate camera ONLY after permission is confirmed.
+      // On real devices, a small delay lets the native camera HAL initialize.
+      if (Platform.OS === 'android') {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+      setIsActive(true);
+    } catch (err) {
+      Logger.error(TAG, 'Permission request failed', err);
+      Alert.alert('Error', 'Failed to initialize camera. Please try again.');
+      navigation.goBack();
     } finally {
       setIsPreparing(false);
     }
@@ -49,10 +70,22 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
   useFocusEffect(
     useCallback(() => {
       requestPermissions();
-      setIsActive(true);
+
+      // Handle app going to background/foreground — camera must deactivate
+      // when app is backgrounded to release the hardware resource on real devices.
+      const subscription = AppState.addEventListener('change', (nextState) => {
+        if (nextState === 'active' && hasPermission) {
+          setIsActive(true);
+        } else if (nextState === 'background' || nextState === 'inactive') {
+          setIsActive(false);
+        }
+      });
+
       return () => {
         setIsActive(false);
+        subscription.remove();
       };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [requestPermissions])
   );
 
@@ -87,7 +120,9 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#2563EB" />
-        <Text style={styles.loadingText}>Preparing camera...</Text>
+        <Text style={styles.loadingText}>
+          {!device ? 'No camera device found...' : 'Preparing camera...'}
+        </Text>
       </View>
     );
   }
@@ -101,6 +136,16 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
         isActive={isActive}
         photo={true}
         format={format}
+        onError={(error) => {
+          Logger.error(TAG, 'Camera runtime error', error);
+          Alert.alert(
+            'Camera Error',
+            `Camera encountered an error: ${error.message}. Please close and try again.`,
+          );
+        }}
+        onInitialized={() => {
+          Logger.info(TAG, 'Camera initialized successfully on device');
+        }}
       />
       
       {/* Controls Overlay */}
