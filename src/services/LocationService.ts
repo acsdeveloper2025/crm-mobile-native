@@ -23,8 +23,17 @@ export interface LocationResult {
   source: 'GPS' | 'NETWORK' | 'PASSIVE';
 }
 
+// Adaptive interval constants (battery-optimized for 1000+ field users)
+const MOVING_INTERVAL_MS = 60_000;      // 60s when agent is moving
+const STATIONARY_INTERVAL_MS = 120_000;  // 120s when agent is stationary
+const STATIONARY_DISTANCE_THRESHOLD = 30; // meters — less than this in last update = stationary
+const DISTANCE_FILTER_METERS = 100;       // minimum meters between updates
+
 class LocationServiceClass {
   private watchId: number | null = null;
+  private lastLocation: LocationResult | null = null;
+  private adaptiveTimerId: ReturnType<typeof setInterval> | null = null;
+  private currentIntervalMs = MOVING_INTERVAL_MS;
 
   /**
    * Request location permissions for both platforms
@@ -145,14 +154,20 @@ class LocationServiceClass {
   }
 
   /**
-   * Start continuous location tracking (for location trail)
+   * Start adaptive continuous location tracking (battery-optimized for enterprise scale).
+   * - 60s interval when agent is moving (>30m since last update)
+   * - 120s interval when stationary
+   * - 100m distance filter to reduce unnecessary GPS wake-ups
    */
-  startTracking(intervalMs: number = 30000): void {
+  startTracking(intervalMs: number = MOVING_INTERVAL_MS): void {
     if (this.watchId !== null) {
       Logger.warn(TAG, 'Already tracking');
       return;
     }
 
+    this.currentIntervalMs = intervalMs;
+
+    // Use watchPosition with larger distance filter for movement-based updates
     this.watchId = Geolocation.watchPosition(
       (position: GeolocationResponse) => {
         const location: LocationResult = {
@@ -162,6 +177,28 @@ class LocationServiceClass {
           timestamp: new Date(position.timestamp).toISOString(),
           source: 'GPS',
         };
+
+        // Adaptive interval: detect if agent is moving or stationary
+        if (this.lastLocation) {
+          const distance = this.calculateDistance(
+            this.lastLocation.latitude,
+            this.lastLocation.longitude,
+            location.latitude,
+            location.longitude,
+          );
+          const wasMoving = this.currentIntervalMs === MOVING_INTERVAL_MS;
+          const isMoving = distance > STATIONARY_DISTANCE_THRESHOLD;
+
+          if (isMoving && !wasMoving) {
+            this.currentIntervalMs = MOVING_INTERVAL_MS;
+            Logger.info(TAG, `Agent moving (${distance.toFixed(0)}m), interval → ${MOVING_INTERVAL_MS / 1000}s`);
+          } else if (!isMoving && wasMoving) {
+            this.currentIntervalMs = STATIONARY_INTERVAL_MS;
+            Logger.info(TAG, `Agent stationary (${distance.toFixed(0)}m), interval → ${STATIONARY_INTERVAL_MS / 1000}s`);
+          }
+        }
+
+        this.lastLocation = location;
 
         // Record to DB (fire-and-forget)
         this.recordLocationDirect(location).catch(err =>
@@ -173,24 +210,38 @@ class LocationServiceClass {
       },
       {
         enableHighAccuracy: true,
-        distanceFilter: 50, // Minimum 50 meters between updates
-        interval: intervalMs,
-        fastestInterval: intervalMs / 2,
+        distanceFilter: DISTANCE_FILTER_METERS,
+        interval: this.currentIntervalMs,
+        fastestInterval: MOVING_INTERVAL_MS / 2,
       },
     );
 
-    Logger.info(TAG, 'Location tracking started');
+    // Fallback timer: ensure at least one update per stationary interval
+    // (watchPosition may not fire if device is completely still)
+    this.adaptiveTimerId = setInterval(() => {
+      this.recordLocation(undefined, 'TRAVEL').catch(err =>
+        Logger.error(TAG, 'Adaptive timer location failed', err),
+      );
+    }, STATIONARY_INTERVAL_MS);
+
+    Logger.info(TAG, `Adaptive location tracking started (${MOVING_INTERVAL_MS / 1000}s moving / ${STATIONARY_INTERVAL_MS / 1000}s stationary)`);
   }
 
   /**
-   * Stop continuous location tracking
+   * Stop continuous location tracking and clean up adaptive timer
    */
   stopTracking(): void {
     if (this.watchId !== null) {
       Geolocation.clearWatch(this.watchId);
       this.watchId = null;
-      Logger.info(TAG, 'Location tracking stopped');
     }
+    if (this.adaptiveTimerId !== null) {
+      clearInterval(this.adaptiveTimerId);
+      this.adaptiveTimerId = null;
+    }
+    this.lastLocation = null;
+    this.currentIntervalMs = MOVING_INTERVAL_MS;
+    Logger.info(TAG, 'Location tracking stopped');
   }
 
   /**
