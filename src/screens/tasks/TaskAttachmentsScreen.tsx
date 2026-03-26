@@ -150,10 +150,10 @@ export const TaskAttachmentsScreen = ({ route }: any) => {
       setPreviewAttachment(attachment);
       setPreviewUri(normalizedUri);
       setPreviewMode('unsupported');
-    } catch (error: any) {
+    } catch (error: unknown) {
       Alert.alert(
         'Attachment Error',
-        error?.message || 'Failed to open attachment.',
+        error instanceof Error ? error.message : String(error) || 'Failed to open attachment.',
       );
     } finally {
       setOpeningAttachmentId(null);

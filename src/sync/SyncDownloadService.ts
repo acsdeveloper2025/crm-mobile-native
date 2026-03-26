@@ -100,7 +100,7 @@ class SyncDownloadServiceClass {
       await ProjectionUpdater.rebuildDashboard();
 
       return { tasksDownloaded, conflicts, errors };
-    } catch (error: any) {
+    } catch (error: unknown) {
       errors.push(`Download failed: ${error.message}`);
       return { tasksDownloaded: 0, conflicts: 0, errors };
     }

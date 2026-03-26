@@ -242,8 +242,8 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
         { text: 'OK', onPress: () => navigation.navigate('Main', { screen: 'Completed' }) }
       ]);
 
-    } catch (err: any) {
-      const message = String(err?.message || 'Failed to save form.');
+    } catch (err: unknown) {
+      const message = String(err instanceof Error ? err.message : String(err) || 'Failed to save form.');
       const title = message.startsWith('You must capture at least 5 location photos')
         ? 'Missing Evidence'
         : 'Submission Error';

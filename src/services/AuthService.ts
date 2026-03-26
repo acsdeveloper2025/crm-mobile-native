@@ -173,8 +173,8 @@ class AuthServiceClass {
 
       Logger.info(TAG, `Login successful for ${user.name}`);
       return { success: true, message: 'Login successful' };
-    } catch (error: any) {
-      const message = error?.message || 'Login failed';
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error) || 'Login failed';
       Logger.error(TAG, 'Login failed', error);
       return { success: false, message };
     }

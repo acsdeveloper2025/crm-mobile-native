@@ -96,7 +96,7 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const refreshTasks = useCallback(async () => {
     try {
       await FetchAssignmentsUseCase.execute();
-    } catch (err: any) {
+    } catch (err: unknown) {
       Logger.error(TAG, 'Failed to load tasks', err);
       throw err;
     }

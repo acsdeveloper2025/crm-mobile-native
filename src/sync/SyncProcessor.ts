@@ -85,9 +85,9 @@ class SyncProcessorClass {
         );
         errors.push(`${operation.type}/${operation.entityId}: ${result.error || 'Operation failed'}`);
         options.onProgress?.();
-      } catch (error: any) {
+      } catch (error: unknown) {
         // Classify errors: network errors are retryable, others may not be
-        const errorMsg = error?.message || 'Operation crashed';
+        const errorMsg = error instanceof Error ? error.message : String(error) || 'Operation crashed';
         const isNetworkError =
           error?.code === 'ECONNABORTED' ||
           error?.code === 'ERR_NETWORK' ||

@@ -44,7 +44,7 @@ export const DataCleanupManager = () => {
               } else {
                 Alert.alert('Cleanup Completed with Errors', result.errors.join('\n'));
               }
-            } catch (err: any) {
+            } catch (err: unknown) {
               Alert.alert('Cleanup Failed', err.message);
             } finally {
               setIsCleaning(false);
@@ -74,7 +74,7 @@ export const DataCleanupManager = () => {
               } else {
                 Alert.alert('Synced with Errors', syncResult.errors.join('\n'));
               }
-            } catch (err: any) {
+            } catch (err: unknown) {
               Alert.alert('Error', err.message);
             } finally {
               setIsCleaning(false);
@@ -99,7 +99,7 @@ export const DataCleanupManager = () => {
             try {
               const result = await DataCleanupService.clearAttachmentCache();
               Alert.alert('Attachments Cleared', `Deleted ${result.deleted} files.`);
-            } catch (err: any) {
+            } catch (err: unknown) {
               Alert.alert('Error', err.message);
             } finally {
               setIsCleaning(false);

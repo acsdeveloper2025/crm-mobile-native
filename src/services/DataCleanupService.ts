@@ -113,7 +113,7 @@ export class DataCleanupService {
       if (result.errors.length > 0) result.success = false;
       await ProjectionUpdater.rebuildDashboard();
 
-    } catch (err: any) {
+    } catch (err: unknown) {
       result.success = false;
       result.errors.push(err.message);
       Logger.error(TAG, 'Manual cleanup failed', err);
@@ -130,7 +130,7 @@ export class DataCleanupService {
       await this.clearAttachmentCache();
       await DataCleanupRepository.clearCacheAndSyncTables();
       await ProjectionUpdater.rebuildAll();
-    } catch (error: any) {
+    } catch (error: unknown) {
       Logger.error(TAG, 'Error clearing cache', error);
       throw error;
     }

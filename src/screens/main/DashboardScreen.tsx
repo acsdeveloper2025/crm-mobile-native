@@ -97,7 +97,7 @@ export const DashboardScreen = () => {
       } else {
         Alert.alert('Sync Failed', result.errors.join('\n') || 'Unknown error occurred.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert('Sync Error', err.message);
     } finally {
       setIsSyncing(false);

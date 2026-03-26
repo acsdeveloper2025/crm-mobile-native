@@ -274,8 +274,8 @@ export const TaskListScreen = ({
       await revokeTask(selectedRevokeTask.id, reason);
       setSelectedRevokeTask(null);
       await refetch();
-    } catch (revokeError: any) {
-      Alert.alert('Error', 'Failed to revoke task: ' + (revokeError?.message || 'Unknown error'));
+    } catch (revokeError: unknown) {
+      Alert.alert('Error', 'Failed to revoke task: ' + (revokeError instanceof Error ? revokeError.message : String(revokeError) || 'Unknown error'));
     } finally {
       setIsRevokingTask(false);
     }
@@ -303,8 +303,8 @@ export const TaskListScreen = ({
       setIsSavingOrder(true);
       await Promise.all(nextIds.map((id, index) => setTaskPriority(id, index + 1)));
       await refetch();
-    } catch (moveError: any) {
-      Alert.alert('Reorder Error', moveError?.message || 'Failed to update task order.');
+    } catch (moveError: unknown) {
+      Alert.alert('Reorder Error', moveError instanceof Error ? moveError.message : String(moveError) || 'Failed to update task order.');
       setReorderIds(reorderIds);
     } finally {
       setIsSavingOrder(false);

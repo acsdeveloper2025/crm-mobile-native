@@ -42,7 +42,7 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
       Alert.alert('Success', 'Visit started successfully.');
       refetch();
       navigation.navigate('VerificationForm', { taskId: task.id });
-    } catch (err: any) {
+    } catch (err: unknown) {
       Alert.alert('Error', err.message || 'Failed to start visit.');
     } finally {
       setIsActionLoading(false);
