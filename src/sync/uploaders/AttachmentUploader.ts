@@ -15,12 +15,16 @@ class AttachmentUploaderClass {
     const localPath = String(payload.localPath || '');
 
     if (!await RNFS.exists(localPath)) {
-      Logger.error(TAG, `Photo file missing — cannot upload: ${localPath}`);
+      // File was deleted from disk (cache cleared, storage reclaimed).
+      // Mark as SKIPPED rather than FAILURE to avoid wasting retry attempts
+      // on an unrecoverable condition — the file can't be re-created.
+      Logger.warn(TAG, `Photo file missing — skipping upload: ${localPath}`);
       await SyncEngineRepository.execute(
-        "UPDATE attachments SET sync_status = 'FAILED', last_sync_attempt_at = ? WHERE id = ?",
+        "UPDATE attachments SET sync_status = 'SKIPPED', sync_error = 'File missing from disk', last_sync_attempt_at = ? WHERE id = ?",
         [new Date().toISOString(), payload.id],
       );
-      return { outcome: 'FAILURE', error: `Photo file missing: ${localPath}` };
+      // Return SUCCESS so the queue item is completed (not retried forever)
+      return { outcome: 'SUCCESS', error: `Photo file missing (skipped): ${localPath}` };
     }
 
     const formData = new FormData();
