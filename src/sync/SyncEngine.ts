@@ -12,7 +12,10 @@ import { SyncOperationStateService } from './SyncOperationStateService';
 import { SyncWatchdogService } from './SyncWatchdogService';
 
 const TAG = 'SyncEngine';
-const WATCHDOG_TIMEOUT_MS = 2 * 60 * 1000;
+/** Base watchdog timeout — extended dynamically based on queue size */
+const WATCHDOG_BASE_TIMEOUT_MS = 60 * 1000; // 1 min base
+const WATCHDOG_PER_ITEM_MS = 30 * 1000; // +30s per queued item (photos can be 5-10MB on 3G)
+const WATCHDOG_MAX_TIMEOUT_MS = 10 * 60 * 1000; // Cap at 10 min
 const WATCHDOG_POLL_MS = 15 * 1000;
 
 export interface SyncResult {
@@ -111,6 +114,12 @@ class SyncEngineClass {
     const startedAt = Date.now();
     const initialQueueLength = await SyncQueue.getPendingCount();
     MobileTelemetryService.trackQueueBacklog(initialQueueLength, 'sync_cycle_start');
+    // Dynamic timeout: base + 30s per item, capped at 10 min.
+    // A single 10MB photo on 3G (1 Mbps) takes ~80s, so 2-min fixed timeout is too aggressive.
+    const dynamicTimeoutMs = Math.min(
+      WATCHDOG_BASE_TIMEOUT_MS + initialQueueLength * WATCHDOG_PER_ITEM_MS,
+      WATCHDOG_MAX_TIMEOUT_MS,
+    );
     const errors: string[] = [];
     let uploadedItems = 0;
     let downloadedTasks = 0;
@@ -122,12 +131,12 @@ class SyncEngineClass {
       SyncWatchdogService.heartbeat().catch(error => {
         Logger.warn(TAG, 'Watchdog heartbeat failed in interval', error);
       });
-      if (Date.now() - lastProgressAt > WATCHDOG_TIMEOUT_MS) {
+      if (Date.now() - lastProgressAt > dynamicTimeoutMs) {
         watchdogTriggered = true;
         Logger.error(TAG, 'Sync watchdog detected stalled sync cycle');
         MobileTelemetryService.trackSyncError('watchdog_stalled', {
           elapsedMs: Date.now() - lastProgressAt,
-          timeoutMs: WATCHDOG_TIMEOUT_MS,
+          timeoutMs: dynamicTimeoutMs,
         });
       }
     }, WATCHDOG_POLL_MS);

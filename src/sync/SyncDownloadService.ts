@@ -80,8 +80,18 @@ class SyncDownloadServiceClass {
           break;
         }
         offset += pageSize;
+
+        // Update sync timestamp per page so a mid-download crash doesn't
+        // re-download all pages from scratch. Pages already processed won't
+        // cause duplicates thanks to upsertTaskFromServer using INSERT OR REPLACE.
+        await SyncEngineRepository.execute(
+          `INSERT OR REPLACE INTO sync_metadata (id, last_download_sync_at, device_id, sync_in_progress)
+           VALUES (1, ?, (SELECT COALESCE(device_id, 'unknown') FROM sync_metadata WHERE id = 1), 1)`,
+          [latestSyncTimestamp],
+        );
       }
 
+      // Final metadata update with sync_in_progress = 0
       await SyncEngineRepository.execute(
         `INSERT OR REPLACE INTO sync_metadata (id, last_download_sync_at, device_id, sync_in_progress)
          VALUES (1, ?, (SELECT COALESCE(device_id, 'unknown') FROM sync_metadata WHERE id = 1), 0)`,

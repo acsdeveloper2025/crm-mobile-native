@@ -3,6 +3,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { SyncQueueRepository } from '../repositories/SyncQueueRepository';
+import { SyncEngineRepository } from '../repositories/SyncEngineRepository';
 import { syncRetryPolicy } from '../sync/SyncRetryPolicy';
 import { inferOperationType, priorityForOperationType } from '../sync/SyncOperationLog';
 import { Logger } from '../utils/logger';
@@ -190,14 +191,11 @@ class SyncQueueClass {
    * Check if there's a pending item for a specific entity
    */
   async hasPendingItem(entityType: EntityType, entityId: string): Promise<boolean> {
-    const rows = await this.getPendingItems(500);
-    const count = rows.filter(
-      item =>
-        item.entityType === entityType &&
-        item.entityId === entityId &&
-        (item.status === 'PENDING' || item.status === 'IN_PROGRESS'),
-    ).length;
-    return count > 0;
+    const rows = await SyncEngineRepository.query<{ c: number }>(
+      `SELECT 1 as c FROM sync_queue WHERE entity_type = ? AND entity_id = ? AND (status = 'PENDING' OR status = 'IN_PROGRESS') LIMIT 1`,
+      [entityType, entityId],
+    );
+    return rows.length > 0;
   }
 }
 

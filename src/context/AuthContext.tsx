@@ -3,6 +3,7 @@ import { AuthService } from '../services/AuthService';
 import type { UserProfile } from '../types/api';
 import { Logger } from '../utils/logger';
 import { SyncService } from '../services/SyncService';
+import { SyncQueue } from '../services/SyncQueue';
 import { notificationService } from '../services/NotificationService';
 import { DataCleanupService } from '../services/DataCleanupService';
 
@@ -72,6 +73,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (authenticated && profile) {
         setIsAuthenticated(true);
         setUser(profile);
+
+        // Recover any expired leases from interrupted sync operations before starting
+        await SyncQueue.recoverExpiredLeases();
 
         SyncService.startPeriodicSync();
         DataCleanupService.initializeAutoCleanup().catch(error => {
