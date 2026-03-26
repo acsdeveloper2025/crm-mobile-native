@@ -51,9 +51,9 @@ const BASE_CONFIG: Omit<AppConfig, 'apiBaseUrl' | 'wsUrl' | 'environment'> = {
   maxFilesPerTask: 15,
   maxOfflineStorageMb: 500,
 
-  // Location
+  // Location — adaptive interval to reduce battery drain at scale
   locationAccuracyThreshold: 100, // 100 meters
-  locationUpdateIntervalMs: 30000, // 30 seconds
+  locationUpdateIntervalMs: 60000, // 60 seconds (base interval, adaptive up to 120s when stationary)
 
   // Database
   dbName: 'crm_mobile.db',
