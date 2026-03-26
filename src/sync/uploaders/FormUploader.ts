@@ -123,9 +123,12 @@ class FormUploaderClass {
     const localTaskId = typeof payload.localTaskId === 'string' ? payload.localTaskId : null;
 
     if (localTaskId) {
+      // Only defer for items still actively being processed or retryable.
+      // Do NOT defer for permanently FAILED items — those won't resolve on their own
+      // and would block the form submission forever.
       const pendingLocationsCount = await SyncEngineRepository.count(
         'sync_queue',
-        "entity_type = 'LOCATION' AND status IN ('PENDING', 'FAILED', 'IN_PROGRESS') AND json_extract(payload_json, '$.taskId') = ?",
+        "entity_type = 'LOCATION' AND status IN ('PENDING', 'IN_PROGRESS') AND json_extract(payload_json, '$.taskId') = ?",
         [localTaskId || taskId],
       );
       if (pendingLocationsCount > 0) {
@@ -136,7 +139,7 @@ class FormUploaderClass {
 
       const pendingPhotosCount = await SyncEngineRepository.count(
         'sync_queue',
-        "entity_type IN ('VISIT_PHOTO', 'ATTACHMENT') AND status IN ('PENDING', 'FAILED', 'IN_PROGRESS') AND (json_extract(payload_json, '$.visitId') = ? OR json_extract(payload_json, '$.taskId') = ?)",
+        "entity_type IN ('VISIT_PHOTO', 'ATTACHMENT') AND status IN ('PENDING', 'IN_PROGRESS') AND (json_extract(payload_json, '$.visitId') = ? OR json_extract(payload_json, '$.taskId') = ?)",
         [taskId, taskId],
       );
       if (pendingPhotosCount > 0) {
