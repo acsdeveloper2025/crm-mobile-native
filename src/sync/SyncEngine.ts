@@ -13,9 +13,9 @@ import { SyncWatchdogService } from './SyncWatchdogService';
 
 const TAG = 'SyncEngine';
 /** Base watchdog timeout — extended dynamically based on queue size */
-const WATCHDOG_BASE_TIMEOUT_MS = 60 * 1000; // 1 min base
-const WATCHDOG_PER_ITEM_MS = 30 * 1000; // +30s per queued item (photos can be 5-10MB on 3G)
-const WATCHDOG_MAX_TIMEOUT_MS = 10 * 60 * 1000; // Cap at 10 min
+const WATCHDOG_BASE_TIMEOUT_MS = 2 * 60 * 1000; // 2 min base (allows for slow connection negotiation)
+const WATCHDOG_PER_ITEM_MS = 15 * 1000; // +15s per queued item (reduced — items processed in batches)
+const WATCHDOG_MAX_TIMEOUT_MS = 20 * 60 * 1000; // Cap at 20 min (1000+ users may have large queues)
 const WATCHDOG_POLL_MS = 15 * 1000;
 
 export interface SyncResult {
