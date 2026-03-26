@@ -154,7 +154,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
           setTemplate(nextTemplate);
         }
       } catch (e) {
-        console.error('Error loading template', e);
+        Logger.error('VerificationFormScreen', 'Error loading template', e);
       } finally {
         if (isActive) {
           setTemplateLoading(false);
@@ -183,7 +183,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
       setOutcomeWarning(null);
       setSelectedOutcome(outcome);
     } catch (e) {
-      console.error('Failed to set outcome', e);
+      Logger.error('VerificationFormScreen', 'Failed to set outcome', e);
     }
   };
   const handleOutcomeChange = (outcome: string) => {

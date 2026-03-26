@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
+import { Logger } from '../../utils/logger';
 import { notificationService, NotificationData } from '../../services/NotificationService';
 import Icon from 'react-native-vector-icons/Ionicons';
 
@@ -51,7 +52,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       setLoading(true);
       await notificationService.refreshFromBackend();
     } catch (error) {
-      console.error('Failed to load notifications:', error);
+      Logger.error('NotificationCenter', 'Failed to load notifications', error);
     } finally {
       setLoading(false);
     }
@@ -74,7 +75,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         onClose();
       }
     } catch (error) {
-      console.error('Failed to handle notification press:', error);
+      Logger.error('NotificationCenter', 'Failed to handle notification press', error);
     }
   };
 
@@ -82,7 +83,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     try {
       await notificationService.markAllAsRead();
     } catch (error) {
-      console.error('Failed to mark all as read:', error);
+      Logger.error('NotificationCenter', 'Failed to mark all as read', error);
     }
   };
 
@@ -99,7 +100,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             try {
               await notificationService.clearAllNotifications();
             } catch (error) {
-              console.error('Failed to clear notifications:', error);
+              Logger.error('NotificationCenter', 'Failed to clear notifications', error);
             }
           },
         },

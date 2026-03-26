@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, TextInp
 import { useRoute, useFocusEffect } from '@react-navigation/native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTasks } from '../../hooks/useTasks';
+import { Logger } from '../../utils/logger';
 import { TaskCard } from '../../components/tasks/TaskCard';
 import { TaskCardSkeleton } from '../../components/ui/Skeleton';
 import { LocalTask } from '../../types/mobile';
@@ -225,7 +226,7 @@ export const TaskListScreen = ({
         try {
           setCounts(await TaskRepository.getTaskListCounts());
         } catch (err) {
-           console.error("Error fetching tab counts", err);
+           Logger.error('TaskListScreen', 'Error fetching tab counts', err);
         }
       };
       

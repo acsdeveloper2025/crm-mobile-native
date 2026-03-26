@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Ale
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
+import { Logger } from '../../utils/logger';
 import { SyncQueueRepository } from '../../repositories/SyncQueueRepository';
 import type { SyncQueueItem } from '../../types/mobile';
 
@@ -20,7 +21,7 @@ export const SyncLogsScreen = () => {
       const results = await SyncQueueRepository.listLogs(filter);
       setLogs(results);
     } catch (e) {
-      console.error('Failed to load sync logs', e);
+      Logger.error('SyncLogsScreen', 'Failed to load sync logs', e);
     } finally {
       setLoading(false);
     }

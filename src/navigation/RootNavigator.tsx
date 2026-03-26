@@ -8,6 +8,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 import { useAuth } from '../context/AuthContext';
+import { Logger } from '../utils/logger';
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { DashboardScreen } from '../screens/main/DashboardScreen';
 import { ProfileScreen } from '../screens/main/ProfileScreen';
@@ -132,7 +133,7 @@ export const RootNavigator = () => {
           setVersionResult(result);
         }
       } catch (e) {
-        console.error('Failed to check version:', e);
+        Logger.error('RootNavigator', 'Failed to check version', e);
       }
     };
 

@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import RNFS from 'react-native-fs';
+import { Logger } from '../../utils/logger';
 import { useFocusEffect } from '@react-navigation/native';
 import type { LocalAttachment } from '../../types/mobile';
 import { useTheme } from '../../context/ThemeContext';
@@ -55,7 +56,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
         setPhotos(results || []);
       }
     } catch (err) {
-      console.error('Failed to load photos:', err);
+      Logger.error('PhotoGallery', 'Failed to load photos', err);
     } finally {
       if (isMountedRef.current && requestId === requestIdRef.current) {
         setHasLoadedOnce(true);
