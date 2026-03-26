@@ -145,6 +145,13 @@ class AttachmentRepositoryClass {
     );
     return rows[0]?.total ?? 0;
   }
+  async countByTaskId(taskId: string): Promise<number> {
+    const rows = await DatabaseService.query<{ total: number }>(
+      'SELECT COUNT(*) as total FROM attachments WHERE task_id = ?',
+      [taskId],
+    );
+    return rows[0]?.total ?? 0;
+  }
 }
 
 export const AttachmentRepository = new AttachmentRepositoryClass();
