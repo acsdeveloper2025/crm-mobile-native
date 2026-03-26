@@ -1,18 +1,7 @@
-import type { DashboardProjectionStats } from '../../projections/DashboardProjection';
 import { ProjectionStore, type ProjectionSelector } from '../ProjectionStore';
 import type { LocalTask } from '../../types/mobile';
 
-const DASHBOARD_DEFAULT: DashboardProjectionStats = {
-  activeCount: 0,
-  assignedCount: 0,
-  completedCount: 0,
-  inProgressCount: 0,
-  lastSyncAt: null,
-  savedCount: 0,
-  updatedAt: null,
-};
-
-export const buildTaskListSelectorKey = (
+const buildTaskListSelectorKey = (
   statusFilter?: string,
   searchQuery?: string,
 ): string => {
@@ -38,15 +27,6 @@ export const selectTasksByStatus = (
     ensure: (store, options) => store.ensureTaskList(key, { statusFilter, searchQuery }, options),
   };
 };
-
-export const selectPendingTasks = (searchQuery?: string): ProjectionSelector<string[]> =>
-  selectTasksByStatus('ASSIGNED', searchQuery);
-
-export const selectDashboardStats = (): ProjectionSelector<DashboardProjectionStats> => ({
-  key: 'dashboard',
-  select: state => state.dashboard || DASHBOARD_DEFAULT,
-  ensure: (store, options) => store.ensureDashboard(options),
-});
 
 export const getTaskSnapshot = (taskId: string): LocalTask | null =>
   ProjectionStore.getTaskSnapshot(taskId);

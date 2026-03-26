@@ -8,6 +8,7 @@ import { SyncHealthService, type SyncHealthMetrics } from './SyncHealthService';
 import { SyncProcessor } from './SyncProcessor';
 import { syncScheduler } from './SyncScheduler';
 import { SyncStateService } from './SyncStateService';
+import { SyncOperationStateService } from './SyncOperationStateService';
 import { SyncWatchdogService } from './SyncWatchdogService';
 
 const TAG = 'SyncEngine';
@@ -168,6 +169,7 @@ class SyncEngineClass {
       }
 
       await SyncQueue.cleanup(24);
+      await SyncOperationStateService.clearExpired();
 
       const success = !watchdogTriggered && errors.length === 0;
       SyncHealthService.recordCycleResult(Date.now() - startedAt, success);
