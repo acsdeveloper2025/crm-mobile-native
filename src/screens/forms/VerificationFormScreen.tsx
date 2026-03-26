@@ -28,7 +28,7 @@ import {
   type LegacyOutcome,
 } from './LegacyFormTemplateBuilders';
 
-export const VerificationFormScreen = ({ route, navigation }: { route: Record<string, unknown>; navigation: Record<string, unknown> }) => {
+export const VerificationFormScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const {

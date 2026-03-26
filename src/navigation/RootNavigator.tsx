@@ -135,7 +135,7 @@ export const RootNavigator = () => {
       .getInitialNotification()
       .then(remoteMessage => {
         if (remoteMessage?.data?.taskId && isNavigationReady.current) {
-          navigationRef.current?.navigate('TaskDetail' as never, { taskId: remoteMessage.data.taskId } as never);
+          (navigationRef.current as any)?.navigate('TaskDetail', { taskId: remoteMessage.data.taskId });
         }
       })
       .catch(err => Logger.warn('RootNavigator', 'getInitialNotification failed', err));
@@ -143,7 +143,7 @@ export const RootNavigator = () => {
     // Handle notification taps when app is in background
     const unsubscribe = messaging().onNotificationOpenedApp(remoteMessage => {
       if (remoteMessage?.data?.taskId && isNavigationReady.current) {
-        navigationRef.current?.navigate('TaskDetail' as never, { taskId: remoteMessage.data.taskId } as never);
+        (navigationRef.current as any)?.navigate('TaskDetail', { taskId: remoteMessage.data.taskId });
       }
     });
 

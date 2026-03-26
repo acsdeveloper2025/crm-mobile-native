@@ -70,7 +70,7 @@ const resolveHighAccuracyLocation = (): Promise<PreviewLocation | null> =>
     );
   });
 
-export const WatermarkPreviewScreen = ({ route, navigation }: { route: Record<string, unknown>; navigation: Record<string, unknown> }) => {
+export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
   const { photoPath, taskId, componentType } = route.params;
   const viewShotRef = useRef<ViewShot>(null);
   const insets = useSafeAreaInsets();

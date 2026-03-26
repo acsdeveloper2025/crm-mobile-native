@@ -21,7 +21,7 @@ class AttachmentUploaderClass {
       Logger.warn(TAG, `Photo file missing — skipping upload: ${localPath}`);
       await SyncEngineRepository.execute(
         "UPDATE attachments SET sync_status = 'SKIPPED', sync_error = 'File missing from disk', last_sync_attempt_at = ? WHERE id = ?",
-        [new Date().toISOString(), payload.id],
+        [new Date().toISOString(), String(payload.id)],
       );
       // Return SUCCESS so the queue item is completed (not retried forever)
       return { outcome: 'SUCCESS', error: `Photo file missing (skipped): ${localPath}` };
@@ -80,7 +80,7 @@ class AttachmentUploaderClass {
            remote_path = COALESCE(?, remote_path),
            last_sync_attempt_at = ?
        WHERE id = ?`,
-      [uploadedAttachment?.id || null, uploadedAttachment?.url || null, new Date().toISOString(), payload.id],
+      [uploadedAttachment?.id || null, uploadedAttachment?.url || null, new Date().toISOString(), String(payload.id)],
     );
     return { outcome: 'SUCCESS' };
   }

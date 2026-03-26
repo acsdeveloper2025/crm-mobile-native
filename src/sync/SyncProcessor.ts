@@ -88,9 +88,10 @@ class SyncProcessorClass {
       } catch (error: unknown) {
         // Classify errors: network errors are retryable, others may not be
         const errorMsg = error instanceof Error ? error.message : String(error) || 'Operation crashed';
+        const errorCode = (error as { code?: string })?.code;
         const isNetworkError =
-          error?.code === 'ECONNABORTED' ||
-          error?.code === 'ERR_NETWORK' ||
+          errorCode === 'ECONNABORTED' ||
+          errorCode === 'ERR_NETWORK' ||
           errorMsg.includes('timeout') ||
           errorMsg.includes('Network Error') ||
           errorMsg.includes('ECONNREFUSED');

@@ -8,7 +8,7 @@ import { Logger } from '../utils/logger';
 
 const TAG = 'useTasks';
 
-export const useTasks = (statusFilter?: string, searchQuery?: string): unknown => {
+export const useTasks = (statusFilter?: string, searchQuery?: string): any => {
   const {
     refreshTasks,
     updateTaskStatus,

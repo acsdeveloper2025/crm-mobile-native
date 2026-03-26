@@ -3,7 +3,7 @@ import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Logger } from '../../utils/logger';
 
-export const ForceUpdateScreen = ({ route }: { route: Record<string, unknown> }) => {
+export const ForceUpdateScreen = ({ route }: any) => {
   const { theme } = useTheme();
   const { downloadUrl, releaseNotes } = route.params || {};
 
