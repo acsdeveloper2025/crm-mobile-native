@@ -3,17 +3,21 @@ import type { SyncQueueItem } from '../types/mobile';
 
 class SyncQueueRepositoryClass {
   async recoverExpiredLeases(now: string): Promise<number> {
+    // Reset to PENDING (not FAILED) and do NOT increment attempts.
+    // Lease expiry from an app crash is not a genuine sync failure —
+    // the operation was interrupted, not rejected by the server.
+    // Counting it as a failed attempt causes permanent data loss after 3 crashes.
     const result = await DatabaseService.execute(
       `UPDATE sync_queue
-       SET status = 'FAILED',
-           last_error = COALESCE(last_error, 'Recovered after interrupted processing lease expired'),
-           next_retry_at = ?,
+       SET status = 'PENDING',
+           last_error = COALESCE(last_error, 'Recovered after interrupted processing — lease expired'),
+           next_retry_at = NULL,
            started_at = NULL,
            lease_expires_at = NULL
        WHERE status = 'IN_PROGRESS'
          AND lease_expires_at IS NOT NULL
          AND lease_expires_at < ?`,
-      [now, now],
+      [now],
     );
     return result.rowsAffected;
   }
