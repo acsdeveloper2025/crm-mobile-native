@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network Security Configuration for CRM Mobile Native
+  - Disables cleartext (HTTP) traffic in production
+  - Allows localhost cleartext for development (Metro bundler)
+  - Pins SSL certificate for production API domain
+-->
+<network-security-config>
+    <!-- Block cleartext traffic globally -->
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Allow cleartext for localhost only (React Native Metro bundler in dev) -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+
+    <!-- Pin production API domain certificate -->
+    <domain-config cleartextTrafficPermitted="false">
+        <domain includeSubdomains="true">crm.allcheckservices.com</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+        <!--
+          To enable certificate pinning, uncomment below and add your cert's SHA-256 pin:
+          Get pin via: openssl s_client -connect crm.allcheckservices.com:443 | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+          Include a backup pin from a different CA for key rotation.
+
+        <pin-set expiration="2027-01-01">
+            <pin digest="SHA-256">YOUR_PRIMARY_PIN_BASE64</pin>
+            <pin digest="SHA-256">YOUR_BACKUP_PIN_BASE64</pin>
+        </pin-set>
+        -->
+    </domain-config>
+</network-security-config>
