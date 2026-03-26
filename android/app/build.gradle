@@ -57,7 +57,7 @@ react {
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
-def enableProguardInReleaseBuilds = (project.findProperty("enableProguardInReleaseBuilds") ?: "false").toString().toBoolean()
+def enableProguardInReleaseBuilds = (project.findProperty("enableProguardInReleaseBuilds") ?: "true").toString().toBoolean()
 def googleMapsApiKey = project.findProperty("GOOGLE_MAPS_API_KEY") ?: ""
 def vectorIconsConfig = project.hasProperty("vectoricons") ? project.vectoricons : [:]
 def vectorIconFontsDir = vectorIconsConfig.iconFontsDir ?: "../../node_modules/react-native-vector-icons/Fonts"
