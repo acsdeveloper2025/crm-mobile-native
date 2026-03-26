@@ -39,7 +39,11 @@ class SyncScheduler {
     }
 
     if (this.networkChangeUnsubscribe) {
-      this.networkChangeUnsubscribe();
+      try {
+        this.networkChangeUnsubscribe();
+      } catch (error) {
+        Logger.warn(TAG, 'Failed to unsubscribe from network changes', error);
+      }
       this.networkChangeUnsubscribe = null;
     }
   }

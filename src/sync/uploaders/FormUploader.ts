@@ -195,7 +195,6 @@ class FormUploaderClass {
     }
 
     if (localTaskId) {
-      await this.cleanupSyncedPhotosForTask(localTaskId);
       await this.updateLocalSubmissionState(localTaskId, 'success', null, true);
     }
 
@@ -207,6 +206,11 @@ class FormUploaderClass {
       'DELETE FROM key_value_store WHERE key = ?',
       [`auto_save_${localTaskId || taskId}`],
     );
+
+    // Cleanup photos only after database has been updated successfully
+    if (localTaskId) {
+      await this.cleanupSyncedPhotosForTask(localTaskId);
+    }
 
     return { outcome: 'SUCCESS' };
   }
