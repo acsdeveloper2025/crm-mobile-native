@@ -157,7 +157,8 @@ export const DashboardScreen = () => {
       Logger.warn(TAG, 'Failed to ensure notification cache is loaded', error);
     });
     return unsubscribe;
-  }, [TAG]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <>

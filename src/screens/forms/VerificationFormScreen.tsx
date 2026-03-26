@@ -81,7 +81,8 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     }));
   }, [taskFormTypeKey]);
 
-  // Sync state once task is loaded
+  // Sync state once task is loaded — only runs when task data changes, not when
+  // selectedOutcome changes (which would create a dependency cycle).
   useEffect(() => {
     if (taskUuid && taskFormTypeKey && !selectedOutcome && taskVerificationOutcome) {
       const coercedOutcome = coerceLegacyOutcomeForFormType(taskFormTypeKey, taskVerificationOutcome);
@@ -97,7 +98,8 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
       setOutcomeWarning(coercedOutcome.warning);
       setSelectedOutcome(coercedOutcome.outcome);
     }
-  }, [taskUuid, taskVerificationOutcome, taskFormTypeKey, selectedOutcome]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- selectedOutcome excluded to prevent cycle
+  }, [taskUuid, taskVerificationOutcome, taskFormTypeKey]);
 
   // Keep selected outcome valid for the current verification type.
   useEffect(() => {
