@@ -86,14 +86,32 @@ class SyncProcessorClass {
         errors.push(`${operation.type}/${operation.entityId}: ${result.error || 'Operation failed'}`);
         options.onProgress?.();
       } catch (error: any) {
-        await SyncQueue.markFailed(item.id, error?.message || 'Operation crashed');
+        // Classify errors: network errors are retryable, others may not be
+        const errorMsg = error?.message || 'Operation crashed';
+        const isNetworkError =
+          error?.code === 'ECONNABORTED' ||
+          error?.code === 'ERR_NETWORK' ||
+          errorMsg.includes('timeout') ||
+          errorMsg.includes('Network Error') ||
+          errorMsg.includes('ECONNREFUSED');
+
+        const failReason = isNetworkError
+          ? `[RETRYABLE] ${errorMsg}`
+          : `[NON-RETRYABLE] ${errorMsg}`;
+
+        await SyncQueue.markFailed(item.id, failReason);
         MobileTelemetryService.trackUploadFailure(
           operation.type,
           operation.entityType,
           operation.entityId,
-          error?.message || 'Operation crashed',
+          failReason,
         );
-        errors.push(`${operation.type}/${operation.entityId}: ${error?.message || 'Operation crashed'}`);
+
+        if (!isNetworkError) {
+          Logger.error(TAG, `Non-retryable sync failure for ${operation.operationId}: ${errorMsg}`);
+        }
+
+        errors.push(`${operation.type}/${operation.entityId}: ${failReason}`);
         options.onProgress?.();
       } finally {
         this.releaseTaskLock(operation.taskKey);

@@ -15,12 +15,12 @@ class AttachmentUploaderClass {
     const localPath = String(payload.localPath || '');
 
     if (!await RNFS.exists(localPath)) {
-      Logger.warn(TAG, `Photo file missing: ${localPath}`);
+      Logger.error(TAG, `Photo file missing — cannot upload: ${localPath}`);
       await SyncEngineRepository.execute(
-        "UPDATE attachments SET sync_status = 'SYNCED' WHERE id = ?",
-        [payload.id],
+        "UPDATE attachments SET sync_status = 'FAILED', last_sync_attempt_at = ? WHERE id = ?",
+        [new Date().toISOString(), payload.id],
       );
-      return { outcome: 'SUCCESS' };
+      return { outcome: 'FAILURE', error: `Photo file missing: ${localPath}` };
     }
 
     const formData = new FormData();
