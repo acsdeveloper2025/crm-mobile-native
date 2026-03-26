@@ -87,6 +87,27 @@ export interface LocalAttachment {
   syncError?: string;
 }
 
+/**
+ * Backend attachment type used by AttachmentService for remote attachments.
+ * Previously in web_types.ts — consolidated here as the single source of truth.
+ */
+export interface Attachment {
+  id: string;
+  name: string;
+  type: 'pdf' | 'image';
+  mimeType: string;
+  size: number;
+  url: string;
+  localEncryptedPath?: string;
+  thumbnailUrl?: string;
+  uploadedAt: string;
+  uploadedBy: string;
+  taskId?: string;
+  formSubmissionId?: string;
+  localPath?: string;
+  description?: string;
+}
+
 export interface LocalLocation {
   id: string; // UUID
   latitude: number;
