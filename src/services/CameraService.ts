@@ -110,6 +110,14 @@ class CameraServiceClass {
     try {
       await this.initialize();
 
+      // Enforce maxFilesPerTask limit to prevent storage bloat
+      const { config } = await import('../config');
+      const existingCount = await AttachmentRepository.countByTaskId(taskId);
+      if (existingCount >= config.maxFilesPerTask) {
+        Logger.warn(TAG, `Photo limit reached for task ${taskId}: ${existingCount}/${config.maxFilesPerTask}`);
+        throw new Error(`Maximum ${config.maxFilesPerTask} photos per task reached`);
+      }
+
       const id = uuidv4();
       const timestamp = new Date().toISOString();
       const extension = sourcePath.split('.').pop() || 'jpg';
