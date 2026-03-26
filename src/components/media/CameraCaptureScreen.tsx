@@ -110,7 +110,7 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
         componentType 
       });
     } catch (err: unknown) {
-      Alert.alert('Capture Error', err.message || 'Failed to capture photo.');
+      Alert.alert('Capture Error', (err instanceof Error ? err.message : String(err)) || 'Failed to capture photo.');
     } finally {
       setIsCapturing(false);
     }

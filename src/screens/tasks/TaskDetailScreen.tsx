@@ -43,7 +43,7 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
       refetch();
       navigation.navigate('VerificationForm', { taskId: task.id });
     } catch (err: unknown) {
-      Alert.alert('Error', err.message || 'Failed to start visit.');
+      Alert.alert('Error', (err instanceof Error ? err.message : String(err)) || 'Failed to start visit.');
     } finally {
       setIsActionLoading(false);
     }
