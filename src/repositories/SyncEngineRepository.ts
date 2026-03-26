@@ -1,6 +1,6 @@
 import { DatabaseService } from '../database/DatabaseService';
 
-type SqlParam = string | number | boolean | null | undefined;
+type SqlParam = string | number | null;
 
 class SyncEngineRepositoryClass {
   query<T>(sql: string, params: SqlParam[] = []): Promise<T[]> {

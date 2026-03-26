@@ -1,7 +1,7 @@
 import React from 'react';
 import { TaskListScreen } from './TaskListScreen';
 
-export const CompletedTasksScreen = (props: Record<string, unknown>) => {
+export const CompletedTasksScreen = (props: any) => {
   return (
     <TaskListScreen
       {...props}

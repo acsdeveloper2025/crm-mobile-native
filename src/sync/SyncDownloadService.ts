@@ -101,7 +101,7 @@ class SyncDownloadServiceClass {
 
       return { tasksDownloaded, conflicts, errors };
     } catch (error: unknown) {
-      errors.push(`Download failed: ${error.message}`);
+      errors.push(`Download failed: ${error instanceof Error ? error.message : String(error)}`);
       return { tasksDownloaded: 0, conflicts: 0, errors };
     }
   }

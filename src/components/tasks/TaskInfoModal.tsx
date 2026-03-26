@@ -10,7 +10,7 @@ interface TaskInfoModalProps {
   onClose: () => void;
 }
 
-const InfoRow = ({ label, value, theme }: { label: string; value: string; theme: Record<string, unknown> }) => (
+const InfoRow = ({ label, value, theme }: { label: string; value: string; theme: any }) => (
   <View style={styles.infoRow}>
     <Text style={[styles.infoLabel, { color: theme.colors.textMuted }]}>{label}</Text>
     <Text style={[styles.infoValue, { color: theme.colors.text }]}>{value || 'N/A'}</Text>

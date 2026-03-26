@@ -43,7 +43,7 @@ export const LoginScreen = () => {
   }, [password, username]);
 
   const extractErrorMessage = React.useCallback((e: unknown): string => {
-    const axiosErr = e as { response?: { status?: number; data?: Record<string, unknown> } };
+    const axiosErr = e as any;
     const status = axiosErr?.response?.status;
     const responseData = axiosErr?.response?.data;
     const backendMessage =
@@ -69,10 +69,10 @@ export const LoginScreen = () => {
     if (typeof backendMessage === 'string' && backendMessage.trim().length > 0) {
       return backendMessage;
     }
-    if (e?.code === 'ECONNABORTED') {
+    if (axiosErr?.code === 'ECONNABORTED') {
       return 'Request timeout. Please try again.';
     }
-    if (!e?.response) {
+    if (!axiosErr?.response) {
       return `Unable to reach server (${config.apiBaseUrl}). Check internet connection.`;
     }
     return 'Login failed. Please check your credentials or internet connection.';

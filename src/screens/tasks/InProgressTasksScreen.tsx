@@ -1,7 +1,7 @@
 import React from 'react';
 import { TaskListScreen } from './TaskListScreen';
 
-export const InProgressTasksScreen = (props: Record<string, unknown>) => {
+export const InProgressTasksScreen = (props: any) => {
   return (
     <TaskListScreen
       {...props}

@@ -13,7 +13,7 @@ const isEmptyFieldValue = (value: unknown): boolean => {
   return false;
 };
 
-const evaluateCondition = (condition: Record<string, unknown>, values: Record<string, unknown>): boolean => {
+const evaluateCondition = (condition: any, values: Record<string, unknown>): boolean => {
   const actualValue = values[condition.field];
   const expectedValue = condition.value;
 

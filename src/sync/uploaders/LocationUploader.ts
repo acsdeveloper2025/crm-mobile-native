@@ -21,7 +21,8 @@ class LocationUploaderClass {
       );
       return { outcome: 'SUCCESS' };
     } catch (error: unknown) {
-      if (error?.response?.status === 409 && error?.response?.data?.error?.code === 'LOCATION_ALREADY_CAPTURED_FOR_TASK') {
+      const axiosErr = error as { response?: { status?: number; data?: { error?: { code?: string } } } };
+      if (axiosErr?.response?.status === 409 && axiosErr?.response?.data?.error?.code === 'LOCATION_ALREADY_CAPTURED_FOR_TASK') {
         await SyncEngineRepository.execute(
           "UPDATE locations SET sync_status = 'SYNCED', synced_at = ? WHERE id = ?",
           [new Date().toISOString(), operation.entityId],
