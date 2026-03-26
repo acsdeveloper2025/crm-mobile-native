@@ -33,6 +33,26 @@ import { MobileTelemetryService } from './src/telemetry/MobileTelemetryService';
 const TAG = 'App';
 const STARTUP_PERMISSIONS_KEY = 'startup_permissions_requested_v1';
 
+// Global unhandled promise rejection handler — catches async crashes that
+// ErrorBoundary cannot intercept (non-render async code).
+const g = globalThis as Record<string, unknown>;
+const defaultHandler = g.ErrorUtils
+  ? (g.ErrorUtils as { getGlobalHandler: () => ((error: Error, isFatal?: boolean) => void) | undefined }).getGlobalHandler()
+  : undefined;
+
+if (g.ErrorUtils) {
+  (g.ErrorUtils as { setGlobalHandler: (handler: (error: Error, isFatal?: boolean) => void) => void }).setGlobalHandler((error: Error, isFatal?: boolean) => {
+    Logger.error(TAG, `Global ${isFatal ? 'FATAL' : 'non-fatal'} error`, {
+      message: error?.message,
+      stack: error?.stack,
+    });
+    // Call the default handler so React Native still shows the red screen in dev
+    if (defaultHandler) {
+      defaultHandler(error, isFatal);
+    }
+  });
+}
+
 const getStoredFlag = async (key: string): Promise<string | null> => {
   const rows = await DatabaseService.query<{ value: string }>(
     'SELECT value FROM key_value_store WHERE key = ?',

@@ -36,6 +36,10 @@ const DEFAULT_STATE: ProjectionStoreState = {
   tasksById: {},
 };
 
+/** Maximum number of tasks to keep in the in-memory cache.
+ *  When exceeded, least-recently-loaded entries are evicted. */
+const MAX_TASKS_CACHE_SIZE = 500;
+
 class ProjectionStoreClass {
   private state: ProjectionStoreState = DEFAULT_STATE;
   private subscribers = new Map<number, AnySubscription>();
@@ -277,12 +281,44 @@ class ProjectionStoreClass {
   }
 
   private setState(updater: (current: ProjectionStoreState) => ProjectionStoreState): void {
-    const nextState = updater(this.state);
+    let nextState = updater(this.state);
     if (nextState === this.state) {
       return;
     }
+    // Evict oldest entries when cache exceeds limit
+    nextState = this.evictIfNeeded(nextState);
     this.state = nextState;
     this.notifySubscribers();
+  }
+
+  /** Trim tasksById to MAX_TASKS_CACHE_SIZE by removing entries not in any active list. */
+  private evictIfNeeded(state: ProjectionStoreState): ProjectionStoreState {
+    const taskIds = Object.keys(state.tasksById);
+    if (taskIds.length <= MAX_TASKS_CACHE_SIZE) {
+      return state;
+    }
+
+    // Keep tasks that are in active lists or have loaded details
+    const activeIds = new Set<string>();
+    Object.values(state.taskLists).forEach(ids => ids.forEach(id => activeIds.add(id)));
+    Object.keys(state.taskDetailsLoaded).forEach(id => activeIds.add(id));
+
+    // Remove non-active tasks first, then oldest active if still over limit
+    const nonActive = taskIds.filter(id => !activeIds.has(id));
+    const toRemove = nonActive.slice(0, taskIds.length - MAX_TASKS_CACHE_SIZE);
+
+    if (toRemove.length === 0) {
+      return state; // all tasks are active, can't safely evict
+    }
+
+    const nextTasksById = { ...state.tasksById };
+    const nextDetailsLoaded = { ...state.taskDetailsLoaded };
+    toRemove.forEach(id => {
+      delete nextTasksById[id];
+      delete nextDetailsLoaded[id];
+    });
+
+    return { ...state, tasksById: nextTasksById, taskDetailsLoaded: nextDetailsLoaded };
   }
 
   private notifySubscribers(): void {

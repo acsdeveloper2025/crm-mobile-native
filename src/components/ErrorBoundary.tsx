@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Appearance, DevSettings } from 'react-native';
+import { Logger } from '../utils/logger';
 
 interface Props {
   children: ReactNode;
@@ -23,10 +24,16 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('ErrorBoundary caught an error:', error, errorInfo);
+    // Log crash details via structured logger (persisted for sync to server)
+    Logger.error('ErrorBoundary', 'Unhandled React crash', {
+      message: error.message,
+      stack: error.stack,
+      componentStack: errorInfo.componentStack,
+    });
+
     this.setState({
       error,
-      errorInfo
+      errorInfo,
     });
   }
 
