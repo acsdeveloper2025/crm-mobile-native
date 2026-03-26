@@ -60,15 +60,16 @@ const BASE_CONFIG: Omit<AppConfig, 'apiBaseUrl' | 'wsUrl' | 'environment'> = {
   dbVersion: 7,
 };
 
-// Environment-specific API URLs (from CRM-MOBILE .env files)
+// Environment-specific API URLs
+// Development/staging URLs should be set via build-time config or .env
 const ENV_CONFIGS = {
   development: {
-    apiBaseUrl: 'https://example.com/api/mobile',
-    wsUrl: 'wss://example.com',
+    apiBaseUrl: 'http://localhost:3000/api/mobile',
+    wsUrl: 'ws://localhost:3000',
   },
   staging: {
-    apiBaseUrl: 'https://example.com/api/mobile',
-    wsUrl: 'wss://example.com',
+    apiBaseUrl: 'https://crm.allcheckservices.com/api/mobile',
+    wsUrl: 'wss://crm.allcheckservices.com',
   },
   production: {
     apiBaseUrl: 'https://crm.allcheckservices.com/api/mobile',
@@ -76,8 +77,16 @@ const ENV_CONFIGS = {
   },
 };
 
-// Default to development - override via .env or build config
-const CURRENT_ENV: 'development' | 'staging' | 'production' = 'production';
+// Resolve environment from build config or default to production
+const resolveEnvironment = (): 'development' | 'staging' | 'production' => {
+  // React Native __DEV__ flag is true in debug builds, false in release
+  if (__DEV__) {
+    return 'development';
+  }
+  return 'production';
+};
+
+const CURRENT_ENV = resolveEnvironment();
 
 export const config: AppConfig = {
   ...BASE_CONFIG,
