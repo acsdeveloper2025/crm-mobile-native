@@ -43,6 +43,8 @@
 	<string>Required to record your location during field verifications for audit compliance</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Required to continuously track your location during active field visits for audit trail compliance</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Required to save verification photos to your device for backup</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
