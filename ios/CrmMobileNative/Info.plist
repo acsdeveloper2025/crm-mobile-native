@@ -41,6 +41,8 @@
 	<string>Required to capture verification photos as evidence during field visits</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Required to record your location during field verifications for audit compliance</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Required to continuously track your location during active field visits for audit trail compliance</string>
 	<key>RCTNewArchEnabled</key>
 	<true/>
 	<key>UILaunchStoryboardName</key>
@@ -66,6 +68,7 @@
 	<array>
 		<string>fetch</string>
 		<string>processing</string>
+		<string>location</string>
 	</array>
 </dict>
 </plist>
