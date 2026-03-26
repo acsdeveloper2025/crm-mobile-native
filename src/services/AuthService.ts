@@ -5,7 +5,7 @@ import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import { config } from '../config';
 import { Logger } from '../utils/logger';
-import { CURRENT_PLATFORM, getOSVersion } from '../utils/platform';
+import { CURRENT_PLATFORM, getOSVersion, getDeviceModel } from '../utils/platform';
 import { PushTokenService } from './PushTokenService';
 import { SessionStore } from './SessionStore';
 import { KeyValueRepository } from '../repositories/KeyValueRepository';
@@ -359,7 +359,7 @@ class AuthServiceClass {
     return {
       deviceId: await this.getDeviceId(),
       platform: CURRENT_PLATFORM,
-      model: 'Unknown', // TODO: Use react-native-device-info
+      model: getDeviceModel(),
       osVersion: getOSVersion(),
       appVersion: config.appVersion,
       pushToken: (await PushTokenService.getCachedPushToken()) || undefined,
