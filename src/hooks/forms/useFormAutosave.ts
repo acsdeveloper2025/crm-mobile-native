@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { Logger } from '../../utils/logger';
+
+const TAG = 'useFormAutosave';
 
 interface UseFormAutosaveParams {
   taskId: string | null;
@@ -27,8 +30,9 @@ export const useFormAutosave = ({
   getAutoSavedForm,
   updateTaskFormData,
   persistAutoSave,
-}: UseFormAutosaveParams): { isInitialized: boolean } => {
+}: UseFormAutosaveParams): { isInitialized: boolean; autoSaveError: boolean } => {
   const [isInitialized, setIsInitialized] = useState(false);
+  const [autoSaveError, setAutoSaveError] = useState(false);
   const isMountedRef = useRef(true);
   const latestFormValuesRef = useRef(formValues);
   const latestTaskIdRef = useRef(taskId);
@@ -52,12 +56,16 @@ export const useFormAutosave = ({
       const currentTaskId = latestTaskIdRef.current;
       const latestValues = latestFormValuesRef.current;
       if (currentTaskId && Object.keys(latestValues).length > 0) {
-        updateTaskFormData(currentTaskId, latestValues).catch(() => {});
+        updateTaskFormData(currentTaskId, latestValues).catch((err) => {
+          Logger.error(TAG, 'Failed to persist form data on unmount', err);
+        });
         persistAutoSave(currentTaskId, {
           formType: latestTaskFormTypeRef.current || 'DEFAULT',
           formData: latestValues,
           timestamp: new Date().toISOString(),
-        }).catch(() => {});
+        }).catch((err) => {
+          Logger.error(TAG, 'Failed to persist auto-save on unmount', err);
+        });
       }
       isMountedRef.current = false;
     };
@@ -65,6 +73,7 @@ export const useFormAutosave = ({
 
   useEffect(() => {
     setIsInitialized(false);
+    setAutoSaveError(false);
   }, [taskId]);
 
   useEffect(() => {
@@ -126,8 +135,15 @@ export const useFormAutosave = ({
           formType: taskFormTypeKey || 'DEFAULT',
           formData: formValues,
         });
-      } catch {
-        // Draft persistence is best effort; user-facing screen state remains authoritative.
+        // Clear error flag on successful save
+        if (isMountedRef.current) {
+          setAutoSaveError(false);
+        }
+      } catch (err) {
+        Logger.error(TAG, 'Auto-save failed — form data may not be persisted', err);
+        if (isMountedRef.current) {
+          setAutoSaveError(true);
+        }
       }
     }, 1000);
 
@@ -141,7 +157,7 @@ export const useFormAutosave = ({
     updateTaskFormData,
   ]);
 
-  return { isInitialized };
+  return { isInitialized, autoSaveError };
 };
 
 export default useFormAutosave;
