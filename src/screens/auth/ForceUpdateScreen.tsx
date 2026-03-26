@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, Linking, SafeAreaView } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { Logger } from '../../utils/logger';
 
 export const ForceUpdateScreen = ({ route }: any) => {
   const { theme } = useTheme();
@@ -8,12 +9,12 @@ export const ForceUpdateScreen = ({ route }: any) => {
 
   const handleUpdate = () => {
     if (downloadUrl) {
-      Linking.openURL(downloadUrl).catch(err => 
-        console.error("Couldn't load page", err)
+      Linking.openURL(downloadUrl).catch(err =>
+        Logger.error('ForceUpdateScreen', "Couldn't load page", err),
       );
     } else {
       // Fallback if URL is missing for some reason
-      console.warn('Update URL not provided.');
+      Logger.warn('ForceUpdateScreen', 'Update URL not provided.');
     }
   };
 
