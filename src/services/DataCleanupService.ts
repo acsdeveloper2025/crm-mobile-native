@@ -115,7 +115,7 @@ export class DataCleanupService {
 
     } catch (err: unknown) {
       result.success = false;
-      result.errors.push(err.message);
+      result.errors.push(err instanceof Error ? err.message : String(err));
       Logger.error(TAG, 'Manual cleanup failed', err);
     }
 

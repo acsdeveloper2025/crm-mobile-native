@@ -98,7 +98,7 @@ export const DashboardScreen = () => {
         Alert.alert('Sync Failed', result.errors.join('\n') || 'Unknown error occurred.');
       }
     } catch (err: unknown) {
-      Alert.alert('Sync Error', err.message);
+      Alert.alert('Sync Error', err instanceof Error ? err.message : String(err));
     } finally {
       setIsSyncing(false);
       await notificationService.refreshFromBackend().catch(error => {
