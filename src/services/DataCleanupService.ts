@@ -105,8 +105,8 @@ export class DataCleanupService {
           await DataCleanupRepository.deleteTaskGraph(taskId);
           
           result.deletedCases++;
-        } catch (taskErr: any) {
-          result.errors.push(`Failed cleaning task ${taskId}: ${taskErr.message}`);
+        } catch (taskErr: unknown) {
+          result.errors.push(`Failed cleaning task ${taskId}: ${taskErr instanceof Error ? taskErr.message : String(taskErr)}`);
         }
       }
 

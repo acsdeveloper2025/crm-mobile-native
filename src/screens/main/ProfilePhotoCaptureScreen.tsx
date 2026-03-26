@@ -7,7 +7,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import RNFS from 'react-native-fs';
 import { useAuth } from '../../context/AuthContext';
 
-export const ProfilePhotoCaptureScreen = ({ navigation }: any) => {
+export const ProfilePhotoCaptureScreen = ({ navigation }: { navigation: Record<string, unknown> }) => {
   const { updateProfilePhoto } = useAuth();
   const device = useCameraDevice('front');
   const camera = useRef<Camera>(null);

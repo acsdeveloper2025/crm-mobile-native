@@ -42,9 +42,10 @@ export const LoginScreen = () => {
     };
   }, [password, username]);
 
-  const extractErrorMessage = React.useCallback((e: any): string => {
-    const status = e?.response?.status;
-    const responseData = e?.response?.data;
+  const extractErrorMessage = React.useCallback((e: unknown): string => {
+    const axiosErr = e as { response?: { status?: number; data?: Record<string, unknown> } };
+    const status = axiosErr?.response?.status;
+    const responseData = axiosErr?.response?.data;
     const backendMessage =
       typeof responseData === 'string' ? '' : responseData?.message;
     const backendError =
@@ -108,7 +109,7 @@ export const LoginScreen = () => {
       } else {
         setError('Invalid response from server');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       Logger.error(TAG, 'Login failed', e);
       setError(extractErrorMessage(e));
     } finally {

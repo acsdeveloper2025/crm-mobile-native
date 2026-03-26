@@ -38,8 +38,8 @@ export const SyncLogsScreen = () => {
       Alert.alert('Success', 'All failed sync items have been reset to PENDING.', [
         { text: 'OK', onPress: loadLogs }
       ]);
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to retry sync queue.');
+    } catch (e: unknown) {
+      Alert.alert('Error', (e instanceof Error ? e.message : String(e)) || 'Failed to retry sync queue.');
     }
   };
 
@@ -60,8 +60,8 @@ export const SyncLogsScreen = () => {
             try {
               await SyncQueueRepository.clearCompleted();
               loadLogs();
-            } catch (e: any) {
-              Alert.alert('Error', e.message);
+            } catch (e: unknown) {
+              Alert.alert('Error', e instanceof Error ? e.message : String(e));
             }
           }
         }
