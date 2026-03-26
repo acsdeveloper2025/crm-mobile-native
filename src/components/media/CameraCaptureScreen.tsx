@@ -55,7 +55,7 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
       // Activate camera ONLY after permission is confirmed.
       // On real devices, a small delay lets the native camera HAL initialize.
       if (Platform.OS === 'android') {
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise<void>(resolve => setTimeout(resolve, 300));
       }
       setIsActive(true);
     } catch (err) {

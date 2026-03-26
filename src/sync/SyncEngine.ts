@@ -31,7 +31,7 @@ class SyncEngineClass {
   private syncInProgress = false;
 
   startPeriodicSync(intervalMs: number = 5 * 60 * 1000): void {
-    SyncWatchdogService.recoverIfStalled(WATCHDOG_TIMEOUT_MS)
+    SyncWatchdogService.recoverIfStalled(WATCHDOG_MAX_TIMEOUT_MS)
       .then(stalled => {
         if (stalled && !this.syncInProgress) {
           this.performSync().catch(error => Logger.warn(TAG, 'Recovery sync failed', error));
