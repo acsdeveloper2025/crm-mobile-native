@@ -204,14 +204,30 @@ class DatabaseServiceClass {
     return this.initialized && this.db !== null;
   }
 
+  /** Whitelist of known table names to prevent SQL injection via dynamic table refs */
+  private static readonly ALLOWED_TABLES = new Set([
+    'tasks', 'attachments', 'locations', 'form_submissions', 'form_templates',
+    'sync_queue', 'sync_metadata', 'user_session', 'audit_log', 'notifications',
+    'key_value_store', 'task_list_projection', 'task_detail_projection',
+    'dashboard_projection',
+  ]);
+
+  private assertTableName(table: string): void {
+    if (!DatabaseServiceClass.ALLOWED_TABLES.has(table)) {
+      throw new Error(`Invalid table name: ${table}`);
+    }
+  }
+
   /**
-   * Get count of records in a table with optional WHERE clause
+   * Get count of records in a table with optional WHERE clause.
+   * Table name is validated against a whitelist to prevent SQL injection.
    */
   async count(
     table: string,
     where?: string,
     params?: (string | number | null)[],
   ): Promise<number> {
+    this.assertTableName(table);
     const sql = where
       ? `SELECT COUNT(*) as count FROM ${table} WHERE ${where}`
       : `SELECT COUNT(*) as count FROM ${table}`;
