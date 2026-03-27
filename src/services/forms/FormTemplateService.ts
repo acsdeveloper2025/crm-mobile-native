@@ -69,10 +69,19 @@ const COMMON_RELATIONSHIP_OPTIONS = [
   'Other',
 ];
 
+const COMMON_COLOR_OPTIONS = ['White', 'Off-White', 'Cream', 'Yellow', 'Blue', 'Green', 'Red', 'Brown', 'Gray', 'Black', 'Pink', 'Orange', 'Mixed', 'Other'];
+
+const COMMON_PERIOD_OPTIONS = ['Less than 1 Year', '1-3 Years', '3-5 Years', '5-10 Years', '10-15 Years', '15-20 Years', '20+ Years'];
+
 const RESIDENCE_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
   nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
+  addressStructureColor: COMMON_COLOR_OPTIONS,
+  doorColor: COMMON_COLOR_OPTIONS,
+  stayingPeriod: COMMON_PERIOD_OPTIONS,
+  workingPeriod: COMMON_PERIOD_OPTIONS,
+  shiftedPeriod: COMMON_PERIOD_OPTIONS,
 };
 
 const OFFICE_DICTIONARY: Record<string, string[]> = {
@@ -81,6 +90,11 @@ const OFFICE_DICTIONARY: Record<string, string[]> = {
   nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
+  addressStructureColor: COMMON_COLOR_OPTIONS,
+  doorColor: COMMON_COLOR_OPTIONS,
+  stayingPeriod: COMMON_PERIOD_OPTIONS,
+  workingPeriod: COMMON_PERIOD_OPTIONS,
+  shiftedPeriod: COMMON_PERIOD_OPTIONS,
 };
 
 const BUSINESS_DICTIONARY: Record<string, string[]> = {
@@ -92,6 +106,11 @@ const BUSINESS_DICTIONARY: Record<string, string[]> = {
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
   addressStatus: COMMON_ADDRESS_STATUS_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
+  addressStructureColor: COMMON_COLOR_OPTIONS,
+  doorColor: COMMON_COLOR_OPTIONS,
+  stayingPeriod: COMMON_PERIOD_OPTIONS,
+  workingPeriod: COMMON_PERIOD_OPTIONS,
+  shiftedPeriod: COMMON_PERIOD_OPTIONS,
 };
 
 const RESIDENCE_CUM_OFFICE_DICTIONARY: Record<string, string[]> = {
@@ -100,6 +119,11 @@ const RESIDENCE_CUM_OFFICE_DICTIONARY: Record<string, string[]> = {
   nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
+  addressStructureColor: COMMON_COLOR_OPTIONS,
+  doorColor: COMMON_COLOR_OPTIONS,
+  stayingPeriod: COMMON_PERIOD_OPTIONS,
+  workingPeriod: COMMON_PERIOD_OPTIONS,
+  shiftedPeriod: COMMON_PERIOD_OPTIONS,
 };
 
 const BUILDER_DICTIONARY: Record<string, string[]> = {
@@ -111,6 +135,11 @@ const BUILDER_DICTIONARY: Record<string, string[]> = {
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
   addressStatus: COMMON_ADDRESS_STATUS_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
+  addressStructureColor: COMMON_COLOR_OPTIONS,
+  doorColor: COMMON_COLOR_OPTIONS,
+  stayingPeriod: COMMON_PERIOD_OPTIONS,
+  workingPeriod: COMMON_PERIOD_OPTIONS,
+  shiftedPeriod: COMMON_PERIOD_OPTIONS,
 };
 
 const NOC_DICTIONARY: Record<string, string[]> = {
@@ -120,6 +149,11 @@ const NOC_DICTIONARY: Record<string, string[]> = {
   designation: COMMON_DESIGNATION_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
+  addressStructureColor: COMMON_COLOR_OPTIONS,
+  doorColor: COMMON_COLOR_OPTIONS,
+  stayingPeriod: COMMON_PERIOD_OPTIONS,
+  workingPeriod: COMMON_PERIOD_OPTIONS,
+  shiftedPeriod: COMMON_PERIOD_OPTIONS,
 };
 
 const DSA_CONNECTOR_DICTIONARY: Record<string, string[]> = {
@@ -129,6 +163,11 @@ const DSA_CONNECTOR_DICTIONARY: Record<string, string[]> = {
   designation: COMMON_DESIGNATION_OPTIONS,
   businessType: COMMON_BUSINESS_TYPE_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
+  addressStructureColor: COMMON_COLOR_OPTIONS,
+  doorColor: COMMON_COLOR_OPTIONS,
+  stayingPeriod: COMMON_PERIOD_OPTIONS,
+  workingPeriod: COMMON_PERIOD_OPTIONS,
+  shiftedPeriod: COMMON_PERIOD_OPTIONS,
 };
 
 const PROPERTY_INDIVIDUAL_DICTIONARY: Record<string, string[]> = {
@@ -138,6 +177,11 @@ const PROPERTY_INDIVIDUAL_DICTIONARY: Record<string, string[]> = {
   designation: COMMON_DESIGNATION_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
+  addressStructureColor: COMMON_COLOR_OPTIONS,
+  doorColor: COMMON_COLOR_OPTIONS,
+  stayingPeriod: COMMON_PERIOD_OPTIONS,
+  workingPeriod: COMMON_PERIOD_OPTIONS,
+  shiftedPeriod: COMMON_PERIOD_OPTIONS,
 };
 
 const PROPERTY_APF_DICTIONARY: Record<string, string[]> = {
@@ -148,6 +192,11 @@ const PROPERTY_APF_DICTIONARY: Record<string, string[]> = {
   businessType: COMMON_BUSINESS_TYPE_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
+  addressStructureColor: COMMON_COLOR_OPTIONS,
+  doorColor: COMMON_COLOR_OPTIONS,
+  stayingPeriod: COMMON_PERIOD_OPTIONS,
+  workingPeriod: COMMON_PERIOD_OPTIONS,
+  shiftedPeriod: COMMON_PERIOD_OPTIONS,
 };
 
 const DICTIONARY_BY_FORM_TYPE: Partial<Record<FormTypeKey, Record<string, string[]>>> = {

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { Logger } from '../../utils/logger';
 
 const TAG = 'useFormAutosave';
@@ -122,6 +123,33 @@ export const useFormAutosave = ({
     taskId,
     updateTaskFormData,
   ]);
+
+  // Save immediately when app goes to background
+  useEffect(() => {
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      if (nextState === 'background' || nextState === 'inactive') {
+        const currentTaskId = latestTaskIdRef.current;
+        const latestValues = latestFormValuesRef.current;
+        if (currentTaskId && Object.keys(latestValues).length > 0) {
+          updateTaskFormData(currentTaskId, latestValues).catch((err) => {
+            Logger.error(TAG, 'Failed to persist form data on app background', err);
+          });
+          persistAutoSave(currentTaskId, {
+            formType: latestTaskFormTypeRef.current || 'DEFAULT',
+            formData: latestValues,
+            timestamp: new Date().toISOString(),
+          }).catch((err) => {
+            Logger.error(TAG, 'Failed to persist auto-save on app background', err);
+          });
+        }
+      }
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => {
+      subscription.remove();
+    };
+  }, [persistAutoSave, updateTaskFormData]);
 
   useEffect(() => {
     if (!taskId || !isInitialized || Object.keys(formValues).length === 0) {

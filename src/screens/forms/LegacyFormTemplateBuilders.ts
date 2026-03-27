@@ -251,8 +251,8 @@ const withLegacyResidenceOrder = (fields: ResidenceFieldInput[]): FormFieldTempl
   });
 
 const legacyPositiveResidenceFields = withLegacyResidenceOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'houseStatus', label: 'House Status', type: 'select', required: true },
   { name: 'metPersonName', label: 'Met Person Name', type: 'text', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'metPersonRelation', label: 'Relation', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
@@ -261,7 +261,7 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
   { name: 'workingStatus', label: 'Working Status', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'companyName', label: 'Company Name', type: 'text', conditional: legacyCondition('workingStatus', 'notIn', ['', null, 'House Wife']), requiredWhen: legacyCondition('workingStatus', 'notIn', ['', null, 'House Wife']) },
   { name: 'stayingPeriod', label: 'Staying Period', type: 'text', required: true },
-  { name: 'stayingStatus', label: 'Staying Status', type: 'select', required: true },
+  { name: 'stayingStatus', label: 'Ownership Type', type: 'select', required: true },
   { name: 'approxArea', label: 'Approx Area (Sq. Feet)', type: 'number', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'documentShownStatus', label: 'Document Shown Status', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'documentType', label: 'Document Type', type: 'select', conditional: legacyCondition('documentShownStatus', 'equals', 'Showed'), requiredWhen: legacyCondition('documentShownStatus', 'equals', 'Showed') },
@@ -276,9 +276,9 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
   { name: 'applicantStayingFloor', label: 'Applicant Staying Floor', type: 'number', required: true },
   { name: 'addressStructureColor', label: 'Address Structure Color', type: 'text', required: true },
   { name: 'doorColor', label: 'Door Color', type: 'text', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate Status', type: 'select', required: true },
+  { name: 'doorNamePlateStatus', label: 'Door Name Plate Visible?', type: 'select', required: true },
   { name: 'nameOnDoorPlate', label: 'Name on Door Plate', type: 'text', conditional: legacyCondition('doorNamePlateStatus', 'equals', 'Sighted'), requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'Sighted') },
-  { name: 'societyNamePlateStatus', label: 'Society Name Plate Status', type: 'select', required: true },
+  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
   { name: 'nameOnSocietyBoard', label: 'Name on Society Board', type: 'text', conditional: legacyCondition('societyNamePlateStatus', 'equals', 'Sighted'), requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'Sighted') },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
@@ -291,8 +291,8 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
 ]);
 
 const legacyShiftedResidenceFields = withLegacyResidenceOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'roomStatus', label: 'Room Status', type: 'select', required: true },
   { name: 'metPersonName', label: 'Met Person', type: 'text', conditional: legacyCondition('roomStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('roomStatus', 'equals', 'Opened') },
   { name: 'metPersonStatus', label: 'Met Person Status', type: 'select', conditional: legacyCondition('roomStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('roomStatus', 'equals', 'Opened') },
@@ -307,9 +307,9 @@ const legacyShiftedResidenceFields = withLegacyResidenceOrder([
   { name: 'addressFloor', label: 'Address Floor', type: 'number', required: true },
   { name: 'addressStructureColor', label: 'Address Structure Color', type: 'text', required: true },
   { name: 'doorColor', label: 'Door Color', type: 'text', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate Status', type: 'select', required: true },
+  { name: 'doorNamePlateStatus', label: 'Door Name Plate Visible?', type: 'select', required: true },
   { name: 'nameOnDoorPlate', label: 'Name on Door Plate', type: 'text', conditional: legacyCondition('doorNamePlateStatus', 'equals', 'Sighted'), requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'Sighted') },
-  { name: 'societyNamePlateStatus', label: 'Society Name Plate Status', type: 'select', required: true },
+  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
   { name: 'nameOnSocietyBoard', label: 'Name on Society Board', type: 'text', conditional: legacyCondition('societyNamePlateStatus', 'equals', 'Sighted'), requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'Sighted') },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
@@ -322,8 +322,8 @@ const legacyShiftedResidenceFields = withLegacyResidenceOrder([
 ]);
 
 const legacyNspResidenceFields = withLegacyResidenceOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'houseStatus', label: 'House Status', type: 'select', required: true },
   { name: 'metPersonName', label: 'Met Person', type: 'text', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'metPersonStatus', label: 'Met Person Status', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
@@ -338,9 +338,9 @@ const legacyNspResidenceFields = withLegacyResidenceOrder([
   { name: 'applicantStayingFloor', label: 'Applicant Staying Floor', type: 'number', required: true },
   { name: 'addressStructureColor', label: 'Address Structure Color', type: 'text', required: true },
   { name: 'doorColor', label: 'Door Color', type: 'text', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate Status', type: 'select', required: true },
+  { name: 'doorNamePlateStatus', label: 'Door Name Plate Visible?', type: 'select', required: true },
   { name: 'nameOnDoorPlate', label: 'Name on Door Plate', type: 'text', conditional: legacyCondition('doorNamePlateStatus', 'equals', 'Sighted'), requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'Sighted') },
-  { name: 'societyNamePlateStatus', label: 'Society Name Plate Status', type: 'select', required: true },
+  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
   { name: 'nameOnSocietyBoard', label: 'Name on Society Board', type: 'text', conditional: legacyCondition('societyNamePlateStatus', 'equals', 'Sighted'), requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'Sighted') },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
@@ -353,8 +353,8 @@ const legacyNspResidenceFields = withLegacyResidenceOrder([
 ]);
 
 const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
   { name: 'metPersonConfirmation', label: 'Met Person Confirmation', type: 'select', required: true },
@@ -363,7 +363,7 @@ const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
   { name: 'addressStructure', label: 'Address Structure', type: 'number', required: true },
   { name: 'applicantStayingFloor', label: 'Applicant Staying Floor', type: 'number', required: true },
   { name: 'addressStructureColor', label: 'Address Structure Color', type: 'text', required: true },
-  { name: 'societyNamePlateStatus', label: 'Society Name Plate Status', type: 'select', required: true },
+  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
   { name: 'nameOnSocietyBoard', label: 'Name on Society Board', type: 'text', conditional: legacyCondition('societyNamePlateStatus', 'equals', 'Sighted'), requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'Sighted') },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
@@ -560,13 +560,13 @@ const withLegacyResiCumOfficeOrder = (fields: ResidenceFieldInput[]): FormFieldT
   });
 
 const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'resiCumOfficeStatus', label: 'Resi-cum-Office Status', type: 'select', required: true },
   { name: 'residenceSetup', label: 'Residence Setup', type: 'select', required: true },
   { name: 'businessSetup', label: 'Business Setup', type: 'select', required: true },
   { name: 'stayingPeriod', label: 'Staying Period', type: 'text', required: true },
-  { name: 'stayingStatus', label: 'Staying Status', type: 'select', required: true },
+  { name: 'stayingStatus', label: 'Ownership Type', type: 'select', required: true },
   { name: 'companyNatureOfBusiness', label: 'Company Nature of Business', type: 'text', required: true },
   { name: 'businessPeriod', label: 'Business Period', type: 'text', required: true },
   { name: 'businessStatus', label: 'Business Status', type: 'select', required: true },
@@ -648,7 +648,7 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   { name: 'applicantStayingFloor', label: 'Applicant Staying Floor', type: 'number', required: true },
   { name: 'addressStructureColor', label: 'Address Structure Color', type: 'text', required: true },
   { name: 'doorColor', label: 'Door Color', type: 'text', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate Status', type: 'select', required: true },
+  { name: 'doorNamePlateStatus', label: 'Door Name Plate Visible?', type: 'select', required: true },
   {
     name: 'nameOnDoorPlate',
     label: 'Name on Door Plate',
@@ -656,7 +656,7 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     conditional: legacyCondition('doorNamePlateStatus', 'equals', 'Sighted'),
     requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'Sighted'),
   },
-  { name: 'societyNamePlateStatus', label: 'Society Name Plate Status', type: 'select', required: true },
+  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
   {
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
@@ -689,8 +689,8 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
 ]);
 
 const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'resiCumOfficeStatus', label: 'Resi-cum-Office Status', type: 'select', required: true },
   { name: 'shiftedPeriod', label: 'Shifted Period', type: 'text', required: true },
   { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select' },
@@ -728,7 +728,7 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   { name: 'addressFloor', label: 'Address Floor', type: 'number', required: true },
   { name: 'addressStructureColor', label: 'Address Structure Color', type: 'text', required: true },
   { name: 'doorColor', label: 'Door Color', type: 'text', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate Status', type: 'select', required: true },
+  { name: 'doorNamePlateStatus', label: 'Door Name Plate Visible?', type: 'select', required: true },
   {
     name: 'nameOnDoorPlate',
     label: 'Name on Door Plate',
@@ -736,7 +736,7 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     conditional: legacyCondition('doorNamePlateStatus', 'equals', 'Sighted'),
     requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'Sighted'),
   },
-  { name: 'societyNamePlateStatus', label: 'Society Name Plate Status', type: 'select', required: true },
+  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
   {
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
@@ -762,8 +762,8 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
 
 const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   { name: 'addressTraceable', label: 'Address Traceable', type: 'select', required: true },
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'resiCumOfficeStatus', label: 'Resi-cum-Office Status', type: 'select', required: true },
   { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select' },
   {
@@ -814,7 +814,7 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   { name: 'applicantStayingFloor', label: 'Applicant Staying Floor', type: 'number', required: true },
   { name: 'addressStructureColor', label: 'Address Structure Color', type: 'text', required: true },
   { name: 'doorColor', label: 'Door Color', type: 'text', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate Status', type: 'select', required: true },
+  { name: 'doorNamePlateStatus', label: 'Door Name Plate Visible?', type: 'select', required: true },
   {
     name: 'nameOnDoorPlate',
     label: 'Name on Door Plate',
@@ -822,7 +822,7 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     conditional: legacyCondition('doorNamePlateStatus', 'equals', 'Sighted'),
     requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'Sighted'),
   },
-  { name: 'societyNamePlateStatus', label: 'Society Name Plate Status', type: 'select', required: true },
+  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
   {
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
@@ -845,8 +845,8 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
 ]);
 
 const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
   { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
   { name: 'metPersonConfirmation', label: 'Met Person Confirmation', type: 'select', required: true },
@@ -858,7 +858,7 @@ const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     required: true,
     options: toSelectOptions(legacyResiCumOfficeSelectOptions.businessStatusErtResiCumOffice),
   },
-  { name: 'societyNamePlateStatus', label: 'Society Name Plate Status', type: 'select', required: true },
+  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
   {
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
@@ -1042,8 +1042,8 @@ const withLegacyOfficeOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate
   });
 
 const legacyPositiveOfficeFields = withLegacyOfficeOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
   {
@@ -1197,8 +1197,8 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
 ]);
 
 const legacyShiftedOfficeFields = withLegacyOfficeOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'currentCompanyName', label: 'Current Company Name', type: 'text', required: true },
   { name: 'currentCompanyPeriod', label: 'Current Company Period', type: 'text', required: true },
@@ -1284,8 +1284,8 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
 ]);
 
 const legacyNspOfficeFields = withLegacyOfficeOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'officeExistence', label: 'Office Existence', type: 'select', required: true },
   { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
@@ -1368,8 +1368,8 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
 ]);
 
 const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
   { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
   {
@@ -1571,8 +1571,8 @@ const withLegacyBusinessOrder = (fields: ResidenceFieldInput[]): FormFieldTempla
   });
 
 const legacyPositiveBusinessFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'companyNatureOfBusiness', label: 'Company Nature of Business', type: 'text', required: true },
   { name: 'businessPeriod', label: 'Business Period', type: 'text', required: true },
@@ -1699,8 +1699,8 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
 ]);
 
 const legacyShiftedBusinessFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'oldOfficeShiftedPeriod', label: 'Old Office Shifted Period', type: 'text', required: true },
   { name: 'tpcMetPerson', label: 'TPC Met Person 1', type: 'select' },
@@ -1810,8 +1810,8 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
 ]);
 
 const legacyNspBusinessFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'businessExistance', label: 'Business Existance', type: 'select', required: true },
   { name: 'applicantExistance', label: 'Applicant Existance', type: 'select', required: true },
@@ -1901,8 +1901,8 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
 ]);
 
 const legacyEntryRestrictedBusinessFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
   { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
   {
@@ -2005,6 +2005,105 @@ const buildLegacyBusinessTemplate = (
   };
 };
 
+const legacyPositiveBuilderFields = withLegacyBusinessOrder([
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'houseStatus', label: 'House Status', type: 'select', required: true },
+  { name: 'metPersonName', label: 'Met Person Name', type: 'text', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
+  { name: 'relation', label: 'Relation', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
+  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', required: true },
+  { name: 'businessType', label: 'Business Type', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
+  { name: 'ownershipType', label: 'Ownership Type', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
+  { name: 'addressStatus', label: 'Address Status', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
+  { name: 'staffStrength', label: 'Staff Strength', type: 'number', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
+  { name: 'staffSeen', label: 'Staff Seen', type: 'number', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
+  { name: 'approxArea', label: 'Approx Area (Sq. Feet)', type: 'number', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
+  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
+  { name: 'companyName', label: 'Company Name', type: 'text', required: true },
+  { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
+  { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
+  { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select' },
+  { name: 'tpcName1', label: 'Name of TPC 1', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  { name: 'tpcConfirmation1', label: 'TPC Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  { name: 'tpcMetPerson2', label: 'TPC Met Person 2', type: 'select' },
+  { name: 'tpcName2', label: 'Name of TPC 2', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  { name: 'tpcConfirmation2', label: 'TPC Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
+  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
+  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+]);
+
+const legacyShiftedBuilderFields = withLegacyBusinessOrder([
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
+  { name: 'shiftedPeriod', label: 'Shifted Period', type: 'text', required: true },
+  { name: 'metPersonName', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Opened') },
+  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Opened') },
+  { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select' },
+  { name: 'tpcName1', label: 'Name of TPC 1', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  { name: 'tpcMetPerson2', label: 'TPC Met Person 2', type: 'select' },
+  { name: 'tpcName2', label: 'Name of TPC 2', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  { name: 'locality', label: 'Locality', type: 'select', required: true },
+  { name: 'addressStructure', label: 'Address Structure', type: 'number', required: true },
+  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'text', required: true },
+  { name: 'doorColor', label: 'Door Color', type: 'text', required: true },
+  { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
+  { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
+  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
+  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
+  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+]);
+
+const legacyNspBuilderFields = withLegacyBusinessOrder([
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
+  { name: 'metPersonName', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Opened') },
+  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Opened') },
+  { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select' },
+  { name: 'tpcName1', label: 'Name of TPC 1', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  { name: 'tpcMetPerson2', label: 'TPC Met Person 2', type: 'select' },
+  { name: 'tpcName2', label: 'Name of TPC 2', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  { name: 'locality', label: 'Locality', type: 'select', required: true },
+  { name: 'addressStructure', label: 'Address Structure', type: 'number', required: true },
+  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'text', required: true },
+  { name: 'doorColor', label: 'Door Color', type: 'text', required: true },
+  { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
+  { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
+  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
+  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
+  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+]);
+
+const legacyEntryRestrictedBuilderFields = withLegacyBusinessOrder([
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
+  { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
+  { name: 'locality', label: 'Locality', type: 'select', required: true },
+  { name: 'addressStructure', label: 'Address Structure', type: 'number', required: true },
+  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'text', required: true },
+  { name: 'doorColor', label: 'Door Color', type: 'text', required: true },
+  { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
+  { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
+  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
+  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
+  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+]);
+
 const legacyUntraceableBuilderFields = withLegacyBusinessOrder([
   { name: 'metPerson', label: 'Met Person', type: 'text', required: true },
   { name: 'callRemark', label: 'Call Remark', type: 'select', required: true },
@@ -2029,10 +2128,10 @@ const normalizedBuilderOutcome = (rawOutcome: string): ResidenceOutcome =>
   normalizedBusinessOutcome(rawOutcome);
 
 const legacyBuilderFieldsByOutcome: Record<ResidenceOutcome, FormFieldTemplate[]> = {
-  POSITIVE: legacyPositiveBusinessFields,
-  SHIFTED: legacyShiftedBusinessFields,
-  NSP: legacyNspBusinessFields,
-  ENTRY_RESTRICTED: legacyEntryRestrictedBusinessFields,
+  POSITIVE: legacyPositiveBuilderFields,
+  SHIFTED: legacyShiftedBuilderFields,
+  NSP: legacyNspBuilderFields,
+  ENTRY_RESTRICTED: legacyEntryRestrictedBuilderFields,
   UNTRACEABLE: legacyUntraceableBuilderFields,
 };
 
@@ -2155,8 +2254,8 @@ const withLegacyNocOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] 
   });
 
 const legacyPositiveNocFields = withLegacyNocOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   {
     name: 'metPerson',
@@ -2213,8 +2312,8 @@ const legacyPositiveNocFields = withLegacyNocOrder([
 ]);
 
 const legacyShiftedNocFields = withLegacyNocOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'currentCompanyName', label: 'Current Company Name', type: 'text', required: true },
   { name: 'currentCompanyPeriod', label: 'Current Company Period', type: 'text', required: true },
@@ -2275,8 +2374,8 @@ const legacyShiftedNocFields = withLegacyNocOrder([
 ]);
 
 const legacyNspNocFields = withLegacyNocOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   {
     name: 'businessExistance',
@@ -2391,8 +2490,8 @@ const legacyNspNocFields = withLegacyNocOrder([
 ]);
 
 const legacyEntryRestrictedNocFields = withLegacyNocOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   {
     name: 'metPerson',
     label: 'Met Person',
@@ -2595,8 +2694,8 @@ const withLegacyDsaOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] 
   });
 
 const legacyPositiveDsaFields = withLegacyDsaOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   {
     name: 'companyNatureOfBusiness',
@@ -2759,8 +2858,8 @@ const legacyPositiveDsaFields = withLegacyDsaOrder([
 ]);
 
 const legacyShiftedDsaFields = withLegacyDsaOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'oldOfficeShiftedPeriod', label: 'Old Office Shifted Period', type: 'text', required: true },
   { name: 'tpcMetPerson', label: 'TPC Met Person 1', type: 'select', required: true },
@@ -2870,8 +2969,8 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
 ]);
 
 const legacyNspDsaFields = withLegacyDsaOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   {
     name: 'businessExistance',
@@ -2985,8 +3084,8 @@ const legacyNspDsaFields = withLegacyDsaOrder([
 ]);
 
 const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   {
     name: 'metPerson',
     label: 'Met Person',
@@ -3185,8 +3284,8 @@ const withLegacyPropertyApfOrder = (fields: ResidenceFieldInput[]): FormFieldTem
   });
 
 const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'constructionActivity', label: 'Construction Activity', type: 'select', required: true },
   {
     name: 'buildingStatus',
@@ -3330,8 +3429,8 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
 ]);
 
 const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   {
     name: 'buildingStatus',
     label: 'Building Status',
@@ -3541,8 +3640,8 @@ const withLegacyPropertyIndividualOrder = (fields: ResidenceFieldInput[]): FormF
   });
 
 const legacyPositivePropertyIndividualFields = withLegacyPropertyIndividualOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'buildingStatus', label: 'Building Status', type: 'select', required: true },
   { name: 'flatStatus', label: 'Flat Status', type: 'select', required: true },
   { name: 'propertyOwnerName', label: 'Property Owner Name', type: 'text', required: true },
@@ -3611,8 +3710,8 @@ const legacyPositivePropertyIndividualFields = withLegacyPropertyIndividualOrder
 ]);
 
 const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'buildingStatus', label: 'Building Status', type: 'select', required: true },
   { name: 'flatStatus', label: 'Flat Status', type: 'select', required: true },
   { name: 'propertyOwnerName', label: 'Property Owner Name', type: 'text', required: true },
@@ -3673,8 +3772,8 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
 ]);
 
 const legacyEntryRestrictedPropertyIndividualFields = withLegacyPropertyIndividualOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
+  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
   { name: 'flatStatus', label: 'Flat Status', type: 'select', required: true },
   {
     name: 'metPerson',
