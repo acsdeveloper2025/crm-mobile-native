@@ -348,7 +348,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContentWithFooter, { paddingBottom: Math.max(insets.bottom, 16) + 24 }]}
+        contentContainerStyle={[styles.scrollContentWithFooter, { paddingBottom: Math.max(insets.bottom, 16) + 80 }]}
         showsVerticalScrollIndicator={false}>
 
         {/* Media Block */}
