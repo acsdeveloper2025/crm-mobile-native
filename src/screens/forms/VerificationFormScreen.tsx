@@ -1,5 +1,5 @@
 // cspell:words Pagadi Accomodation Adhar Neighbour Bunglow Chawl Patra Resi Existance authorised Authorised
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -68,6 +68,48 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     updateTaskFormData,
     persistAutoSave,
   });
+
+  const formProgress = useMemo(() => {
+    if (!template) return { filled: 0, total: 0, percent: 0 };
+
+    let totalRequired = 0;
+    let filledRequired = 0;
+
+    const evaluateConditionSimple = (condition: any, values: Record<string, any>): boolean => {
+      const actual = values[condition.field];
+      switch (condition.operator) {
+        case 'equals': return actual === condition.value;
+        case 'notEquals': return actual !== condition.value;
+        case 'notIn': return !Array.isArray(condition.value) || !condition.value.includes(actual);
+        case 'in': return Array.isArray(condition.value) && condition.value.includes(actual);
+        default: return true;
+      }
+    };
+
+    for (const section of template.sections) {
+      if (section.conditional && !evaluateConditionSimple(section.conditional, formValues)) continue;
+      for (const field of section.fields) {
+        if (field.conditional && !evaluateConditionSimple(field.conditional, formValues)) continue;
+
+        let isRequired = Boolean(field.required);
+        if (!isRequired && field.requiredWhen) {
+          const conditions = Array.isArray(field.requiredWhen) ? field.requiredWhen : [field.requiredWhen];
+          isRequired = conditions.every((c: any) => evaluateConditionSimple(c, formValues));
+        }
+
+        if (!isRequired) continue;
+        totalRequired += 1;
+
+        const val = formValues[field.name || field.id];
+        if (val !== null && val !== undefined && String(val).trim() !== '') {
+          filledRequired += 1;
+        }
+      }
+    }
+
+    const percent = totalRequired > 0 ? Math.round((filledRequired / totalRequired) * 100) : 0;
+    return { filled: filledRequired, total: totalRequired, percent };
+  }, [template, formValues]);
 
   const getLegacyTemplate = React.useCallback(
     (verificationType: FormTypeKey, outcome: string): FormTemplate | null =>
@@ -340,6 +382,25 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
         </View>
 
         {renderOutcomeSelector()}
+
+        {/* Progress Bar */}
+        {template && selectedOutcome && formProgress.total > 0 ? (
+          <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, paddingVertical: 12 }]}>
+            <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.text, marginBottom: 8 }}>
+              {formProgress.filled}/{formProgress.total} required fields completed ({formProgress.percent}%)
+            </Text>
+            <View style={{ height: 8, borderRadius: 4, backgroundColor: theme.colors.surfaceAlt, overflow: 'hidden' }}>
+              <View
+                style={{
+                  height: '100%',
+                  width: `${formProgress.percent}%`,
+                  backgroundColor: formProgress.percent === 100 ? '#22C55E' : theme.colors.primary,
+                  borderRadius: 4,
+                }}
+              />
+            </View>
+          </View>
+        ) : null}
 
         {/* Dynamic Form Block */}
         <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>

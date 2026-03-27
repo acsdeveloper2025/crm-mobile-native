@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, TextInput, StyleSheet, Switch } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useTheme } from '../../context/ThemeContext';
@@ -10,16 +10,87 @@ export interface DynamicFieldProps {
     type: string;
     required?: boolean;
     options?: { label: string; value: string }[];
+    name?: string;
   };
   value: unknown;
   onChange: (id: string, value: unknown) => void;
   error?: string;
 }
 
+const NUMERIC_FIELD_NAME_PATTERNS = [
+  'phone',
+  'earning',
+  'family',
+  'staff',
+  'floor',
+  'area',
+];
+
+const PHONE_FIELD_NAMES = [
+  'tpcPhone1',
+  'tpcPhone2',
+  'backendContactNumber',
+];
+
+const shouldUseNumericKeyboard = (field: { id: string; type: string; name?: string }): boolean => {
+  if (field.type === 'number') return true;
+  const fieldName = (field.name || field.id || '').toLowerCase();
+  return NUMERIC_FIELD_NAME_PATTERNS.some(pattern => fieldName.includes(pattern));
+};
+
+const isPhoneField = (fieldName: string): boolean => {
+  const lower = fieldName.toLowerCase();
+  return PHONE_FIELD_NAMES.some(name => lower === name.toLowerCase()) || lower.includes('phone');
+};
+
+const validateField = (
+  field: { id: string; type: string; required?: boolean; name?: string },
+  fieldValue: unknown,
+): string | null => {
+  const strValue = String(fieldValue ?? '').trim();
+
+  // Required field check
+  if (field.required && strValue === '') {
+    return 'Required';
+  }
+
+  if (strValue === '') return null;
+
+  // Number validation
+  if (field.type === 'number') {
+    if (isNaN(Number(strValue))) {
+      return 'Must be a valid number';
+    }
+  }
+
+  // Phone validation (10-digit minimum)
+  const fieldName = field.name || field.id || '';
+  if (isPhoneField(fieldName)) {
+    const digitsOnly = strValue.replace(/\D/g, '');
+    if (digitsOnly.length < 10) {
+      return 'Phone number must be at least 10 digits';
+    }
+  }
+
+  return null;
+};
+
 const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, value, onChange, error }) => {
   const { theme } = useTheme();
+  const [touched, setTouched] = useState(false);
+  const [localValidationError, setLocalValidationError] = useState<string | null>(null);
   const placeholder = `Enter ${field.label.toLowerCase()}`;
   const options = Array.isArray(field.options) ? field.options : [];
+
+  const handleBlur = useCallback(() => {
+    setTouched(true);
+    const validationResult = validateField(field, value);
+    setLocalValidationError(validationResult);
+  }, [field, value]);
+
+  // Show external error prop first, then local validation error (only after blur)
+  const displayError = error || (touched ? localValidationError : null);
+  const useNumericKeyboard = shouldUseNumericKeyboard(field);
 
   const renderInput = () => {
     switch (field.type) {
@@ -31,10 +102,10 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
               styles.input,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
+                borderColor: displayError ? theme.colors.danger : theme.colors.border,
                 color: theme.colors.text
               },
-              error && [styles.inputError, { borderColor: theme.colors.danger, backgroundColor: theme.colors.danger + '10' }]
+              displayError && [styles.inputError, { borderColor: theme.colors.danger, backgroundColor: theme.colors.danger + '10' }]
             ]}
             value={value?.toString() || ''}
             onChangeText={(text) => {
@@ -44,7 +115,8 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
               }
               onChange(field.id, text);
             }}
-            keyboardType={field.type === 'number' ? 'numeric' : 'default'}
+            onBlur={handleBlur}
+            keyboardType={useNumericKeyboard ? 'numeric' : 'default'}
             placeholder={placeholder}
             placeholderTextColor={theme.colors.textMuted}
           />
@@ -58,13 +130,14 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
               styles.textArea,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
+                borderColor: displayError ? theme.colors.danger : theme.colors.border,
                 color: theme.colors.text
               },
-              error && [styles.inputError, { borderColor: theme.colors.danger, backgroundColor: theme.colors.danger + '10' }]
+              displayError && [styles.inputError, { borderColor: theme.colors.danger, backgroundColor: theme.colors.danger + '10' }]
             ]}
             value={value?.toString() || ''}
             onChangeText={(text) => onChange(field.id, text)}
+            onBlur={handleBlur}
             multiline
             numberOfLines={4}
             placeholder={placeholder}
@@ -79,13 +152,14 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
               styles.input,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border,
+                borderColor: displayError ? theme.colors.danger : theme.colors.border,
                 color: theme.colors.text
               },
-              error && [styles.inputError, { borderColor: theme.colors.danger, backgroundColor: theme.colors.danger + '10' }]
+              displayError && [styles.inputError, { borderColor: theme.colors.danger, backgroundColor: theme.colors.danger + '10' }]
             ]}
             value={value?.toString() || ''}
             onChangeText={(text) => onChange(field.id, text)}
+            onBlur={handleBlur}
             placeholder="YYYY-MM-DD"
             placeholderTextColor={theme.colors.textMuted}
             autoCapitalize="none"
@@ -116,7 +190,7 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
               styles.pickerContainer,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: error ? theme.colors.danger : theme.colors.border,
+                borderColor: displayError ? theme.colors.danger : theme.colors.border,
               },
             ]}>
             <Picker
@@ -152,7 +226,7 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
         {field.required && <Text style={[styles.requiredStar, { color: theme.colors.danger }]}>*</Text>}
       </View>
       {renderInput()}
-      {error && <Text style={[styles.errorText, { color: theme.colors.danger }]}>{error}</Text>}
+      {displayError ? <Text style={[styles.errorText, { color: theme.colors.danger }]}>{displayError}</Text> : null}
     </View>
   );
 };
