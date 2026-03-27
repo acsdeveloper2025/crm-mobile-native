@@ -70,18 +70,6 @@ const COMMON_RELATIONSHIP_OPTIONS = [
 ];
 
 const RESIDENCE_DICTIONARY: Record<string, string[]> = {
-  metPersonName: [
-    'Self',
-    'Father',
-    'Mother',
-    'Spouse',
-    'Brother',
-    'Sister',
-    'Neighbour',
-    'Security',
-    'Receptionist',
-    'Other',
-  ],
   metPerson: COMMON_MET_PERSON_OPTIONS,
   nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
@@ -89,7 +77,7 @@ const RESIDENCE_DICTIONARY: Record<string, string[]> = {
 
 const OFFICE_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  metPersonName: COMMON_MET_PERSON_OPTIONS,
+
   nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
@@ -97,7 +85,7 @@ const OFFICE_DICTIONARY: Record<string, string[]> = {
 
 const BUSINESS_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  metPersonName: COMMON_MET_PERSON_OPTIONS,
+
   nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   businessType: COMMON_BUSINESS_TYPE_OPTIONS,
@@ -108,7 +96,7 @@ const BUSINESS_DICTIONARY: Record<string, string[]> = {
 
 const RESIDENCE_CUM_OFFICE_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  metPersonName: COMMON_MET_PERSON_OPTIONS,
+
   nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
@@ -116,7 +104,7 @@ const RESIDENCE_CUM_OFFICE_DICTIONARY: Record<string, string[]> = {
 
 const BUILDER_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  metPersonName: COMMON_MET_PERSON_OPTIONS,
+
   nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   businessType: COMMON_BUSINESS_TYPE_OPTIONS,
@@ -127,7 +115,7 @@ const BUILDER_DICTIONARY: Record<string, string[]> = {
 
 const NOC_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  metPersonName: COMMON_MET_PERSON_OPTIONS,
+
   nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
@@ -136,7 +124,7 @@ const NOC_DICTIONARY: Record<string, string[]> = {
 
 const DSA_CONNECTOR_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  metPersonName: COMMON_MET_PERSON_OPTIONS,
+
   nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   businessType: COMMON_BUSINESS_TYPE_OPTIONS,
@@ -145,7 +133,7 @@ const DSA_CONNECTOR_DICTIONARY: Record<string, string[]> = {
 
 const PROPERTY_INDIVIDUAL_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  metPersonName: COMMON_MET_PERSON_OPTIONS,
+
   nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
@@ -154,7 +142,7 @@ const PROPERTY_INDIVIDUAL_DICTIONARY: Record<string, string[]> = {
 
 const PROPERTY_APF_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  metPersonName: COMMON_MET_PERSON_OPTIONS,
+
   nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   businessType: COMMON_BUSINESS_TYPE_OPTIONS,
