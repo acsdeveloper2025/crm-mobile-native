@@ -1,6 +1,6 @@
 // cspell:words Pagadi Accomodation Adhar Neighbour Bunglow Chawl Patra Resi Existance authorised Authorised
 import React, { useState, useEffect, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTask } from '../../hooks/useTask';
@@ -38,7 +38,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     getAutoSavedForm,
     submitTaskForm,
   } = useTaskManager();
-  const { taskId } = route.params;
+  const { taskId } = route.params || {};
   const { task, isLoading: taskLoading } = useTask(taskId);
   const taskFormTypeKey = React.useMemo<FormTypeKey | null>(() => {
     if (!task) return null;
@@ -346,6 +346,10 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContentWithFooter, { paddingBottom: Math.max(insets.bottom, 16) + 80 }]}
@@ -481,6 +485,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
         </View>
 
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 };

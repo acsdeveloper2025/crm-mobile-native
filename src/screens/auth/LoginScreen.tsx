@@ -151,7 +151,7 @@ export const LoginScreen = () => {
 
           <View style={styles.formContainer}>
             {error ? (
-              <Text style={styles.errorText} numberOfLines={1} ellipsizeMode="tail">
+              <Text style={styles.errorText} numberOfLines={3} ellipsizeMode="tail">
                 {error}
               </Text>
             ) : null}

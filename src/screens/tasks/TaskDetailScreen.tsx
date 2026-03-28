@@ -18,7 +18,7 @@ import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
 export const TaskDetailScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { taskId } = route.params;
+  const { taskId } = route.params || {};
   const { task, isLoading, error, refetch } = useTask(taskId);
   const [isActionLoading, setIsActionLoading] = useState(false);
 

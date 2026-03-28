@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView, RefreshControl, StatusBar } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme, ThemePreference } from '../../context/ThemeContext';
@@ -15,7 +15,7 @@ import { DashboardProjection } from '../../projections/DashboardProjection';
 export const DashboardScreen = () => {
   const TAG = 'DashboardScreen';
   const { user } = useAuth();
-  const { theme, themePreference, setThemePreference } = useTheme();
+  const { theme, themePreference, isDark, setThemePreference } = useTheme();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const [isSyncing, setIsSyncing] = React.useState(false);
@@ -27,6 +27,8 @@ export const DashboardScreen = () => {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [recentActivity, setRecentActivity] = useState<Array<{ id: string; text: string }>>([]);
   const [lastSyncLabel, setLastSyncLabel] = useState('Not synced yet');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const loadStats = useCallback(async () => {
     try {
@@ -35,7 +37,9 @@ export const DashboardScreen = () => {
       setInProgressTasks(stats.inProgressCount);
       setCompletedTasks(stats.completedCount);
       setSavedTasks(stats.savedCount);
-    } catch { /* ignore */ }
+    } catch (err) {
+      Logger.warn(TAG, 'Failed to load dashboard stats', err);
+    }
   }, []);
 
   const loadRecentActivity = useCallback(async () => {
@@ -65,17 +69,26 @@ export const DashboardScreen = () => {
       }
 
       setRecentActivity(items);
-    } catch {
+    } catch (err) {
+      Logger.warn(TAG, 'Failed to load recent activity', err);
       setRecentActivity([]);
     }
   }, []);
+
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshing(true);
+    await Promise.all([loadStats(), loadRecentActivity()]).catch(() => undefined);
+    setIsRefreshing(false);
+  }, [loadStats, loadRecentActivity]);
 
   useFocusEffect(
     useCallback(() => {
       notificationService.refreshFromBackend().catch(error => {
         Logger.warn(TAG, 'Failed to refresh notifications on focus', error);
       });
-      Promise.all([loadStats(), loadRecentActivity()]).catch(() => undefined);
+      Promise.all([loadStats(), loadRecentActivity()])
+        .catch(() => undefined)
+        .finally(() => setIsInitialLoad(false));
     }, [loadStats, loadRecentActivity])
   );
 
@@ -162,10 +175,19 @@ export const DashboardScreen = () => {
 
   return (
     <>
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
       <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       <ScrollView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
         contentContainerStyle={[styles.contentContainer, { paddingTop: Math.max(insets.top, 16) + 8 }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            tintColor={theme.colors.primary}
+            colors={[theme.colors.primary]}
+          />
+        }
       >
         <View style={styles.header}>
         <View style={styles.headerLeft}>

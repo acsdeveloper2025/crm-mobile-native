@@ -23,7 +23,7 @@ import {
 
 export const TaskAttachmentsScreen = ({ route }: any) => {
   const { theme } = useTheme();
-  const { taskId, taskNumber } = route.params;
+  const { taskId, taskNumber } = route.params || {};
   const [remoteAttachments, setRemoteAttachments] = useState<RemoteTaskAttachment[]>([]);
   const [isRemoteLoading, setIsRemoteLoading] = useState(true);
   const [openingAttachmentId, setOpeningAttachmentId] = useState<string | null>(null);
@@ -134,6 +134,14 @@ export const TaskAttachmentsScreen = ({ route }: any) => {
       }
 
       if (kind === 'text') {
+        // Limit text preview to 500KB to prevent UI freeze on large files
+        const stat = await RNFS.stat(filePath);
+        const fileSize = typeof stat.size === 'number' ? stat.size : parseInt(String(stat.size), 10);
+        if (fileSize > 512 * 1024) {
+          Alert.alert('File Too Large', 'This text file is too large to preview. Opening with system viewer instead.');
+          await openWithNativeViewer(normalizedUri, attachment);
+          return;
+        }
         const textData = await RNFS.readFile(filePath, 'utf8');
         setPreviewAttachment(attachment);
         setPreviewUri(normalizedUri);

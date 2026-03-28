@@ -9,7 +9,7 @@ import { Logger } from '../../utils/logger';
 const TAG = 'CameraCaptureScreen';
 
 export const CameraCaptureScreen = ({ route, navigation }: any) => {
-  const { taskId, componentType } = route.params;
+  const { taskId, componentType } = route.params || {};
   const device = useCameraDevice(componentType === 'selfie' ? 'front' : 'back');
   const camera = useRef<Camera>(null);
 
@@ -116,12 +116,28 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
     }
   };
 
-  if (!hasPermission || !device || isPreparing) {
+  if (!device) {
+    return (
+      <View style={styles.centerContainer}>
+        <Icon name="camera-outline" size={48} color="#9CA3AF" />
+        <Text style={styles.loadingText}>No camera available on this device.</Text>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={{ marginTop: 16, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#2563EB', borderRadius: 8 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back">
+          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>Go Back</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  if (!hasPermission || isPreparing) {
     return (
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#2563EB" />
         <Text style={styles.loadingText}>
-          {!device ? 'No camera device found...' : 'Preparing camera...'}
+          {!hasPermission ? 'Requesting camera permission...' : 'Preparing camera...'}
         </Text>
       </View>
     );
