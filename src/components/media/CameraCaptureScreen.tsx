@@ -17,6 +17,7 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
   const [isActive, setIsActive] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isPreparing, setIsPreparing] = useState(true);
+  const [gpsWarning, setGpsWarning] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
   // Use 720p for faster shutter + processing and predictable upload sizes.
@@ -46,10 +47,25 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
       const locationGranted = await LocationService.requestPermissions();
       if (!locationGranted) {
         Alert.alert(
-          'Location Recommended',
-          'Location permission is recommended to geo-tag verification photos. Photos without location may be flagged.',
+          'Location Required',
+          'Location permission is required to geo-tag verification photos. Photos without location data cannot be submitted.',
           [{ text: 'Continue Anyway' }]
         );
+        setGpsWarning('GPS unavailable — photos will lack location data');
+      } else {
+        // Check current GPS accuracy
+        try {
+          const currentLoc = await LocationService.getCurrentLocation();
+          if (!currentLoc) {
+            setGpsWarning('Unable to get GPS signal. Move to an open area for better accuracy.');
+          } else if (currentLoc.accuracy > 100) {
+            setGpsWarning(`Low GPS accuracy (±${Math.round(currentLoc.accuracy)}m). Move to an open area.`);
+          } else {
+            setGpsWarning(null);
+          }
+        } catch {
+          setGpsWarning('GPS signal weak. Photos may have inaccurate location.');
+        }
       }
 
       // Activate camera ONLY after permission is confirmed.
@@ -145,6 +161,12 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
 
   return (
     <View style={styles.container}>
+      {gpsWarning && (
+        <View style={{ position: 'absolute', top: insets.top + 8, left: 16, right: 16, zIndex: 10, backgroundColor: 'rgba(234, 179, 8, 0.95)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Icon name="location-outline" size={16} color="#78350F" />
+          <Text style={{ color: '#78350F', fontSize: 12, fontWeight: '600', flex: 1 }}>{gpsWarning}</Text>
+        </View>
+      )}
       <Camera
         ref={camera}
         style={StyleSheet.absoluteFill}

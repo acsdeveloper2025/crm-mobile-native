@@ -174,9 +174,13 @@ class AuthServiceClass {
       Logger.info(TAG, `Login successful for ${user.name}`);
       return { success: true, message: 'Login successful' };
     } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : String(error) || 'Login failed';
-      Logger.error(TAG, 'Login failed', error);
-      return { success: false, message };
+      Logger.error(TAG, 'Login failed during session storage', error);
+      // Provide specific error messages so the LoginScreen can show the right feedback
+      const errorName = error instanceof Error ? error.name : '';
+      if (errorName.includes('Keychain') || errorName.includes('keychain')) {
+        return { success: false, message: 'SESSION_STORAGE_FAILED: Unable to save login session securely. Please restart the app and try again.' };
+      }
+      return { success: false, message: `SESSION_STORAGE_FAILED: ${error instanceof Error ? error.message : 'Failed to save session data. Please restart the app.'}` };
     }
   }
 
@@ -356,13 +360,19 @@ class AuthServiceClass {
    * Build MobileDeviceInfo for API requests
    */
   async getDeviceInfo(): Promise<MobileDeviceInfo> {
+    let pushToken: string | undefined;
+    try {
+      pushToken = (await PushTokenService.getCachedPushToken()) || undefined;
+    } catch (err) {
+      Logger.warn(TAG, 'Failed to get push token for device info — continuing without it', err);
+    }
     return {
       deviceId: await this.getDeviceId(),
       platform: CURRENT_PLATFORM,
       model: getDeviceModel(),
       osVersion: getOSVersion(),
       appVersion: config.appVersion,
-      pushToken: (await PushTokenService.getCachedPushToken()) || undefined,
+      pushToken,
     };
   }
 
