@@ -87,14 +87,36 @@ export const useFormAutosave = ({
     const initializeDraft = async () => {
       try {
         const localDraft = taskFormDataJson ? JSON.parse(taskFormDataJson) : null;
-        if (isActive && isMountedRef.current && localDraft && typeof localDraft === 'object') {
-          setFormValues(localDraft);
-        } else if (isActive && isMountedRef.current && taskFormTypeKey) {
-          const savedDraft = await getAutoSavedForm(taskId, taskFormTypeKey);
-          if (savedDraft) {
-            setFormValues(savedDraft);
+        const localDraftTimestamp = localDraft?.__submission?.updatedAt || localDraft?.__autosave?.timestamp;
+
+        // Also check autosave storage for potentially newer data
+        let savedDraft: Record<string, unknown> | null = null;
+        let savedDraftTimestamp: string | undefined;
+        if (taskFormTypeKey) {
+          savedDraft = await getAutoSavedForm(taskId, taskFormTypeKey);
+          savedDraftTimestamp = (savedDraft as any)?.timestamp || (savedDraft as any)?.__autosave?.timestamp;
+        }
+
+        // Use whichever draft is newer (compare timestamps if both exist)
+        const useLocalDraft = localDraft && typeof localDraft === 'object';
+        const useSavedDraft = savedDraft && typeof savedDraft === 'object';
+        let chosenDraft: Record<string, unknown> | null = null;
+
+        if (useLocalDraft && useSavedDraft && localDraftTimestamp && savedDraftTimestamp) {
+          // Both exist with timestamps — use the newer one
+          chosenDraft = new Date(savedDraftTimestamp) > new Date(localDraftTimestamp) ? savedDraft : localDraft;
+        } else if (useLocalDraft) {
+          chosenDraft = localDraft;
+        } else if (useSavedDraft) {
+          chosenDraft = savedDraft;
+        }
+
+        if (isActive && isMountedRef.current && chosenDraft) {
+          setFormValues(chosenDraft);
+          // Persist the chosen draft back to task DB if it came from autosave
+          if (chosenDraft === savedDraft) {
             try {
-              await updateTaskFormData(taskId, savedDraft);
+              await updateTaskFormData(taskId, chosenDraft);
             } catch {
               // Keep restored UI state even if persistence fails temporarily.
             }
@@ -173,7 +195,7 @@ export const useFormAutosave = ({
           setAutoSaveError(true);
         }
       }
-    }, 1000);
+    }, 300); // 300ms — fast enough to survive most crashes without impacting typing UX
 
     return () => clearTimeout(timeoutId);
   }, [

@@ -20,6 +20,7 @@ import { ThemeProvider } from './src/context/ThemeContext';
 import { AuthProvider } from './src/context/AuthContext';
 import { TaskProvider } from './src/context/TaskContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { NetworkStatusBanner } from './src/components/ui/NetworkStatusBanner';
 import { DatabaseService } from './src/database/DatabaseService';
 import { NetworkService } from './src/services/NetworkService';
 import { CameraService } from './src/services/CameraService';
@@ -233,6 +234,7 @@ function App(): React.JSX.Element {
         <AuthProvider>
           <TaskProvider>
             <ErrorBoundary>
+              <NetworkStatusBanner />
               <RootNavigator />
             </ErrorBoundary>
           </TaskProvider>

@@ -124,6 +124,10 @@ class FormUploaderClass {
     const localTaskId = typeof payload.localTaskId === 'string' ? payload.localTaskId : null;
 
     if (localTaskId) {
+      // Track defer count to prevent infinite blocking when photos permanently fail
+      const deferCount = typeof payload._deferCount === 'number' ? payload._deferCount : 0;
+      const MAX_DEFERS = 15; // After 15 defers (~75 min at 5-min sync), upload with available photos
+
       // Only defer for items still actively being processed or retryable.
       // Do NOT defer for permanently FAILED items — those won't resolve on their own
       // and would block the form submission forever.
@@ -132,8 +136,9 @@ class FormUploaderClass {
         "entity_type = 'LOCATION' AND status IN ('PENDING', 'IN_PROGRESS') AND json_extract(payload_json, '$.taskId') = ?",
         [localTaskId || taskId],
       );
-      if (pendingLocationsCount > 0) {
-        const error = `Blocking form upload for ${taskId}: ${pendingLocationsCount} locations pending`;
+      if (pendingLocationsCount > 0 && deferCount < MAX_DEFERS) {
+        const error = `Blocking form upload for ${taskId}: ${pendingLocationsCount} locations pending (defer ${deferCount + 1}/${MAX_DEFERS})`;
+        payload._deferCount = deferCount + 1;
         await this.updateLocalSubmissionState(localTaskId, 'pending');
         return { outcome: 'DEFER', error };
       }
@@ -143,10 +148,15 @@ class FormUploaderClass {
         "entity_type IN ('VISIT_PHOTO', 'ATTACHMENT') AND status IN ('PENDING', 'IN_PROGRESS') AND (json_extract(payload_json, '$.visitId') = ? OR json_extract(payload_json, '$.taskId') = ?)",
         [taskId, taskId],
       );
-      if (pendingPhotosCount > 0) {
-        const error = `Blocking form upload for ${taskId}: ${pendingPhotosCount} photos pending`;
+      if (pendingPhotosCount > 0 && deferCount < MAX_DEFERS) {
+        const error = `Blocking form upload for ${taskId}: ${pendingPhotosCount} photos pending (defer ${deferCount + 1}/${MAX_DEFERS})`;
+        payload._deferCount = deferCount + 1;
         await this.updateLocalSubmissionState(localTaskId, 'pending');
         return { outcome: 'DEFER', error };
+      }
+
+      if (deferCount >= MAX_DEFERS) {
+        Logger.warn(TAG, `Form for ${taskId} exceeded max defers (${MAX_DEFERS}). Uploading with available attachments.`);
       }
     }
 

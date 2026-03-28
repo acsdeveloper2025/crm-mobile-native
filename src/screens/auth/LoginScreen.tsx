@@ -46,6 +46,12 @@ export const LoginScreen = () => {
   }, [password, username]);
 
   const extractErrorMessage = React.useCallback((e: unknown): string => {
+    // Handle session storage errors (from AuthService.login catch block)
+    const errMsg = e instanceof Error ? e.message : String(e);
+    if (errMsg.startsWith('SESSION_STORAGE_FAILED:')) {
+      return errMsg.replace('SESSION_STORAGE_FAILED: ', '');
+    }
+
     const axiosErr = e as any;
     const status = axiosErr?.response?.status;
     const responseData = axiosErr?.response?.data;
@@ -56,8 +62,15 @@ export const LoginScreen = () => {
     const nestedError =
       typeof responseData === 'string' ? '' : responseData?.data?.error;
 
+    // Specific HTTP status handlers
     if (status === 401) {
       return 'Invalid username or password.';
+    }
+    if (status === 429) {
+      return 'Too many login attempts. Please wait a few minutes before trying again.';
+    }
+    if (status === 403) {
+      return 'Your account has been locked or disabled. Please contact your administrator.';
     }
     if (status >= 500) {
       return 'Server is temporarily unavailable. Please try again shortly.';
@@ -72,11 +85,16 @@ export const LoginScreen = () => {
     if (typeof backendMessage === 'string' && backendMessage.trim().length > 0) {
       return backendMessage;
     }
+
+    // Network-level error codes
     if (axiosErr?.code === 'ECONNABORTED') {
-      return 'Request timeout. Please try again.';
+      return 'Request timed out. Check your internet connection and try again.';
+    }
+    if (axiosErr?.code === 'EPROTO' || axiosErr?.code?.startsWith?.('CERT')) {
+      return 'Secure connection failed. Please check your device date/time settings or try a different network.';
     }
     if (!axiosErr?.response) {
-      return `Unable to reach server (${config.apiBaseUrl}). Check internet connection.`;
+      return 'Unable to reach server. Please check your internet connection and try again.';
     }
     return 'Login failed. Please check your credentials or internet connection.';
   }, []);

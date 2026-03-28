@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from 'uuid';
 import { AttachmentRepository } from '../repositories/AttachmentRepository';
+import { DatabaseService } from '../database/DatabaseService';
 import { FormRepository } from '../repositories/FormRepository';
 import { LocationRepository } from '../repositories/LocationRepository';
 import { SyncQueueRepository } from '../repositories/SyncQueueRepository';
@@ -175,47 +176,57 @@ export const SubmitVerificationUseCase = {
       verificationOutcome: input.verificationOutcome || undefined,
     };
 
-    await FormRepository.createSubmission({
-      id: submissionId,
-      taskId: task.id,
-      caseId: String(task.caseId),
-      formType: backendFormType,
-      formData: mergedFormData,
-      submittedAt: now,
-    });
-
-    await FormRepository.updateSubmissionPayload(
-      submissionId,
-      submissionPayload.metadata as unknown as Record<string, unknown>,
-      submissionPayload.attachmentIds as string[],
-      submissionPayload.photos as unknown[],
-    );
-
-    await TaskRepository.updateFormData(task.id, persistedFormData, task.status);
-    await TaskRepository.updateVerificationOutcome(task.id, input.verificationOutcome || null);
-
-    const pendingItems = await SyncQueueRepository.listPendingAttachmentQueueItems(task.id, backendTaskId);
-    for (const queueItem of pendingItems) {
-      try {
-        const payload = JSON.parse(queueItem.payloadJson) as Record<string, unknown>;
-        const nextPayload = {
-          ...payload,
-          taskId: backendTaskId,
-          localTaskId: task.id,
-          submissionId,
-          verificationType: payload.verificationType || backendFormType,
-          photoType:
-            payload.photoType ||
-            ((payload.componentType as string | undefined) === 'selfie' ? 'selfie' : 'verification'),
-        };
-        await SyncQueueRepository.updatePayload(queueItem.id, JSON.stringify(nextPayload));
-      } catch {
-        // best effort
-      }
+    // Check storage quota BEFORE writing to DB to prevent orphaned forms
+    const hasSpace = await StorageService.hasEnoughSpace(10);
+    if (!hasSpace) {
+      throw new Error('Device storage is full. Please free up space before submitting the verification form.');
     }
 
-    await SyncGateway.enqueueFormSubmission(submissionId, submissionPayload);
-    await StorageService.remove(`auto_save_${task.id}`);
+    // Wrap all DB writes + sync queue enqueue in a single transaction.
+    // If any step fails, everything rolls back — no orphaned forms.
+    await DatabaseService.transaction(async () => {
+      await FormRepository.createSubmission({
+        id: submissionId,
+        taskId: task.id,
+        caseId: String(task.caseId),
+        formType: backendFormType,
+        formData: mergedFormData,
+        submittedAt: now,
+      });
+
+      await FormRepository.updateSubmissionPayload(
+        submissionId,
+        submissionPayload.metadata as unknown as Record<string, unknown>,
+        submissionPayload.attachmentIds as string[],
+        submissionPayload.photos as unknown[],
+      );
+
+      await TaskRepository.updateFormData(task.id, persistedFormData, task.status);
+      await TaskRepository.updateVerificationOutcome(task.id, input.verificationOutcome || null);
+
+      const pendingItems = await SyncQueueRepository.listPendingAttachmentQueueItems(task.id, backendTaskId);
+      for (const queueItem of pendingItems) {
+        try {
+          const payload = JSON.parse(queueItem.payloadJson) as Record<string, unknown>;
+          const nextPayload = {
+            ...payload,
+            taskId: backendTaskId,
+            localTaskId: task.id,
+            submissionId,
+            verificationType: payload.verificationType || backendFormType,
+            photoType:
+              payload.photoType ||
+              ((payload.componentType as string | undefined) === 'selfie' ? 'selfie' : 'verification'),
+          };
+          await SyncQueueRepository.updatePayload(queueItem.id, JSON.stringify(nextPayload));
+        } catch {
+          // best effort
+        }
+      }
+
+      await SyncGateway.enqueueFormSubmission(submissionId, submissionPayload);
+      await StorageService.remove(`auto_save_${task.id}`);
+    });
 
     try {
       await SyncService.performSync();

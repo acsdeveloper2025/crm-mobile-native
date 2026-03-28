@@ -19,6 +19,7 @@ import { validateTemplateRequiredFields as validateFormTemplateRequiredFields } 
 import { FormTemplateService } from '../../services/forms/FormTemplateService';
 import { FormSubmissionService } from '../../services/forms/FormSubmissionService';
 import { useFormAutosave } from '../../hooks/forms/useFormAutosave';
+import { NetworkService } from '../../services/NetworkService';
 import { styles } from './VerificationFormScreen.styles';
 import {
   buildLegacyTemplateForFormType,
@@ -58,7 +59,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
   const taskVerificationOutcome = task?.verificationOutcome ?? null;
   const taskFormDataJson = task?.formDataJson ?? null;
   const effectiveTaskId = task?.id || taskId;
-  useFormAutosave({
+  const { autoSaveError } = useFormAutosave({
     taskId: taskUuid,
     taskFormTypeKey,
     taskFormDataJson,
@@ -249,6 +250,25 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     });
   }, []);
 
+  // Navigation guard — warn user before leaving with unsaved changes
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      if (Object.keys(formValues).length === 0 || isSubmitting) {
+        return; // No unsaved data or already submitting
+      }
+      e.preventDefault();
+      Alert.alert(
+        'Unsaved Changes',
+        'You have unsaved form data. Your draft will be auto-saved. Leave anyway?',
+        [
+          { text: 'Stay', style: 'cancel' },
+          { text: 'Leave', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+        ],
+      );
+    });
+    return unsubscribe;
+  }, [navigation, formValues, isSubmitting]);
+
   const handleSubmit = async () => {
     if (!task) return;
 
@@ -266,6 +286,22 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
         `Please fill all required fields: ${preview}${hasMore ? ' ...' : ''}`,
       );
       return;
+    }
+
+    // Offline confirmation — let user know form will be queued
+    const isOnline = NetworkService.getIsOnline();
+    if (!isOnline) {
+      const confirmed = await new Promise<boolean>(resolve => {
+        Alert.alert(
+          'You Are Offline',
+          'The form will be saved locally and uploaded automatically when connection is restored. Continue?',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
+            { text: 'Save Offline', onPress: () => resolve(true) },
+          ],
+        );
+      });
+      if (!confirmed) return;
     }
 
     try {
@@ -346,6 +382,14 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+      {autoSaveError && (
+        <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <Icon name="warning-outline" size={18} color="#DC2626" />
+          <Text style={{ color: '#991B1B', fontSize: 13, flex: 1, fontWeight: '500' }}>
+            Auto-save failed. Your changes may not be preserved. Please check device storage.
+          </Text>
+        </View>
+      )}
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
