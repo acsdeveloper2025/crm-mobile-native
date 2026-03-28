@@ -228,10 +228,21 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
     'Did Not Pick Up Call', 'Number is Switch Off',
     'Number is Unreachable', 'Refused to Guide Address',
   ],
+  stayingStatus: [
+    'On a Self Owned Basis', 'On a Parental Owned Basis', 'On a Relative Owned Basis',
+    'On a Rental Basis', 'On a Pagadi System', 'In the Staff Quarters',
+    'As a Paying Guest', 'On a Company Accomodation',
+    'In the Bachelor Accommodation', 'In the Hostel',
+  ],
   feedbackFromNeighbour: ['Adverse', 'No Adverse'],
   politicalConnection: ['Having Political Connection', 'Not Having Political Connection'],
   dominatedArea: ['A Community Dominated', 'Not a Community Dominated'],
   finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
+  finalStatusPositive: ['Positive', 'Refer', 'Hold'],
+  finalStatusNsp: ['Negative', 'Refer', 'Fraud', 'Hold'],
+  finalStatusShifted: ['Negative', 'Refer', 'Fraud', 'Hold'],
+  finalStatusErt: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
+  finalStatusUntraceable: ['Negative', 'Refer', 'Fraud', 'Hold'],
   metPersonErt: ['Security', 'Receptionist'],
 };
 
@@ -241,18 +252,6 @@ const legacyResidenceSelectOptions: Record<string, string[]> = {
   roomStatus: ['Opened', 'Closed'],
   metPersonRelation: ['Father', 'Mother', 'Spouse', 'Son', 'Daughter', 'Brother', 'Sister', 'Self', 'Other'],
   workingStatus: ['Salaried', 'Self Employed', 'House Wife'],
-  stayingStatus: [
-    'On a Owned Basis',
-    'On a Rental Basis',
-    'On a Parental Owned Basis',
-    'On a Relative Basis',
-    'On a Pagadi System',
-    'In the Staff Quarters',
-    'As a Paying Guest',
-    'On a Company Accomodation',
-    'In the Bachelor Accommodation',
-    'In the Hostel',
-  ],
   documentShownStatus: ['Showed', 'Did Not Showed Any Document'],
   documentType: ['Electricity Bill', 'Adhar Card', 'Pan Card', 'Passport', 'Rent Deed'],
   metPersonStatus: ['Owner', 'Tenant'],
@@ -336,7 +335,7 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
   { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
 ]);
 
@@ -367,7 +366,7 @@ const legacyShiftedResidenceFields = withLegacyResidenceOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
 ]);
 
@@ -395,11 +394,9 @@ const legacyNspResidenceFields = withLegacyResidenceOrder([
   { name: 'nameOnSocietyBoard', label: 'Name on Society Board', type: 'text', conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS') },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
 ]);
 
@@ -422,7 +419,7 @@ const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
 ]);
 
@@ -436,7 +433,7 @@ const legacyUntraceableResidenceFields = withLegacyResidenceOrder([
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
 ]);
 
@@ -494,18 +491,6 @@ const legacyResiCumOfficeSelectOptions: Record<string, string[]> = {
   ...COMMON_SELECT_OPTIONS,
   addressTraceable: ['Traceable', 'Untraceable'],
   resiCumOfficeStatus: ['Opened', 'Closed'],
-  stayingStatus: [
-    'On a Owned Basis',
-    'On a Rental Basis',
-    'On a Parental Owned Basis',
-    'On a Relative Basis',
-    'On a Pagadi System',
-    'In the Staff Quarters',
-    'As a Paying Guest',
-    'On a Company Accomodation',
-    'In the Bachelor Accommodation',
-    'In the Hostel',
-  ],
   businessStatusResiCumOffice: ['Self Employee', 'Proprietorship', 'Partnership Firm', 'NA'],
   businessLocation: ['At Same Address', 'From Different Address'],
   documentShownStatus: ['Showed', 'Did Not Showed Any Document'],
@@ -672,7 +657,7 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -744,7 +729,7 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -835,7 +820,7 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -876,7 +861,7 @@ const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -896,7 +881,7 @@ const legacyUntraceableResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1149,7 +1134,7 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1236,7 +1221,7 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1318,9 +1303,8 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1359,7 +1343,7 @@ const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1379,7 +1363,7 @@ const legacyUntraceableOfficeFields = withLegacyOfficeOrder([
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1613,7 +1597,7 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1724,7 +1708,7 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1813,9 +1797,8 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1853,7 +1836,7 @@ const legacyEntryRestrictedBusinessFields = withLegacyBusinessOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1873,7 +1856,7 @@ const legacyUntraceableBusinessFields = withLegacyBusinessOrder([
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Extra Remark', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1957,7 +1940,7 @@ const legacyPositiveBuilderFields = withLegacyBusinessOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
   { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
 ]);
 
@@ -1982,7 +1965,7 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
 ]);
 
@@ -2002,11 +1985,9 @@ const legacyNspBuilderFields = withLegacyBusinessOrder([
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
 ]);
 
@@ -2025,7 +2006,7 @@ const legacyEntryRestrictedBuilderFields = withLegacyBusinessOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
 ]);
 
@@ -2039,7 +2020,7 @@ const legacyUntraceableBuilderFields = withLegacyBusinessOrder([
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'otherExtraRemark', label: 'Other Extra Remark', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2188,7 +2169,7 @@ const legacyPositiveNocFields = withLegacyNocOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherExtraRemark', label: 'Other Extra Remark', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2250,7 +2231,7 @@ const legacyShiftedNocFields = withLegacyNocOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2364,9 +2345,8 @@ const legacyNspNocFields = withLegacyNocOrder([
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2410,7 +2390,7 @@ const legacyEntryRestrictedNocFields = withLegacyNocOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2431,7 +2411,7 @@ const legacyUntraceableNocFields = withLegacyNocOrder([
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'otherExtraRemark', label: 'Other Extra Remark', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2696,7 +2676,7 @@ const legacyPositiveDsaFields = withLegacyDsaOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2807,7 +2787,7 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2920,9 +2900,8 @@ const legacyNspDsaFields = withLegacyDsaOrder([
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2967,7 +2946,7 @@ const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2987,7 +2966,7 @@ const legacyUntraceableDsaFields = withLegacyDsaOrder([
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'otherExtraRemark', label: 'Other Extra Remark', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -3178,7 +3157,7 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -3231,7 +3210,7 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -3251,7 +3230,7 @@ const legacyUntraceablePropertyApfFields = withLegacyPropertyApfOrder([
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -3408,7 +3387,7 @@ const legacyPositivePropertyIndividualFields = withLegacyPropertyIndividualOrder
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -3472,11 +3451,9 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -3524,7 +3501,7 @@ const legacyEntryRestrictedPropertyIndividualFields = withLegacyPropertyIndividu
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -3544,7 +3521,7 @@ const legacyUntraceablePropertyIndividualFields = withLegacyPropertyIndividualOr
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
   { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true },
+  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
