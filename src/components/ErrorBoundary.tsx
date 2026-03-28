@@ -87,31 +87,39 @@ class ErrorBoundary extends Component<Props, State> {
         <View style={[styles.container, { backgroundColor: colors.background }]}>
           <Text style={[styles.title, { color: colors.error }]}>Something went wrong!</Text>
           
-          <TouchableOpacity 
-            onPress={() => this.setState({ showDetails: !this.state.showDetails })}
-            style={styles.detailsToggle}>
-            <Text style={[styles.detailsToggleText, { color: colors.primary }]}>
-                {this.state.showDetails ? 'Hide error details' : 'Show error details'}
-            </Text>
-          </TouchableOpacity>
+          {__DEV__ ? (
+            <>
+              <TouchableOpacity
+                onPress={() => this.setState({ showDetails: !this.state.showDetails })}
+                style={styles.detailsToggle}>
+                <Text style={[styles.detailsToggleText, { color: colors.primary }]}>
+                    {this.state.showDetails ? 'Hide error details' : 'Show error details'}
+                </Text>
+              </TouchableOpacity>
 
-          {this.state.showDetails && (
-            <ScrollView style={[styles.detailsContainer, { backgroundColor: colors.card }]}>
-              <Text style={styles.detailLabel}>Error:</Text>
-              <Text style={[styles.detailValue, { color: colors.warning }]}>
-                {this.state.error && this.state.error.toString()}
-              </Text>
-              
-              <Text style={styles.detailLabel}>Component Stack:</Text>
-              <Text style={[styles.detailValue, { color: colors.info }]}>
-                {this.state.errorInfo && this.state.errorInfo.componentStack}
-              </Text>
-              
-              <Text style={styles.detailLabel}>Error Stack:</Text>
-              <Text style={[styles.detailValue, { color: colors.errorLight }]}>
-                {this.state.error && this.state.error.stack}
-              </Text>
-            </ScrollView>
+              {this.state.showDetails && (
+                <ScrollView style={[styles.detailsContainer, { backgroundColor: colors.card }]}>
+                  <Text style={styles.detailLabel}>Error:</Text>
+                  <Text style={[styles.detailValue, { color: colors.warning }]}>
+                    {this.state.error && this.state.error.toString()}
+                  </Text>
+
+                  <Text style={styles.detailLabel}>Component Stack:</Text>
+                  <Text style={[styles.detailValue, { color: colors.info }]}>
+                    {this.state.errorInfo && this.state.errorInfo.componentStack}
+                  </Text>
+
+                  <Text style={styles.detailLabel}>Error Stack:</Text>
+                  <Text style={[styles.detailValue, { color: colors.errorLight }]}>
+                    {this.state.error && this.state.error.stack}
+                  </Text>
+                </ScrollView>
+              )}
+            </>
+          ) : (
+            <Text style={[styles.detailValue, { color: colors.info, textAlign: 'center', marginBottom: 20 }]}>
+              An unexpected error occurred. Please try again or contact support if the problem persists.
+            </Text>
           )}
           
           <TouchableOpacity 

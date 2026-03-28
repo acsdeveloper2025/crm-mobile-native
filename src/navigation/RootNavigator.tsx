@@ -29,8 +29,32 @@ import { SyncLogsScreen } from '../screens/main/SyncLogsScreen';
 import { VersionService, UpdateInfo } from '../services/VersionService';
 import { useTheme } from '../context/ThemeContext';
 
-const Stack = createNativeStackNavigator();
-const Tab = createBottomTabNavigator();
+// Typed navigation param list — replaces `any` on all route params
+export type RootStackParamList = {
+  Auth: undefined;
+  ForceUpdate: { downloadUrl?: string; releaseNotes?: string[] };
+  Main: undefined;
+  TaskDetail: { taskId: string };
+  TaskAttachments: { taskId: string };
+  CameraCapture: { taskId: string; componentType?: 'photo' | 'selfie' };
+  WatermarkPreview: { photoPath: string; taskId: string; componentType?: 'photo' | 'selfie'; location?: { latitude: number; longitude: number; accuracy: number; timestamp: string } | null };
+  VerificationForm: { taskId: string };
+  SyncLogs: undefined;
+  Profile: undefined;
+  DigitalIdCard: undefined;
+  ProfilePhotoCapture: undefined;
+};
+
+export type TabParamList = {
+  Dashboard: undefined;
+  Assigned: undefined;
+  InProgress: undefined;
+  Saved: undefined;
+  Completed: undefined;
+};
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
+const Tab = createBottomTabNavigator<TabParamList>();
 
 const getCameraScreenOptions = (): NativeStackNavigationOptions => ({
   headerShown: false,
@@ -38,7 +62,7 @@ const getCameraScreenOptions = (): NativeStackNavigationOptions => ({
   animation: Platform.OS === 'ios' ? 'default' : 'fade',
 });
 
-const TabBarIcon = ({ route, focused, color, size }: any) => {
+const TabBarIcon = ({ route, focused, color, size }: { route: { name: string }; focused: boolean; color: string; size: number }) => {
   let iconName = 'list';
 
   if (route.name === 'Dashboard') {
@@ -53,11 +77,11 @@ const TabBarIcon = ({ route, focused, color, size }: any) => {
     iconName = focused ? 'checkmark-circle' : 'checkmark-circle-outline';
   }
 
-  return <Icon name={iconName} size={size} color={color} />;
+  return <Icon name={iconName} size={size} color={color} testID={`tab-icon-${route.name}`} />;
 };
 
-const getTabScreenOptions = ({ route }: any, theme: any, insets: { bottom: number }) => ({
-  tabBarIcon: (props: any) => <TabBarIcon route={route} {...props} />,
+const getTabScreenOptions = ({ route }: { route: { name: string } }, theme: ReturnType<typeof useTheme>['theme'], insets: { bottom: number }) => ({
+  tabBarIcon: (props: { focused: boolean; color: string; size: number }) => <TabBarIcon route={route} {...props} />,
   tabBarActiveTintColor: theme.colors.primary,
   tabBarInactiveTintColor: theme.colors.textMuted,
   headerShown: false,
@@ -83,23 +107,23 @@ const getTabScreenOptions = ({ route }: any, theme: any, insets: { bottom: numbe
 const MainTabs = () => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  
+
   return (
     <Tab.Navigator
       initialRouteName="Dashboard"
       screenOptions={(props) => getTabScreenOptions(props, theme, insets)}
     >
-      <Tab.Screen 
-        name="Dashboard" 
-        component={DashboardScreen} 
+      <Tab.Screen
+        name="Dashboard"
+        component={DashboardScreen}
         options={{ title: 'Dashboard', tabBarLabel: 'Dashboard' }}
       />
-      <Tab.Screen 
-        name="Assigned" 
+      <Tab.Screen
+        name="Assigned"
         component={AssignedTasksScreen}
         options={{ title: 'Assigned Tasks', tabBarLabel: 'Assigned' }}
       />
-      <Tab.Screen 
+      <Tab.Screen
         name="InProgress"
         component={InProgressTasksScreen}
         options={{ title: 'In Progress Tasks', tabBarLabel: 'In Progress' }}
@@ -118,8 +142,31 @@ const MainTabs = () => {
   );
 };
 
+// Deep linking configuration for notification-driven and URL-based navigation
+const linking = {
+  prefixes: ['crmapp://', 'https://crm.allcheckservices.com'],
+  config: {
+    screens: {
+      Main: {
+        screens: {
+          Dashboard: 'dashboard',
+          Assigned: 'assigned',
+          InProgress: 'in-progress',
+          Saved: 'saved',
+          Completed: 'completed',
+        },
+      },
+      TaskDetail: 'task/:taskId',
+      TaskAttachments: 'task/:taskId/attachments',
+      VerificationForm: 'task/:taskId/form',
+      Profile: 'profile',
+      SyncLogs: 'sync-logs',
+    },
+  },
+};
+
 // Exported navigation ref for use outside React tree (e.g., notification handlers)
-export const navigationRef = React.createRef<NavigationContainerRef<Record<string, unknown>>>();
+export const navigationRef = React.createRef<NavigationContainerRef<RootStackParamList>>();
 
 export const RootNavigator = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -134,16 +181,18 @@ export const RootNavigator = () => {
     messaging()
       .getInitialNotification()
       .then(remoteMessage => {
-        if (remoteMessage?.data?.taskId && isNavigationReady.current) {
-          (navigationRef.current as any)?.navigate('TaskDetail', { taskId: remoteMessage.data.taskId });
+        const taskId = remoteMessage?.data?.taskId;
+        if (typeof taskId === 'string' && taskId && isNavigationReady.current) {
+          navigationRef.current?.navigate('TaskDetail', { taskId });
         }
       })
       .catch(err => Logger.warn('RootNavigator', 'getInitialNotification failed', err));
 
     // Handle notification taps when app is in background
     const unsubscribe = messaging().onNotificationOpenedApp(remoteMessage => {
-      if (remoteMessage?.data?.taskId && isNavigationReady.current) {
-        (navigationRef.current as any)?.navigate('TaskDetail', { taskId: remoteMessage.data.taskId });
+      const taskId = remoteMessage?.data?.taskId;
+      if (typeof taskId === 'string' && taskId && isNavigationReady.current) {
+        navigationRef.current?.navigate('TaskDetail', { taskId });
       }
     });
 
@@ -174,7 +223,7 @@ export const RootNavigator = () => {
   if (authLoading) {
     return (
       <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
-        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <ActivityIndicator size="large" color={theme.colors.primary} testID="auth-loading" />
       </View>
     );
   }
@@ -184,12 +233,12 @@ export const RootNavigator = () => {
     return (
       <NavigationContainer>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen 
-            name="ForceUpdate" 
-            component={ForceUpdateScreen} 
-            initialParams={{ 
-              downloadUrl: versionResult.downloadUrl, 
-              releaseNotes: versionResult.releaseNotes 
+          <Stack.Screen
+            name="ForceUpdate"
+            component={ForceUpdateScreen}
+            initialParams={{
+              downloadUrl: versionResult.downloadUrl,
+              releaseNotes: versionResult.releaseNotes
             }}
           />
         </Stack.Navigator>
@@ -198,42 +247,42 @@ export const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} onReady={() => { isNavigationReady.current = true; }}>
+    <NavigationContainer ref={navigationRef} linking={linking} onReady={() => { isNavigationReady.current = true; }}>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={LoginScreen} />
         ) : (
           <>
             <Stack.Screen name="Main" component={MainTabs} />
-            <Stack.Screen 
-              name="TaskDetail" 
-              component={TaskDetailScreen} 
-              options={{ headerShown: true, title: 'Task Details', headerBackTitle: 'Back' }} 
+            <Stack.Screen
+              name="TaskDetail"
+              component={TaskDetailScreen}
+              options={{ headerShown: true, title: 'Task Details', headerBackTitle: 'Back' }}
             />
             <Stack.Screen
               name="TaskAttachments"
               component={TaskAttachmentsScreen}
               options={{ headerShown: true, title: 'Attachments', headerBackTitle: 'Back' }}
             />
-            <Stack.Screen 
-              name="CameraCapture" 
-              component={CameraCaptureScreen} 
-              options={getCameraScreenOptions()} 
+            <Stack.Screen
+              name="CameraCapture"
+              component={CameraCaptureScreen}
+              options={getCameraScreenOptions()}
             />
-            <Stack.Screen 
-              name="WatermarkPreview" 
-              component={WatermarkPreviewScreen} 
-              options={getCameraScreenOptions()} 
+            <Stack.Screen
+              name="WatermarkPreview"
+              component={WatermarkPreviewScreen}
+              options={getCameraScreenOptions()}
             />
-            <Stack.Screen 
-              name="VerificationForm" 
-              component={VerificationFormScreen} 
-              options={{ headerShown: true, title: 'Verification Form', headerBackTitle: 'Cancel' }} 
+            <Stack.Screen
+              name="VerificationForm"
+              component={VerificationFormScreen}
+              options={{ headerShown: true, title: 'Verification Form', headerBackTitle: 'Cancel' }}
             />
-            <Stack.Screen 
-              name="SyncLogs" 
-              component={SyncLogsScreen} 
-              options={{ headerShown: true, title: 'Sync Diagnostics', headerBackTitle: 'Back' }} 
+            <Stack.Screen
+              name="SyncLogs"
+              component={SyncLogsScreen}
+              options={{ headerShown: true, title: 'Sync Diagnostics', headerBackTitle: 'Back' }}
             />
             <Stack.Screen
               name="Profile"

@@ -100,10 +100,13 @@ export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
         const visibleFields = (Array.isArray(section.fields) ? section.fields : [])
           .filter(field => isFieldVisible(field, formValues))
           .map(field => {
-            const valueKey = field.name || field.id;
+            // Use field.name as the canonical key for form values. Fall back to
+            // field.id only if name is absent. This ensures consistent mapping
+            // between mobile form values and backend field expectations.
+            const valueKey = field.name && field.name.trim() !== '' ? field.name : field.id;
             return {
               key: valueKey,
-              field: { ...field, id: valueKey, required: isFieldRequired(field, formValues) },
+              field: { ...field, id: valueKey, name: valueKey, required: isFieldRequired(field, formValues) },
             };
           });
 

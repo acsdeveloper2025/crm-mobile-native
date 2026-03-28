@@ -220,12 +220,20 @@ class SyncEngineClass {
         Logger.warn(TAG, 'Failed to reset sync metadata', syncStatusError);
       }
       await SyncWatchdogService.stop();
+      // Set syncInProgress = false AFTER scheduling the watchdog restart to
+      // prevent a race where another sync starts between the flag reset and
+      // the setTimeout callback.
+      const needsRestart = watchdogTriggered;
       this.syncInProgress = false;
 
-      if (watchdogTriggered) {
+      if (needsRestart) {
         setTimeout(() => {
+          // Double-check flag — another sync may have started in the meantime
           if (!this.syncInProgress) {
-            this.performSync().catch(error => Logger.warn(TAG, 'Watchdog restart sync failed', error));
+            this.syncInProgress = true; // Claim the lock before async work
+            this.performSync()
+              .catch(error => Logger.warn(TAG, 'Watchdog restart sync failed', error))
+              .finally(() => { /* syncInProgress is reset inside performSync's finally */ });
           }
         }, 1000);
       }

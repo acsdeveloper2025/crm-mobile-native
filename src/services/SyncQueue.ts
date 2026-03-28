@@ -11,7 +11,12 @@ import { Logger } from '../utils/logger';
 import type { SyncQueueItem } from '../types/mobile';
 
 const TAG = 'SyncQueue';
+// Base lease timeout — extended dynamically for large files
 const DEFAULT_LEASE_TIMEOUT_MS = 5 * 60 * 1000;
+// Per-MB of payload, add extra time to lease for large attachments
+const LEASE_PER_MB_MS = 30 * 1000;
+// Maximum lease timeout cap
+const MAX_LEASE_TIMEOUT_MS = 15 * 60 * 1000;
 
 export type EntityType =
   | 'TASK'
@@ -119,7 +124,18 @@ class SyncQueueClass {
   }
 
   /**
-   * Mark an item as in-progress
+   * Calculate dynamic lease timeout based on payload size.
+   * Large attachments on slow networks need longer leases.
+   */
+  calculateLeaseTimeout(payload: Record<string, unknown>): number {
+    const sizeBytes = typeof payload.size === 'number' ? payload.size : 0;
+    const sizeMb = sizeBytes / (1024 * 1024);
+    const dynamicTimeout = DEFAULT_LEASE_TIMEOUT_MS + Math.ceil(sizeMb) * LEASE_PER_MB_MS;
+    return Math.min(dynamicTimeout, MAX_LEASE_TIMEOUT_MS);
+  }
+
+  /**
+   * Mark an item as in-progress with dynamic lease timeout
    */
   async markInProgress(
     id: string,

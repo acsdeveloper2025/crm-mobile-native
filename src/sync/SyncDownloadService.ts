@@ -1,6 +1,7 @@
 import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import { config } from '../config';
+import { DatabaseService } from '../database/DatabaseService';
 import { ProjectionUpdater } from '../projections/ProjectionUpdater';
 import { SyncEngineRepository } from '../repositories/SyncEngineRepository';
 import { notificationService } from '../services/NotificationService';
@@ -63,10 +64,24 @@ class SyncDownloadServiceClass {
         }
 
         for (const taskId of payload.revokedAssignmentIds || []) {
+          // Cascade delete child records that foreign keys would miss
+          // (tasks.id is the FK target, but verification_task_id is used here)
+          const taskRows = await SyncEngineRepository.query<{ id: string }>(
+            'SELECT id FROM tasks WHERE verification_task_id = ?', [taskId],
+          );
+          for (const row of taskRows) {
+            await SyncEngineRepository.execute('DELETE FROM attachments WHERE task_id = ?', [row.id]);
+            await SyncEngineRepository.execute('DELETE FROM locations WHERE task_id = ?', [row.id]);
+            await SyncEngineRepository.execute('DELETE FROM form_submissions WHERE task_id = ?', [row.id]);
+          }
           await SyncEngineRepository.execute('DELETE FROM tasks WHERE verification_task_id = ?', [taskId]);
           await ProjectionUpdater.rebuildTask(taskId);
         }
         for (const taskId of payload.deletedTaskIds || []) {
+          // Cascade delete child records before removing the task
+          await SyncEngineRepository.execute('DELETE FROM attachments WHERE task_id = ?', [taskId]);
+          await SyncEngineRepository.execute('DELETE FROM locations WHERE task_id = ?', [taskId]);
+          await SyncEngineRepository.execute('DELETE FROM form_submissions WHERE task_id = ?', [taskId]);
           await SyncEngineRepository.execute('DELETE FROM tasks WHERE id = ? OR verification_task_id = ?', [taskId, taskId]);
           await ProjectionUpdater.rebuildTask(taskId);
         }
@@ -146,6 +161,9 @@ class SyncDownloadServiceClass {
       return;
     }
 
+    // Wrap the entire upsert (stale row migration + insert/replace) in a
+    // transaction to prevent orphaned FK records if a crash occurs mid-way.
+    await DatabaseService.transaction(async () => {
     const staleRows = await SyncEngineRepository.query<{ id: string }>(
       `SELECT id
        FROM tasks
@@ -180,6 +198,9 @@ class SyncDownloadServiceClass {
       [canonicalTaskId],
     );
 
+    // Check for in-flight queue items to avoid overwriting pending local changes
+    const hasQueuedChanges = await syncConflictResolver.hasInFlightQueueItems(canonicalTaskId);
+
     const mergedState = syncConflictResolver.resolveTaskState(task, existingRows[0]
       ? {
           status: existingRows[0].status,
@@ -189,7 +210,7 @@ class SyncDownloadServiceClass {
           completedAt: existingRows[0].completed_at,
           syncStatus: existingRows[0].sync_status,
         }
-      : null);
+      : null, hasQueuedChanges);
 
     const now = new Date().toISOString();
     await SyncEngineRepository.execute(
@@ -214,6 +235,7 @@ class SyncDownloadServiceClass {
         now, now,
       ],
     );
+    }); // end transaction
   }
 }
 

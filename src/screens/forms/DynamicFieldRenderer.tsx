@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, StyleSheet, Switch } from 'react-native';
+import { View, Text, TextInput, StyleSheet, Switch, TouchableOpacity } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -32,6 +32,9 @@ const PHONE_FIELD_NAMES = [
   'backendContactNumber',
 ];
 
+const EMAIL_FIELD_NAME_PATTERNS = ['email', 'mail'];
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 const shouldUseNumericKeyboard = (field: { id: string; type: string; name?: string }): boolean => {
   if (field.type === 'number') return true;
   const fieldName = (field.name || field.id || '').toLowerCase();
@@ -63,13 +66,23 @@ const validateField = (
     }
   }
 
-  // Phone validation (10-digit minimum)
+  // Phone validation (exactly 10 digits for Indian phone numbers)
   const fieldName = field.name || field.id || '';
   if (isPhoneField(fieldName)) {
     const digitsOnly = strValue.replace(/\D/g, '');
     if (digitsOnly.length < 10) {
       return 'Phone number must be at least 10 digits';
     }
+    if (digitsOnly.length > 13) {
+      return 'Phone number must not exceed 13 digits';
+    }
+  }
+
+  // Email validation
+  const isEmail = field.type === 'email' ||
+    EMAIL_FIELD_NAME_PATTERNS.some(p => fieldName.toLowerCase().includes(p));
+  if (isEmail && !EMAIL_REGEX.test(strValue)) {
+    return 'Please enter a valid email address';
   }
 
   return null;
@@ -119,6 +132,8 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
             keyboardType={useNumericKeyboard ? 'numeric' : 'default'}
             placeholder={placeholder}
             placeholderTextColor={theme.colors.textMuted}
+            testID={`field-${field.id}`}
+            accessibilityLabel={field.label}
           />
         );
 
@@ -142,6 +157,8 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
             numberOfLines={4}
             placeholder={placeholder}
             placeholderTextColor={theme.colors.textMuted}
+            testID={`field-textarea-${field.id}`}
+            accessibilityLabel={field.label}
           />
         );
 
@@ -171,15 +188,39 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
       case 'boolean':
       case 'checkbox':
         return (
-          <View style={[styles.switchContainer, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
+          <View style={[styles.switchContainer, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]} testID={`field-switch-${field.id}`}>
             <Text style={[styles.switchLabel, { color: theme.colors.text }]}>{value ? 'Yes' : 'No'}</Text>
             <Switch
               value={!!value}
               onValueChange={(val) => onChange(field.id, val)}
+              accessibilityLabel={`${field.label}: ${value ? 'Yes' : 'No'}`}
               trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
               thumbColor={value ? theme.colors.surface : theme.colors.surfaceAlt}
             />
           </View>
+        );
+
+      case 'email':
+        return (
+          <TextInput
+            style={[
+              styles.input,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: displayError ? theme.colors.danger : theme.colors.border,
+                color: theme.colors.text
+              },
+              displayError && [styles.inputError, { borderColor: theme.colors.danger, backgroundColor: theme.colors.danger + '10' }]
+            ]}
+            value={value?.toString() || ''}
+            onChangeText={(text) => onChange(field.id, text.trim())}
+            onBlur={handleBlur}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            placeholder="Enter email address"
+            placeholderTextColor={theme.colors.textMuted}
+          />
         );
 
       case 'select':
@@ -213,6 +254,46 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
             </Picker>
           </View>
         );
+
+      case 'multiselect':
+        {
+          const selectedValues = Array.isArray(value) ? value as string[] : [];
+          return (
+            <View style={{ gap: 6 }}>
+              {options.map((opt, index) => {
+                const isSelected = selectedValues.includes(opt.value);
+                return (
+                  <TouchableOpacity
+                    key={`${field.id}_multi_${String(opt.value)}_${index}`}
+                    onPress={() => {
+                      const next = isSelected
+                        ? selectedValues.filter(v => v !== opt.value)
+                        : [...selectedValues, opt.value];
+                      onChange(field.id, next);
+                    }}
+                    style={[
+                      styles.switchContainer,
+                      {
+                        backgroundColor: isSelected ? theme.colors.primary + '15' : theme.colors.surface,
+                        borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                      },
+                    ]}>
+                    <Text style={[styles.switchLabel, { color: theme.colors.text }]}>{opt.label}</Text>
+                    <View style={{
+                      width: 22, height: 22, borderRadius: 4,
+                      borderWidth: 2,
+                      borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                      backgroundColor: isSelected ? theme.colors.primary : 'transparent',
+                      alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {isSelected && <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>✓</Text>}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          );
+        }
 
       default:
         return <Text style={[styles.unsupportedText, { color: theme.colors.textMuted }]}>Unsupported field type: {field.type}</Text>;

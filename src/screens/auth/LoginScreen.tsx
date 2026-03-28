@@ -26,6 +26,9 @@ export const LoginScreen = () => {
   const [password, setPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
+  // Client-side rate limiting: track failed attempts with exponential backoff
+  const failedAttemptsRef = React.useRef(0);
+  const lockoutUntilRef = React.useRef<number>(0);
 
   const parseCredentials = React.useCallback(() => {
     const cleanUsername = username.trim();
@@ -85,6 +88,14 @@ export const LoginScreen = () => {
       return;
     }
 
+    // Client-side rate limiting with exponential backoff
+    const now = Date.now();
+    if (now < lockoutUntilRef.current) {
+      const remainingSec = Math.ceil((lockoutUntilRef.current - now) / 1000);
+      setError(`Too many failed attempts. Please wait ${remainingSec} seconds before trying again.`);
+      return;
+    }
+
     setLoading(true);
     setError('');
 
@@ -100,6 +111,9 @@ export const LoginScreen = () => {
       });
 
       if (response?.data?.tokens) {
+        // Reset rate limiting on successful login
+        failedAttemptsRef.current = 0;
+        lockoutUntilRef.current = 0;
         await login(
           response.data.tokens.accessToken,
           response.data.user,
@@ -111,6 +125,12 @@ export const LoginScreen = () => {
       }
     } catch (e: unknown) {
       Logger.error(TAG, 'Login failed', e);
+      // Exponential backoff: 5s, 10s, 20s, 40s, 60s max
+      failedAttemptsRef.current += 1;
+      if (failedAttemptsRef.current >= 3) {
+        const backoffMs = Math.min(5000 * Math.pow(2, failedAttemptsRef.current - 3), 60000);
+        lockoutUntilRef.current = Date.now() + backoffMs;
+      }
       setError(extractErrorMessage(e));
     } finally {
       setLoading(false);
@@ -149,6 +169,8 @@ export const LoginScreen = () => {
                 autoCapitalize="none"
                 autoCorrect={false}
                 editable={!loading}
+                testID="login-username-input"
+                accessibilityLabel="Username input"
               />
             </View>
 
@@ -164,11 +186,13 @@ export const LoginScreen = () => {
                 onChangeText={setPassword}
                 secureTextEntry
                 editable={!loading}
+                testID="login-password-input"
+                accessibilityLabel="Password input"
               />
             </View>
 
-            <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleLogin} disabled={loading}>
-              {loading ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.buttonText}>Sign In</Text>}
+            <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleLogin} disabled={loading} testID="login-submit-button" accessibilityLabel="Sign in button">
+              {loading ? <ActivityIndicator color="#ffffff" testID="login-loading" /> : <Text style={styles.buttonText}>Sign In</Text>}
             </TouchableOpacity>
           </View>
         </View>

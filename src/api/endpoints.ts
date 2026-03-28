@@ -7,8 +7,6 @@
  */
 import { config } from '../config';
 
-const apiRootUrl = config.apiBaseUrl.replace(/\/mobile\/?$/, '');
-
 export const ENDPOINTS = {
   // Health
   HEALTH: '/health',
@@ -39,6 +37,12 @@ export const ENDPOINTS = {
     BATCH: '/cases/batch/attachments',
   },
 
+  // Auto-save
+  AUTO_SAVE: {
+    SAVE: (taskId: string) => `/verification-tasks/${taskId}/auto-save`,
+    GET: (taskId: string, formType: string) => `/verification-tasks/${taskId}/auto-save/${formType}`,
+  },
+
   // Form Submissions
   FORMS: {
     TEMPLATE: (formType: string) => `/forms/${formType}/template`,
@@ -67,13 +71,13 @@ export const ENDPOINTS = {
     STATUS: '/sync/status',
   },
 
-  // Notifications
+  // Notifications — all paths relative to apiBaseUrl (which includes /mobile)
   NOTIFICATIONS: {
     REGISTER: '/auth/notifications/register',
-    LIST: `${apiRootUrl}/notifications`,
-    MARK_READ: (notificationId: string) => `${apiRootUrl}/notifications/${notificationId}/read`,
-    MARK_ALL_READ: `${apiRootUrl}/notifications/mark-all-read`,
-    CLEAR_ALL: `${apiRootUrl}/notifications`,
+    LIST: '/notifications',
+    MARK_READ: (notificationId: string) => `/notifications/${notificationId}/read`,
+    MARK_ALL_READ: '/notifications/mark-all-read',
+    CLEAR_ALL: '/notifications',
   },
 
   // Version

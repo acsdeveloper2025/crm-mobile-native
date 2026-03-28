@@ -1,4 +1,5 @@
 import { AttachmentRepository } from '../../repositories/AttachmentRepository';
+import { validateTemplateRequiredFields } from './FormValidationEngine';
 import type { FormTemplate } from '../../types/api';
 import type { LocalTask } from '../../types/mobile';
 import type { FormTypeKey } from '../../utils/formTypeKey';
@@ -20,11 +21,23 @@ export interface FormSubmissionParams {
 class FormSubmissionServiceClass {
   async submitVerificationForm({
     task,
+    template,
     formValues,
     selectedOutcome,
     taskFormTypeKey,
     submitTaskForm,
   }: FormSubmissionParams): Promise<void> {
+    // Pre-submit validation: check all required fields against template
+    // before queuing to avoid wasting sync bandwidth on invalid forms.
+    if (template) {
+      const { isValid, missingFields } = validateTemplateRequiredFields(template, formValues);
+      if (!isValid) {
+        throw new Error(
+          `Please fill in all required fields before submitting:\n${missingFields.join(', ')}`,
+        );
+      }
+    }
+
     const attachments = await AttachmentRepository.listForTask(task.id);
     let photoCount = 0;
     let selfieCount = 0;

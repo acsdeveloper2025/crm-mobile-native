@@ -2,6 +2,7 @@ import RNFS from 'react-native-fs';
 import { ApiClient } from '../../api/apiClient';
 import { ENDPOINTS } from '../../api/endpoints';
 import { SyncEngineRepository } from '../../repositories/SyncEngineRepository';
+import { notificationService } from '../../services/NotificationService';
 import { Logger } from '../../utils/logger';
 import type { SyncOperation } from '../SyncOperationLog';
 import type { SyncUploadResult } from '../SyncUploadTypes';
@@ -23,6 +24,21 @@ class AttachmentUploaderClass {
         "UPDATE attachments SET sync_status = 'SKIPPED', sync_error = 'File missing from disk', last_sync_attempt_at = ? WHERE id = ?",
         [new Date().toISOString(), String(payload.id)],
       );
+
+      // Alert the user that a photo was lost so they can retake it
+      try {
+        await notificationService.addNotification({
+          type: 'SYNC_WARNING',
+          title: 'Photo Upload Skipped',
+          message: `A photo for task could not be uploaded because the file was removed from device storage. Please retake the photo if needed.`,
+          priority: 'HIGH',
+          taskId: taskId || undefined,
+          timestamp: new Date().toISOString(),
+        });
+      } catch {
+        // best effort — don't fail the sync for a notification error
+      }
+
       // Return SUCCESS so the queue item is completed (not retried forever)
       return { outcome: 'SUCCESS', error: `Photo file missing (skipped): ${localPath}` };
     }
