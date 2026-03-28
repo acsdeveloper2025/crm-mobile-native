@@ -3,11 +3,12 @@ import type { SyncQueueItem } from '../types/mobile';
 
 class SyncQueueRepositoryClass {
   async recoverExpiredLeases(now: string): Promise<number> {
-    // Reset to PENDING (not FAILED) and do NOT increment attempts.
-    // Lease expiry from an app crash is not a genuine sync failure —
-    // the operation was interrupted, not rejected by the server.
-    // Counting it as a failed attempt causes permanent data loss after 3 crashes.
-    const result = await DatabaseService.execute(
+    // Reset to PENDING and increment a dedicated crash_recovery_count.
+    // We don't increment `attempts` (which tracks genuine server failures)
+    // because lease expiry from an app crash is not a server rejection.
+    // However, we cap crash recoveries at 10 to prevent infinite loops
+    // where a poison-pill item keeps crashing the app.
+    const recovered = await DatabaseService.execute(
       `UPDATE sync_queue
        SET status = 'PENDING',
            last_error = COALESCE(last_error, 'Recovered after interrupted processing — lease expired'),
@@ -16,10 +17,41 @@ class SyncQueueRepositoryClass {
            lease_expires_at = NULL
        WHERE status = 'IN_PROGRESS'
          AND lease_expires_at IS NOT NULL
-         AND lease_expires_at < ?`,
+         AND lease_expires_at < ?
+         AND COALESCE(CAST(json_extract(payload_json, '$._operation.crash_recovery_count') AS INTEGER), 0) < 10`,
       [now],
     );
-    return result.rowsAffected;
+
+    // Permanently fail items that exceeded 10 crash recoveries
+    await DatabaseService.execute(
+      `UPDATE sync_queue
+       SET status = 'FAILED',
+           last_error = 'Exceeded maximum crash recovery attempts (10)',
+           started_at = NULL,
+           lease_expires_at = NULL
+       WHERE status = 'IN_PROGRESS'
+         AND lease_expires_at IS NOT NULL
+         AND lease_expires_at < ?
+         AND COALESCE(CAST(json_extract(payload_json, '$._operation.crash_recovery_count') AS INTEGER), 0) >= 10`,
+      [now],
+    );
+
+    // Increment crash_recovery_count on recovered items
+    if (recovered.rowsAffected > 0) {
+      await DatabaseService.execute(
+        `UPDATE sync_queue
+         SET payload_json = json_set(
+           payload_json,
+           '$._operation.crash_recovery_count',
+           COALESCE(CAST(json_extract(payload_json, '$._operation.crash_recovery_count') AS INTEGER), 0) + 1
+         )
+         WHERE status = 'PENDING'
+           AND last_error LIKE '%Recovered after interrupted processing%'
+           AND started_at IS NULL`,
+      );
+    }
+
+    return recovered.rowsAffected;
   }
 
   async insert(
@@ -40,11 +72,14 @@ class SyncQueueRepositoryClass {
   }
 
   async deletePendingStatusItems(entityId: string): Promise<void> {
+    // Only delete PENDING and FAILED items — NOT IN_PROGRESS items.
+    // Deleting an IN_PROGRESS item orphans its active lease and can cause
+    // the processor to lose track of the operation.
     await DatabaseService.execute(
       `DELETE FROM sync_queue
        WHERE entity_type = 'TASK_STATUS'
          AND entity_id = ?
-         AND status IN ('PENDING', 'FAILED', 'IN_PROGRESS')`,
+         AND status IN ('PENDING', 'FAILED')`,
       [entityId],
     );
   }

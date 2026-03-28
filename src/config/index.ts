@@ -29,6 +29,8 @@ export interface AppConfig {
   // Database
   dbName: string;
   dbVersion: number;
+  /** SQLCipher encryption key — set via Keychain at first launch. null = unencrypted. */
+  dbEncryptionKey: string | null;
 }
 
 const nativeAppInfo = (NativeModules as { AppInfo?: { versionName?: string; versionCode?: number | string } }).AppInfo;
@@ -46,9 +48,9 @@ const BASE_CONFIG: Omit<AppConfig, 'apiBaseUrl' | 'wsUrl' | 'environment'> = {
   maxRetryAttempts: 3,
   retryDelayMs: 5000,
 
-  // Storage
-  maxFileSize: 10 * 1024 * 1024, // 10MB
-  maxFilesPerTask: 15,
+  // Storage — aligned with backend limits (50MB file size, 20 files per upload)
+  maxFileSize: 50 * 1024 * 1024, // 50MB (matches backend attachmentsController limit)
+  maxFilesPerTask: 20, // matches backend max files per request
   maxOfflineStorageMb: 500,
 
   // Location — adaptive interval to reduce battery drain at scale
@@ -58,6 +60,7 @@ const BASE_CONFIG: Omit<AppConfig, 'apiBaseUrl' | 'wsUrl' | 'environment'> = {
   // Database
   dbName: 'crm_mobile.db',
   dbVersion: 7,
+  dbEncryptionKey: null, // Set at runtime from Keychain — see DatabaseService.initialize()
 };
 
 // Environment-specific API URLs

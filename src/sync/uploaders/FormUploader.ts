@@ -1,6 +1,7 @@
 import RNFS from 'react-native-fs';
 import { ApiClient } from '../../api/apiClient';
 import { ENDPOINTS } from '../../api/endpoints';
+import { DatabaseService } from '../../database/DatabaseService';
 import { SyncEngineRepository } from '../../repositories/SyncEngineRepository';
 import { Logger } from '../../utils/logger';
 import { resolveFormTypeKey, type FormTypeKey } from '../../utils/formTypeKey';
@@ -197,18 +198,22 @@ class FormUploaderClass {
       return { outcome: 'FAILURE', error: 'Form upload returned failure' };
     }
 
-    if (localTaskId) {
-      await this.updateLocalSubmissionState(localTaskId, 'success', null, true);
-    }
+    // Wrap all post-upload DB updates in a transaction to prevent partial
+    // state if a crash occurs between marking synced and clearing autosave.
+    await DatabaseService.transaction(async () => {
+      if (localTaskId) {
+        await this.updateLocalSubmissionState(localTaskId, 'success', null, true);
+      }
 
-    await SyncEngineRepository.execute(
-      "UPDATE form_submissions SET sync_status = 'SYNCED', status = 'SYNCED' WHERE id = ?",
-      [operation.entityId],
-    );
-    await SyncEngineRepository.execute(
-      'DELETE FROM key_value_store WHERE key = ?',
-      [`auto_save_${localTaskId || taskId}`],
-    );
+      await SyncEngineRepository.execute(
+        "UPDATE form_submissions SET sync_status = 'SYNCED', status = 'SYNCED' WHERE id = ?",
+        [operation.entityId],
+      );
+      await SyncEngineRepository.execute(
+        'DELETE FROM key_value_store WHERE key = ?',
+        [`auto_save_${localTaskId || taskId}`],
+      );
+    });
 
     // Cleanup photos only after database has been updated successfully
     if (localTaskId) {

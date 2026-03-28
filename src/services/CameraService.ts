@@ -7,6 +7,7 @@ import RNFS from 'react-native-fs';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
 import { AttachmentRepository } from '../repositories/AttachmentRepository';
 import { TaskRepository } from '../repositories/TaskRepository';
+import { DatabaseService } from '../database/DatabaseService';
 import { SyncGateway } from './SyncGateway';
 import { SYNC_PRIORITY } from './SyncQueue';
 import { LocationService } from './LocationService';
@@ -165,24 +166,27 @@ class CameraServiceClass {
         componentType,
       };
 
-      // Save to local database
-      await AttachmentRepository.create({
-        id,
-        taskId,
-        filename,
-        mimeType: photo.mimeType,
-        size: photo.size,
-        localPath: destPath,
-        thumbnailPath,
-        uploadedAt: timestamp,
-        latitude: photo.latitude,
-        longitude: photo.longitude,
-        accuracy: photo.accuracy,
-        locationTimestamp: resolvedLocation?.timestamp || null,
-        componentType,
+      // Save to local database and queue for sync in a transaction to prevent
+      // orphaned files if a crash occurs between DB insert and sync enqueue.
+      await DatabaseService.transaction(async () => {
+        await AttachmentRepository.create({
+          id,
+          taskId,
+          filename,
+          mimeType: photo.mimeType,
+          size: photo.size,
+          localPath: destPath,
+          thumbnailPath,
+          uploadedAt: timestamp,
+          latitude: photo.latitude,
+          longitude: photo.longitude,
+          accuracy: photo.accuracy,
+          locationTimestamp: resolvedLocation?.timestamp || null,
+          componentType,
+        });
       });
 
-      // Queue for sync
+      // Queue for sync (outside transaction — enqueue has its own persistence)
       await SyncGateway.enqueueAttachment(
         id,
         {

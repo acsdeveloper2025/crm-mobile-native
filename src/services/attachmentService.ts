@@ -19,6 +19,9 @@ export interface RemoteTaskAttachment extends Attachment {
   source: 'REMOTE';
 }
 
+/** Maximum age for cached attachment files (30 days in ms) */
+const CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
+
 class AttachmentServiceClass {
   private initialized = false;
   private isOfflineMode = false;
@@ -170,6 +173,51 @@ class AttachmentServiceClass {
     if (url.startsWith('/attachments/')) return `${apiMobile}${url}`;
     if (url.startsWith('/')) return `${apiMobile}${url}`;
     return `${apiMobile}/${url}`;
+  }
+
+  /**
+   * Remove cached attachment files older than CACHE_MAX_AGE_MS.
+   * Call periodically (e.g., during sync cleanup) to prevent unbounded storage growth.
+   */
+  async cleanupExpiredCache(): Promise<number> {
+    try {
+      await this.initialize();
+      const files = await RNFS.readDir(CACHE_DIR);
+      const cutoff = Date.now() - CACHE_MAX_AGE_MS;
+      let deleted = 0;
+
+      for (const file of files) {
+        if (file.isFile()) {
+          const mtime = file.mtime ? new Date(file.mtime).getTime() : 0;
+          if (mtime > 0 && mtime < cutoff) {
+            await RNFS.unlink(file.path);
+            deleted++;
+          }
+        }
+      }
+
+      if (deleted > 0) {
+        Logger.info(TAG, `Cleaned up ${deleted} expired cached attachment(s)`);
+      }
+      return deleted;
+    } catch (error) {
+      Logger.warn(TAG, 'Failed to cleanup expired cache', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Strip EXIF metadata from image before upload to protect user privacy.
+   * Vision Camera captures raw JPEG with GPS/device data in EXIF headers.
+   * NOTE: For full EXIF stripping, use a native library like react-native-image-manipulator
+   * on the upload path. This method provides a placeholder for the integration.
+   */
+  async stripExifMetadata(imagePath: string): Promise<string> {
+    // TODO: Integrate react-native-image-manipulator or similar to strip EXIF
+    // For now, the watermark processing already re-encodes the image which
+    // removes most EXIF data, but explicit stripping is recommended.
+    Logger.debug(TAG, `EXIF stripping placeholder for: ${imagePath}`);
+    return imagePath;
   }
 
   private buildAttachmentContentUrls(attachment: Attachment): string[] {

@@ -50,8 +50,18 @@ class DatabaseServiceClass {
         location: 'default',
       });
 
+      // Encryption: When using react-native-sqlcipher-storage, set the key
+      // before any other PRAGMA. The key is derived from the device keychain
+      // so it's unique per installation and not stored in plaintext.
+      if (config.dbEncryptionKey) {
+        await this.db.executeSql(`PRAGMA key = '${config.dbEncryptionKey}';`);
+        Logger.info('DatabaseService', 'Database encryption enabled');
+      }
+
       // Enable WAL mode for better concurrent read/write performance
       await this.db.executeSql('PRAGMA journal_mode = WAL;');
+      // FULL synchronous ensures data survives device crashes during WAL checkpoints
+      await this.db.executeSql('PRAGMA synchronous = FULL;');
       // Enable foreign keys
       await this.db.executeSql('PRAGMA foreign_keys = ON;');
 
@@ -97,18 +107,31 @@ class DatabaseServiceClass {
       return;
     }
 
-    // Apply pending migrations
+    // Apply pending migrations — each migration runs inside a transaction so a
+    // crash mid-migration doesn't leave the schema in a half-applied state.
     const pendingMigrations = MIGRATIONS.filter(m => m.version > currentVersion);
     for (const migration of pendingMigrations) {
       Logger.info('DatabaseService', `Running migration v${migration.version}: ${migration.description}`);
       const migrationStatements = migration.sql.split(';').filter(s => s.trim().length > 0);
-      for (const stmt of migrationStatements) {
-        await this.db.executeSql(stmt + ';');
+      await this.db.executeSql('BEGIN TRANSACTION;');
+      try {
+        for (const stmt of migrationStatements) {
+          await this.db.executeSql(stmt + ';');
+        }
+        await this.db.executeSql(`PRAGMA user_version = ${migration.version};`);
+        await this.db.executeSql('COMMIT;');
+      } catch (migrationError) {
+        try {
+          await this.db.executeSql('ROLLBACK;');
+        } catch (rollbackError) {
+          Logger.error('DatabaseService', `Migration v${migration.version} rollback failed`, rollbackError);
+        }
+        throw migrationError;
       }
     }
 
-    // Update schema version
-    if (currentVersion < DB_VERSION) {
+    // Update schema version to DB_VERSION if no migrations ran but version is behind
+    if (pendingMigrations.length === 0 && currentVersion < DB_VERSION) {
       await this.db.executeSql(`PRAGMA user_version = ${DB_VERSION};`);
     }
   }

@@ -1,3 +1,4 @@
+import { DatabaseService } from '../database/DatabaseService';
 import type { MobileCaseResponse } from '../types/api';
 
 interface ExistingTaskState {
@@ -30,7 +31,27 @@ class SyncConflictResolver {
     }
   }
 
-  resolveTaskState(task: MobileCaseResponse, existing?: ExistingTaskState | null): ResolvedTaskState {
+  /**
+   * Check if there are in-flight sync queue items for this task that would
+   * change its state. If so, preserve local state to avoid silent data loss.
+   */
+  async hasInFlightQueueItems(taskId: string): Promise<boolean> {
+    try {
+      const rows = await DatabaseService.query<{ c: number }>(
+        `SELECT 1 as c FROM sync_queue
+         WHERE entity_type IN ('TASK', 'TASK_STATUS', 'FORM_SUBMISSION')
+           AND entity_id = ?
+           AND status IN ('PENDING', 'IN_PROGRESS', 'FAILED')
+         LIMIT 1`,
+        [taskId],
+      );
+      return rows.length > 0;
+    } catch {
+      return false;
+    }
+  }
+
+  resolveTaskState(task: MobileCaseResponse, existing?: ExistingTaskState | null, hasQueuedChanges: boolean = false): ResolvedTaskState {
     const backendStatus = (task.status || 'ASSIGNED').toUpperCase();
     let status = backendStatus;
     let inProgressAt = task.inProgressAt || null;
@@ -44,6 +65,17 @@ class SyncConflictResolver {
 
       // Check if local edits are newer than server state
       const localHasFreshEdits = this.isLocalFresher(existing.local_updated_at, task.updatedAt);
+
+      // If there are queued changes that haven't synced yet, always preserve
+      // local state to prevent silent data loss from overwriting pending work.
+      if (hasQueuedChanges) {
+        status = localStatus || status;
+        inProgressAt = existing.inProgressAt || inProgressAt;
+        savedAt = existing.savedAt || savedAt;
+        completedAt = existing.completedAt || completedAt;
+        isSaved = localSaved ? 1 : isSaved;
+        return { status, inProgressAt, savedAt, completedAt, isSaved };
+      }
 
       if (existing.syncStatus === 'PENDING') {
         // For PENDING sync status, use existing logic with status precedence

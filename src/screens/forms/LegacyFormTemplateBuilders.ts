@@ -4,9 +4,11 @@ import type { FormTypeKey } from '../../utils/formTypeKey';
 type ResidenceOutcome = 'POSITIVE' | 'SHIFTED' | 'NSP' | 'ENTRY_RESTRICTED' | 'UNTRACEABLE';
 type PropertyApfOutcome = 'POSITIVE' | 'ENTRY_RESTRICTED' | 'UNTRACEABLE';
 type PropertyIndividualOutcome = 'POSITIVE' | 'NSP' | 'ENTRY_RESTRICTED' | 'UNTRACEABLE';
-type NormalizedOutcome = ResidenceOutcome | 'NEGATIVE';
+/** All possible outcomes including NEGATIVE — used for normalization and display */
+type AllOutcome = ResidenceOutcome | 'NEGATIVE';
+type NormalizedOutcome = AllOutcome;
 type OutcomeCoercionResult = {
-  outcome: ResidenceOutcome;
+  outcome: AllOutcome;
   warning: string | null;
 };
 
@@ -47,15 +49,16 @@ const normalizeOutcome = (rawOutcome?: string | null): NormalizedOutcome => {
 
 type ResidenceFieldInput = Omit<FormFieldTemplate, 'id' | 'order'> & { id?: string };
 
-const COMMON_LEGACY_OUTCOMES: readonly ResidenceOutcome[] = [
+const COMMON_LEGACY_OUTCOMES: readonly AllOutcome[] = [
   'POSITIVE',
+  'NEGATIVE',
   'SHIFTED',
   'NSP',
   'ENTRY_RESTRICTED',
   'UNTRACEABLE',
 ];
 
-const getOutcomeLabel = (formTypeKey: FormTypeKey | null, outcome: ResidenceOutcome): string => {
+const getOutcomeLabel = (formTypeKey: FormTypeKey | null, outcome: AllOutcome): string => {
   if (formTypeKey === 'property-apf') {
     const apfLabelByOutcome: Record<PropertyApfOutcome, string> = {
       POSITIVE: 'Positive & Negative',
@@ -81,8 +84,9 @@ const getOutcomeLabel = (formTypeKey: FormTypeKey | null, outcome: ResidenceOutc
     return individualLabelByOutcome[normalizedIndividualOutcome];
   }
 
-  const labelByOutcome: Record<ResidenceOutcome, string> = {
+  const labelByOutcome: Record<AllOutcome, string> = {
     POSITIVE: 'Positive & Door Locked',
+    NEGATIVE: 'Negative',
     SHIFTED: 'Shifted & Door Locked Shifted',
     NSP: 'NSP & NSP Door Locked',
     ENTRY_RESTRICTED: 'ERT',
@@ -91,7 +95,7 @@ const getOutcomeLabel = (formTypeKey: FormTypeKey | null, outcome: ResidenceOutc
   return labelByOutcome[outcome];
 };
 
-const LEGACY_OUTCOMES_BY_FORM_TYPE: Record<FormTypeKey, readonly ResidenceOutcome[]> = {
+const LEGACY_OUTCOMES_BY_FORM_TYPE: Record<FormTypeKey, readonly AllOutcome[]> = {
   residence: COMMON_LEGACY_OUTCOMES,
   'residence-cum-office': COMMON_LEGACY_OUTCOMES,
   office: COMMON_LEGACY_OUTCOMES,
@@ -103,7 +107,7 @@ const LEGACY_OUTCOMES_BY_FORM_TYPE: Record<FormTypeKey, readonly ResidenceOutcom
   'property-apf': ['UNTRACEABLE', 'ENTRY_RESTRICTED', 'POSITIVE'],
 };
 
-const PREFERRED_DEFAULT_OUTCOME_BY_FORM_TYPE: Partial<Record<FormTypeKey, ResidenceOutcome>> = {
+const PREFERRED_DEFAULT_OUTCOME_BY_FORM_TYPE: Partial<Record<FormTypeKey, AllOutcome>> = {
   residence: 'POSITIVE',
   'residence-cum-office': 'POSITIVE',
   office: 'POSITIVE',
@@ -115,14 +119,14 @@ const PREFERRED_DEFAULT_OUTCOME_BY_FORM_TYPE: Partial<Record<FormTypeKey, Reside
   'property-apf': 'POSITIVE',
 };
 
-const getAllowedOutcomes = (formTypeKey: FormTypeKey | null): readonly ResidenceOutcome[] => {
+const getAllowedOutcomes = (formTypeKey: FormTypeKey | null): readonly AllOutcome[] => {
   if (!formTypeKey) {
     return COMMON_LEGACY_OUTCOMES;
   }
   return LEGACY_OUTCOMES_BY_FORM_TYPE[formTypeKey];
 };
 
-const getFallbackOutcomeForFormType = (formTypeKey: FormTypeKey | null): ResidenceOutcome => {
+const getFallbackOutcomeForFormType = (formTypeKey: FormTypeKey | null): AllOutcome => {
   const allowedOutcomes = getAllowedOutcomes(formTypeKey);
   const preferredDefault = formTypeKey ? PREFERRED_DEFAULT_OUTCOME_BY_FORM_TYPE[formTypeKey] : 'POSITIVE';
 
@@ -147,8 +151,12 @@ const coerceOutcomeForFormType = (
   }
 
   if (normalizedOutcome === 'NEGATIVE') {
+    if (allowedOutcomes.includes('NEGATIVE')) {
+      return { outcome: 'NEGATIVE', warning: null };
+    }
+    // Fallback for form types that don't support NEGATIVE directly
     const mappedOutcome = allowedOutcomes.includes('NSP') ? 'NSP' : fallbackOutcome;
-    return { outcome: mappedOutcome, warning: null };
+    return { outcome: mappedOutcome, warning: `Outcome "NEGATIVE" mapped to "${mappedOutcome}" for this form type.` };
   }
 
   if (allowedOutcomes.includes(normalizedOutcome)) {
@@ -3895,7 +3903,7 @@ const buildLegacyPropertyIndividualTemplate = (
 };
 
 
-export type LegacyOutcome = ResidenceOutcome;
+export type LegacyOutcome = AllOutcome;
 
 export const coerceLegacyOutcomeForFormType = (
   formTypeKey: FormTypeKey | null,
@@ -3904,11 +3912,11 @@ export const coerceLegacyOutcomeForFormType = (
 
 export const getAllowedOutcomesForFormType = (
   formTypeKey: FormTypeKey | null,
-): readonly ResidenceOutcome[] => getAllowedOutcomes(formTypeKey);
+): readonly AllOutcome[] => getAllowedOutcomes(formTypeKey);
 
 export const getOutcomeLabelForFormType = (
   formTypeKey: FormTypeKey | null,
-  outcome: ResidenceOutcome,
+  outcome: AllOutcome,
 ): string => getOutcomeLabel(formTypeKey, outcome);
 
 export const buildLegacyTemplateForFormType = (

@@ -1,5 +1,13 @@
 // API Client - Axios instance with auth token injection and refresh logic
 // All API calls go through this client
+//
+// SECURITY: Certificate Pinning
+// For production, enable SSL certificate pinning to prevent MITM attacks.
+// Install react-native-ssl-pinning or react-native-cert-pinner and configure:
+//   - Android: Place certificate .cer files in android/app/src/main/res/raw/
+//   - iOS: Add certificates to the Xcode project and Info.plist
+// Then replace axios with the pinned HTTP client for all production requests.
+// See: https://github.com/nickhudkins/react-native-ssl-pinning
 
 import axios, {
   AxiosInstance,
