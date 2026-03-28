@@ -205,4 +205,18 @@ export const styles = StyleSheet.create(
   spacer: {
     height: 0,
   },
+  autoSaveErrorBanner: {
+    backgroundColor: '#FEE2E2',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  autoSaveErrorText: {
+    color: '#991B1B',
+    fontSize: 13,
+    flex: 1,
+    fontWeight: '500',
+  },
 });

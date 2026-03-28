@@ -139,10 +139,10 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
         <Text style={styles.loadingText}>No camera available on this device.</Text>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
-          style={{ marginTop: 16, paddingHorizontal: 24, paddingVertical: 12, backgroundColor: '#2563EB', borderRadius: 8 }}
+          style={styles.goBackButton}
           accessibilityRole="button"
           accessibilityLabel="Go back">
-          <Text style={{ color: '#fff', fontWeight: '600', fontSize: 16 }}>Go Back</Text>
+          <Text style={styles.goBackButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -162,9 +162,9 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
   return (
     <View style={styles.container}>
       {gpsWarning && (
-        <View style={{ position: 'absolute', top: insets.top + 8, left: 16, right: 16, zIndex: 10, backgroundColor: 'rgba(234, 179, 8, 0.95)', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={[styles.gpsWarningBanner, { top: insets.top + 8 }]}>
           <Icon name="location-outline" size={16} color="#78350F" />
-          <Text style={{ color: '#78350F', fontSize: 12, fontWeight: '600', flex: 1 }}>{gpsWarning}</Text>
+          <Text style={styles.gpsWarningText}>{gpsWarning}</Text>
         </View>
       )}
       <Camera
@@ -357,5 +357,36 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 12,
     fontWeight: '600',
+  },
+  goBackButton: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: '#2563EB',
+    borderRadius: 8,
+  },
+  goBackButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  gpsWarningBanner: {
+    position: 'absolute',
+    left: 16,
+    right: 16,
+    zIndex: 10,
+    backgroundColor: 'rgba(234, 179, 8, 0.95)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  gpsWarningText: {
+    color: '#78350F',
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
   },
 });

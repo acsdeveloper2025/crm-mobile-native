@@ -383,9 +383,9 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
       {autoSaveError && (
-        <View style={{ backgroundColor: '#FEE2E2', paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={styles.autoSaveErrorBanner}>
           <Icon name="warning-outline" size={18} color="#DC2626" />
-          <Text style={{ color: '#991B1B', fontSize: 13, flex: 1, fontWeight: '500' }}>
+          <Text style={styles.autoSaveErrorText}>
             Auto-save failed. Your changes may not be preserved. Please check device storage.
           </Text>
         </View>

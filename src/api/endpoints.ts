@@ -5,8 +5,6 @@
  * All mobile API endpoints.
  * Base URL is configured in src/config/index.ts
  */
-import { config } from '../config';
-
 export const ENDPOINTS = {
   // Health
   HEALTH: '/health',

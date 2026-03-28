@@ -15,7 +15,6 @@ import { ApiClient } from '../../api/apiClient';
 import { ENDPOINTS } from '../../api/endpoints';
 import { Logger } from '../../utils/logger';
 import { AuthService } from '../../services/AuthService';
-import { config } from '../../config';
 import type { MobileLoginResponse } from '../../types/api';
 
 const TAG = 'LoginScreen';
