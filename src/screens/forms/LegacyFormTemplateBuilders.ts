@@ -4,8 +4,7 @@ import type { FormTypeKey } from '../../utils/formTypeKey';
 type ResidenceOutcome = 'POSITIVE' | 'SHIFTED' | 'NSP' | 'ENTRY_RESTRICTED' | 'UNTRACEABLE';
 type PropertyApfOutcome = 'POSITIVE' | 'ENTRY_RESTRICTED' | 'UNTRACEABLE';
 type PropertyIndividualOutcome = 'POSITIVE' | 'NSP' | 'ENTRY_RESTRICTED' | 'UNTRACEABLE';
-/** All possible outcomes including NEGATIVE — used for normalization and display */
-type AllOutcome = ResidenceOutcome | 'NEGATIVE';
+type AllOutcome = ResidenceOutcome;
 type NormalizedOutcome = AllOutcome;
 type OutcomeCoercionResult = {
   outcome: AllOutcome;
@@ -17,20 +16,17 @@ const normalizeOutcome = (rawOutcome?: string | null): NormalizedOutcome => {
   if (!value) {
     return 'POSITIVE';
   }
-  if (value.includes('POSITIVE & NEGATIVE')) {
-    return 'NEGATIVE';
-  }
   if (value.includes('DOOR LOCKED SHIFTED') || value.includes('SHIFTED')) {
     return 'SHIFTED';
-  }
-  if (value.includes('POSITIVE')) {
-    return 'POSITIVE';
   }
   if (value.includes('NO SUCH PERSON')) {
     return 'NSP';
   }
   if (value.includes('NSP') || value.includes('PERSON NOT MET') || value.includes('NSP DOOR LOCKED')) {
     return 'NSP';
+  }
+  if (value.includes('POSITIVE')) {
+    return 'POSITIVE';
   }
   if (value.includes('DOOR LOCK')) {
     return 'POSITIVE';
@@ -41,9 +37,6 @@ const normalizeOutcome = (rawOutcome?: string | null): NormalizedOutcome => {
   if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND')) {
     return 'UNTRACEABLE';
   }
-  if (value.includes('NEGATIVE') || value.includes('NOT VERIFIED')) {
-    return 'NEGATIVE';
-  }
   return 'POSITIVE';
 };
 
@@ -51,7 +44,6 @@ type ResidenceFieldInput = Omit<FormFieldTemplate, 'id' | 'order'> & { id?: stri
 
 const COMMON_LEGACY_OUTCOMES: readonly AllOutcome[] = [
   'POSITIVE',
-  'NEGATIVE',
   'SHIFTED',
   'NSP',
   'ENTRY_RESTRICTED',
@@ -86,7 +78,6 @@ const getOutcomeLabel = (formTypeKey: FormTypeKey | null, outcome: AllOutcome): 
 
   const labelByOutcome: Record<AllOutcome, string> = {
     POSITIVE: 'Positive & Door Locked',
-    NEGATIVE: 'Negative',
     SHIFTED: 'Shifted & Door Locked Shifted',
     NSP: 'NSP & NSP Door Locked',
     ENTRY_RESTRICTED: 'ERT',
@@ -148,15 +139,6 @@ const coerceOutcomeForFormType = (
 
   if (!rawValue) {
     return { outcome: fallbackOutcome, warning: null };
-  }
-
-  if (normalizedOutcome === 'NEGATIVE') {
-    if (allowedOutcomes.includes('NEGATIVE')) {
-      return { outcome: 'NEGATIVE', warning: null };
-    }
-    // Fallback for form types that don't support NEGATIVE directly
-    const mappedOutcome = allowedOutcomes.includes('NSP') ? 'NSP' : fallbackOutcome;
-    return { outcome: mappedOutcome, warning: `Outcome "NEGATIVE" mapped to "${mappedOutcome}" for this form type.` };
   }
 
   if (allowedOutcomes.includes(normalizedOutcome)) {
@@ -3895,7 +3877,7 @@ const normalizedPropertyIndividualOutcome = (rawOutcome: string): PropertyIndivi
   const value = rawOutcome.trim().toUpperCase();
   if (value.includes('ENTRY') || value.includes('RESTRICT')) return 'ENTRY_RESTRICTED';
   if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND')) return 'UNTRACEABLE';
-  if (value.includes('NSP') || value.includes('PERSON NOT MET') || value.includes('NEGATIVE') || value.includes('SHIFTED')) return 'NSP';
+  if (value.includes('NSP') || value.includes('PERSON NOT MET') || value.includes('SHIFTED')) return 'NSP';
   return 'POSITIVE';
 };
 
