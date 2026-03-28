@@ -171,10 +171,33 @@ const coerceOutcomeForFormType = (
 };
 
 const NUMBERS_1_TO_20 = Array.from({ length: 20 }, (_, i) => String(i + 1));
+const NUMBERS_1_TO_50 = Array.from({ length: 50 }, (_, i) => String(i + 1));
+const NUMBERS_1_TO_100 = Array.from({ length: 100 }, (_, i) => String(i + 1));
+const STAYING_PERIOD_UNITS = ['Month', 'Year'];
+const STANDARD_COLORS = [
+  'White', 'Off White', 'Cream', 'Ivory', 'Beige',
+  'Light Grey', 'Grey', 'Dark Grey', 'Black', 'Silver',
+  'Brown', 'Dark Brown', 'Light Brown', 'Tan', 'Maroon',
+  'Red', 'Dark Red', 'Pink', 'Light Pink', 'Orange',
+  'Yellow', 'Light Yellow', 'Gold', 'Green', 'Dark Green',
+  'Light Green', 'Olive', 'Blue', 'Dark Blue', 'Light Blue',
+  'Sky Blue', 'Navy Blue', 'Purple', 'Violet', 'Teal',
+];
 
-const legacyResidenceSelectOptions: Record<string, string[]> = {
+/** Common select options shared across all form types */
+const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
   totalFamilyMembers: NUMBERS_1_TO_20,
   totalEarning: NUMBERS_1_TO_20,
+  stayingPeriodValue: NUMBERS_1_TO_50,
+  stayingPeriodUnit: STAYING_PERIOD_UNITS,
+  addressStructure: NUMBERS_1_TO_100,
+  applicantStayingFloor: NUMBERS_1_TO_100,
+  addressStructureColor: STANDARD_COLORS,
+  doorColor: STANDARD_COLORS,
+};
+
+const legacyResidenceSelectOptions: Record<string, string[]> = {
+  ...COMMON_SELECT_OPTIONS,
   addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
   addressRating: ['Good', 'Shabby', 'Poor'],
   houseStatus: ['Opened', 'Closed'],
@@ -272,8 +295,8 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
   { name: 'totalEarning', label: 'Total Earning', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'workingStatus', label: 'Working Status', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'companyName', label: 'Company Name', type: 'text', conditional: legacyCondition('workingStatus', 'notIn', ['', null, 'House Wife']), requiredWhen: legacyCondition('workingStatus', 'notIn', ['', null, 'House Wife']) },
-  { name: 'stayingPeriodValue', label: 'Staying Period (Number)', type: 'number', required: true },
-  { name: 'stayingPeriodUnit', label: 'Staying Period Unit', type: 'select', required: true },
+  { name: 'stayingPeriodValue', label: 'Staying Period', type: 'select', required: true },
+  { name: 'stayingPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
   { name: 'stayingStatus', label: 'Ownership Type', type: 'select', required: true },
   { name: 'approxArea', label: 'Approx Area (Sq. Feet)', type: 'number', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'documentShownStatus', label: 'Document Shown Status', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
@@ -340,8 +363,8 @@ const legacyNspResidenceFields = withLegacyResidenceOrder([
   { name: 'houseStatus', label: 'House Status', type: 'select', required: true },
   { name: 'metPersonName', label: 'Met Person', type: 'text', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'metPersonStatus', label: 'Met Person Status', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
-  { name: 'stayingPeriodValue', label: 'Staying Period (Number)', type: 'number', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
-  { name: 'stayingPeriodUnit', label: 'Staying Period Unit', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
+  { name: 'stayingPeriodValue', label: 'Staying Period', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
+  { name: 'stayingPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select' },
   { name: 'tpcName1', label: 'Name of TPC 1', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
   { name: 'tpcMetPerson2', label: 'TPC Met Person 2', type: 'select' },
@@ -454,8 +477,7 @@ const toSelectOptions = (values: string[]) =>
   values.map(value => ({ label: value, value }));
 
 const legacyResiCumOfficeSelectOptions: Record<string, string[]> = {
-  totalFamilyMembers: NUMBERS_1_TO_20,
-  totalEarning: NUMBERS_1_TO_20,
+  ...COMMON_SELECT_OPTIONS,
   addressTraceable: ['Traceable', 'Untraceable'],
   addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
   addressRating: ['Good', 'Shabby', 'Poor'],
@@ -581,8 +603,8 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   { name: 'resiCumOfficeStatus', label: 'Resi-cum-Office Status', type: 'select', required: true },
   { name: 'residenceSetup', label: 'Residence Setup', type: 'select', required: true },
   { name: 'businessSetup', label: 'Business Setup', type: 'select', required: true },
-  { name: 'stayingPeriodValue', label: 'Staying Period (Number)', type: 'number', required: true },
-  { name: 'stayingPeriodUnit', label: 'Staying Period Unit', type: 'select', required: true },
+  { name: 'stayingPeriodValue', label: 'Staying Period', type: 'select', required: true },
+  { name: 'stayingPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
   { name: 'stayingStatus', label: 'Ownership Type', type: 'select', required: true },
   { name: 'companyNatureOfBusiness', label: 'Company Nature of Business', type: 'text', required: true },
   { name: 'businessPeriod', label: 'Business Period', type: 'text', required: true },
@@ -814,14 +836,14 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   },
   {
     name: 'stayingPeriodValue',
-    label: 'Staying Period (Number)',
-    type: 'number',
+    label: 'Staying Period',
+    type: 'select',
     conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Opened'),
     requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Opened'),
   },
   {
     name: 'stayingPeriodUnit',
-    label: 'Staying Period Unit',
+    label: 'Period Unit (Month/Year)',
     type: 'select',
     conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Opened'),
     requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Opened'),
@@ -968,8 +990,7 @@ const buildLegacyResidenceCumOfficeTemplate = (
 };
 
 const legacyOfficeSelectOptions: Record<string, string[]> = {
-  totalFamilyMembers: NUMBERS_1_TO_20,
-  totalEarning: NUMBERS_1_TO_20,
+  ...COMMON_SELECT_OPTIONS,
   addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
   addressRating: ['Good', 'Shabby', 'Poor'],
   officeStatus: ['Opened', 'Closed', 'Shifted'],
@@ -1500,6 +1521,7 @@ const buildLegacyOfficeTemplate = (
 };
 
 const legacyBusinessSelectOptions: Record<string, string[]> = {
+  ...COMMON_SELECT_OPTIONS,
   addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
   addressRating: ['Good', 'Shabby', 'Poor'],
   officeStatus: ['Opened', 'Closed', 'Shifted'],
@@ -2192,6 +2214,7 @@ const buildLegacyBuilderTemplate = (
 };
 
 const legacyNocSelectOptions: Record<string, string[]> = {
+  ...COMMON_SELECT_OPTIONS,
   addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
   addressRating: ['Good', 'Shabby', 'Poor'],
   officeStatus: ['Opened', 'Closed', 'Shifted'],
@@ -2622,6 +2645,7 @@ const buildLegacyNocTemplate = (
 };
 
 const legacyDsaSelectOptions: Record<string, string[]> = {
+  ...COMMON_SELECT_OPTIONS,
   addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
   addressRating: ['Good', 'Shabby', 'Poor'],
   officeStatus: ['Opened', 'Closed', 'Shifted'],
@@ -3216,6 +3240,7 @@ const buildLegacyDsaTemplate = (
 };
 
 const legacyPropertyApfSelectOptions: Record<string, string[]> = {
+  ...COMMON_SELECT_OPTIONS,
   addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
   addressRating: ['Good', 'Shabby', 'Poor'],
   buildingStatusApf: [
@@ -3571,6 +3596,7 @@ const buildLegacyPropertyApfTemplate = (
 };
 
 const legacyPropertyIndividualSelectOptions: Record<string, string[]> = {
+  ...COMMON_SELECT_OPTIONS,
   addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
   addressRating: ['Good', 'Shabby', 'Poor'],
   buildingStatusApf: [
