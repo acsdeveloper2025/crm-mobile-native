@@ -21,9 +21,10 @@ import { AttachmentRepository } from '../../repositories/AttachmentRepository';
 interface PhotoGalleryProps {
   taskId: string;
   componentType?: 'photo' | 'selfie';
+  onPhotosLoaded?: (count: number) => void;
 }
 
-export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentType }) => {
+export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentType, onPhotosLoaded }) => {
   const { theme } = useTheme();
   const [photos, setPhotos] = useState<LocalAttachment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -53,7 +54,9 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
       ]);
 
       if (isMountedRef.current && requestId === requestIdRef.current) {
-        setPhotos(results || []);
+        const photoList = results || [];
+        setPhotos(photoList);
+        onPhotosLoaded?.(photoList.length);
       }
     } catch (err) {
       Logger.error('PhotoGallery', 'Failed to load photos', err);
@@ -63,7 +66,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
         setIsLoading(false);
       }
     }
-  }, [taskId, componentType]);
+  }, [taskId, componentType, onPhotosLoaded]);
 
   useFocusEffect(
     useCallback(() => {

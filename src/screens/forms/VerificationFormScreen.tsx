@@ -55,6 +55,8 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
   const [templateLoading, setTemplateLoading] = useState(false); // don't load immediately
   const [selectedOutcome, setSelectedOutcome] = useState<LegacyOutcome | null>(null);
   const [outcomeWarning, setOutcomeWarning] = useState<string | null>(null);
+  const [photoCount, setPhotoCount] = useState(0);
+  const [selfieCount, setSelfieCount] = useState(0);
   const taskUuid = task?.id ?? null;
   const taskVerificationOutcome = task?.verificationOutcome ?? null;
   const taskFormDataJson = task?.formDataJson ?? null;
@@ -409,24 +411,34 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
           </View>
 
           <View style={styles.photoHeader}>
-            <Text style={[styles.photoLabel, { color: theme.colors.text }]}>General Photos (min 5)</Text>
+            <Text style={[styles.photoLabel, { color: theme.colors.text }]}>
+              General Photos (min 5){' '}
+              <Text style={{ color: photoCount >= 5 ? theme.colors.success || '#16A34A' : theme.colors.danger }}>
+                ({photoCount} captured)
+              </Text>
+            </Text>
             <TouchableOpacity
               style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
               onPress={handleAddPhoto}>
               <Icon name="camera" size={20} color={theme.colors.surface} />
             </TouchableOpacity>
           </View>
-          <PhotoGallery taskId={effectiveTaskId} componentType="photo" />
+          <PhotoGallery taskId={effectiveTaskId} componentType="photo" onPhotosLoaded={setPhotoCount} />
 
           <View style={styles.selfieHeader}>
-            <Text style={[styles.photoLabel, { color: theme.colors.text }]}>Selfie (min 1)</Text>
-            <TouchableOpacity 
-              style={[styles.addBtn, { backgroundColor: theme.colors.primary }]} 
+            <Text style={[styles.photoLabel, { color: theme.colors.text }]}>
+              Selfie (min 1){' '}
+              <Text style={{ color: selfieCount >= 1 ? theme.colors.success || '#16A34A' : theme.colors.danger }}>
+                ({selfieCount} captured)
+              </Text>
+            </Text>
+            <TouchableOpacity
+              style={[styles.addBtn, { backgroundColor: theme.colors.primary }]}
               onPress={handleAddSelfie}>
               <Icon name="person" size={20} color={theme.colors.surface} />
             </TouchableOpacity>
           </View>
-          <PhotoGallery taskId={effectiveTaskId} componentType="selfie" />
+          <PhotoGallery taskId={effectiveTaskId} componentType="selfie" onPhotosLoaded={setSelfieCount} />
         </View>
 
         {renderOutcomeSelector()}

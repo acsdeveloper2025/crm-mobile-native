@@ -64,24 +64,24 @@ class SyncDownloadServiceClass {
         }
 
         for (const taskId of payload.revokedAssignmentIds || []) {
-          // Cascade delete child records that foreign keys would miss
-          // (tasks.id is the FK target, but verification_task_id is used here)
+          // Only delete SYNCED child records — preserve PENDING ones to prevent data loss.
+          // Unsynced attachments/forms represent work the user hasn't uploaded yet.
           const taskRows = await SyncEngineRepository.query<{ id: string }>(
             'SELECT id FROM tasks WHERE verification_task_id = ?', [taskId],
           );
           for (const row of taskRows) {
-            await SyncEngineRepository.execute('DELETE FROM attachments WHERE task_id = ?', [row.id]);
+            await SyncEngineRepository.execute("DELETE FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'", [row.id]);
             await SyncEngineRepository.execute('DELETE FROM locations WHERE task_id = ?', [row.id]);
-            await SyncEngineRepository.execute('DELETE FROM form_submissions WHERE task_id = ?', [row.id]);
+            await SyncEngineRepository.execute("DELETE FROM form_submissions WHERE task_id = ? AND sync_status = 'SYNCED'", [row.id]);
           }
           await SyncEngineRepository.execute('DELETE FROM tasks WHERE verification_task_id = ?', [taskId]);
           await ProjectionUpdater.rebuildTask(taskId);
         }
         for (const taskId of payload.deletedTaskIds || []) {
-          // Cascade delete child records before removing the task
-          await SyncEngineRepository.execute('DELETE FROM attachments WHERE task_id = ?', [taskId]);
+          // Only delete SYNCED child records — preserve PENDING ones to prevent data loss
+          await SyncEngineRepository.execute("DELETE FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'", [taskId]);
           await SyncEngineRepository.execute('DELETE FROM locations WHERE task_id = ?', [taskId]);
-          await SyncEngineRepository.execute('DELETE FROM form_submissions WHERE task_id = ?', [taskId]);
+          await SyncEngineRepository.execute("DELETE FROM form_submissions WHERE task_id = ? AND sync_status = 'SYNCED'", [taskId]);
           await SyncEngineRepository.execute('DELETE FROM tasks WHERE id = ? OR verification_task_id = ?', [taskId, taskId]);
           await ProjectionUpdater.rebuildTask(taskId);
         }

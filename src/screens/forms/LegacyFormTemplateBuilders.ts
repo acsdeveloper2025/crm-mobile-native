@@ -170,7 +170,11 @@ const coerceOutcomeForFormType = (
   };
 };
 
+const NUMBERS_1_TO_20 = Array.from({ length: 20 }, (_, i) => String(i + 1));
+
 const legacyResidenceSelectOptions: Record<string, string[]> = {
+  totalFamilyMembers: NUMBERS_1_TO_20,
+  totalEarning: NUMBERS_1_TO_20,
   addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
   addressRating: ['Good', 'Shabby', 'Poor'],
   houseStatus: ['Opened', 'Closed'],
@@ -265,7 +269,7 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
   { name: 'metPersonName', label: 'Met Person Name', type: 'text', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'metPersonRelation', label: 'Relation', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'totalFamilyMembers', label: 'Total Family Members', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
-  { name: 'totalEarning', label: 'Total Earning (in Lakhs)', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
+  { name: 'totalEarning', label: 'Total Earning', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'workingStatus', label: 'Working Status', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'companyName', label: 'Company Name', type: 'text', conditional: legacyCondition('workingStatus', 'notIn', ['', null, 'House Wife']), requiredWhen: legacyCondition('workingStatus', 'notIn', ['', null, 'House Wife']) },
   { name: 'stayingPeriodValue', label: 'Staying Period (Number)', type: 'number', required: true },
@@ -450,6 +454,8 @@ const toSelectOptions = (values: string[]) =>
   values.map(value => ({ label: value, value }));
 
 const legacyResiCumOfficeSelectOptions: Record<string, string[]> = {
+  totalFamilyMembers: NUMBERS_1_TO_20,
+  totalEarning: NUMBERS_1_TO_20,
   addressTraceable: ['Traceable', 'Untraceable'],
   addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
   addressRating: ['Good', 'Shabby', 'Poor'],
@@ -962,6 +968,8 @@ const buildLegacyResidenceCumOfficeTemplate = (
 };
 
 const legacyOfficeSelectOptions: Record<string, string[]> = {
+  totalFamilyMembers: NUMBERS_1_TO_20,
+  totalEarning: NUMBERS_1_TO_20,
   addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
   addressRating: ['Good', 'Shabby', 'Poor'],
   officeStatus: ['Opened', 'Closed', 'Shifted'],
