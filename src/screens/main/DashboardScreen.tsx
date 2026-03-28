@@ -28,7 +28,6 @@ export const DashboardScreen = () => {
   const [recentActivity, setRecentActivity] = useState<Array<{ id: string; text: string }>>([]);
   const [lastSyncLabel, setLastSyncLabel] = useState('Not synced yet');
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
 
   const loadStats = useCallback(async () => {
     try {
@@ -87,8 +86,7 @@ export const DashboardScreen = () => {
         Logger.warn(TAG, 'Failed to refresh notifications on focus', error);
       });
       Promise.all([loadStats(), loadRecentActivity()])
-        .catch(() => undefined)
-        .finally(() => setIsInitialLoad(false));
+        .catch(() => undefined);
     }, [loadStats, loadRecentActivity])
   );
 
