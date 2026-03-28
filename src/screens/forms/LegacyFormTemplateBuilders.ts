@@ -235,6 +235,8 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
     'In the Bachelor Accommodation', 'In the Hostel',
   ],
   feedbackFromNeighbour: ['Adverse', 'No Adverse'],
+  premisesStatus: ['Vacant', 'Rented To', 'Owned By'],
+  premisesStatusBusiness: ['Vacant', 'Rented To', 'Owned By'],
   politicalConnection: ['Having Political Connection', 'Not Having Political Connection'],
   dominatedArea: ['A Community Dominated', 'Not a Community Dominated'],
   finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
@@ -244,6 +246,12 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
   finalStatusErt: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
   finalStatusUntraceable: ['Negative', 'Refer', 'Fraud', 'Hold'],
   metPersonErt: ['Security', 'Receptionist'],
+  metPersonConfirmation: ['Confirmed', 'Not Confirmed'],
+  applicantStayingStatus: [
+    'Applicant is Staying At',
+    'Applicant is Shifted From',
+    'No Such Person Staying At',
+  ],
 };
 
 const legacyResidenceSelectOptions: Record<string, string[]> = {
@@ -255,14 +263,6 @@ const legacyResidenceSelectOptions: Record<string, string[]> = {
   documentShownStatus: ['Showed', 'Did Not Showed Any Document'],
   documentType: ['Electricity Bill', 'Adhar Card', 'Pan Card', 'Passport', 'Rent Deed'],
   metPersonStatus: ['Owner', 'Tenant'],
-  premisesStatus: ['Vacant', 'Rented'],
-  metPerson: ['Security', 'Receptionist'],
-  metPersonConfirmation: ['Confirmed', 'Not Confirmed'],
-  applicantStayingStatus: [
-    'Applicant is Staying At',
-    'Applicant is Shifted From',
-    'No Such Person Staying At',
-  ],
 };
 
 const legacyResidenceOptionAliases: Record<string, string> = {
@@ -499,11 +499,6 @@ const legacyResiCumOfficeSelectOptions: Record<string, string[]> = {
   documentShownStatus: ['Showed', 'Did Not Showed Any Document'],
   documentType: ['Electricity Bill', 'Adhar Card', 'Pan Card', 'Passport', 'Rent Deed'],
   metPersonStatusShifted: ['Owner', 'Tenant'],
-  applicantStayingStatusErt: [
-    'Applicant is Staying At',
-    'Applicant is Shifted From',
-    'No Such Person Staying At',
-  ],
   businessStatusErtResiCumOffice: [
     'Office Exist At',
     'Office Does Not Exist At',
@@ -521,7 +516,6 @@ const legacyResiCumOfficeOptionAliases: Record<string, string> = {
   tpcConfirmation2: 'tpcConfirmation',
   metPersonStatus: 'metPersonStatusShifted',
   metPerson: 'metPersonErt',
-  applicantStayingStatus: 'applicantStayingStatusErt',
 };
 
 const withLegacyResiCumOfficeOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
@@ -1449,7 +1443,6 @@ const legacyBusinessSelectOptions: Record<string, string[]> = {
   ],
   ownershipType: ['Are Partners', 'Are Directors', 'Is Proprietor'],
   addressStatus: ['On a Self Owned Basis', 'On a Rental Basis', 'On a Pagadi System', 'In Share Work Place'],
-  premisesStatusBusiness: ['Vacant', 'Rented To', 'Owned By'],
   businessExistence: ['Exist', 'Does Not Exist'],
   applicantExistence: ['Exist', 'Does Not Exist'],
   officeStatusErtBusiness: ['Business Exist At', 'Business Does Not Exist At', 'Business Shifted From'],
@@ -1460,7 +1453,6 @@ const legacyBusinessOptionAliases: Record<string, string> = {
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
   tpcConfirmation2: 'tpcConfirmation',
-  premisesStatus: 'premisesStatusBusiness',
   businessExistance: 'businessExistence',
   applicantExistance: 'applicantExistence',
   metPerson: 'metPersonErt',
@@ -2094,14 +2086,12 @@ const legacyNocSelectOptions: Record<string, string[]> = {
   ],
   businessExistence: ['Exist', 'Does Not Exist'],
   applicantExistence: ['Exist', 'Does Not Exist'],
-  premisesStatusBusiness: ['Vacant', 'Rented To', 'Owned By'],
   officeStatusErtNoc: ['Office Exist At', 'Office Does Not Exist At', 'Office Shifted From'],
 };
 
 const legacyNocOptionAliases: Record<string, string> = {
   businessExistance: 'businessExistence',
   applicantExistance: 'applicantExistence',
-  premisesStatus: 'premisesStatusBusiness',
   tpcMetPerson1: 'tpcMetPerson',
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
@@ -2491,7 +2481,6 @@ const legacyDsaSelectOptions: Record<string, string[]> = {
   ],
   ownershipType: ['Are Partners', 'Are Directors', 'Is Proprietor'],
   addressStatus: ['On a Self Owned Basis', 'On a Rental Basis', 'On a Pagadi System', 'In Share Work Place'],
-  premisesStatusBusiness: ['Vacant', 'Rented To', 'Owned By'],
   businessExistence: ['Exist', 'Does Not Exist'],
   applicantExistence: ['Exist', 'Does Not Exist'],
   officeStatusErtDsa: ['Business Exist At', 'Business Does Not Exist At', 'Business Shifted From'],
@@ -2502,11 +2491,9 @@ const legacyDsaOptionAliases: Record<string, string> = {
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
   tpcConfirmation2: 'tpcConfirmation',
-  premisesStatus: 'premisesStatusBusiness',
   businessExistance: 'businessExistence',
   applicantExistance: 'applicantExistence',
   metPerson: 'metPersonErt',
-  metPersonConfirmation: 'tpcConfirmation',
 };
 
 const withLegacyDsaOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
@@ -3305,7 +3292,6 @@ const legacyPropertyIndividualOptionAliases: Record<string, string> = {
   tpcConfirmation1: 'tpcConfirmation',
   tpcConfirmation2: 'tpcConfirmation',
   metPerson: 'metPersonErt',
-  metPersonConfirmation: 'tpcConfirmation',
 };
 
 const withLegacyPropertyIndividualOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
