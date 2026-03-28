@@ -176,6 +176,7 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
   applicantStayingFloor: NUMBERS_1_TO_100,
   addressFloor: NUMBERS_1_TO_100,
   officeExistFloor: NUMBERS_1_TO_100,
+  addressExistAt: NUMBERS_1_TO_100,
   designation: [
     'Applicant Self', 'Reception', 'Reception Security', 'Company Security',
     'Manager', 'H.R.', 'Sr. Officer', 'Accountant', 'Admin', 'Office Staff',
@@ -193,17 +194,49 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
     'Aunty', 'Uncle', 'Mother in Law', 'Father in Law', 'Daughter in Law',
     'Sister in Law', 'Brother in Law', 'Other',
   ],
+  relationship: [
+    'Self', 'Mother', 'Father', 'Wife', 'Son', 'Daughter', 'Sister', 'Brother',
+    'Aunty', 'Uncle', 'Mother in Law', 'Father in Law', 'Daughter in Law',
+    'Sister in Law', 'Brother in Law', 'Other',
+  ],
   companyNameBoard: ['SIGHTED AS', 'NOT SIGHTED'],
   companyNamePlateStatus: ['SIGHTED AS', 'NOT SIGHTED'],
   societyNamePlateStatus: ['SIGHTED AS', 'NOT SIGHTED'],
   doorNamePlateStatus: ['SIGHTED AS', 'NOT SIGHTED'],
   sightStatus: ['SIGHTED AS', 'NOT SIGHTED'],
+  addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
+  addressRating: ['Good', 'Shabby', 'Poor'],
+  tpcMetPerson: ['Neighbour', 'Security'],
+  tpcConfirmation: ['Confirmed', 'Not Confirmed'],
+  locality: [
+    'Commercial Tower', 'Residential Building', 'Office Building', 'Shop Line',
+    'Row House', 'Single House', 'Chawl / Slum', 'Patra Shed', 'Gala / Godown',
+    'Tea Stall', 'Sharing Office', 'Road Side', 'Govt. Office', 'Bank',
+    'Cabin', 'Table Space', 'Bunglow',
+  ],
+  localityResiCumOffice: [
+    'Commercial Tower', 'Residential Building', 'Office Building', 'Shop Line',
+    'Row House', 'Single House', 'Chawl / Slum', 'Patra Shed', 'Gala / Godown',
+    'Tea Stall', 'Sharing Office', 'Road Side', 'Govt. Office', 'Bank',
+    'Cabin', 'Table Space', 'Bunglow',
+  ],
+  callRemark: [
+    'Did Not Pick Up Call', 'Number is Switch Off',
+    'Number is Unreachable', 'Refused to Guide Address',
+  ],
+  callRemarkUntraceable: [
+    'Did Not Pick Up Call', 'Number is Switch Off',
+    'Number is Unreachable', 'Refused to Guide Address',
+  ],
+  feedbackFromNeighbour: ['Adverse', 'No Adverse'],
+  politicalConnection: ['Having Political Connection', 'Not Having Political Connection'],
+  dominatedArea: ['A Community Dominated', 'Not a Community Dominated'],
+  finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
+  metPersonErt: ['Security', 'Receptionist'],
 };
 
 const legacyResidenceSelectOptions: Record<string, string[]> = {
   ...COMMON_SELECT_OPTIONS,
-  addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
-  addressRating: ['Good', 'Shabby', 'Poor'],
   houseStatus: ['Opened', 'Closed'],
   roomStatus: ['Opened', 'Closed'],
   metPersonRelation: ['Father', 'Mother', 'Spouse', 'Son', 'Daughter', 'Brother', 'Sister', 'Self', 'Other'],
@@ -222,23 +255,6 @@ const legacyResidenceSelectOptions: Record<string, string[]> = {
   ],
   documentShownStatus: ['Showed', 'Did Not Showed Any Document'],
   documentType: ['Electricity Bill', 'Adhar Card', 'Pan Card', 'Passport', 'Rent Deed'],
-  tpcMetPerson: ['Neighbour', 'Security'],
-  tpcConfirmation: ['Confirmed', 'Not Confirmed'],
-  locality: [
-    'Tower / Building',
-    'Row House',
-    'Bunglow',
-    'Independent House',
-    'Chawl / Slum',
-    'Patra Shed',
-    'Single House',
-  ],
-  doorNamePlateStatus: ['SIGHTED AS', 'NOT SIGHTED'],
-  societyNamePlateStatus: ['SIGHTED AS', 'NOT SIGHTED'],
-  politicalConnection: ['Having Political Connection', 'Not Having Political Connection'],
-  dominatedArea: ['A Community Dominated', 'Not a Community Dominated'],
-  feedbackFromNeighbour: ['Adverse', 'No Adverse'],
-  finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
   metPersonStatus: ['Owner', 'Tenant'],
   premisesStatus: ['Vacant', 'Rented'],
   metPerson: ['Security', 'Receptionist'],
@@ -247,12 +263,6 @@ const legacyResidenceSelectOptions: Record<string, string[]> = {
     'Applicant is Staying At',
     'Applicant is Shifted From',
     'No Such Person Staying At',
-  ],
-  callRemark: [
-    'Did Not Pick Up Call',
-    'Number is Switch Off',
-    'Number is Unreachable',
-    'Refused to Guide Address',
   ],
 };
 
@@ -290,8 +300,8 @@ const withLegacyResidenceOrder = (fields: ResidenceFieldInput[]): FormFieldTempl
   });
 
 const legacyPositiveResidenceFields = withLegacyResidenceOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'houseStatus', label: 'House Status', type: 'select', required: true },
   { name: 'metPersonName', label: 'Met Person Name', type: 'text', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'metPersonRelation', label: 'Relation', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
@@ -331,8 +341,8 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
 ]);
 
 const legacyShiftedResidenceFields = withLegacyResidenceOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'roomStatus', label: 'Room Status', type: 'select', required: true },
   { name: 'metPersonName', label: 'Met Person', type: 'text', conditional: legacyCondition('roomStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('roomStatus', 'equals', 'Opened') },
   { name: 'metPersonStatus', label: 'Met Person Status', type: 'select', conditional: legacyCondition('roomStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('roomStatus', 'equals', 'Opened') },
@@ -362,8 +372,8 @@ const legacyShiftedResidenceFields = withLegacyResidenceOrder([
 ]);
 
 const legacyNspResidenceFields = withLegacyResidenceOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'houseStatus', label: 'House Status', type: 'select', required: true },
   { name: 'metPersonName', label: 'Met Person', type: 'text', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'metPersonStatus', label: 'Met Person Status', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
@@ -394,8 +404,8 @@ const legacyNspResidenceFields = withLegacyResidenceOrder([
 ]);
 
 const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
   { name: 'metPersonConfirmation', label: 'Met Person Confirmation', type: 'select', required: true },
@@ -483,28 +493,7 @@ const toSelectOptions = (values: string[]) =>
 const legacyResiCumOfficeSelectOptions: Record<string, string[]> = {
   ...COMMON_SELECT_OPTIONS,
   addressTraceable: ['Traceable', 'Untraceable'],
-  addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
-  addressRating: ['Good', 'Shabby', 'Poor'],
   resiCumOfficeStatus: ['Opened', 'Closed'],
-  sightStatus: ['SIGHTED AS', 'NOT SIGHTED'],
-  relationResiCumOffice: [
-    'Self',
-    'Mother',
-    'Father',
-    'Wife',
-    'Son',
-    'Daughter',
-    'Sister',
-    'Brother',
-    'Aunty',
-    'Uncle',
-    'Mother in Law',
-    'Father in Law',
-    'Daughter in Law',
-    'Sister in Law',
-    'Brother in Law',
-    'Other',
-  ],
   stayingStatus: [
     'On a Owned Basis',
     'On a Rental Basis',
@@ -521,33 +510,7 @@ const legacyResiCumOfficeSelectOptions: Record<string, string[]> = {
   businessLocation: ['At Same Address', 'From Different Address'],
   documentShownStatus: ['Showed', 'Did Not Showed Any Document'],
   documentType: ['Electricity Bill', 'Adhar Card', 'Pan Card', 'Passport', 'Rent Deed'],
-  tpcMetPerson: ['Neighbour', 'Security'],
-  tpcConfirmation: ['Confirmed', 'Not Confirmed'],
-  localityResiCumOffice: [
-    'Commercial Tower',
-    'Residential Building',
-    'Office Building',
-    'Bunglow',
-    'Shop Line',
-    'Row House',
-    'Single House',
-    'Chawl / Slum',
-    'Patra Shed',
-    'Gala / Godown',
-    'Tea Stall',
-    'Sharing Office',
-    'Road Side',
-    'Govt. Office',
-    'Bank',
-    'Cabin',
-    'Table Space',
-  ],
-  politicalConnection: ['Having Political Connection', 'Not Having Political Connection'],
-  dominatedArea: ['A Community Dominated', 'Not a Community Dominated'],
-  feedbackFromNeighbour: ['Adverse', 'No Adverse'],
-  finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
   metPersonStatusShifted: ['Owner', 'Tenant'],
-  metPersonErt: ['Security', 'Receptionist'],
   applicantStayingStatusErt: [
     'Applicant is Staying At',
     'Applicant is Shifted From',
@@ -558,23 +521,12 @@ const legacyResiCumOfficeSelectOptions: Record<string, string[]> = {
     'Office Does Not Exist At',
     'Office Shifted From',
   ],
-  callRemarkUntraceable: [
-    'Did Not Pick Up Call',
-    'Number is Switch Off',
-    'Number is Unreachable',
-    'Refused to Guide Address',
-  ],
 };
 
 const legacyResiCumOfficeOptionAliases: Record<string, string> = {
   residenceSetup: 'sightStatus',
   businessSetup: 'sightStatus',
-  doorNamePlateStatus: 'sightStatus',
-  societyNamePlateStatus: 'sightStatus',
-  companyNamePlateStatus: 'sightStatus',
-  relation: 'relationResiCumOffice',
   businessStatus: 'businessStatusResiCumOffice',
-  locality: 'localityResiCumOffice',
   tpcMetPerson1: 'tpcMetPerson',
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
@@ -582,7 +534,6 @@ const legacyResiCumOfficeOptionAliases: Record<string, string> = {
   metPersonStatus: 'metPersonStatusShifted',
   metPerson: 'metPersonErt',
   applicantStayingStatus: 'applicantStayingStatusErt',
-  callRemark: 'callRemarkUntraceable',
 };
 
 const withLegacyResiCumOfficeOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
@@ -602,8 +553,8 @@ const withLegacyResiCumOfficeOrder = (fields: ResidenceFieldInput[]): FormFieldT
   });
 
 const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'resiCumOfficeStatus', label: 'Resi-cum-Office Status', type: 'select', required: true },
   { name: 'residenceSetup', label: 'Residence Setup', type: 'select', required: true },
   { name: 'businessSetup', label: 'Business Setup', type: 'select', required: true },
@@ -732,8 +683,8 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
 ]);
 
 const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'resiCumOfficeStatus', label: 'Resi-cum-Office Status', type: 'select', required: true },
   { name: 'shiftedPeriod', label: 'Shifted Period', type: 'text', required: true },
   { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select' },
@@ -805,8 +756,8 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
 
 const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   { name: 'addressTraceable', label: 'Address Traceable', type: 'select', required: true },
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'resiCumOfficeStatus', label: 'Resi-cum-Office Status', type: 'select', required: true },
   { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select' },
   {
@@ -895,8 +846,8 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
 ]);
 
 const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
   { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
   { name: 'metPersonConfirmation', label: 'Met Person Confirmation', type: 'select', required: true },
@@ -995,8 +946,6 @@ const buildLegacyResidenceCumOfficeTemplate = (
 
 const legacyOfficeSelectOptions: Record<string, string[]> = {
   ...COMMON_SELECT_OPTIONS,
-  addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
-  addressRating: ['Good', 'Shabby', 'Poor'],
   officeStatus: ['Opened', 'Closed', 'Shifted'],
   designationOffice: ['Manager', 'Executive', 'Clerk', 'Developer', 'Analyst', 'Assistant', 'Other'],
   designationShiftedOffice: [
@@ -1024,55 +973,19 @@ const legacyOfficeSelectOptions: Record<string, string[]> = {
     'Partnership Firm',
     'Public Ltd. Company',
   ],
-  sightStatus: ['SIGHTED AS', 'NOT SIGHTED'],
-  tpcMetPerson: ['Neighbour', 'Security'],
-  tpcConfirmation: ['Confirmed', 'Not Confirmed'],
-  localityResiCumOffice: [
-    'Commercial Tower',
-    'Residential Building',
-    'Office Building',
-    'Bunglow',
-    'Shop Line',
-    'Row House',
-    'Single House',
-    'Chawl / Slum',
-    'Patra Shed',
-    'Gala / Godown',
-    'Tea Stall',
-    'Sharing Office',
-    'Road Side',
-    'Govt. Office',
-    'Bank',
-    'Cabin',
-    'Table Space',
-  ],
-  politicalConnection: ['Having Political Connection', 'Not Having Political Connection'],
-  dominatedArea: ['A Community Dominated', 'Not a Community Dominated'],
-  feedbackFromNeighbour: ['Adverse', 'No Adverse'],
-  finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
   officeExistence: ['Exist', 'Does Not Exist'],
-  metPersonErt: ['Security', 'Receptionist'],
   officeStatusErtOffice: ['Office Exist At', 'Office Does Not Exist At', 'Office Shifted From'],
-  callRemarkUntraceable: [
-    'Did Not Pick Up Call',
-    'Number is Switch Off',
-    'Number is Unreachable',
-    'Refused to Guide Address',
-  ],
 };
 
 const legacyOfficeOptionAliases: Record<string, string> = {
   workingStatus: 'workingStatusOffice',
   applicantWorkingPremises: 'applicantWorkingPremisesOffice',
-  companyNamePlateStatus: 'sightStatus',
   tpcMetPerson1: 'tpcMetPerson',
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
   tpcConfirmation2: 'tpcConfirmation',
-  locality: 'localityResiCumOffice',
   officeExistence: 'officeExistence',
   metPerson: 'metPersonErt',
-  callRemark: 'callRemarkUntraceable',
 };
 
 const withLegacyOfficeOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
@@ -1092,8 +1005,8 @@ const withLegacyOfficeOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate
   });
 
 const legacyPositiveOfficeFields = withLegacyOfficeOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
   {
@@ -1247,8 +1160,8 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
 ]);
 
 const legacyShiftedOfficeFields = withLegacyOfficeOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'currentCompanyName', label: 'Current Company Name', type: 'text', required: true },
   { name: 'currentCompanyPeriod', label: 'Current Company Period', type: 'text', required: true },
@@ -1334,8 +1247,8 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
 ]);
 
 const legacyNspOfficeFields = withLegacyOfficeOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'officeExistence', label: 'Office Existence', type: 'select', required: true },
   { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
@@ -1418,8 +1331,8 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
 ]);
 
 const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
   { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
   {
@@ -1525,8 +1438,6 @@ const buildLegacyOfficeTemplate = (
 
 const legacyBusinessSelectOptions: Record<string, string[]> = {
   ...COMMON_SELECT_OPTIONS,
-  addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
-  addressRating: ['Good', 'Shabby', 'Poor'],
   officeStatus: ['Opened', 'Closed', 'Shifted'],
   designationShiftedOffice: [
     'Applicant Self',
@@ -1552,56 +1463,20 @@ const legacyBusinessSelectOptions: Record<string, string[]> = {
   ownershipType: ['Are Partners', 'Are Directors', 'Is Proprietor'],
   addressStatus: ['On a Self Owned Basis', 'On a Rental Basis', 'On a Pagadi System', 'In Share Work Place'],
   premisesStatusBusiness: ['Vacant', 'Rented To', 'Owned By'],
-  sightStatus: ['SIGHTED AS', 'NOT SIGHTED'],
-  tpcMetPerson: ['Neighbour', 'Security'],
-  tpcConfirmation: ['Confirmed', 'Not Confirmed'],
-  localityResiCumOffice: [
-    'Commercial Tower',
-    'Residential Building',
-    'Office Building',
-    'Bunglow',
-    'Shop Line',
-    'Row House',
-    'Single House',
-    'Chawl / Slum',
-    'Patra Shed',
-    'Gala / Godown',
-    'Tea Stall',
-    'Sharing Office',
-    'Road Side',
-    'Govt. Office',
-    'Bank',
-    'Cabin',
-    'Table Space',
-  ],
-  politicalConnection: ['Having Political Connection', 'Not Having Political Connection'],
-  dominatedArea: ['A Community Dominated', 'Not a Community Dominated'],
-  feedbackFromNeighbour: ['Adverse', 'No Adverse'],
-  finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
   businessExistence: ['Exist', 'Does Not Exist'],
   applicantExistence: ['Exist', 'Does Not Exist'],
-  metPersonErt: ['Security', 'Receptionist'],
   officeStatusErtBusiness: ['Business Exist At', 'Business Does Not Exist At', 'Business Shifted From'],
-  callRemarkUntraceable: [
-    'Did Not Pick Up Call',
-    'Number is Switch Off',
-    'Number is Unreachable',
-    'Refused to Guide Address',
-  ],
 };
 
 const legacyBusinessOptionAliases: Record<string, string> = {
-  companyNamePlateStatus: 'sightStatus',
   tpcMetPerson1: 'tpcMetPerson',
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
   tpcConfirmation2: 'tpcConfirmation',
-  locality: 'localityResiCumOffice',
   premisesStatus: 'premisesStatusBusiness',
   businessExistance: 'businessExistence',
   applicantExistance: 'applicantExistence',
   metPerson: 'metPersonErt',
-  callRemark: 'callRemarkUntraceable',
 };
 
 const withLegacyBusinessOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
@@ -1621,8 +1496,8 @@ const withLegacyBusinessOrder = (fields: ResidenceFieldInput[]): FormFieldTempla
   });
 
 const legacyPositiveBusinessFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'companyNatureOfBusiness', label: 'Company Nature of Business', type: 'text', required: true },
   { name: 'businessPeriod', label: 'Business Period', type: 'text', required: true },
@@ -1749,8 +1624,8 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
 ]);
 
 const legacyShiftedBusinessFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'oldOfficeShiftedPeriod', label: 'Old Office Shifted Period', type: 'text', required: true },
   { name: 'tpcMetPerson', label: 'TPC Met Person 1', type: 'select' },
@@ -1860,8 +1735,8 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
 ]);
 
 const legacyNspBusinessFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'businessExistance', label: 'Business Existance', type: 'select', required: true },
   { name: 'applicantExistance', label: 'Applicant Existance', type: 'select', required: true },
@@ -1951,8 +1826,8 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
 ]);
 
 const legacyEntryRestrictedBusinessFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
   { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
   {
@@ -2056,8 +1931,8 @@ const buildLegacyBusinessTemplate = (
 };
 
 const legacyPositiveBuilderFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'houseStatus', label: 'House Status', type: 'select', required: true },
   { name: 'metPersonName', label: 'Met Person Name', type: 'text', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
   { name: 'relation', label: 'Relation', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Opened') },
@@ -2087,8 +1962,8 @@ const legacyPositiveBuilderFields = withLegacyBusinessOrder([
 ]);
 
 const legacyShiftedBuilderFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'shiftedPeriod', label: 'Shifted Period', type: 'text', required: true },
   { name: 'metPersonName', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Opened') },
@@ -2112,8 +1987,8 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
 ]);
 
 const legacyNspBuilderFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'metPersonName', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Opened') },
   { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Opened'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Opened') },
@@ -2136,8 +2011,8 @@ const legacyNspBuilderFields = withLegacyBusinessOrder([
 ]);
 
 const legacyEntryRestrictedBuilderFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
@@ -2217,8 +2092,6 @@ const buildLegacyBuilderTemplate = (
 
 const legacyNocSelectOptions: Record<string, string[]> = {
   ...COMMON_SELECT_OPTIONS,
-  addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
-  addressRating: ['Good', 'Shabby', 'Poor'],
   officeStatus: ['Opened', 'Closed', 'Shifted'],
   designationNoc: ['Chairman', 'Secretary', 'Treasurer', 'Society Manager', 'Proprietor', 'Partner', 'Director', 'Tenant', 'Other'],
   designationShiftedOffice: [
@@ -2235,56 +2108,20 @@ const legacyNocSelectOptions: Record<string, string[]> = {
     'Principal',
     'Other',
   ],
-  localityResiCumOffice: [
-    'Commercial Tower',
-    'Residential Building',
-    'Office Building',
-    'Bunglow',
-    'Shop Line',
-    'Row House',
-    'Single House',
-    'Chawl / Slum',
-    'Patra Shed',
-    'Gala / Godown',
-    'Tea Stall',
-    'Sharing Office',
-    'Road Side',
-    'Govt. Office',
-    'Bank',
-    'Cabin',
-    'Table Space',
-  ],
-  politicalConnection: ['Having Political Connection', 'Not Having Political Connection'],
-  dominatedArea: ['A Community Dominated', 'Not a Community Dominated'],
-  feedbackFromNeighbour: ['Adverse', 'No Adverse'],
-  finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
   businessExistence: ['Exist', 'Does Not Exist'],
   applicantExistence: ['Exist', 'Does Not Exist'],
   premisesStatusBusiness: ['Vacant', 'Rented To', 'Owned By'],
-  sightStatus: ['SIGHTED AS', 'NOT SIGHTED'],
-  tpcMetPerson: ['Neighbour', 'Security'],
-  tpcConfirmation: ['Confirmed', 'Not Confirmed'],
-  metPersonErt: ['Security', 'Receptionist'],
   officeStatusErtNoc: ['Office Exist At', 'Office Does Not Exist At', 'Office Shifted From'],
-  callRemarkUntraceable: [
-    'Did Not Pick Up Call',
-    'Number is Switch Off',
-    'Number is Unreachable',
-    'Refused to Guide Address',
-  ],
 };
 
 const legacyNocOptionAliases: Record<string, string> = {
-  locality: 'localityResiCumOffice',
   businessExistance: 'businessExistence',
   applicantExistance: 'applicantExistence',
   premisesStatus: 'premisesStatusBusiness',
-  companyNamePlateStatus: 'sightStatus',
   tpcMetPerson1: 'tpcMetPerson',
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
   tpcConfirmation2: 'tpcConfirmation',
-  callRemark: 'callRemarkUntraceable',
 };
 
 const withLegacyNocOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
@@ -2304,8 +2141,8 @@ const withLegacyNocOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] 
   });
 
 const legacyPositiveNocFields = withLegacyNocOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   {
     name: 'metPerson',
@@ -2362,8 +2199,8 @@ const legacyPositiveNocFields = withLegacyNocOrder([
 ]);
 
 const legacyShiftedNocFields = withLegacyNocOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'currentCompanyName', label: 'Current Company Name', type: 'text', required: true },
   { name: 'currentCompanyPeriod', label: 'Current Company Period', type: 'text', required: true },
@@ -2424,8 +2261,8 @@ const legacyShiftedNocFields = withLegacyNocOrder([
 ]);
 
 const legacyNspNocFields = withLegacyNocOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   {
     name: 'businessExistance',
@@ -2540,8 +2377,8 @@ const legacyNspNocFields = withLegacyNocOrder([
 ]);
 
 const legacyEntryRestrictedNocFields = withLegacyNocOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   {
     name: 'metPerson',
     label: 'Met Person',
@@ -2647,8 +2484,6 @@ const buildLegacyNocTemplate = (
 
 const legacyDsaSelectOptions: Record<string, string[]> = {
   ...COMMON_SELECT_OPTIONS,
-  addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
-  addressRating: ['Good', 'Shabby', 'Poor'],
   officeStatus: ['Opened', 'Closed', 'Shifted'],
   designationShiftedOffice: [
     'Applicant Self',
@@ -2674,57 +2509,21 @@ const legacyDsaSelectOptions: Record<string, string[]> = {
   ownershipType: ['Are Partners', 'Are Directors', 'Is Proprietor'],
   addressStatus: ['On a Self Owned Basis', 'On a Rental Basis', 'On a Pagadi System', 'In Share Work Place'],
   premisesStatusBusiness: ['Vacant', 'Rented To', 'Owned By'],
-  sightStatus: ['SIGHTED AS', 'NOT SIGHTED'],
-  tpcMetPerson: ['Neighbour', 'Security'],
-  tpcConfirmation: ['Confirmed', 'Not Confirmed'],
-  localityResiCumOffice: [
-    'Commercial Tower',
-    'Residential Building',
-    'Office Building',
-    'Bunglow',
-    'Shop Line',
-    'Row House',
-    'Single House',
-    'Chawl / Slum',
-    'Patra Shed',
-    'Gala / Godown',
-    'Tea Stall',
-    'Sharing Office',
-    'Road Side',
-    'Govt. Office',
-    'Bank',
-    'Cabin',
-    'Table Space',
-  ],
-  politicalConnection: ['Having Political Connection', 'Not Having Political Connection'],
-  dominatedArea: ['A Community Dominated', 'Not a Community Dominated'],
-  feedbackFromNeighbour: ['Adverse', 'No Adverse'],
-  finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
   businessExistence: ['Exist', 'Does Not Exist'],
   applicantExistence: ['Exist', 'Does Not Exist'],
-  metPersonErt: ['Security', 'Receptionist'],
   officeStatusErtDsa: ['Business Exist At', 'Business Does Not Exist At', 'Business Shifted From'],
-  callRemarkUntraceable: [
-    'Did Not Pick Up Call',
-    'Number is Switch Off',
-    'Number is Unreachable',
-    'Refused to Guide Address',
-  ],
 };
 
 const legacyDsaOptionAliases: Record<string, string> = {
-  companyNamePlateStatus: 'sightStatus',
   tpcMetPerson1: 'tpcMetPerson',
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
   tpcConfirmation2: 'tpcConfirmation',
-  locality: 'localityResiCumOffice',
   premisesStatus: 'premisesStatusBusiness',
   businessExistance: 'businessExistence',
   applicantExistance: 'applicantExistence',
   metPerson: 'metPersonErt',
   metPersonConfirmation: 'tpcConfirmation',
-  callRemark: 'callRemarkUntraceable',
 };
 
 const withLegacyDsaOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
@@ -2744,8 +2543,8 @@ const withLegacyDsaOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] 
   });
 
 const legacyPositiveDsaFields = withLegacyDsaOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   {
     name: 'companyNatureOfBusiness',
@@ -2908,8 +2707,8 @@ const legacyPositiveDsaFields = withLegacyDsaOrder([
 ]);
 
 const legacyShiftedDsaFields = withLegacyDsaOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   { name: 'oldOfficeShiftedPeriod', label: 'Old Office Shifted Period', type: 'text', required: true },
   { name: 'tpcMetPerson', label: 'TPC Met Person 1', type: 'select', required: true },
@@ -3019,8 +2818,8 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
 ]);
 
 const legacyNspDsaFields = withLegacyDsaOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
   {
     name: 'businessExistance',
@@ -3134,8 +2933,8 @@ const legacyNspDsaFields = withLegacyDsaOrder([
 ]);
 
 const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   {
     name: 'metPerson',
     label: 'Met Person',
@@ -3241,80 +3040,21 @@ const buildLegacyDsaTemplate = (
 
 const legacyPropertyApfSelectOptions: Record<string, string[]> = {
   ...COMMON_SELECT_OPTIONS,
-  addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
-  addressRating: ['Good', 'Shabby', 'Poor'],
   buildingStatusApf: [
     'New Construction',
     'Redeveloped Construction',
     'Under Construction',
     'Vacant Place',
   ],
-  relationshipApf: [
-    'Self',
-    'Mother',
-    'Father',
-    'Wife',
-    'Son',
-    'Daughter',
-    'Sister',
-    'Brother',
-    'Aunty',
-    'Uncle',
-    'Mother in Law',
-    'Father in Law',
-    'Daughter in Law',
-    'Sister in Law',
-    'Brother in Law',
-    'Other',
-  ],
-  tpcMetPerson: ['Neighbour', 'Security'],
-  tpcConfirmation: ['Confirmed', 'Not Confirmed'],
-  localityResiCumOffice: [
-    'Commercial Tower',
-    'Residential Building',
-    'Office Building',
-    'Bunglow',
-    'Shop Line',
-    'Row House',
-    'Single House',
-    'Chawl / Slum',
-    'Patra Shed',
-    'Gala / Godown',
-    'Tea Stall',
-    'Sharing Office',
-    'Road Side',
-    'Govt. Office',
-    'Bank',
-    'Cabin',
-    'Table Space',
-  ],
-  sightStatus: ['SIGHTED AS', 'NOT SIGHTED'],
-  politicalConnection: ['Having Political Connection', 'Not Having Political Connection'],
-  dominatedArea: ['A Community Dominated', 'Not a Community Dominated'],
-  feedbackFromNeighbour: ['Adverse', 'No Adverse'],
-  finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
-  metPersonErt: ['Security', 'Receptionist'],
-  callRemarkUntraceable: [
-    'Did Not Pick Up Call',
-    'Number is Switch Off',
-    'Number is Unreachable',
-    'Refused to Guide Address',
-  ],
   constructionActivity: ['SEEN', 'CONSTRUCTION IS STOP', 'PLOT IS VACANT'],
-  companyNameBoard: ['SIGHTED AS', 'NOT SIGHTED'],
 };
 
 const legacyPropertyApfOptionAliases: Record<string, string> = {
   buildingStatus: 'buildingStatusApf',
-  relationship: 'relationshipApf',
   tpcMetPerson1: 'tpcMetPerson',
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
   tpcConfirmation2: 'tpcConfirmation',
-  locality: 'localityResiCumOffice',
-  doorNamePlateStatus: 'sightStatus',
-  societyNamePlateStatus: 'sightStatus',
-  callRemark: 'callRemarkUntraceable',
   metPerson: 'metPersonErt',
 };
 
@@ -3566,8 +3306,6 @@ const buildLegacyPropertyApfTemplate = (
 
 const legacyPropertyIndividualSelectOptions: Record<string, string[]> = {
   ...COMMON_SELECT_OPTIONS,
-  addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
-  addressRating: ['Good', 'Shabby', 'Poor'],
   buildingStatusApf: [
     'New Construction',
     'Redeveloped Construction',
@@ -3575,73 +3313,17 @@ const legacyPropertyIndividualSelectOptions: Record<string, string[]> = {
     'Vacant Place',
   ],
   flatStatusApf: ['Open', 'Closed'],
-  relationshipApf: [
-    'Self',
-    'Mother',
-    'Father',
-    'Wife',
-    'Son',
-    'Daughter',
-    'Sister',
-    'Brother',
-    'Aunty',
-    'Uncle',
-    'Mother in Law',
-    'Father in Law',
-    'Daughter in Law',
-    'Sister in Law',
-    'Brother in Law',
-    'Other',
-  ],
-  tpcMetPerson: ['Neighbour', 'Security'],
-  tpcConfirmation: ['Confirmed', 'Not Confirmed'],
-  localityResiCumOffice: [
-    'Commercial Tower',
-    'Residential Building',
-    'Office Building',
-    'Bunglow',
-    'Shop Line',
-    'Row House',
-    'Single House',
-    'Chawl / Slum',
-    'Patra Shed',
-    'Gala / Godown',
-    'Tea Stall',
-    'Sharing Office',
-    'Road Side',
-    'Govt. Office',
-    'Bank',
-    'Cabin',
-    'Table Space',
-  ],
-  sightStatus: ['SIGHTED AS', 'NOT SIGHTED'],
-  politicalConnection: ['Having Political Connection', 'Not Having Political Connection'],
-  dominatedArea: ['A Community Dominated', 'Not a Community Dominated'],
-  feedbackFromNeighbour: ['Adverse', 'No Adverse'],
-  finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
-  metPersonErt: ['Security', 'Receptionist'],
-  callRemarkUntraceable: [
-    'Did Not Pick Up Call',
-    'Number is Switch Off',
-    'Number is Unreachable',
-    'Refused to Guide Address',
-  ],
 };
 
 const legacyPropertyIndividualOptionAliases: Record<string, string> = {
   buildingStatus: 'buildingStatusApf',
   flatStatus: 'flatStatusApf',
-  relationship: 'relationshipApf',
   tpcMetPerson1: 'tpcMetPerson',
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
   tpcConfirmation2: 'tpcConfirmation',
-  locality: 'localityResiCumOffice',
-  doorNamePlateStatus: 'sightStatus',
-  societyNamePlateStatus: 'sightStatus',
   metPerson: 'metPersonErt',
   metPersonConfirmation: 'tpcConfirmation',
-  callRemark: 'callRemarkUntraceable',
 };
 
 const withLegacyPropertyIndividualOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
@@ -3661,11 +3343,10 @@ const withLegacyPropertyIndividualOrder = (fields: ResidenceFieldInput[]): FormF
   });
 
 const legacyPositivePropertyIndividualFields = withLegacyPropertyIndividualOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'buildingStatus', label: 'Building Status', type: 'select', required: true },
   { name: 'flatStatus', label: 'Flat Status', type: 'select', required: true },
-  { name: 'propertyOwnerName', label: 'Property Owner Name', type: 'text', required: true },
   {
     name: 'metPerson',
     label: 'Met Person',
@@ -3677,6 +3358,13 @@ const legacyPositivePropertyIndividualFields = withLegacyPropertyIndividualOrder
     name: 'relationship',
     label: 'Relationship',
     type: 'select',
+    conditional: legacyCondition('flatStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'propertyOwnerName',
+    label: 'Property Owner Name',
+    type: 'text',
     conditional: legacyCondition('flatStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
   },
@@ -3695,7 +3383,7 @@ const legacyPositivePropertyIndividualFields = withLegacyPropertyIndividualOrder
   { name: 'tpcConfirmation2', label: 'TPC Confirmation 2', type: 'select', required: true },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressExistAt', label: 'Address Exist At (Floor)', type: 'number', required: true },
+  { name: 'addressExistAt', label: 'Address Exist At', type: 'select', required: true },
   { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
   { name: 'doorNamePlateStatus', label: 'Door Name Plate', type: 'select', required: true },
@@ -3731,11 +3419,10 @@ const legacyPositivePropertyIndividualFields = withLegacyPropertyIndividualOrder
 ]);
 
 const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'buildingStatus', label: 'Building Status', type: 'select', required: true },
   { name: 'flatStatus', label: 'Flat Status', type: 'select', required: true },
-  { name: 'propertyOwnerName', label: 'Property Owner Name', type: 'text', required: true },
   {
     name: 'metPerson',
     label: 'Met Person',
@@ -3747,6 +3434,13 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
     name: 'relationship',
     label: 'Relationship',
     type: 'select',
+    conditional: legacyCondition('flatStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'propertyOwnerName',
+    label: 'Property Owner Name',
+    type: 'text',
     conditional: legacyCondition('flatStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
   },
@@ -3793,8 +3487,8 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
 ]);
 
 const legacyEntryRestrictedPropertyIndividualFields = withLegacyPropertyIndividualOrder([
-  { name: 'addressLocatable', label: 'Is Address Easy to Locate?', type: 'select', required: true },
-  { name: 'addressRating', label: 'Property Condition', type: 'select', required: true },
+  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
+  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
   { name: 'flatStatus', label: 'Flat Status', type: 'select', required: true },
   {
     name: 'metPerson',
