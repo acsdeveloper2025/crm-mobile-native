@@ -94,12 +94,15 @@ class FormUploaderClass {
   }
 
   private async cleanupSyncedPhotosForTask(taskId: string): Promise<void> {
+    // Only clean up disk files for fully synced photos that also have a
+    // backend_attachment_id (confirmed by server). Keep the DB records so the
+    // PhotoGallery can still show them via remote URLs if needed.
     const photos = await SyncEngineRepository.query<{
       id: string;
       local_path: string;
       thumbnail_path: string | null;
     }>(
-      "SELECT id, local_path, thumbnail_path FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'",
+      "SELECT id, local_path, thumbnail_path FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED' AND backend_attachment_id IS NOT NULL",
       [taskId],
     );
 
@@ -111,7 +114,11 @@ class FormUploaderClass {
         if (photo.thumbnail_path && await RNFS.exists(photo.thumbnail_path)) {
           await RNFS.unlink(photo.thumbnail_path);
         }
-        await SyncEngineRepository.execute('DELETE FROM attachments WHERE id = ?', [photo.id]);
+        // Clear local paths but keep record for history — user can still see via remote URL
+        await SyncEngineRepository.execute(
+          "UPDATE attachments SET local_path = '', thumbnail_path = NULL WHERE id = ?",
+          [photo.id],
+        );
       } catch {
         Logger.warn(TAG, `Failed cleaning up photo ${photo.id}`);
       }
