@@ -117,7 +117,7 @@ class ErrorBoundary extends Component<Props, State> {
               )}
             </>
           ) : (
-            <Text style={[styles.detailValue, { color: colors.info, textAlign: 'center', marginBottom: 20 }]}>
+            <Text style={[styles.detailValue, styles.errorMessage, { color: colors.info }]}>
               An unexpected error occurred. Please try again or contact support if the problem persists.
             </Text>
           )}
@@ -172,6 +172,10 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: 12,
     fontFamily: 'monospace',
+  },
+  errorMessage: {
+    textAlign: 'center',
+    marginBottom: 20,
   },
   reloadBtn: {
     paddingVertical: 12,

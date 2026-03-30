@@ -393,7 +393,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
         </View>
       )}
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.flex1}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}>
       <ScrollView
@@ -445,19 +445,22 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
 
         {/* Progress Bar */}
         {template && selectedOutcome && formProgress.total > 0 ? (
-          <View style={[styles.section, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border, paddingVertical: 12 }]}>
-            <Text style={{ fontSize: 13, fontWeight: '600', color: theme.colors.text, marginBottom: 8 }}>
+          <View style={[styles.section, styles.progressSection, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <Text style={[styles.progressText, { color: theme.colors.text }]}>
               {formProgress.filled}/{formProgress.total} required fields completed ({formProgress.percent}%)
             </Text>
-            <View style={{ height: 8, borderRadius: 4, backgroundColor: theme.colors.surfaceAlt, overflow: 'hidden' }}>
+            <View style={[styles.progressTrack, { backgroundColor: theme.colors.surfaceAlt }]}>
+              {/* eslint-disable react-native/no-inline-styles */}
               <View
-                style={{
-                  height: '100%',
-                  width: `${formProgress.percent}%`,
-                  backgroundColor: formProgress.percent === 100 ? '#22C55E' : theme.colors.primary,
-                  borderRadius: 4,
-                }}
+                style={[
+                  styles.progressFill,
+                  {
+                    width: `${formProgress.percent}%`,
+                    backgroundColor: formProgress.percent === 100 ? '#22C55E' : theme.colors.primary,
+                  },
+                ]}
               />
+              {/* eslint-enable react-native/no-inline-styles */}
             </View>
           </View>
         ) : null}
