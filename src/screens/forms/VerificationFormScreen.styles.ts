@@ -219,4 +219,24 @@ export const styles = StyleSheet.create(
     flex: 1,
     fontWeight: '500',
   },
+  flex1: {
+    flex: 1,
+  },
+  progressSection: {
+    paddingVertical: 12,
+  },
+  progressText: {
+    fontSize: 13,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  progressTrack: {
+    height: 8,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: 4,
+  },
 });

@@ -259,7 +259,7 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
         {
           const selectedValues = Array.isArray(value) ? value as string[] : [];
           return (
-            <View style={{ gap: 6 }}>
+            <View style={styles.multiselectContainer}>
               {options.map((opt, index) => {
                 const isSelected = selectedValues.includes(opt.value);
                 return (
@@ -279,14 +279,16 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
                       },
                     ]}>
                     <Text style={[styles.switchLabel, { color: theme.colors.text }]}>{opt.label}</Text>
-                    <View style={{
-                      width: 22, height: 22, borderRadius: 4,
-                      borderWidth: 2,
-                      borderColor: isSelected ? theme.colors.primary : theme.colors.border,
-                      backgroundColor: isSelected ? theme.colors.primary : 'transparent',
-                      alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      {isSelected && <Text style={{ color: '#fff', fontSize: 14, fontWeight: '700' }}>✓</Text>}
+                    {/* eslint-disable react-native/no-inline-styles */}
+                    <View style={[
+                      styles.checkboxBox,
+                      {
+                        borderColor: isSelected ? theme.colors.primary : theme.colors.border,
+                        backgroundColor: isSelected ? theme.colors.primary : 'transparent',
+                      },
+                    ]}>
+                    {/* eslint-enable react-native/no-inline-styles */}
+                      {isSelected && <Text style={styles.checkboxCheckmark}>✓</Text>}
                     </View>
                   </TouchableOpacity>
                 );
@@ -398,5 +400,21 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  multiselectContainer: {
+    gap: 6,
+  },
+  checkboxBox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxCheckmark: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
   },
 });
