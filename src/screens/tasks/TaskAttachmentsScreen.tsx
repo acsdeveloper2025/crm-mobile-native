@@ -12,10 +12,11 @@ import {
   Linking,
 } from 'react-native';
 import RNFS from 'react-native-fs';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import {
   attachmentService,
   RemoteTaskAttachment,
@@ -23,6 +24,8 @@ import {
 
 export const TaskAttachmentsScreen = ({ route }: any) => {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { taskId, taskNumber } = route.params || {};
   const [remoteAttachments, setRemoteAttachments] = useState<RemoteTaskAttachment[]>([]);
   const [isRemoteLoading, setIsRemoteLoading] = useState(true);
@@ -174,7 +177,8 @@ export const TaskAttachmentsScreen = ({ route }: any) => {
   const watermarkRowCount = previewMode === 'text' ? 6 : 8;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScreenHeader title="Attachments" />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -288,7 +292,7 @@ export const TaskAttachmentsScreen = ({ route }: any) => {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 };
 

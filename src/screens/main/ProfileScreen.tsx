@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme, ThemePreference } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { DataCleanupManager } from '../../components/profile/DataCleanupManager';
+import { ScreenHeader } from '../../components/ScreenHeader';
+// DataCleanupManager moved to separate screen
 import { config } from '../../config';
 
 export const ProfileScreen = ({ navigation }: any) => {
   const { user, logout } = useAuth();
   const { theme, themePreference, setThemePreference } = useTheme();
-  const [showCleanupManager, setShowCleanupManager] = useState(false);
-  const insets = useSafeAreaInsets();
 
   const renderThemeToggle = () => {
     const preferences: { id: ThemePreference; label: string; icon: string }[] = [
@@ -52,14 +50,14 @@ export const ProfileScreen = ({ navigation }: any) => {
   };
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>
+    <View style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
+      <ScreenHeader title="Profile" />
       <ScrollView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
         contentContainerStyle={{
-          paddingBottom: Math.max(insets.bottom, 16) + 96,
+          paddingBottom: 96,
         }}
         showsVerticalScrollIndicator={false}>
-        <Text style={[styles.title, { color: theme.colors.text }]}>Profile</Text>
 
         <View style={styles.avatarSection}>
           <View style={styles.avatarWrapper}>
@@ -128,16 +126,14 @@ export const ProfileScreen = ({ navigation }: any) => {
 
           <TouchableOpacity
             style={[styles.actionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-            onPress={() => setShowCleanupManager(prev => !prev)}>
+            onPress={() => navigation.navigate('DataCleanup' as never)}>
             <Icon name="trash-outline" size={22} color={theme.colors.textSecondary} />
             <Text style={[styles.actionText, { color: theme.colors.textSecondary }]}>
-              {showCleanupManager ? 'Hide Data Cleanup' : 'Data Cleanup Manager'}
+              Data Cleanup Manager
             </Text>
             <Icon name="chevron-forward" size={20} color={theme.colors.textMuted} />
           </TouchableOpacity>
         </View>
-
-        {showCleanupManager && <DataCleanupManager />}
 
         <TouchableOpacity
           style={[styles.logoutCallout, { backgroundColor: theme.colors.danger + '10', borderColor: theme.colors.danger }]}
@@ -146,7 +142,7 @@ export const ProfileScreen = ({ navigation }: any) => {
           <Text style={[styles.logoutCalloutText, { color: theme.colors.danger }]}>Logout</Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 };
 

@@ -55,6 +55,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
 
       if (isMountedRef.current && requestId === requestIdRef.current) {
         const photoList = results || [];
+        console.warn(`[PhotoGallery] loadPhotos: taskId=${taskId}, type=${componentType}, found=${photoList.length}`, photoList.map(p => p.id));
         setPhotos(photoList);
         onPhotosLoaded?.(photoList.length);
       }

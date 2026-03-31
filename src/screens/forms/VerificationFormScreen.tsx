@@ -2,11 +2,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTask } from '../../hooks/useTask';
 import { PhotoGallery } from '../../components/media/PhotoGallery';
 import { DynamicFormBuilder } from './DynamicFormBuilder';
 import { useTheme } from '../../context/ThemeContext';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import Icon from 'react-native-vector-icons/Ionicons';
 import type { FormTemplate } from '../../types/api';
 import { useTaskManager } from '../../context/TaskContext';
@@ -50,6 +51,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     });
   }, [task]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [template, setTemplate] = useState<FormTemplate | null>(null);
   const [formValues, setFormValues] = useState<Record<string, any>>({});
   const [templateLoading, setTemplateLoading] = useState(false); // don't load immediately
@@ -215,12 +217,21 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     };
   }, [getLegacyTemplate, taskUuid, selectedOutcome, taskFormTypeKey]);
 
+  const taskMeta = useMemo(() => ({
+    caseId: task?.caseId != null ? String(task.caseId) : undefined,
+    taskNumber: task?.verificationTaskNumber || undefined,
+    customerName: task?.customerName || undefined,
+    clientName: task?.clientName || undefined,
+    productName: task?.productName || undefined,
+    verificationType: task?.verificationTypeName || task?.verificationType || undefined,
+  }), [task]);
+
   const handleAddPhoto = () => {
-    navigation.navigate('CameraCapture', { taskId: effectiveTaskId, componentType: 'photo' });
+    navigation.navigate('CameraCapture', { taskId: effectiveTaskId, componentType: 'photo', taskMeta });
   };
 
   const handleAddSelfie = () => {
-    navigation.navigate('CameraCapture', { taskId: effectiveTaskId, componentType: 'selfie' });
+    navigation.navigate('CameraCapture', { taskId: effectiveTaskId, componentType: 'selfie', taskMeta });
   };
 
   const handleOutcomeSelect = async (outcome: LegacyOutcome) => {
@@ -271,6 +282,23 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     return unsubscribe;
   }, [navigation, formValues, isSubmitting]);
 
+  const handleSave = async () => {
+    if (!task || !selectedOutcome) return;
+
+    try {
+      setIsSaving(true);
+      await updateTaskFormData(task.id, formValues);
+      await persistAutoSave(task.id, { formType: taskFormTypeKey || 'DEFAULT', formData: formValues });
+      Alert.alert('Saved', 'Your form has been saved locally. You can continue filling it later.', [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch (err: unknown) {
+      Alert.alert('Save Error', err instanceof Error ? err.message : String(err));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!task) return;
 
@@ -318,12 +346,12 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
         submitTaskForm,
       });
 
-      Alert.alert('Success', 'Verification Form saved offline and queued for upload.', [
+      Alert.alert('Success', 'Verification submitted successfully and queued for upload.', [
         { text: 'OK', onPress: () => navigation.navigate('Main', { screen: 'Completed' }) }
       ]);
 
     } catch (err: unknown) {
-      const message = String(err instanceof Error ? err.message : String(err) || 'Failed to save form.');
+      const message = String(err instanceof Error ? err.message : String(err) || 'Failed to submit form.');
       const title = message.startsWith('You must capture at least 5 location photos')
         ? 'Missing Evidence'
         : 'Submission Error';
@@ -383,7 +411,8 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScreenHeader title="Verification Form" />
       {autoSaveError && (
         <View style={styles.autoSaveErrorBanner}>
           <Icon name="warning-outline" size={18} color="#DC2626" />
@@ -512,39 +541,72 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
               marginBottom: Math.max(insets.bottom, 12),
             },
           ]}>
-          <TouchableOpacity
-            style={[
-              styles.submitButton,
-              selectedOutcome ? styles.submitButtonEnabled : styles.submitButtonInactive,
-              selectedOutcome
-                ? { backgroundColor: theme.colors.primary }
-                : { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border },
-              (!selectedOutcome || isSubmitting) && styles.submitButtonDisabled,
-            ]}
-            onPress={handleSubmit}
-            disabled={isSubmitting || !selectedOutcome}>
-            {isSubmitting ? (
-              <>
-                <ActivityIndicator color={theme.colors.surface} />
-                <Text style={[styles.submitText, { color: theme.colors.surface }]}>Saving...</Text>
-              </>
-            ) : (
-              <>
-                <Icon
-                  name={selectedOutcome ? 'cloud-upload-outline' : 'lock-closed-outline'}
-                  size={20}
-                  color={selectedOutcome ? theme.colors.surface : theme.colors.textMuted}
-                />
-                <Text style={[styles.submitText, { color: selectedOutcome ? theme.colors.surface : theme.colors.textMuted }]}>
-                  {selectedOutcome ? 'Submit Verification' : 'Select Outcome First'}
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
+          {!selectedOutcome ? (
+            <View
+              style={[
+                styles.submitButton,
+                styles.submitButtonInactive,
+                { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border },
+              ]}>
+              <Icon name="lock-closed-outline" size={20} color={theme.colors.textMuted} />
+              <Text style={[styles.submitText, { color: theme.colors.textMuted }]}>
+                Select Outcome First
+              </Text>
+            </View>
+          ) : (
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <TouchableOpacity
+                style={[
+                  styles.submitButton,
+                  {
+                    flex: 1,
+                    backgroundColor: theme.colors.surfaceAlt,
+                    borderWidth: 1,
+                    borderColor: theme.colors.border,
+                  },
+                  isSaving && { opacity: 0.7 },
+                ]}
+                onPress={handleSave}
+                disabled={isSaving || isSubmitting}>
+                {isSaving ? (
+                  <>
+                    <ActivityIndicator color={theme.colors.text} />
+                    <Text style={[styles.submitText, { color: theme.colors.text }]}>Saving...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="save-outline" size={20} color={theme.colors.text} />
+                    <Text style={[styles.submitText, { color: theme.colors.text }]}>Save</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.submitButton,
+                  { flex: 2, backgroundColor: theme.colors.primary },
+                  isSubmitting && { opacity: 0.7 },
+                ]}
+                onPress={handleSubmit}
+                disabled={isSubmitting || isSaving}>
+                {isSubmitting ? (
+                  <>
+                    <ActivityIndicator color={theme.colors.surface} />
+                    <Text style={[styles.submitText, { color: theme.colors.surface }]}>Submitting...</Text>
+                  </>
+                ) : (
+                  <>
+                    <Icon name="cloud-upload-outline" size={20} color={theme.colors.surface} />
+                    <Text style={[styles.submitText, { color: theme.colors.surface }]}>Submit Verification</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
       </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+    </View>
   );
 };

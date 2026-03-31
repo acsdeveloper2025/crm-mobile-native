@@ -1,8 +1,10 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { Logger } from '../../utils/logger';
 import { SyncQueueRepository } from '../../repositories/SyncQueueRepository';
 import type { SyncQueueItem } from '../../types/mobile';
@@ -10,6 +12,7 @@ import type { SyncQueueItem } from '../../types/mobile';
 export const SyncLogsScreen = () => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const [logs, setLogs] = useState<SyncQueueItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'ALL' | 'FAILED'>('FAILED');
@@ -108,10 +111,8 @@ export const SyncLogsScreen = () => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
-      <View style={[styles.screenHeader, { borderBottomColor: theme.colors.border, backgroundColor: theme.colors.surface }]}>
-        <Text style={[styles.screenTitle, { color: theme.colors.text }]}>Diagnostics & Sync Logs</Text>
-      </View>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScreenHeader title="Sync Diagnostics" />
       {/* Header Tabs */}
       <View style={[styles.tabContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
         <TouchableOpacity 
@@ -199,7 +200,7 @@ export const SyncLogsScreen = () => {
           </TouchableOpacity>
         ) : null}
       </View>
-    </SafeAreaView>
+    </View>
   );
 };
 

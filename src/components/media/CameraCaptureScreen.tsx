@@ -9,7 +9,7 @@ import { Logger } from '../../utils/logger';
 const TAG = 'CameraCaptureScreen';
 
 export const CameraCaptureScreen = ({ route, navigation }: any) => {
-  const { taskId, componentType } = route.params || {};
+  const { taskId, componentType, taskMeta } = route.params || {};
   const device = useCameraDevice(componentType === 'selfie' ? 'front' : 'back');
   const camera = useRef<Camera>(null);
 
@@ -42,31 +42,13 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
         return;
       }
 
-      // Also request location so GPS coordinates are available for photo watermark
+      // Request location permission (non-blocking) — actual GPS fix happens in WatermarkPreviewScreen
       const { LocationService } = require('../../services/LocationService');
-      const locationGranted = await LocationService.requestPermissions();
-      if (!locationGranted) {
-        Alert.alert(
-          'Location Required',
-          'Location permission is required to geo-tag verification photos. Photos without location data cannot be submitted.',
-          [{ text: 'Continue Anyway' }]
-        );
-        setGpsWarning('GPS unavailable — photos will lack location data');
-      } else {
-        // Check current GPS accuracy
-        try {
-          const currentLoc = await LocationService.getCurrentLocation();
-          if (!currentLoc) {
-            setGpsWarning('Unable to get GPS signal. Move to an open area for better accuracy.');
-          } else if (currentLoc.accuracy > 100) {
-            setGpsWarning(`Low GPS accuracy (±${Math.round(currentLoc.accuracy)}m). Move to an open area.`);
-          } else {
-            setGpsWarning(null);
-          }
-        } catch {
-          setGpsWarning('GPS signal weak. Photos may have inaccurate location.');
+      LocationService.requestPermissions().then((locationGranted: boolean) => {
+        if (!locationGranted) {
+          setGpsWarning('GPS unavailable — photos will lack location data');
         }
-      }
+      }).catch(() => {});
 
       // Activate camera ONLY after permission is confirmed.
       // On real devices, a small delay lets the native camera HAL initialize.
@@ -120,10 +102,11 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
       );
 
       // Redirect to Watermark compositor instead of immediately saving
-      navigation.navigate('WatermarkPreview', { 
-        photoPath: photo.path, 
-        taskId, 
-        componentType 
+      navigation.navigate('WatermarkPreview', {
+        photoPath: photo.path,
+        taskId,
+        componentType,
+        taskMeta,
       });
     } catch (err: unknown) {
       Alert.alert('Capture Error', (err instanceof Error ? err.message : String(err)) || 'Failed to capture photo.');

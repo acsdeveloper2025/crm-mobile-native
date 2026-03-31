@@ -293,12 +293,84 @@ class LocationServiceClass {
   }
 
   /**
-   * Mock reverse geocoding for now.
-   * Can be wired up to a real map API like Google Maps later if needed.
+   * Reverse geocode coordinates to a full address using Google Geocoding API.
+   * Returns detailed address: street, locality, city, district, state, pincode, country.
    */
   async getAddressFromCoordinates(lat: number, lon: number): Promise<string> {
-    // A real app would call a reverse geocoding API here.
-    return `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
+    const GOOGLE_API_KEY = 'AIzaSyDjCfPbgYjzM8XyzJxQp9MVDdNj-i7FOTE';
+    try {
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${GOOGLE_API_KEY}&language=en&result_type=street_address|sublocality|locality|administrative_area_level_2`;
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+      }
+
+      const data = await response.json();
+
+      if (data.status !== 'OK' || !data.results || data.results.length === 0) {
+        Logger.warn(TAG, `Google Geocoding returned: ${data.status}`);
+        return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+      }
+
+      // Google returns multiple results sorted by specificity — first is most detailed
+      const bestResult = data.results[0];
+      const components = bestResult.address_components || [];
+
+      // Extract structured parts
+      const extract = (type: string): string => {
+        const comp = components.find((c: { types: string[]; long_name: string }) => c.types.includes(type));
+        return comp ? comp.long_name : '';
+      };
+
+      const parts: string[] = [];
+
+      // Street number + route
+      const streetNum = extract('street_number');
+      const route = extract('route');
+      if (streetNum && route) {
+        parts.push(`${streetNum}, ${route}`);
+      } else if (route) {
+        parts.push(route);
+      }
+
+      // Premise / building name
+      const premise = extract('premise') || extract('subpremise');
+      if (premise) parts.push(premise);
+
+      // Sublocality levels (neighborhood, area)
+      const sublocality = extract('sublocality_level_1') || extract('sublocality') || extract('neighborhood');
+      if (sublocality) parts.push(sublocality);
+
+      // Locality (city/town)
+      const locality = extract('locality') || extract('administrative_area_level_3');
+      if (locality) parts.push(locality);
+
+      // District
+      const district = extract('administrative_area_level_2');
+      if (district && district !== locality) parts.push(district);
+
+      // State
+      const state = extract('administrative_area_level_1');
+      if (state) parts.push(state);
+
+      // Pincode
+      const pincode = extract('postal_code');
+      if (pincode) parts.push(pincode);
+
+      // Country
+      const country = extract('country');
+      if (country) parts.push(country);
+
+      return parts.length > 0 ? parts.join(', ') : bestResult.formatted_address || `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+    } catch (error) {
+      Logger.warn(TAG, 'Google reverse geocoding failed, using coordinates', error);
+      return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+    }
   }
 }
 

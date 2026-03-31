@@ -22,3 +22,7 @@
 # path. Keep its package and generated spec intact in release builds so the
 # native module remains discoverable under R8.
 -keep class com.reactnativecommunity.netinfo.** { *; }
+
+# VisionCamera — keep native camera classes from being stripped by R8/ProGuard
+-keep class com.mrousavy.camera.** { *; }
+-keep class com.mrousavy.** { *; }

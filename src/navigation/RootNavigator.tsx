@@ -26,6 +26,7 @@ import { WatermarkPreviewScreen } from '../components/media/WatermarkPreviewScre
 import { VerificationFormScreen } from '../screens/forms/VerificationFormScreen';
 import { ForceUpdateScreen } from '../screens/auth/ForceUpdateScreen';
 import { SyncLogsScreen } from '../screens/main/SyncLogsScreen';
+import { DataCleanupScreen } from '../screens/main/DataCleanupScreen';
 import { VersionService, UpdateInfo } from '../services/VersionService';
 import { useTheme } from '../context/ThemeContext';
 
@@ -36,12 +37,13 @@ export type RootStackParamList = {
   Main: undefined;
   TaskDetail: { taskId: string };
   TaskAttachments: { taskId: string };
-  CameraCapture: { taskId: string; componentType?: 'photo' | 'selfie' };
-  WatermarkPreview: { photoPath: string; taskId: string; componentType?: 'photo' | 'selfie'; location?: { latitude: number; longitude: number; accuracy: number; timestamp: string } | null };
+  CameraCapture: { taskId: string; componentType?: 'photo' | 'selfie'; taskMeta?: { caseId?: string; taskNumber?: string; customerName?: string; clientName?: string; productName?: string; verificationType?: string } };
+  WatermarkPreview: { photoPath: string; taskId: string; componentType?: 'photo' | 'selfie'; taskMeta?: { caseId?: string; taskNumber?: string; customerName?: string; clientName?: string; productName?: string; verificationType?: string } };
   VerificationForm: { taskId: string };
   SyncLogs: undefined;
   Profile: undefined;
   DigitalIdCard: undefined;
+  DataCleanup: undefined;
   ProfilePhotoCapture: undefined;
 };
 
@@ -248,7 +250,7 @@ export const RootNavigator = () => {
 
   return (
     <NavigationContainer ref={navigationRef} linking={linking} onReady={() => { isNavigationReady.current = true; }}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: false, animation: 'none' }}>
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={LoginScreen} />
         ) : (
@@ -257,12 +259,12 @@ export const RootNavigator = () => {
             <Stack.Screen
               name="TaskDetail"
               component={TaskDetailScreen}
-              options={{ headerShown: true, title: 'Task Details', headerBackTitle: 'Back' }}
+              options={{ headerShown: false, title: 'Task Details', headerBackTitle: 'Back' }}
             />
             <Stack.Screen
               name="TaskAttachments"
               component={TaskAttachmentsScreen}
-              options={{ headerShown: true, title: 'Attachments', headerBackTitle: 'Back' }}
+              options={{ headerShown: false, title: 'Attachments', headerBackTitle: 'Back' }}
             />
             <Stack.Screen
               name="CameraCapture"
@@ -277,22 +279,27 @@ export const RootNavigator = () => {
             <Stack.Screen
               name="VerificationForm"
               component={VerificationFormScreen}
-              options={{ headerShown: true, title: 'Verification Form', headerBackTitle: 'Cancel' }}
+              options={{ headerShown: false, title: 'Verification Form' }}
             />
             <Stack.Screen
               name="SyncLogs"
               component={SyncLogsScreen}
-              options={{ headerShown: true, title: 'Sync Diagnostics', headerBackTitle: 'Back' }}
+              options={{ headerShown: false, title: 'Sync Diagnostics', headerBackTitle: 'Back' }}
             />
             <Stack.Screen
               name="Profile"
               component={ProfileScreen}
-              options={{ headerShown: true, title: 'Profile', headerBackTitle: 'Back' }}
+              options={{ headerShown: false, title: 'Profile', headerBackTitle: 'Back' }}
             />
             <Stack.Screen
               name="DigitalIdCard"
               component={DigitalIdCardScreen}
-              options={{ headerShown: true, title: 'Digital ID Card', headerBackTitle: 'Back' }}
+              options={{ headerShown: false, title: 'Digital ID Card', headerBackTitle: 'Back' }}
+            />
+            <Stack.Screen
+              name="DataCleanup"
+              component={DataCleanupScreen}
+              options={{ headerShown: false }}
             />
             <Stack.Screen
               name="ProfilePhotoCapture"
