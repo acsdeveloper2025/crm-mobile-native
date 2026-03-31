@@ -34,7 +34,7 @@ export interface AppConfig {
 }
 
 const nativeAppInfo = (NativeModules as { AppInfo?: { versionName?: string; versionCode?: number | string } }).AppInfo;
-const resolvedAppVersion = nativeAppInfo?.versionName || '4.0.0';
+const resolvedAppVersion = nativeAppInfo?.versionName || '1.0.0';
 const resolvedBuildNumber = nativeAppInfo?.versionCode?.toString() || '84';
 
 const BASE_CONFIG: Omit<AppConfig, 'apiBaseUrl' | 'wsUrl' | 'environment'> = {

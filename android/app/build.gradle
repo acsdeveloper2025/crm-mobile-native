@@ -79,7 +79,7 @@ def isReleaseTask = gradle.startParameter.taskNames.any { it.toLowerCase().conta
 def targetAbiFilters = isReleaseTask ? releaseAbiFilters : debugAbiFilters
 def defaultAbiSplitsEnabled = !gradle.startParameter.taskNames.any { it.toLowerCase().contains("bundle") }
 def abiSplitsEnabled = (project.findProperty("enableAbiSplits") ?: defaultAbiSplitsEnabled.toString()).toString().toBoolean()
-def releaseVersionName = project.findProperty("versionName") ?: "4.0"
+def releaseVersionName = project.findProperty("versionName") ?: "1.0"
 def releaseVersionCode = (project.findProperty("versionCode") ?: "1").toString().toInteger()
 
 /**
