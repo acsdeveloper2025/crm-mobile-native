@@ -8,10 +8,11 @@ import {
   ActivityIndicator,
   Alert 
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTask } from '../../hooks/useTask';
 import { useTheme } from '../../context/ThemeContext';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { TaskTimeline } from '../../components/tasks/TaskTimeline';
 import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
 
@@ -78,9 +79,10 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScreenHeader title="Task Details" />
       <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) + 24 }]}>
-        
+
         {/* Header Header */}
         <View style={[styles.headerCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
           <View style={styles.headerTop}>
@@ -242,7 +244,7 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
           )}
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 

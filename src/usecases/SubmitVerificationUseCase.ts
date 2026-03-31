@@ -7,6 +7,7 @@ import { SyncQueueRepository } from '../repositories/SyncQueueRepository';
 import { TaskRepository } from '../repositories/TaskRepository';
 import { SyncGateway } from '../services/SyncGateway';
 import { AuthService } from '../services/AuthService';
+import { LocationService } from '../services/LocationService';
 import { NetworkService } from '../services/NetworkService';
 import { StorageService } from '../services/StorageService';
 import { SyncService } from '../services/SyncService';
@@ -120,9 +121,18 @@ export const SubmitVerificationUseCase = {
       };
     });
 
-    const geoLocation = await LocationRepository.getLatestForTask(task.id);
+    // Location comes from photo captures (recorded in locations table via CameraService).
+    // Fall back to photo GPS data if location record is missing.
+    let geoLocation = await LocationRepository.getLatestForTask(task.id);
     if (!geoLocation) {
-      throw new Error('Start the visit and capture location before submitting the form.');
+      const latestGeoPhoto = attachments.find(a => a.latitude != null && a.longitude != null);
+      if (latestGeoPhoto) {
+        geoLocation = toAttachmentGeoLocation(latestGeoPhoto)!;
+        // Also record it so the backend gets a location via sync
+        await LocationService.recordLocation(task.id, 'CASE_COMPLETE').catch(() => {});
+      } else {
+        throw new Error('No GPS data found in photos. Please ensure location services are enabled when capturing photos.');
+      }
     }
 
     const deviceInfo = await AuthService.getDeviceInfo();

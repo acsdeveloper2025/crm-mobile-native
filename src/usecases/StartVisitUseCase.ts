@@ -1,5 +1,3 @@
-import { SyncService } from '../services/SyncService';
-import { LocationService } from '../services/LocationService';
 import { TaskRepository } from '../repositories/TaskRepository';
 import { SyncGateway } from '../services/SyncGateway';
 import { TaskStatus } from '../types/enums';
@@ -27,16 +25,6 @@ export const startVisitUseCase = async (
   const task = await TaskRepository.getTaskById(taskId);
   if (!task) {
     throw new Error('Task not found');
-  }
-
-  const validation = await SyncService.validateVisitStart(taskId);
-  if (!validation.allowed) {
-    throw new Error(validation.reason || 'Distance validation failed.');
-  }
-
-  const recordedLocation = await LocationService.recordLocation(taskId, 'CASE_START');
-  if (!recordedLocation) {
-    throw new Error('Location capture is required before starting the visit.');
   }
 
   await TaskRepository.updateTaskStatus(taskId, TaskStatus.InProgress);

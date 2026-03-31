@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { DigitalIdCard } from '../../components/profile/DigitalIdCard';
 
 export const DigitalIdCardScreen = () => {
@@ -19,11 +20,14 @@ export const DigitalIdCardScreen = () => {
   };
 
   return (
-    <ScrollView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-      <View style={styles.content}>
-        <DigitalIdCard userProfile={userProfileInfo} />
-      </View>
-    </ScrollView>
+    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+      <ScreenHeader title="Digital ID Card" />
+      <ScrollView style={{ flex: 1 }}>
+        <View style={styles.content}>
+          <DigitalIdCard userProfile={userProfileInfo} />
+        </View>
+      </ScrollView>
+    </View>
   );
 };
 
