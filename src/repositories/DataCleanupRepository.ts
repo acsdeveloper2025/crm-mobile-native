@@ -70,7 +70,11 @@ class DataCleanupRepositoryClass {
       await tx.executeSql('DELETE FROM task_list_projection');
       await tx.executeSql('DELETE FROM task_detail_projection');
       await tx.executeSql('DELETE FROM dashboard_projection');
-      await tx.executeSql(`DELETE FROM key_value_store WHERE key LIKE 'auto_save_%'`);
+      // Keep autosaves for 7 days — only delete older ones
+      await tx.executeSql(
+        `DELETE FROM key_value_store WHERE key LIKE 'auto_save_%' AND json_extract(value, '$.timestamp') < ?`,
+        [new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()],
+      );
     });
   }
 

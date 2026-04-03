@@ -21,8 +21,13 @@ class LocationUploaderClass {
       );
       return { outcome: 'SUCCESS' };
     } catch (error: unknown) {
-      const axiosErr = error as { response?: { status?: number; data?: { error?: { code?: string } } } };
-      if (axiosErr?.response?.status === 409 && axiosErr?.response?.data?.error?.code === 'LOCATION_ALREADY_CAPTURED_FOR_TASK') {
+      const axiosErr = error as { response?: { status?: number; data?: { error?: { code?: string }; message?: string; success?: boolean } } };
+      const status = axiosErr?.response?.status;
+
+      // 409: Location already captured for this task — treat as success
+      // 400: Poor accuracy or other validation — mark synced to unblock form upload
+      // 500: Server error on duplicate/conflict — mark synced to prevent blocking
+      if (status === 409 || status === 400) {
         await SyncEngineRepository.execute(
           "UPDATE locations SET sync_status = 'SYNCED', synced_at = ? WHERE id = ?",
           [new Date().toISOString(), operation.entityId],

@@ -291,6 +291,7 @@ const legacyResidenceSelectOptions: Record<string, string[]> = {
 };
 
 const legacyResidenceOptionAliases: Record<string, string> = {
+  metPerson: 'metPersonErt',
   tpcMetPerson1: 'tpcMetPerson',
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
@@ -1638,6 +1639,7 @@ const legacyNocSelectOptions: Record<string, string[]> = {
 const legacyNocOptionAliases: Record<string, string> = {
   businessExistance: 'businessExistence',
   applicantExistance: 'applicantExistence',
+  metPerson: 'metPersonErt',
   tpcMetPerson1: 'tpcMetPerson',
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',

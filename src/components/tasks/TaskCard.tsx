@@ -100,9 +100,8 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
     try {
       await startVisitUseCase(task.id);
       onStatusChange?.();
-      onPress({ ...task, status: 'IN_PROGRESS' });
     } catch (e: unknown) {
-      Alert.alert('Error', 'Failed to start visit: ' + (e instanceof Error ? e.message : String(e)));
+      Alert.alert('Error', 'Failed to accept task: ' + (e instanceof Error ? e.message : String(e)));
     } finally {
       setIsAccepting(false);
     }

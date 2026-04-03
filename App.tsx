@@ -28,6 +28,7 @@ import { Logger } from './src/utils/logger';
 import { notificationService } from './src/services/NotificationService';
 import { SyncQueue } from './src/services/SyncQueue';
 import ErrorBoundary from './src/components/ErrorBoundary';
+import { WatermarkReStamper } from './src/components/media/WatermarkReStamper';
 import { BackgroundSyncDaemon } from './src/sync/BackgroundSyncDaemon';
 import { MobileTelemetryService } from './src/telemetry/MobileTelemetryService';
 
@@ -236,6 +237,7 @@ function App(): React.JSX.Element {
             <ErrorBoundary>
               <NetworkStatusBanner />
               <RootNavigator />
+              <WatermarkReStamper />
             </ErrorBoundary>
           </TaskProvider>
         </AuthProvider>

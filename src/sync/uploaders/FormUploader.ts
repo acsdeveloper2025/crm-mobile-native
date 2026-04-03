@@ -135,21 +135,8 @@ class FormUploaderClass {
       const deferCount = typeof payload._deferCount === 'number' ? payload._deferCount : 0;
       const MAX_DEFERS = 15; // After 15 defers (~75 min at 5-min sync), upload with available photos
 
-      // Only defer for items still actively being processed or retryable.
-      // Do NOT defer for permanently FAILED items — those won't resolve on their own
-      // and would block the form submission forever.
-      const pendingLocationsCount = await SyncEngineRepository.count(
-        'sync_queue',
-        "entity_type = 'LOCATION' AND status IN ('PENDING', 'IN_PROGRESS') AND json_extract(payload_json, '$.taskId') = ?",
-        [localTaskId || taskId],
-      );
-      if (pendingLocationsCount > 0 && deferCount < MAX_DEFERS) {
-        const error = `Blocking form upload for ${taskId}: ${pendingLocationsCount} locations pending (defer ${deferCount + 1}/${MAX_DEFERS})`;
-        payload._deferCount = deferCount + 1;
-        await this.updateLocalSubmissionState(localTaskId, 'pending');
-        return { outcome: 'DEFER', error };
-      }
-
+      // Location sync removed — GPS is in photo watermarks only.
+      // Only defer for pending photo uploads.
       const pendingPhotosCount = await SyncEngineRepository.count(
         'sync_queue',
         "entity_type IN ('VISIT_PHOTO', 'ATTACHMENT') AND status IN ('PENDING', 'IN_PROGRESS') AND (json_extract(payload_json, '$.visitId') = ? OR json_extract(payload_json, '$.taskId') = ?)",
@@ -204,11 +191,27 @@ class FormUploaderClass {
       );
     }
 
-    const response = await ApiClient.post<{ success: boolean }>(
-      endpointMap[formType](taskId),
-      payload,
-      idempotencyHeaders(operation.operationId),
-    );
+    let response: { success: boolean };
+    try {
+      response = await ApiClient.post<{ success: boolean }>(
+        endpointMap[formType](taskId),
+        payload,
+        idempotencyHeaders(operation.operationId),
+      );
+    } catch (uploadError: unknown) {
+      const axiosErr = uploadError as { response?: { status?: number; data?: { error?: { code?: string } } } };
+      const status = axiosErr?.response?.status;
+      const code = axiosErr?.response?.data?.error?.code;
+
+      // 409: Form already submitted — treat as success (resubmission or duplicate)
+      if (status === 409) {
+        Logger.info(TAG, `Form 409 for ${taskId}: already submitted, marking as success`);
+        await this.updateLocalSubmissionState(localTaskId, 'success', null, true);
+        return { outcome: 'SUCCESS' };
+      }
+
+      throw uploadError;
+    }
 
     if (!response.success) {
       await this.updateLocalSubmissionState(localTaskId, 'failed', 'Form upload returned failure');
@@ -226,10 +229,7 @@ class FormUploaderClass {
         "UPDATE form_submissions SET sync_status = 'SYNCED', status = 'SYNCED' WHERE id = ?",
         [operation.entityId],
       );
-      await SyncEngineRepository.execute(
-        'DELETE FROM key_value_store WHERE key = ?',
-        [`auto_save_${localTaskId || taskId}`],
-      );
+      // Don't delete autosave — keep for 7 days so user can resubmit if needed
     });
 
     // Cleanup photos only after database has been updated successfully

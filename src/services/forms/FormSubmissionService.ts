@@ -63,7 +63,6 @@ class FormSubmissionServiceClass {
       formData: {
         ...formValues,
         remarks,
-        submittedAt: new Date().toISOString(),
       },
       verificationOutcome: selectedOutcome,
     });

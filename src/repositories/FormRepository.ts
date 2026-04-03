@@ -45,6 +45,40 @@ class FormRepositoryClass {
     );
   }
 
+  async getSubmissionSyncStatus(taskId: string): Promise<{ status: string; syncStatus: string; syncError?: string } | null> {
+    // Check form_submissions table first
+    const rows = await DatabaseService.query<{ status: string; sync_status: string; sync_error: string | null }>(
+      `SELECT status, sync_status, sync_error FROM form_submissions WHERE task_id = ? ORDER BY submitted_at DESC LIMIT 1`,
+      [taskId],
+    );
+    if (!rows[0]) return null;
+
+    // If form_submissions says SYNCED, trust it
+    if (rows[0].sync_status === 'SYNCED') {
+      return { status: rows[0].status, syncStatus: 'SYNCED' };
+    }
+
+    // Check sync_queue for failed FORM_SUBMISSION items for this task
+    const failedQueue = await DatabaseService.query<{ status: string; error: string | null }>(
+      `SELECT status, error FROM sync_queue WHERE entity_type = 'FORM_SUBMISSION' AND json_extract(payload_json, '$.localTaskId') = ? ORDER BY created_at DESC LIMIT 1`,
+      [taskId],
+    );
+
+    if (failedQueue[0]) {
+      if (failedQueue[0].status === 'FAILED') {
+        return { status: 'FAILED', syncStatus: 'FAILED', syncError: failedQueue[0].error || 'Upload failed' };
+      }
+      if (failedQueue[0].status === 'PENDING' || failedQueue[0].status === 'IN_PROGRESS') {
+        return { status: 'PENDING', syncStatus: 'PENDING' };
+      }
+      if (failedQueue[0].status === 'COMPLETED') {
+        return { status: 'SYNCED', syncStatus: 'SYNCED' };
+      }
+    }
+
+    return { status: rows[0].status, syncStatus: rows[0].sync_status, syncError: rows[0].sync_error || undefined };
+  }
+
   async getCachedTemplate(verificationType: string, outcome: string) {
     const rows = await DatabaseService.query<any>(
       `SELECT sections_json, name, description

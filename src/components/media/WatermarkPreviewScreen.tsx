@@ -15,6 +15,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import RNFS from 'react-native-fs';
 import { CameraService } from '../../services/CameraService';
 import { LocationService } from '../../services/LocationService';
+import { WatermarkReStampQueue } from '../../services/WatermarkReStampQueue';
 
 type PreviewLocation = {
   lat: number;
@@ -79,6 +80,8 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isLocating, setIsLocating] = useState(true);
+  const [isAddressLoading, setIsAddressLoading] = useState(true);
+  const addressReadyRef = useRef(false);
   const [location, setLocation] = useState<PreviewLocation | null>(null);
   const [address, setAddress] = useState<string | null>(null);
   const [timestamp, setTimestamp] = useState('');
@@ -111,23 +114,34 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
     const loadLocation = async () => {
       setIsLocating(true);
 
-      const fast = await resolveLocation(false, 3500, 30000);
+      // Fast GPS for immediate coordinate preview only
+      const fast = await resolveLocation(false, 3000, 10000);
       if (!active) return;
       if (fast) setLocation(fast);
 
-      const precise = await resolveLocation(true, 10000, 5000);
+      // Precise GPS — this is the ONLY source for address
+      const precise = await resolveLocation(true, 15000, 5000);
       if (!active) return;
-      if (precise) {
-        setLocation(precise);
-      }
+      if (precise) setLocation(precise);
       setIsLocating(false);
 
-      // Reverse geocode the best available location
-      const bestLoc = precise || fast;
-      if (bestLoc && active) {
-        LocationService.getAddressFromCoordinates(bestLoc.lat, bestLoc.lng)
-          .then(addr => { if (active) setAddress(addr); })
-          .catch(() => {});
+      // Fetch address ONLY from PRECISE GPS — never from fast
+      if (precise && active) {
+        LocationService.getAddressFromCoordinates(precise.lat, precise.lng)
+          .then(addr => {
+            if (active) {
+              setAddress(addr);
+              setIsAddressLoading(false);
+              addressReadyRef.current = true;
+            }
+          })
+          .catch(() => {
+            if (active) { setIsAddressLoading(false); addressReadyRef.current = true; }
+          });
+      } else {
+        // Precise GPS failed — no address, just coordinates
+        setIsAddressLoading(false);
+        addressReadyRef.current = true;
       }
     };
 
@@ -141,6 +155,8 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
   const handleSave = async () => {
     try {
       setIsSaving(true);
+
+      // Capture watermark INSTANTLY with whatever data is available right now
       const uri = await captureRef(viewShotRef, {
         format: 'jpg',
         quality: 0.85,
@@ -159,9 +175,38 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
       });
 
       if (savedPhoto) {
-        if (photoPath !== cleanPath && await RNFS.exists(photoPath)) {
-          await RNFS.unlink(photoPath);
+        // If address hasn't loaded yet, queue a background re-stamp
+        // The WatermarkReStamper (in App.tsx) will fetch address, re-render watermark, and overwrite the file
+        if (!addressReadyRef.current && location) {
+          console.warn('[RESTAMP_QUEUE] Enqueueing re-stamp:', { attachmentId: savedPhoto.id, rawPhotoPath: photoPath, savedPhotoPath: savedPhoto.localPath, addressReady: addressReadyRef.current });
+          WatermarkReStampQueue.enqueue({
+            attachmentId: savedPhoto.id,
+            rawPhotoPath: photoPath,  // Keep original camera photo for re-stamping
+            savedPhotoPath: savedPhoto.localPath,
+            taskId,
+            componentType,
+            location: {
+              lat: location.lat,
+              lng: location.lng,
+              alt: location.alt,
+              spd: location.spd,
+              accuracy: location.accuracy,
+              heading: location.heading,
+              timestamp: location.timestamp,
+            },
+            taskMeta: meta,
+            dateStr,
+            timeStr,
+            queuedAt: Date.now(),
+          });
+          // Don't delete raw photo — needed for re-stamp
+        } else {
+          // Address already on watermark — safe to delete raw photo
+          if (photoPath !== cleanPath && await RNFS.exists(photoPath)) {
+            await RNFS.unlink(photoPath);
+          }
         }
+
         navigation.pop(2);
       } else {
         throw new Error('Database insertion failed.');
@@ -214,54 +259,14 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
             </View>
 
             {/* Row 2: Address */}
-            {address ? (
-              <View style={styles.dataRow}>
-                <Icon name="location-outline" size={11} color="#f59e0b" />
-                <Text style={styles.addressText} numberOfLines={2}>
-                  {address}
-                </Text>
-              </View>
-            ) : isLocating ? null : null}
+            <View style={styles.dataRow}>
+              <Icon name="location-outline" size={11} color="#f59e0b" />
+              <Text style={styles.addressText} numberOfLines={2}>
+                {address || (isAddressLoading ? 'Fetching address...' : 'Address unavailable')}
+              </Text>
+            </View>
 
-            {/* Row 3: Task Info */}
-            {(meta.taskNumber || meta.caseId) && (
-              <View style={styles.dataRow}>
-                <Icon name="document-text-outline" size={11} color="#94a3b8" />
-                <Text style={styles.dataValue} numberOfLines={1}>
-                  {meta.taskNumber || `Case #${meta.caseId}`}
-                </Text>
-              </View>
-            )}
-
-            {/* Row 3: Client & Product */}
-            {(meta.clientName || meta.productName) && (
-              <View style={styles.dataRow}>
-                <Icon name="business-outline" size={11} color="#94a3b8" />
-                <Text style={styles.dataValue} numberOfLines={1}>
-                  {[meta.clientName, meta.productName].filter(Boolean).join(' \u2022 ')}
-                </Text>
-              </View>
-            )}
-
-            {/* Row 4: Customer Name */}
-            {meta.customerName && (
-              <View style={styles.dataRow}>
-                <Icon name="person-outline" size={11} color="#94a3b8" />
-                <Text style={styles.dataValue} numberOfLines={1}>
-                  {meta.customerName}
-                </Text>
-              </View>
-            )}
-
-            {/* Row 5: Verification Type */}
-            {meta.verificationType && (
-              <View style={styles.dataRow}>
-                <Icon name="shield-checkmark-outline" size={11} color="#94a3b8" />
-                <Text style={styles.dataValue} numberOfLines={1}>
-                  {meta.verificationType}
-                </Text>
-              </View>
-            )}
+            {/* Task metadata removed — only GPS, address, date/time, altitude shown */}
 
             {/* Row 6: Altitude / Speed / Compass */}
             {location && (
