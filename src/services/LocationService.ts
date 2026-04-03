@@ -299,9 +299,10 @@ class LocationServiceClass {
   async getAddressFromCoordinates(lat: number, lon: number): Promise<string> {
     const GOOGLE_API_KEY = 'AIzaSyDjCfPbgYjzM8XyzJxQp9MVDdNj-i7FOTE';
     try {
-      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${GOOGLE_API_KEY}&language=en&result_type=street_address|sublocality|locality|administrative_area_level_2`;
+      // No result_type filter — let Google return the best match at any level
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${GOOGLE_API_KEY}&language=en`;
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 6000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
       const response = await fetch(url, { signal: controller.signal });
       clearTimeout(timeoutId);

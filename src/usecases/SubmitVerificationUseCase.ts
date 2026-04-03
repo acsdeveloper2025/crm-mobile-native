@@ -2,12 +2,12 @@ import { v4 as uuidv4 } from 'uuid';
 import { AttachmentRepository } from '../repositories/AttachmentRepository';
 import { DatabaseService } from '../database/DatabaseService';
 import { FormRepository } from '../repositories/FormRepository';
-import { LocationRepository } from '../repositories/LocationRepository';
+// LocationRepository removed — GPS comes from photo attachments only
 import { SyncQueueRepository } from '../repositories/SyncQueueRepository';
 import { TaskRepository } from '../repositories/TaskRepository';
 import { SyncGateway } from '../services/SyncGateway';
 import { AuthService } from '../services/AuthService';
-import { LocationService } from '../services/LocationService';
+// LocationService removed — no separate location capture needed
 import { NetworkService } from '../services/NetworkService';
 import { StorageService } from '../services/StorageService';
 import { SyncService } from '../services/SyncService';
@@ -121,27 +121,16 @@ export const SubmitVerificationUseCase = {
       };
     });
 
-    // Location comes from photo captures (recorded in locations table via CameraService).
-    // Fall back to photo GPS data if location record is missing.
-    let geoLocation = await LocationRepository.getLatestForTask(task.id);
-    if (!geoLocation) {
-      const latestGeoPhoto = attachments.find(a => a.latitude != null && a.longitude != null);
-      if (latestGeoPhoto) {
-        geoLocation = toAttachmentGeoLocation(latestGeoPhoto)!;
-        // Also record it so the backend gets a location via sync
-        await LocationService.recordLocation(task.id, 'CASE_COMPLETE').catch(() => {});
-      } else {
-        throw new Error('No GPS data found in photos. Please ensure location services are enabled when capturing photos.');
-      }
-    }
+    // Use GPS from captured photos — photos are the source of truth for location
+    const latestGeoPhoto = attachments.find(a => a.latitude != null && a.longitude != null);
+    const geoLocation = latestGeoPhoto
+      ? toAttachmentGeoLocation(latestGeoPhoto)!
+      : { latitude: 0, longitude: 0, accuracy: 0, timestamp: now };
 
     const deviceInfo = await AuthService.getDeviceInfo();
     const backendFormType = toBackendFormTypeKey(taskFormType) as MobileFormSubmissionRequest['formType'];
-    const mergedFormData = {
-      ...input.formData,
-      outcome: input.verificationOutcome || undefined,
-      verificationType: backendFormType,
-    };
+    // Only send form field values — outcome and verificationType are sent as separate top-level fields
+    const mergedFormData = { ...input.formData };
     const persistedFormData = {
       ...parseFormData(task.formDataJson),
       ...mergedFormData,
@@ -235,7 +224,7 @@ export const SubmitVerificationUseCase = {
       }
 
       await SyncGateway.enqueueFormSubmission(submissionId, submissionPayload);
-      await StorageService.remove(`auto_save_${task.id}`);
+      // Don't delete autosave here — FormUploader deletes it only after successful backend sync
     });
 
     try {

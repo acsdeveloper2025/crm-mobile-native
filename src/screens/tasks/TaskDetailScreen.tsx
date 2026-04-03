@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  ScrollView, 
-  TouchableOpacity, 
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
   ActivityIndicator,
-  Alert 
+  Alert
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -15,6 +15,8 @@ import { useTheme } from '../../context/ThemeContext';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { TaskTimeline } from '../../components/tasks/TaskTimeline';
 import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
+import { FormRepository } from '../../repositories/FormRepository';
+import { SyncService } from '../../services/SyncService';
 
 export const TaskDetailScreen = ({ route, navigation }: any) => {
   const { theme } = useTheme();
@@ -22,6 +24,13 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
   const { taskId } = route.params || {};
   const { task, isLoading, error, refetch } = useTask(taskId);
   const [isActionLoading, setIsActionLoading] = useState(false);
+  const [submissionSync, setSubmissionSync] = useState<{ status: string; syncStatus: string; syncError?: string } | null>(null);
+
+  useEffect(() => {
+    if (task?.status === 'COMPLETED' && task?.id) {
+      FormRepository.getSubmissionSyncStatus(task.id).then(setSubmissionSync).catch(() => {});
+    }
+  }, [task?.status, task?.id]);
 
   // Helper to map status to UI colors
   const getStatusColor = (status: string) => {
@@ -52,6 +61,51 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
 
   const handleFillForm = () => {
     navigation.navigate('VerificationForm', { taskId: task?.id });
+  };
+
+  const handleResubmit = async () => {
+    if (!task) return;
+    setIsActionLoading(true);
+    try {
+      const { SyncEngineRepository } = await import('../../repositories/SyncEngineRepository');
+
+      // Check if there are failed sync items to re-queue
+      const failedItems = await SyncEngineRepository.query<{ id: string }>(
+        "SELECT id FROM sync_queue WHERE status = 'FAILED' AND (json_extract(payload_json, '$.localTaskId') = ? OR json_extract(payload_json, '$.taskId') = ?)",
+        [task.id, task.verificationTaskId || task.id],
+      );
+
+      if (failedItems.length > 0) {
+        // Re-queue failed items and sync
+        await SyncEngineRepository.execute(
+          "UPDATE sync_queue SET status = 'PENDING', error = NULL, attempts = 0 WHERE status = 'FAILED' AND (json_extract(payload_json, '$.localTaskId') = ? OR json_extract(payload_json, '$.taskId') = ?)",
+          [task.id, task.verificationTaskId || task.id],
+        );
+        await SyncService.performSync();
+        const newStatus = await FormRepository.getSubmissionSyncStatus(task.id);
+        setSubmissionSync(newStatus);
+        if (newStatus?.syncStatus === 'SYNCED') {
+          Alert.alert('Success', 'Form resubmitted successfully.');
+        } else {
+          Alert.alert('Resubmitted', 'Form has been queued for upload.');
+        }
+      } else {
+        // No local data to resubmit — open form to fill and submit again
+        Alert.alert(
+          'No Local Data',
+          'No saved submission found for this task. Would you like to fill the form again?',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Form', onPress: () => navigation.navigate('VerificationForm', { taskId: task.id }) },
+          ],
+        );
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : JSON.stringify(err);
+      Alert.alert('Error', msg);
+    } finally {
+      setIsActionLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -237,9 +291,49 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
           )}
 
           {task.status === 'COMPLETED' && (
-            <View style={[styles.completedBanner, { backgroundColor: theme.colors.success + '10', borderColor: theme.colors.success }]}>
-              <Icon name="checkmark-circle" size={24} color={theme.colors.success} />
-              <Text style={[styles.completedText, { color: theme.colors.success }]}>Verification Completed</Text>
+            <View>
+              {/* Sync Status Banner */}
+              {submissionSync?.syncStatus === 'SYNCED' ? (
+                <View style={[styles.completedBanner, { backgroundColor: theme.colors.success + '10', borderColor: theme.colors.success }]}>
+                  <Icon name="checkmark-circle" size={24} color={theme.colors.success} />
+                  <Text style={[styles.completedText, { color: theme.colors.success }]}>Submitted to Server</Text>
+                </View>
+              ) : submissionSync?.syncStatus === 'PENDING' ? (
+                <View style={[styles.completedBanner, { backgroundColor: theme.colors.warning + '15', borderColor: theme.colors.warning }]}>
+                  <Icon name="cloud-upload-outline" size={24} color={theme.colors.warning} />
+                  <Text style={[styles.completedText, { color: theme.colors.warning }]}>Pending Upload</Text>
+                </View>
+              ) : submissionSync ? (
+                <View style={[styles.completedBanner, { backgroundColor: theme.colors.danger + '10', borderColor: theme.colors.danger }]}>
+                  <Icon name="alert-circle" size={24} color={theme.colors.danger} />
+                  <Text style={[styles.completedText, { color: theme.colors.danger }]}>Upload Failed</Text>
+                </View>
+              ) : (
+                <View style={[styles.completedBanner, { backgroundColor: theme.colors.textMuted + '10', borderColor: theme.colors.textMuted }]}>
+                  <Icon name="help-circle-outline" size={24} color={theme.colors.textMuted} />
+                  <Text style={[styles.completedText, { color: theme.colors.textMuted }]}>No Submission Found</Text>
+                </View>
+              )}
+
+              {/* Resubmit button — show when sync failed, pending, or no submission found */}
+              {(!submissionSync || submissionSync.syncStatus !== 'SYNCED') && (
+                <TouchableOpacity
+                  style={[styles.primaryButton, { backgroundColor: theme.colors.warning, marginTop: 10 }, isActionLoading && { opacity: 0.7 }]}
+                  onPress={handleResubmit}
+                  disabled={isActionLoading}>
+                  {isActionLoading ? (
+                    <>
+                      <ActivityIndicator color={theme.colors.surface} />
+                      <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Resubmitting...</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Icon name="refresh-outline" size={20} color={theme.colors.surface} />
+                      <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Resubmit</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>

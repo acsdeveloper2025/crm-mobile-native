@@ -239,12 +239,15 @@ export const TaskListScreen = ({
       navigation.navigate('VerificationForm', { taskId: task.id });
       return;
     }
-    if (
-      task.status === 'ASSIGNED' ||
-      task.status === 'COMPLETED' ||
-      task.status === 'REVOKED' ||
-      task.is_saved === 1
-    ) {
+    if (task.status === 'COMPLETED') {
+      navigation.navigate('TaskDetail', { taskId: task.id });
+      return;
+    }
+    if (task.status === 'ASSIGNED' || task.status === 'REVOKED') {
+      return;
+    }
+    if (task.is_saved === 1) {
+      navigation.navigate('VerificationForm', { taskId: task.id });
       return;
     }
     navigation.navigate('TaskDetail', { taskId: task.id });

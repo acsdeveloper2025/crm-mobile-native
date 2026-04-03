@@ -186,37 +186,7 @@ class CameraServiceClass {
         });
       });
 
-      // Record photo's GPS in the locations table so the backend has a
-      // location record for this task (required for form submission).
-      // Uses the exact same GPS that was stamped on the watermark photo.
-      if (resolvedLocation && resolvedLocation.latitude && resolvedLocation.longitude) {
-        const locId = uuidv4();
-        const { LocationRepository } = await import('../repositories/LocationRepository');
-        await LocationRepository.create({
-          id: locId,
-          latitude: resolvedLocation.latitude,
-          longitude: resolvedLocation.longitude,
-          accuracy: resolvedLocation.accuracy ?? 0,
-          timestamp: resolvedLocation.timestamp || timestamp,
-          source: 'GPS',
-          taskId,
-          activityType: 'CASE_PROGRESS',
-        }).catch(err => Logger.warn(TAG, 'Failed to record photo location in DB', err));
-
-        await SyncGateway.enqueueLocation(
-          locId,
-          {
-            latitude: resolvedLocation.latitude,
-            longitude: resolvedLocation.longitude,
-            accuracy: resolvedLocation.accuracy ?? 0,
-            timestamp: resolvedLocation.timestamp || timestamp,
-            source: 'GPS',
-            taskId: backendTaskId,
-            activityType: 'CASE_PROGRESS',
-          },
-          SYNC_PRIORITY.CRITICAL,
-        ).catch(err => Logger.warn(TAG, 'Failed to enqueue photo location sync', err));
-      }
+      // GPS is captured in photo watermark — no separate location sync needed
 
       // Queue for sync (outside transaction — enqueue has its own persistence)
       await SyncGateway.enqueueAttachment(

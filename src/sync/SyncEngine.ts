@@ -29,6 +29,7 @@ export interface SyncResult {
 
 class SyncEngineClass {
   private syncInProgress = false;
+  private activeSyncPromise: Promise<SyncResult> | null = null;
 
   startPeriodicSync(intervalMs: number = 5 * 60 * 1000): void {
     SyncWatchdogService.recoverIfStalled(WATCHDOG_MAX_TIMEOUT_MS)
@@ -86,15 +87,10 @@ class SyncEngineClass {
   }
 
   async performSync(): Promise<SyncResult> {
-    if (this.syncInProgress) {
-      return {
-        success: false,
-        uploadedStatusItems: 0,
-        uploadedItems: 0,
-        downloadedTasks: 0,
-        conflicts: 0,
-        errors: ['Sync in progress'],
-      };
+    // If sync is already running, wait for it instead of failing immediately
+    if (this.syncInProgress && this.activeSyncPromise) {
+      Logger.info(TAG, 'Sync already in progress, waiting for completion...');
+      return this.activeSyncPromise;
     }
 
     const backendReachable = await SyncStateService.isBackendReachable();
@@ -111,6 +107,15 @@ class SyncEngineClass {
     }
 
     this.syncInProgress = true;
+    this.activeSyncPromise = this._doSync();
+    try {
+      return await this.activeSyncPromise;
+    } finally {
+      this.activeSyncPromise = null;
+    }
+  }
+
+  private async _doSync(): Promise<SyncResult> {
     const startedAt = Date.now();
     const initialQueueLength = await SyncQueue.getPendingCount();
     MobileTelemetryService.trackQueueBacklog(initialQueueLength, 'sync_cycle_start');
