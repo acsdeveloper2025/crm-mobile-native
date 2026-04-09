@@ -154,20 +154,20 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
         </View>
 
         {/* Revoke Banner */}
-        {(task.is_revoked === 1 || task.status === 'REVOKED') && (
+        {(task.isRevoked === 1 || task.status === 'REVOKED') && (
           <View style={[styles.sectionCard, styles.revokedBannerContainer]}>
             <View style={styles.revokedBannerHeader}>
               <Icon name="alert-circle" size={24} color="#DC2626" style={styles.icon} />
               <View style={styles.flex1}>
                 <Text style={[styles.sectionTitle, styles.revokedBannerTitle]}>Task Revoked</Text>
-                {task.revoke_reason ? (
-                  <Text style={[styles.detailValue, styles.revokedBannerText]}>Reason: {task.revoke_reason}</Text>
+                {task.revokeReason ? (
+                  <Text style={[styles.detailValue, styles.revokedBannerText]}>Reason: {task.revokeReason}</Text>
                 ) : null}
-                {task.revoked_by_name ? (
-                  <Text style={[styles.detailLabel, styles.revokedBannerSubtext]}>By: {task.revoked_by_name}</Text>
+                {task.revokedByName ? (
+                  <Text style={[styles.detailLabel, styles.revokedBannerSubtext]}>By: {task.revokedByName}</Text>
                 ) : null}
-                {task.revoked_at ? (
-                  <Text style={[styles.detailLabel, styles.revokedBannerSubtext]}>At: {new Date(task.revoked_at).toLocaleString()}</Text>
+                {task.revokedAt ? (
+                  <Text style={[styles.detailLabel, styles.revokedBannerSubtext]}>At: {new Date(task.revokedAt).toLocaleString()}</Text>
                 ) : null}
               </View>
             </View>
@@ -249,7 +249,7 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
       </ScrollView>
 
       {/* Sticky Action Footer */}
-      {(task.is_revoked !== 1) && (
+      {(task.isRevoked !== 1) && (
         <View style={[
           styles.footer, 
           { 

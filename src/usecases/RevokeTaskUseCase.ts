@@ -27,7 +27,7 @@ export const RevokeTaskUseCase = {
       resolveBackendTaskId(task.id, task.verificationTaskId),
       task.id,
       'REVOKED',
-      { reason, revoke_reason: reason },
+      { reason, revokeReason: reason },
       SYNC_PRIORITY.CRITICAL,
     );
   },

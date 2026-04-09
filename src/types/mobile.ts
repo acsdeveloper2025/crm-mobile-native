@@ -44,17 +44,17 @@ export interface LocalTask {
 
   formDataJson?: string; // JSON blob of form data
 
-  // Revoke tracking (snake_case matches SQLite columns via SELECT *)
-  is_revoked?: number; // 0 or 1
-  revoked_at?: string;
-  revoked_by_name?: string;
-  revoke_reason?: string;
+  // Revoke tracking
+  isRevoked?: number; // 0 or 1
+  revokedAt?: string;
+  revokedByName?: string;
+  revokeReason?: string;
 
   // Status timestamps
-  in_progress_at?: string;
-  saved_at?: string;
-  is_saved?: number; // 0 or 1
-  attachment_count?: number;
+  inProgressAt?: string;
+  savedAt?: string;
+  isSaved?: number; // 0 or 1
+  attachmentCount?: number;
 
   // Local sync tracking
   syncStatus: 'SYNCED' | 'PENDING' | 'CONFLICT';

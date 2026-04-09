@@ -82,7 +82,7 @@ export const toSyncOperation = (item: SyncQueueItem): SyncOperation => {
   const operationMeta = toRecord(rawPayload._operation);
   const inferredType = inferLegacyType(item, rawPayload);
   const operationType = (asString(operationMeta.type) as SyncOperationType | null) || inferredType;
-  const operationId = asString(operationMeta.operation_id) || item.id;
+  const operationId = asString(operationMeta.operationId) || item.id;
   const createdAt = asString(operationMeta.created_at) || item.createdAt;
   const priority = Number(operationMeta.priority);
   const operationPriority = Number.isFinite(priority)

@@ -1,5 +1,6 @@
 import { DatabaseService } from '../database/DatabaseService';
 import type { LocalTask } from '../types/mobile';
+import { mapSqliteTask } from '../utils/mapSqliteTask';
 
 class TaskDetailProjectionClass {
   async getTaskById(taskId: string): Promise<LocalTask | null> {
@@ -12,7 +13,7 @@ class TaskDetailProjectionClass {
       return null;
     }
     try {
-      return JSON.parse(raw) as LocalTask;
+      return mapSqliteTask(JSON.parse(raw) as never);
     } catch {
       return null;
     }

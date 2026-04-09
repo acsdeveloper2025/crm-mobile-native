@@ -42,7 +42,7 @@ class FormSubmissionServiceClass {
     let photoCount = 0;
     let selfieCount = 0;
     attachments.forEach(row => {
-      const ct = (row as unknown as Record<string, unknown>).component_type ?? row.componentType;
+      const ct = (row as unknown as Record<string, unknown>).componentType ?? row.componentType;
       if (ct === 'photo') photoCount += 1;
       if (ct === 'selfie') selfieCount += 1;
     });
