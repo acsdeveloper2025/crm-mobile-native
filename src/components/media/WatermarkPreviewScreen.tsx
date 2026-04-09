@@ -84,7 +84,7 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
   const addressReadyRef = useRef(false);
   const [location, setLocation] = useState<PreviewLocation | null>(null);
   const [address, setAddress] = useState<string | null>(null);
-  const [timestamp, setTimestamp] = useState('');
+  const [_timestamp, setTimestamp] = useState('');
   const [dateStr, setDateStr] = useState('');
   const [timeStr, setTimeStr] = useState('');
 

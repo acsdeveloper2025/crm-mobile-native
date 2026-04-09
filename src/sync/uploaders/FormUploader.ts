@@ -199,9 +199,8 @@ class FormUploaderClass {
         idempotencyHeaders(operation.operationId),
       );
     } catch (uploadError: unknown) {
-      const axiosErr = uploadError as { response?: { status?: number; data?: { error?: { code?: string } } } };
+      const axiosErr = uploadError as { response?: { status?: number } };
       const status = axiosErr?.response?.status;
-      const code = axiosErr?.response?.data?.error?.code;
 
       // 409: Form already submitted — treat as success (resubmission or duplicate)
       if (status === 409) {

@@ -12,8 +12,7 @@ import {
   Linking,
 } from 'react-native';
 import RNFS from 'react-native-fs';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useFocusEffect, useNavigation } from '@react-navigation/native';
+import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 import { ScreenHeader } from '../../components/ScreenHeader';
@@ -24,8 +23,6 @@ import {
 
 export const TaskAttachmentsScreen = ({ route }: any) => {
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
   const { taskId, taskNumber } = route.params || {};
   const [remoteAttachments, setRemoteAttachments] = useState<RemoteTaskAttachment[]>([]);
   const [isRemoteLoading, setIsRemoteLoading] = useState(true);
