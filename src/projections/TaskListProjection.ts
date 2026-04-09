@@ -2,6 +2,7 @@ import { DatabaseService } from '../database/DatabaseService';
 import { ProjectionUpdater } from './ProjectionUpdater';
 import { Logger } from '../utils/logger';
 import type { LocalTask } from '../types/mobile';
+import { mapSqliteTasks } from '../utils/mapSqliteTask';
 
 const TAG = 'TaskListProjection';
 
@@ -84,7 +85,8 @@ class TaskListProjectionClass {
       END,
       assigned_at DESC`;
 
-    const projected = await DatabaseService.query<LocalTask>(sql, params);
+    const rawProjected = await DatabaseService.query<Record<string, unknown>>(sql, params);
+    const projected = mapSqliteTasks(rawProjected as never[]);
     const filtered = projected.filter(task => this.matchesSearch(task, searchQuery));
     if (filtered.length > 0 || (searchQuery?.trim() ?? '').length > 0) {
       return filtered;
@@ -100,8 +102,8 @@ class TaskListProjectionClass {
       `Projection stale for filter ${statusFilter || 'ALL'}, rebuilding projections`,
     );
     await ProjectionUpdater.rebuildAll();
-    const refreshed = await DatabaseService.query<LocalTask>(sql, params);
-    return refreshed.filter(task => this.matchesSearch(task, searchQuery));
+    const rawRefreshed = await DatabaseService.query<Record<string, unknown>>(sql, params);
+    return mapSqliteTasks(rawRefreshed as never[]).filter(task => this.matchesSearch(task, searchQuery));
   }
 
   async getCounts(): Promise<{

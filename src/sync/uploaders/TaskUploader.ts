@@ -74,7 +74,7 @@ class TaskUploaderClass {
         ENDPOINTS.TASKS.REVOKE(operation.entityId),
         {
           action: 'revoke',
-          reason: payload.reason || payload.revoke_reason || null,
+          reason: payload.reason || payload.revokeReason || null,
         },
         idempotencyHeaders(operation.operationId),
       );

@@ -5,6 +5,7 @@ import { TaskDetailProjection } from '../projections/TaskDetailProjection';
 import { TaskListProjection } from '../projections/TaskListProjection';
 import type { LocalTask } from '../types/mobile';
 import type { MobileCaseResponse } from '../types/api';
+import { mapSqliteTask } from '../utils/mapSqliteTask';
 
 export interface DashboardStats {
   assignedCount: number;
@@ -76,8 +77,8 @@ class TaskRepositoryClass {
     if (projected) {
       return projected;
     }
-    const rows = await DatabaseService.query<LocalTask>('SELECT * FROM tasks WHERE id = ? LIMIT 1', [taskId]);
-    return rows[0] || null;
+    const rows = await DatabaseService.query<Record<string, unknown>>('SELECT * FROM tasks WHERE id = ? LIMIT 1', [taskId]);
+    return rows[0] ? mapSqliteTask(rows[0] as never) : null;
   }
 
   async getTaskCoordinates(taskId: string): Promise<{ latitude: number | null; longitude: number | null } | null> {

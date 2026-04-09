@@ -362,7 +362,7 @@ class FormTemplateServiceClass {
     if (tplData) {
       const parsedSections = (() => {
         try {
-          const parsed = JSON.parse(tplData.sections_json);
+          const parsed = JSON.parse(tplData.sectionsJson);
           return Array.isArray(parsed) ? parsed : [];
         } catch {
           return [];

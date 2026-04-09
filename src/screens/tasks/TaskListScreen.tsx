@@ -246,7 +246,7 @@ export const TaskListScreen = ({
     if (task.status === 'ASSIGNED' || task.status === 'REVOKED') {
       return;
     }
-    if (task.is_saved === 1) {
+    if (task.isSaved === 1) {
       navigation.navigate('VerificationForm', { taskId: task.id });
       return;
     }

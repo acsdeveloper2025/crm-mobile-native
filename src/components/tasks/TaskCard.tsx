@@ -77,17 +77,17 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
   };
 
   const getDynamicTimestamp = () => {
-    if (task.is_revoked && task.revoked_at) {
-      return `Revoked on ${new Date(task.revoked_at).toLocaleString()}`;
+    if (task.isRevoked && task.revokedAt) {
+      return `Revoked on ${new Date(task.revokedAt).toLocaleString()}`;
     }
     if (task.status === 'COMPLETED' && task.completedAt) {
       return `Completed on ${new Date(task.completedAt).toLocaleString()}`;
     }
-    if (task.is_saved && task.saved_at) {
-      return `Saved on ${new Date(task.saved_at).toLocaleString()}`;
+    if (task.isSaved && task.savedAt) {
+      return `Saved on ${new Date(task.savedAt).toLocaleString()}`;
     }
-    if (task.status === 'IN_PROGRESS' && task.in_progress_at) {
-      return `Started on ${new Date(task.in_progress_at).toLocaleString()}`;
+    if (task.status === 'IN_PROGRESS' && task.inProgressAt) {
+      return `Started on ${new Date(task.inProgressAt).toLocaleString()}`;
     }
     if (task.assignedAt) {
       return `Assigned on ${new Date(task.assignedAt).toLocaleString()}`;
@@ -125,7 +125,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         <Text style={[styles.verificationType, { color: theme.colors.primary }]}>
           {task.verificationTypeName || task.verificationType || 'VERIFICATION'}
         </Text>
-        {task.is_saved === 1 && (
+        {task.isSaved === 1 && (
           <View style={[styles.savedBadge, { backgroundColor: theme.colors.warning + '20', borderColor: theme.colors.warning + '50' }]}>
             <Text style={[styles.savedBadgeText, { color: theme.colors.warning }]}>Draft Saved</Text>
           </View>
@@ -146,7 +146,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
 
       <Text style={[styles.timestamp, { color: theme.colors.textMuted }]}>{getDynamicTimestamp()}</Text>
       
-      {task.is_revoked === 1 && (
+      {task.isRevoked === 1 && (
         <View style={[styles.revokedBanner, { backgroundColor: theme.colors.danger + '20' }]}>
           <Text style={[styles.revokedBannerText, { color: theme.colors.danger }]}>REVOKED</Text>
         </View>
@@ -154,7 +154,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
 
       <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
         <View style={styles.actionButtons}>
-          {(task.status === 'ASSIGNED' && task.is_revoked !== 1) && (
+          {(task.status === 'ASSIGNED' && task.isRevoked !== 1) && (
             <>
               <TouchableOpacity style={styles.iconButton} onPress={handleAccept} disabled={isAccepting}>
                 {isAccepting ? (
@@ -181,9 +181,9 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
 
           <TouchableOpacity style={styles.iconButton} onPress={() => (onAttachmentsPress ? onAttachmentsPress(task) : onPress(task))}>
             <Icon name="attach" size={28} color={theme.colors.primary} />
-            {(task.attachment_count || 0)> 0 && (
+            {(task.attachmentCount || 0)> 0 && (
               <View style={[styles.badgeContainer, { backgroundColor: theme.colors.danger }]}>
-                <Text style={styles.badgeText}>{task.attachment_count}</Text>
+                <Text style={styles.badgeText}>{task.attachmentCount}</Text>
               </View>
             )}
             <Text style={[styles.actionLabel, { color: theme.colors.primary }]}>Attachments</Text>
@@ -233,14 +233,14 @@ const areEqual = (prev: TaskCardProps, next: TaskCardProps): boolean => {
   return (
     prevTask.id === nextTask.id &&
     prevTask.status === nextTask.status &&
-    prevTask.is_saved === nextTask.is_saved &&
-    prevTask.saved_at === nextTask.saved_at &&
-    prevTask.is_revoked === nextTask.is_revoked &&
-    prevTask.revoked_at === nextTask.revoked_at &&
+    prevTask.isSaved === nextTask.isSaved &&
+    prevTask.savedAt === nextTask.savedAt &&
+    prevTask.isRevoked === nextTask.isRevoked &&
+    prevTask.revokedAt === nextTask.revokedAt &&
     prevTask.completedAt === nextTask.completedAt &&
-    prevTask.in_progress_at === nextTask.in_progress_at &&
+    prevTask.inProgressAt === nextTask.inProgressAt &&
     prevTask.assignedAt === nextTask.assignedAt &&
-    prevTask.attachment_count === nextTask.attachment_count &&
+    prevTask.attachmentCount === nextTask.attachmentCount &&
     prevTask.priority === nextTask.priority &&
     prevTask.customerName === nextTask.customerName &&
     prevTask.addressStreet === nextTask.addressStreet &&
