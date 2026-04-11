@@ -7,7 +7,9 @@ const parseFormData = (raw?: string | null): Record<string, unknown> => {
   }
   try {
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : {};
+    return parsed && typeof parsed === 'object'
+      ? (parsed as Record<string, unknown>)
+      : {};
   } catch {
     return {};
   }
@@ -24,7 +26,8 @@ export const SaveDraftUseCase = {
       ...parseFormData(task.formDataJson),
       ...patch,
     };
-    const nextStatus = task.status === TaskStatus.Assigned ? TaskStatus.InProgress : task.status;
+    const nextStatus =
+      task.status === TaskStatus.Assigned ? TaskStatus.InProgress : task.status;
     await TaskRepository.updateFormData(taskId, nextFormData, nextStatus);
   },
 };

@@ -19,7 +19,9 @@ class TaskDetailProjectionClass {
     }
   }
 
-  async getCoordinates(taskId: string): Promise<{ latitude: number | null; longitude: number | null } | null> {
+  async getCoordinates(
+    taskId: string,
+  ): Promise<{ latitude: number | null; longitude: number | null } | null> {
     const rows = await DatabaseService.query<{ taskJson: string }>(
       'SELECT task_json FROM task_detail_projection WHERE id = ? LIMIT 1',
       [taskId],

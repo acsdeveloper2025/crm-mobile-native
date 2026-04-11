@@ -27,7 +27,9 @@ type AssignmentSyncTrigger = {
   taskId?: string | null;
   source: 'foreground' | 'opened' | 'initial' | 'backend-refresh' | 'queued';
 };
-type AssignmentSyncHandler = (trigger: AssignmentSyncTrigger) => Promise<void> | void;
+type AssignmentSyncHandler = (
+  trigger: AssignmentSyncTrigger,
+) => Promise<void> | void;
 
 class NotificationServiceImpl {
   private subscribers: Set<NotificationSubscriber> = new Set();
@@ -51,7 +53,9 @@ class NotificationServiceImpl {
       return;
     }
     try {
-      this.cache = this.sortNotifications(await NotificationRepository.listAll());
+      this.cache = this.sortNotifications(
+        await NotificationRepository.listAll(),
+      );
       this.loaded = true;
       this.notifySubscribers();
     } catch (e) {
@@ -68,7 +72,7 @@ class NotificationServiceImpl {
   }
 
   getUnreadCount(): number {
-    return this.cache.filter((n) => !n.isRead).length;
+    return this.cache.filter(n => !n.isRead).length;
   }
 
   subscribe(callback: NotificationSubscriber): () => void {
@@ -79,11 +83,15 @@ class NotificationServiceImpl {
 
   private notifySubscribers() {
     const data = [...this.cache];
-    this.subscribers.forEach((callback) => callback(data));
+    this.subscribers.forEach(callback => callback(data));
   }
 
-  private sortNotifications(notifications: NotificationData[]): NotificationData[] {
-    return [...notifications].sort((left, right) => right.timestamp.localeCompare(left.timestamp));
+  private sortNotifications(
+    notifications: NotificationData[],
+  ): NotificationData[] {
+    return [...notifications].sort((left, right) =>
+      right.timestamp.localeCompare(left.timestamp),
+    );
   }
 
   private replaceCache(notifications: NotificationData[]): void {
@@ -109,24 +117,38 @@ class NotificationServiceImpl {
   private markCacheAsRead(id: string): void {
     this.replaceCache(
       this.cache.map(notification =>
-        notification.id === id ? { ...notification, isRead: true } : notification,
+        notification.id === id
+          ? { ...notification, isRead: true }
+          : notification,
       ),
     );
   }
 
   private markAllCacheAsRead(): void {
-    this.replaceCache(this.cache.map(notification => ({ ...notification, isRead: true })));
+    this.replaceCache(
+      this.cache.map(notification => ({ ...notification, isRead: true })),
+    );
   }
 
-  private toNotificationPriority(priority: unknown): NotificationData['priority'] {
+  private toNotificationPriority(
+    priority: unknown,
+  ): NotificationData['priority'] {
     const normalized = String(priority ?? 'NORMAL').toUpperCase();
-    if (normalized === 'URGENT' || normalized === 'HIGH' || normalized === 'MEDIUM' || normalized === 'LOW') {
+    if (
+      normalized === 'URGENT' ||
+      normalized === 'HIGH' ||
+      normalized === 'MEDIUM' ||
+      normalized === 'LOW'
+    ) {
       return normalized;
     }
     return 'NORMAL';
   }
 
-  private async hasNotificationForTask(type: string, taskId?: string | null): Promise<boolean> {
+  private async hasNotificationForTask(
+    type: string,
+    taskId?: string | null,
+  ): Promise<boolean> {
     if (!taskId) {
       return false;
     }
@@ -160,21 +182,42 @@ class NotificationServiceImpl {
         taskId: notification.taskId || undefined,
         caseNumber: notification.caseNumber || undefined,
         actionUrl: notification.actionUrl || undefined,
-        timestamp: notification.updatedAt || notification.createdAt || new Date().toISOString(),
+        timestamp:
+          notification.updatedAt ||
+          notification.createdAt ||
+          new Date().toISOString(),
       })),
     );
   }
 
-  private async handleIncomingRemoteMessage(remoteMessage: any, source: 'foreground' | 'opened' | 'initial'): Promise<void> {
+  private async handleIncomingRemoteMessage(
+    remoteMessage: any,
+    source: 'foreground' | 'opened' | 'initial',
+  ): Promise<void> {
     try {
-      const data = (remoteMessage && typeof remoteMessage === 'object' ? remoteMessage.data : null) || {};
-      const notification = (remoteMessage && typeof remoteMessage === 'object' ? remoteMessage.notification : null) || {};
-      const type = String(data.type || data.notificationType || 'SYSTEM_NOTIFICATION');
+      const data =
+        (remoteMessage && typeof remoteMessage === 'object'
+          ? remoteMessage.data
+          : null) || {};
+      const notification =
+        (remoteMessage && typeof remoteMessage === 'object'
+          ? remoteMessage.notification
+          : null) || {};
+      const type = String(
+        data.type || data.notificationType || 'SYSTEM_NOTIFICATION',
+      );
       const taskId = data.taskId || data.verificationTaskId || null;
       const caseNumber = data.caseNumber || data.caseId || null;
       const title = String(data.title || notification.title || 'Notification');
-      const message = String(data.message || data.body || notification.body || 'You have a new update.');
-      const priority = this.toNotificationPriority(data.priority || data.severity);
+      const message = String(
+        data.message ||
+          data.body ||
+          notification.body ||
+          'You have a new update.',
+      );
+      const priority = this.toNotificationPriority(
+        data.priority || data.severity,
+      );
 
       let shouldInsertNotification = true;
       if (type === 'CASE_ASSIGNED' && taskId) {
@@ -199,7 +242,11 @@ class NotificationServiceImpl {
         await this.triggerAssignmentSync({ type, taskId, source });
       }
 
-      Logger.info(TAG, `Handled ${source} push notification`, { type, taskId, caseNumber });
+      Logger.info(TAG, `Handled ${source} push notification`, {
+        type,
+        taskId,
+        caseNumber,
+      });
     } catch (error) {
       Logger.warn(TAG, `Failed handling ${source} push notification`, error);
     }
@@ -209,14 +256,17 @@ class NotificationServiceImpl {
     this.assignmentSyncHandler = handler;
   }
 
-  private async triggerAssignmentSync(trigger: AssignmentSyncTrigger): Promise<void> {
+  private async triggerAssignmentSync(
+    trigger: AssignmentSyncTrigger,
+  ): Promise<void> {
     if (!this.assignmentSyncHandler) {
       return;
     }
 
     const now = Date.now();
     if (
-      now - this.lastAssignmentSyncAt < NotificationServiceImpl.ASSIGNMENT_SYNC_THROTTLE_MS &&
+      now - this.lastAssignmentSyncAt <
+        NotificationServiceImpl.ASSIGNMENT_SYNC_THROTTLE_MS &&
       !this.assignmentSyncInFlight
     ) {
       return;
@@ -264,16 +314,22 @@ class NotificationServiceImpl {
     try {
       const messagingModule = require('@react-native-firebase/messaging');
       if (!messagingModule?.getMessaging) {
-        Logger.warn(TAG, 'FCM messaging module unavailable for notification listeners.');
+        Logger.warn(
+          TAG,
+          'FCM messaging module unavailable for notification listeners.',
+        );
         return;
       }
 
       const messaging = messagingModule.getMessaging();
 
       if (typeof messagingModule.onMessage === 'function') {
-        this.foregroundUnsubscribe = messagingModule.onMessage(messaging, (message: any) => {
-          this.handleIncomingRemoteMessage(message, 'foreground');
-        });
+        this.foregroundUnsubscribe = messagingModule.onMessage(
+          messaging,
+          (message: any) => {
+            this.handleIncomingRemoteMessage(message, 'foreground');
+          },
+        );
       }
 
       if (typeof messagingModule.onNotificationOpenedApp === 'function') {
@@ -318,7 +374,9 @@ class NotificationServiceImpl {
   /**
    * Add a single notification directly to SQLite
    */
-  async addNotification(notification: Omit<NotificationData, 'id' | 'isRead'>): Promise<string> {
+  async addNotification(
+    notification: Omit<NotificationData, 'id' | 'isRead'>,
+  ): Promise<string> {
     const id = uuidv4();
     try {
       await NotificationRepository.insert(notification, id);
@@ -338,7 +396,11 @@ class NotificationServiceImpl {
     try {
       await ApiClient.put(ENDPOINTS.NOTIFICATIONS.MARK_READ(id));
     } catch (e) {
-      Logger.warn(TAG, `Failed to mark notification ${id} as read on backend`, e);
+      Logger.warn(
+        TAG,
+        `Failed to mark notification ${id} as read on backend`,
+        e,
+      );
     }
 
     try {
@@ -353,7 +415,11 @@ class NotificationServiceImpl {
     try {
       await ApiClient.put(ENDPOINTS.NOTIFICATIONS.MARK_ALL_READ);
     } catch (e) {
-      Logger.warn(TAG, 'Failed to mark all notifications as read on backend', e);
+      Logger.warn(
+        TAG,
+        'Failed to mark all notifications as read on backend',
+        e,
+      );
     }
 
     try {
@@ -384,7 +450,10 @@ class NotificationServiceImpl {
       const deviceInfo = await AuthService.getDeviceInfo();
       const pushToken = await PushTokenService.getPushToken();
       if (!pushToken) {
-        Logger.warn(TAG, 'Push token unavailable. Skipping notification device registration for now.');
+        Logger.warn(
+          TAG,
+          'Push token unavailable. Skipping notification device registration for now.',
+        );
         return;
       }
 
@@ -428,7 +497,9 @@ class NotificationServiceImpl {
       await this.upsertBackendNotifications(response.data || []);
 
       const assignment = (response.data || []).find(
-        item => (item.type === 'CASE_ASSIGNED' || item.type === 'CASE_REASSIGNED') && item.taskId,
+        item =>
+          (item.type === 'CASE_ASSIGNED' || item.type === 'CASE_REASSIGNED') &&
+          item.taskId,
       );
       if (assignment) {
         await this.triggerAssignmentSync({
@@ -438,7 +509,11 @@ class NotificationServiceImpl {
         });
       }
     } catch (e) {
-      Logger.warn(TAG, 'Failed to refresh notifications from backend; using local cache', e);
+      Logger.warn(
+        TAG,
+        'Failed to refresh notifications from backend; using local cache',
+        e,
+      );
     }
 
     await this.ensureLoaded();

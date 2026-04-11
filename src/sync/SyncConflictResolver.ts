@@ -1,5 +1,6 @@
 import { DatabaseService } from '../database/DatabaseService';
 import type { MobileCaseResponse } from '../types/api';
+import { Logger } from '../utils/logger';
 
 interface ExistingTaskState {
   status: string;
@@ -8,7 +9,7 @@ interface ExistingTaskState {
   savedAt: string | null;
   completedAt: string | null;
   syncStatus: string | null;
-  local_updated_at?: string | null;
+  localUpdatedAt?: string | null;
 }
 
 interface ResolvedTaskState {
@@ -20,20 +21,29 @@ interface ResolvedTaskState {
 }
 
 class SyncConflictResolver {
-  private isLocalFresher(localUpdatedAt: string | null | undefined, serverUpdatedAt: string | null | undefined): boolean {
+  private isLocalFresher(
+    localUpdatedAt: string | null | undefined,
+    serverUpdatedAt: string | null | undefined,
+  ): boolean {
     if (!localUpdatedAt || !serverUpdatedAt) {
       return false;
     }
-    try {
-      return new Date(localUpdatedAt) > new Date(serverUpdatedAt);
-    } catch {
+    const localMs = Date.parse(localUpdatedAt);
+    const serverMs = Date.parse(serverUpdatedAt);
+    if (Number.isNaN(localMs) || Number.isNaN(serverMs)) {
       return false;
     }
+    return localMs > serverMs;
   }
 
   /**
    * Check if there are in-flight sync queue items for this task that would
    * change its state. If so, preserve local state to avoid silent data loss.
+   *
+   * Safety: if the underlying database query fails we CANNOT safely assume
+   * "no in-flight changes" — that would silently allow the server payload to
+   * overwrite pending local work. Instead we default to `true` (preserve
+   * local) and surface the error via the logger.
    */
   async hasInFlightQueueItems(taskId: string): Promise<boolean> {
     try {
@@ -46,12 +56,21 @@ class SyncConflictResolver {
         [taskId],
       );
       return rows.length > 0;
-    } catch {
-      return false;
+    } catch (error) {
+      Logger.error(
+        'SyncConflictResolver',
+        `hasInFlightQueueItems failed for task ${taskId}; assuming queued changes exist to preserve local state`,
+        error,
+      );
+      return true;
     }
   }
 
-  resolveTaskState(task: MobileCaseResponse, existing?: ExistingTaskState | null, hasQueuedChanges: boolean = false): ResolvedTaskState {
+  resolveTaskState(
+    task: MobileCaseResponse,
+    existing?: ExistingTaskState | null,
+    hasQueuedChanges: boolean = false,
+  ): ResolvedTaskState {
     const backendStatus = (task.status || 'ASSIGNED').toUpperCase();
     let status = backendStatus;
     let inProgressAt = task.inProgressAt || null;
@@ -64,7 +83,10 @@ class SyncConflictResolver {
       const localSaved = existing.isSaved;
 
       // Check if local edits are newer than server state
-      const localHasFreshEdits = this.isLocalFresher(existing.local_updated_at, task.updatedAt);
+      const localHasFreshEdits = this.isLocalFresher(
+        existing.localUpdatedAt,
+        task.updatedAt,
+      );
 
       // If there are queued changes that haven't synced yet, always preserve
       // local state to prevent silent data loss from overwriting pending work.
@@ -81,7 +103,9 @@ class SyncConflictResolver {
         // For PENDING sync status, use existing logic with status precedence
         const shouldPreserveLocal =
           (backendStatus === 'ASSIGNED' &&
-            (localStatus === 'IN_PROGRESS' || localStatus === 'COMPLETED' || localSaved)) ||
+            (localStatus === 'IN_PROGRESS' ||
+              localStatus === 'COMPLETED' ||
+              localSaved)) ||
           (backendStatus === 'IN_PROGRESS' && localStatus === 'COMPLETED');
 
         if (shouldPreserveLocal) {

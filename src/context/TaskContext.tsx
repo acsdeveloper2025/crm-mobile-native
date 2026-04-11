@@ -1,9 +1,4 @@
-import React, {
-  createContext,
-  useCallback,
-  useContext,
-  useMemo,
-} from 'react';
+import React, { createContext, useCallback, useContext, useMemo } from 'react';
 import { RevokeReason } from '../types/api';
 import type { LocalTask } from '../types/mobile';
 import { TaskStatus } from '../types/enums';
@@ -49,21 +44,32 @@ interface TaskContextValue {
   getTask: (taskId: string) => Promise<LocalTask | null>;
   startTask: (taskId: string) => Promise<void>;
   updateTaskStatus: (taskId: string, status: string) => Promise<void>;
-  updateVerificationOutcome: (taskId: string, outcome: string | null) => Promise<void>;
-  updateTaskFormData: (taskId: string, patch: Record<string, unknown>) => Promise<void>;
+  updateVerificationOutcome: (
+    taskId: string,
+    outcome: string | null,
+  ) => Promise<void>;
+  updateTaskFormData: (
+    taskId: string,
+    patch: Record<string, unknown>,
+  ) => Promise<void>;
   toggleSaveTask: (taskId: string, isSaved: boolean) => Promise<void>;
   revokeTask: (taskId: string, reason: RevokeReason) => Promise<void>;
   setTaskPriority: (taskId: string, priority: number | null) => Promise<void>;
   submitTaskForm: (input: SubmitTaskFormInput) => Promise<void>;
   persistAutoSave: (taskId: string, payload: AutoSavePayload) => Promise<void>;
-  getAutoSavedForm: (taskId: string, formType: string) => Promise<Record<string, unknown> | null>;
+  getAutoSavedForm: (
+    taskId: string,
+    formType: string,
+  ) => Promise<Record<string, unknown> | null>;
   clearAutoSave: (taskId: string) => Promise<void>;
   updateTaskSubmissionStatus: (
     taskId: string,
     status: 'pending' | 'submitting' | 'success' | 'failed',
     error?: string,
   ) => Promise<void>;
-  verifyTaskSubmissionStatus: (taskId: string) => Promise<SubmissionStatusResult>;
+  verifyTaskSubmissionStatus: (
+    taskId: string,
+  ) => Promise<SubmissionStatusResult>;
   syncTasks: () => Promise<void>;
 }
 
@@ -75,7 +81,9 @@ const parseFormData = (raw?: string | null): Record<string, unknown> => {
   }
   try {
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+    return parsed && typeof parsed === 'object'
+      ? (parsed as Record<string, unknown>)
+      : {};
   } catch {
     return {};
   }
@@ -92,7 +100,9 @@ const resolveBackendTaskId = (task: LocalTask): string => {
   throw new Error(`Invalid task identifier for case ${task.caseId}`);
 };
 
-export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({
+  children,
+}) => {
   const refreshTasks = useCallback(async () => {
     try {
       await FetchAssignmentsUseCase.execute();
@@ -102,9 +112,12 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  const getTask = useCallback(async (taskId: string): Promise<LocalTask | null> => {
-    return TaskRepository.getTaskById(taskId);
-  }, []);
+  const getTask = useCallback(
+    async (taskId: string): Promise<LocalTask | null> => {
+      return TaskRepository.getTaskById(taskId);
+    },
+    [],
+  );
 
   const syncIfOnline = useCallback(async () => {
     try {
@@ -113,186 +126,234 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await SyncTasksUseCase.execute();
       }
     } catch (syncError) {
-      Logger.warn(TAG, 'Immediate sync deferred after local mutation', syncError);
+      Logger.warn(
+        TAG,
+        'Immediate sync deferred after local mutation',
+        syncError,
+      );
     }
   }, []);
 
-  const updateTaskStatus = useCallback(async (taskId: string, status: string) => {
-    const task = await getTask(taskId);
-    if (!task) {
-      throw new Error('Task not found');
-    }
+  const updateTaskStatus = useCallback(
+    async (taskId: string, status: string) => {
+      const task = await getTask(taskId);
+      if (!task) {
+        throw new Error('Task not found');
+      }
 
-    if (status === TaskStatus.Completed) {
-      await CompleteTaskUseCase.execute(taskId);
-      await syncIfOnline();
-      return;
-    }
+      if (status === TaskStatus.Completed) {
+        await CompleteTaskUseCase.execute(taskId);
+        await syncIfOnline();
+        return;
+      }
 
-    await TaskRepository.updateTaskStatus(taskId, status);
-    if (status === TaskStatus.InProgress) {
+      await TaskRepository.updateTaskStatus(taskId, status);
+      if (status === TaskStatus.InProgress) {
+        await SyncGateway.enqueueTaskStatus(
+          resolveBackendTaskId(task),
+          task.id,
+          TaskStatus.InProgress,
+          {},
+          SYNC_PRIORITY.CRITICAL,
+        );
+        await syncIfOnline();
+      }
+    },
+    [getTask, syncIfOnline],
+  );
+
+  const startTask = useCallback(
+    async (taskId: string) => {
+      await updateTaskStatus(taskId, TaskStatus.InProgress);
+    },
+    [updateTaskStatus],
+  );
+
+  const updateVerificationOutcome = useCallback(
+    async (taskId: string, outcome: string | null) => {
+      await TaskRepository.updateVerificationOutcome(taskId, outcome);
+    },
+    [],
+  );
+
+  const updateTaskFormData = useCallback(
+    async (taskId: string, patch: Record<string, unknown>) => {
+      await SaveDraftUseCase.execute(taskId, patch);
+    },
+    [],
+  );
+
+  const toggleSaveTask = useCallback(
+    async (taskId: string, isSaved: boolean) => {
+      const task = await getTask(taskId);
+      if (!task) {
+        throw new Error('Task not found');
+      }
+
+      const nextStatus =
+        isSaved && task.status === TaskStatus.Assigned
+          ? TaskStatus.InProgress
+          : task.status;
+
+      await TaskRepository.toggleSavedState(taskId, isSaved, nextStatus);
       await SyncGateway.enqueueTaskStatus(
         resolveBackendTaskId(task),
         task.id,
-        TaskStatus.InProgress,
-        {},
+        nextStatus,
+        { isSaved, savedAt: isSaved ? new Date().toISOString() : null },
         SYNC_PRIORITY.CRITICAL,
       );
-      await syncIfOnline();
-    }
-  }, [getTask, syncIfOnline]);
+    },
+    [getTask],
+  );
 
-  const startTask = useCallback(async (taskId: string) => {
-    await updateTaskStatus(taskId, TaskStatus.InProgress);
-  }, [updateTaskStatus]);
+  const revokeTask = useCallback(
+    async (taskId: string, reason: RevokeReason) => {
+      await RevokeTaskUseCase.execute(taskId, reason);
+    },
+    [],
+  );
 
-  const updateVerificationOutcome = useCallback(async (taskId: string, outcome: string | null) => {
-    await TaskRepository.updateVerificationOutcome(taskId, outcome);
-  }, []);
+  const setTaskPriority = useCallback(
+    async (taskId: string, priority: number | null) => {
+      if (priority === null) {
+        return;
+      }
 
-  const updateTaskFormData = useCallback(async (taskId: string, patch: Record<string, unknown>) => {
-    await SaveDraftUseCase.execute(taskId, patch);
-  }, []);
+      const task = await getTask(taskId);
+      if (!task) {
+        throw new Error('Task not found');
+      }
 
-  const toggleSaveTask = useCallback(async (taskId: string, isSaved: boolean) => {
-    const task = await getTask(taskId);
-    if (!task) {
-      throw new Error('Task not found');
-    }
-
-    const nextStatus = isSaved && task.status === TaskStatus.Assigned
-      ? TaskStatus.InProgress
-      : task.status;
-
-    await TaskRepository.toggleSavedState(taskId, isSaved, nextStatus);
-    await SyncGateway.enqueueTaskStatus(
-      resolveBackendTaskId(task),
-      task.id,
-      nextStatus,
-      { isSaved, savedAt: isSaved ? new Date().toISOString() : null },
-      SYNC_PRIORITY.CRITICAL,
-    );
-  }, [getTask]);
-
-  const revokeTask = useCallback(async (taskId: string, reason: RevokeReason) => {
-    await RevokeTaskUseCase.execute(taskId, reason);
-  }, []);
-
-  const setTaskPriority = useCallback(async (taskId: string, priority: number | null) => {
-    if (priority === null) {
-      return;
-    }
-
-    const task = await getTask(taskId);
-    if (!task) {
-      throw new Error('Task not found');
-    }
-
-    await TaskRepository.setPriority(taskId, priority);
-    await SyncGateway.enqueueTaskUpdate(
-      resolveBackendTaskId(task),
-      task.id,
-      { action: 'priority', priority },
-      SYNC_PRIORITY.NORMAL,
-    );
-  }, [getTask]);
+      await TaskRepository.setPriority(taskId, priority);
+      await SyncGateway.enqueueTaskUpdate(
+        resolveBackendTaskId(task),
+        task.id,
+        { action: 'priority', priority },
+        SYNC_PRIORITY.NORMAL,
+      );
+    },
+    [getTask],
+  );
 
   const clearAutoSave = useCallback(async (taskId: string) => {
     await StorageService.remove(AUTO_SAVE_KEY(taskId));
   }, []);
 
-  const persistAutoSave = useCallback(async (taskId: string, payload: AutoSavePayload) => {
-    const timestamp = payload.timestamp || new Date().toISOString();
-    await StorageService.setJson(AUTO_SAVE_KEY(taskId), { ...payload, timestamp });
-  }, []);
+  const persistAutoSave = useCallback(
+    async (taskId: string, payload: AutoSavePayload) => {
+      const timestamp = payload.timestamp || new Date().toISOString();
+      await StorageService.setJson(AUTO_SAVE_KEY(taskId), {
+        ...payload,
+        timestamp,
+      });
+    },
+    [],
+  );
 
-  const getAutoSavedForm = useCallback(async (taskId: string): Promise<Record<string, unknown> | null> => {
-    const local = await StorageService.getJson<{ formData: Record<string, unknown> }>(AUTO_SAVE_KEY(taskId));
-    return local?.formData || null;
-  }, []);
+  const getAutoSavedForm = useCallback(
+    async (taskId: string): Promise<Record<string, unknown> | null> => {
+      const local = await StorageService.getJson<{
+        formData: Record<string, unknown>;
+      }>(AUTO_SAVE_KEY(taskId));
+      return local?.formData || null;
+    },
+    [],
+  );
 
   const submitTaskForm = useCallback(async (input: SubmitTaskFormInput) => {
     await SubmitVerificationUseCase.execute(input);
   }, []);
 
-  const updateTaskSubmissionStatus = useCallback(async (
-    taskId: string,
-    status: 'pending' | 'submitting' | 'success' | 'failed',
-    submissionError?: string,
-  ) => {
-    const task = await getTask(taskId);
-    if (!task) {
-      return;
-    }
+  const updateTaskSubmissionStatus = useCallback(
+    async (
+      taskId: string,
+      status: 'pending' | 'submitting' | 'success' | 'failed',
+      submissionError?: string,
+    ) => {
+      const task = await getTask(taskId);
+      if (!task) {
+        return;
+      }
 
-    const nextFormData = {
-      ...parseFormData(task.formDataJson),
-      __submission: {
-        status,
-        error: submissionError || null,
-        updatedAt: new Date().toISOString(),
-      },
-    };
-    await TaskRepository.updateSubmissionMeta(taskId, nextFormData);
-  }, [getTask]);
+      const nextFormData = {
+        ...parseFormData(task.formDataJson),
+        __submission: {
+          status,
+          error: submissionError || null,
+          updatedAt: new Date().toISOString(),
+        },
+      };
+      await TaskRepository.updateSubmissionMeta(taskId, nextFormData);
+    },
+    [getTask],
+  );
 
-  const verifyTaskSubmissionStatus = useCallback(async (taskId: string): Promise<SubmissionStatusResult> => {
-    const task = await getTask(taskId);
-    if (!task) {
-      return { submitted: false, error: 'Task not found' };
-    }
-    const formData = parseFormData(task.formDataJson);
-    const submissionMeta = formData.__submission as {
-      status?: 'pending' | 'submitting' | 'success' | 'failed';
-      error?: string;
-    } | undefined;
-    return {
-      submitted: submissionMeta?.status === 'success',
-      taskStatus: task.status,
-      error: submissionMeta?.error,
-    };
-  }, [getTask]);
+  const verifyTaskSubmissionStatus = useCallback(
+    async (taskId: string): Promise<SubmissionStatusResult> => {
+      const task = await getTask(taskId);
+      if (!task) {
+        return { submitted: false, error: 'Task not found' };
+      }
+      const formData = parseFormData(task.formDataJson);
+      const submissionMeta = formData.__submission as
+        | {
+            status?: 'pending' | 'submitting' | 'success' | 'failed';
+            error?: string;
+          }
+        | undefined;
+      return {
+        submitted: submissionMeta?.status === 'success',
+        taskStatus: task.status,
+        error: submissionMeta?.error,
+      };
+    },
+    [getTask],
+  );
 
   const syncTasks = useCallback(async () => {
     await SyncTasksUseCase.execute();
     await refreshTasks();
   }, [refreshTasks]);
 
-  const value = useMemo<TaskContextValue>(() => ({
-    refreshTasks,
-    getTask,
-    startTask,
-    updateTaskStatus,
-    updateVerificationOutcome,
-    updateTaskFormData,
-    toggleSaveTask,
-    revokeTask,
-    setTaskPriority,
-    submitTaskForm,
-    persistAutoSave,
-    getAutoSavedForm,
-    clearAutoSave,
-    updateTaskSubmissionStatus,
-    verifyTaskSubmissionStatus,
-    syncTasks,
-  }), [
-    clearAutoSave,
-    getAutoSavedForm,
-    getTask,
-    persistAutoSave,
-    refreshTasks,
-    revokeTask,
-    setTaskPriority,
-    startTask,
-    submitTaskForm,
-    syncTasks,
-    toggleSaveTask,
-    updateTaskFormData,
-    updateTaskStatus,
-    updateTaskSubmissionStatus,
-    updateVerificationOutcome,
-    verifyTaskSubmissionStatus,
-  ]);
+  const value = useMemo<TaskContextValue>(
+    () => ({
+      refreshTasks,
+      getTask,
+      startTask,
+      updateTaskStatus,
+      updateVerificationOutcome,
+      updateTaskFormData,
+      toggleSaveTask,
+      revokeTask,
+      setTaskPriority,
+      submitTaskForm,
+      persistAutoSave,
+      getAutoSavedForm,
+      clearAutoSave,
+      updateTaskSubmissionStatus,
+      verifyTaskSubmissionStatus,
+      syncTasks,
+    }),
+    [
+      clearAutoSave,
+      getAutoSavedForm,
+      getTask,
+      persistAutoSave,
+      refreshTasks,
+      revokeTask,
+      setTaskPriority,
+      startTask,
+      submitTaskForm,
+      syncTasks,
+      toggleSaveTask,
+      updateTaskFormData,
+      updateTaskStatus,
+      updateTaskSubmissionStatus,
+      updateVerificationOutcome,
+      verifyTaskSubmissionStatus,
+    ],
+  );
 
   return <TaskContext.Provider value={value}>{children}</TaskContext.Provider>;
 };

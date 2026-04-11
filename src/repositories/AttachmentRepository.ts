@@ -43,7 +43,10 @@ class AttachmentRepositoryClass {
     );
   }
 
-  async listForTask(taskId: string, componentType?: 'photo' | 'selfie'): Promise<LocalAttachment[]> {
+  async listForTask(
+    taskId: string,
+    componentType?: 'photo' | 'selfie',
+  ): Promise<LocalAttachment[]> {
     let query = 'SELECT * FROM attachments WHERE task_id = ?';
     const params: (string | number | null)[] = [taskId];
     if (componentType) {
@@ -64,18 +67,28 @@ class AttachmentRepositoryClass {
     );
   }
 
-  async listSyncedForTask(taskId: string): Promise<Array<{ id: string; localPath: string; thumbnailPath: string | null }>> {
-    return DatabaseService.query<{ id: string; localPath: string; thumbnailPath: string | null }>(
+  async listSyncedForTask(
+    taskId: string,
+  ): Promise<
+    Array<{ id: string; localPath: string; thumbnailPath: string | null }>
+  > {
+    return DatabaseService.query<{
+      id: string;
+      localPath: string;
+      thumbnailPath: string | null;
+    }>(
       "SELECT id, local_path, thumbnail_path FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'",
       [taskId],
     );
   }
 
-  async getById(id: string): Promise<{ localPath: string; thumbnailPath: string | null } | null> {
-    const rows = await DatabaseService.query<{ localPath: string; thumbnailPath: string | null }>(
-      'SELECT local_path, thumbnail_path FROM attachments WHERE id = ?',
-      [id],
-    );
+  async getById(
+    id: string,
+  ): Promise<{ localPath: string; thumbnailPath: string | null } | null> {
+    const rows = await DatabaseService.query<{
+      localPath: string;
+      thumbnailPath: string | null;
+    }>('SELECT local_path, thumbnail_path FROM attachments WHERE id = ?', [id]);
     return rows[0] ?? null;
   }
 
@@ -91,7 +104,7 @@ class AttachmentRepositoryClass {
     if (await RNFS.exists(row.localPath)) {
       await RNFS.unlink(row.localPath);
     }
-    if (row.thumbnailPath && await RNFS.exists(row.thumbnailPath)) {
+    if (row.thumbnailPath && (await RNFS.exists(row.thumbnailPath))) {
       await RNFS.unlink(row.thumbnailPath);
     }
   }
@@ -102,14 +115,18 @@ class AttachmentRepositoryClass {
       if (await RNFS.exists(photo.localPath)) {
         await RNFS.unlink(photo.localPath);
       }
-      if (photo.thumbnailPath && await RNFS.exists(photo.thumbnailPath)) {
+      if (photo.thumbnailPath && (await RNFS.exists(photo.thumbnailPath))) {
         await RNFS.unlink(photo.thumbnailPath);
       }
       await this.deleteById(photo.id);
     }
   }
 
-  async updateUploadResult(id: string, backendAttachmentId?: string | null, remotePath?: string | null): Promise<void> {
+  async updateUploadResult(
+    id: string,
+    backendAttachmentId?: string | null,
+    remotePath?: string | null,
+  ): Promise<void> {
     await DatabaseService.execute(
       `UPDATE attachments
        SET sync_status = 'SYNCED',
@@ -117,16 +134,26 @@ class AttachmentRepositoryClass {
            remote_path = COALESCE(?, remote_path),
            last_sync_attempt_at = ?
        WHERE id = ?`,
-      [backendAttachmentId || null, remotePath || null, new Date().toISOString(), id],
+      [
+        backendAttachmentId || null,
+        remotePath || null,
+        new Date().toISOString(),
+        id,
+      ],
     );
   }
 
   async markMissingAsSynced(id: string): Promise<void> {
-    await DatabaseService.execute("UPDATE attachments SET sync_status = 'SYNCED' WHERE id = ?", [id]);
+    await DatabaseService.execute(
+      "UPDATE attachments SET sync_status = 'SYNCED' WHERE id = ?",
+      [id],
+    );
   }
 
   async getBackendAttachmentIds(taskId: string): Promise<string[]> {
-    const rows = await DatabaseService.query<{ backendAttachmentId: string | null }>(
+    const rows = await DatabaseService.query<{
+      backendAttachmentId: string | null;
+    }>(
       `SELECT backend_attachment_id
        FROM attachments
        WHERE task_id = ?

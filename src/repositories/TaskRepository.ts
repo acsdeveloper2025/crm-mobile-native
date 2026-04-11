@@ -32,7 +32,10 @@ export interface RecentTaskActivity {
 
 class TaskRepositoryClass {
   async repairTaskIdentity(): Promise<void> {
-    const brokenRows = await DatabaseService.query<{ id: string; verification_task_id: string }>(
+    const brokenRows = await DatabaseService.query<{
+      id: string;
+      verificationTaskId: string;
+    }>(
       `SELECT id, verification_task_id
        FROM tasks
        WHERE verification_task_id IS NOT NULL
@@ -42,22 +45,33 @@ class TaskRepositoryClass {
 
     for (const row of brokenRows) {
       const currentId = row.id;
-      const targetId = row.verification_task_id;
+      const targetId = row.verificationTaskId;
       const targetExists = await DatabaseService.query<{ id: string }>(
         'SELECT id FROM tasks WHERE id = ? LIMIT 1',
         [targetId],
       );
 
-      await DatabaseService.execute('UPDATE attachments SET task_id = ? WHERE task_id = ?', [targetId, currentId]);
-      await DatabaseService.execute('UPDATE locations SET task_id = ? WHERE task_id = ?', [targetId, currentId]);
-      await DatabaseService.execute('UPDATE form_submissions SET task_id = ? WHERE task_id = ?', [targetId, currentId]);
+      await DatabaseService.execute(
+        'UPDATE attachments SET task_id = ? WHERE task_id = ?',
+        [targetId, currentId],
+      );
+      await DatabaseService.execute(
+        'UPDATE locations SET task_id = ? WHERE task_id = ?',
+        [targetId, currentId],
+      );
+      await DatabaseService.execute(
+        'UPDATE form_submissions SET task_id = ? WHERE task_id = ?',
+        [targetId, currentId],
+      );
       await DatabaseService.execute(
         "UPDATE sync_queue SET entity_id = ? WHERE entity_type IN ('TASK', 'TASK_STATUS') AND entity_id = ?",
         [targetId, currentId],
       );
 
       if (targetExists.length > 0) {
-        await DatabaseService.execute('DELETE FROM tasks WHERE id = ?', [currentId]);
+        await DatabaseService.execute('DELETE FROM tasks WHERE id = ?', [
+          currentId,
+        ]);
       } else {
         await DatabaseService.execute(
           'UPDATE tasks SET id = ?, verification_task_id = ? WHERE id = ?',
@@ -77,16 +91,24 @@ class TaskRepositoryClass {
     if (projected) {
       return projected;
     }
-    const rows = await DatabaseService.query<Record<string, unknown>>('SELECT * FROM tasks WHERE id = ? LIMIT 1', [taskId]);
+    const rows = await DatabaseService.query<Record<string, unknown>>(
+      'SELECT * FROM tasks WHERE id = ? LIMIT 1',
+      [taskId],
+    );
     return rows[0] ? mapSqliteTask(rows[0] as never) : null;
   }
 
-  async getTaskCoordinates(taskId: string): Promise<{ latitude: number | null; longitude: number | null } | null> {
+  async getTaskCoordinates(
+    taskId: string,
+  ): Promise<{ latitude: number | null; longitude: number | null } | null> {
     const projected = await TaskDetailProjection.getCoordinates(taskId);
     if (projected) {
       return projected;
     }
-    const rows = await DatabaseService.query<{ latitude: number | null; longitude: number | null }>('SELECT latitude, longitude FROM tasks WHERE id = ? LIMIT 1', [taskId]);
+    const rows = await DatabaseService.query<{
+      latitude: number | null;
+      longitude: number | null;
+    }>('SELECT latitude, longitude FROM tasks WHERE id = ? LIMIT 1', [taskId]);
     return rows[0] || null;
   }
 
@@ -132,7 +154,10 @@ class TaskRepositoryClass {
     await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }
 
-  async updateVerificationOutcome(taskId: string, outcome: string | null): Promise<void> {
+  async updateVerificationOutcome(
+    taskId: string,
+    outcome: string | null,
+  ): Promise<void> {
     await DatabaseService.execute(
       `UPDATE tasks
        SET verification_outcome = ?, sync_status = 'PENDING', local_updated_at = ?
@@ -142,7 +167,11 @@ class TaskRepositoryClass {
     await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }
 
-  async updateFormData(taskId: string, formData: Record<string, unknown>, status: string): Promise<void> {
+  async updateFormData(
+    taskId: string,
+    formData: Record<string, unknown>,
+    status: string,
+  ): Promise<void> {
     const now = new Date().toISOString();
     await DatabaseService.execute(
       `UPDATE tasks
@@ -157,7 +186,11 @@ class TaskRepositoryClass {
     await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }
 
-  async toggleSavedState(taskId: string, isSaved: boolean, nextStatus: string): Promise<void> {
+  async toggleSavedState(
+    taskId: string,
+    isSaved: boolean,
+    nextStatus: string,
+  ): Promise<void> {
     const now = new Date().toISOString();
     await DatabaseService.execute(
       `UPDATE tasks
@@ -281,14 +314,25 @@ class TaskRepositoryClass {
     );
 
     for (const stale of staleRows) {
-      await DatabaseService.execute('UPDATE attachments SET task_id = ? WHERE task_id = ?', [canonicalTaskId, stale.id]);
-      await DatabaseService.execute('UPDATE locations SET task_id = ? WHERE task_id = ?', [canonicalTaskId, stale.id]);
-      await DatabaseService.execute('UPDATE form_submissions SET task_id = ? WHERE task_id = ?', [canonicalTaskId, stale.id]);
+      await DatabaseService.execute(
+        'UPDATE attachments SET task_id = ? WHERE task_id = ?',
+        [canonicalTaskId, stale.id],
+      );
+      await DatabaseService.execute(
+        'UPDATE locations SET task_id = ? WHERE task_id = ?',
+        [canonicalTaskId, stale.id],
+      );
+      await DatabaseService.execute(
+        'UPDATE form_submissions SET task_id = ? WHERE task_id = ?',
+        [canonicalTaskId, stale.id],
+      );
       await DatabaseService.execute(
         "UPDATE sync_queue SET entity_id = ? WHERE entity_type IN ('TASK', 'TASK_STATUS') AND entity_id = ?",
         [canonicalTaskId, stale.id],
       );
-      await DatabaseService.execute('DELETE FROM tasks WHERE id = ?', [stale.id]);
+      await DatabaseService.execute('DELETE FROM tasks WHERE id = ?', [
+        stale.id,
+      ]);
     }
 
     const existingRows = await DatabaseService.query<{
@@ -318,7 +362,10 @@ class TaskRepositoryClass {
       const localStatus = (existing.status || '').toUpperCase();
       const localSaved = existing.isSaved === 1;
       const shouldPreserveLocal =
-        (backendStatus === 'ASSIGNED' && (localStatus === 'IN_PROGRESS' || localStatus === 'COMPLETED' || localSaved)) ||
+        (backendStatus === 'ASSIGNED' &&
+          (localStatus === 'IN_PROGRESS' ||
+            localStatus === 'COMPLETED' ||
+            localSaved)) ||
         (backendStatus === 'IN_PROGRESS' && localStatus === 'COMPLETED');
       if (shouldPreserveLocal) {
         mergedStatus = localStatus || mergedStatus;
@@ -342,14 +389,54 @@ class TaskRepositoryClass {
          sync_status, last_synced_at, local_updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SYNCED', ?, ?)`,
       [
-        canonicalTaskId, task.caseId, canonicalTaskId, task.verificationTaskNumber || '', task.title, task.description || '', task.customerName, task.customerCallingCode || null,
-        task.customerPhone || null, task.customerEmail || null, task.addressStreet || '', task.addressCity || '', task.addressState || '', task.addressPincode || '', task.latitude || null, task.longitude || null,
-        mergedStatus, task.priority || 'MEDIUM', task.assignedAt || now, task.updatedAt || now, mergedCompletedAt, task.notes || null, task.verificationType || null, task.verificationOutcome || null, task.applicantType || null,
-        task.backendContactNumber || null, task.createdByBackendUser || null, task.assignedToFieldUser || null, task.client?.id || null, task.client?.name || null, task.client?.code || null,
-        task.product?.id || null, task.product?.name || null, task.product?.code || null, task.verificationTypeDetails?.id || null, task.verificationTypeDetails?.name || null, task.verificationTypeDetails?.code || null,
-        task.formData ? JSON.stringify(task.formData) : null, task.isRevoked ? 1 : 0, task.revokedAt || null, task.revokedByName || null, task.revokeReason || null,
-        mergedInProgressAt, mergedSavedAt, mergedIsSaved, task.attachmentCount || 0,
-        now, now,
+        canonicalTaskId,
+        task.caseId,
+        canonicalTaskId,
+        task.verificationTaskNumber || '',
+        task.title,
+        task.description || '',
+        task.customerName,
+        task.customerCallingCode || null,
+        task.customerPhone || null,
+        task.customerEmail || null,
+        task.addressStreet || '',
+        task.addressCity || '',
+        task.addressState || '',
+        task.addressPincode || '',
+        task.latitude || null,
+        task.longitude || null,
+        mergedStatus,
+        task.priority || 'MEDIUM',
+        task.assignedAt || now,
+        task.updatedAt || now,
+        mergedCompletedAt,
+        task.notes || null,
+        task.verificationType || null,
+        task.verificationOutcome || null,
+        task.applicantType || null,
+        task.backendContactNumber || null,
+        task.createdByBackendUser || null,
+        task.assignedToFieldUser || null,
+        task.client?.id || null,
+        task.client?.name || null,
+        task.client?.code || null,
+        task.product?.id || null,
+        task.product?.name || null,
+        task.product?.code || null,
+        task.verificationTypeDetails?.id || null,
+        task.verificationTypeDetails?.name || null,
+        task.verificationTypeDetails?.code || null,
+        task.formData ? JSON.stringify(task.formData) : null,
+        task.isRevoked ? 1 : 0,
+        task.revokedAt || null,
+        task.revokedByName || null,
+        task.revokeReason || null,
+        mergedInProgressAt,
+        mergedSavedAt,
+        mergedIsSaved,
+        task.attachmentCount || 0,
+        now,
+        now,
       ],
     );
     await ProjectionUpdater.scheduleTaskRebuild(canonicalTaskId);

@@ -40,7 +40,14 @@ class LocationRepositoryClass {
     await DatabaseService.execute(
       `INSERT INTO locations (id, latitude, longitude, accuracy, timestamp, source, activity_type, sync_status)
        VALUES (?, ?, ?, ?, ?, ?, 'TRAVEL', 'PENDING')`,
-      [input.id, input.latitude, input.longitude, input.accuracy, input.timestamp, input.source],
+      [
+        input.id,
+        input.latitude,
+        input.longitude,
+        input.accuracy,
+        input.timestamp,
+        input.source,
+      ],
     );
   }
 

@@ -1,4 +1,11 @@
-import { View, Text, StyleSheet, TouchableOpacity, Linking, SafeAreaView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Linking,
+  SafeAreaView,
+} from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Logger } from '../../utils/logger';
@@ -19,32 +26,84 @@ export const ForceUpdateScreen = ({ route }: any) => {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <View style={styles.content}>
-        <View style={[styles.iconContainer, { backgroundColor: theme.colors.danger + '10' }]}>
+        <View
+          style={[
+            styles.iconContainer,
+            { backgroundColor: theme.colors.danger + '10' },
+          ]}
+        >
           <Icon name="alert-circle" size={80} color={theme.colors.danger} />
         </View>
-        
-        <Text style={[styles.title, { color: theme.colors.text }]}>Update Required</Text>
-        
-        <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
-          A new version of the CRM App is available. This update includes critical data schema updates and must be installed to continue working.
+
+        <Text style={[styles.title, { color: theme.colors.text }]}>
+          Update Required
         </Text>
- 
+
+        <Text
+          style={[styles.description, { color: theme.colors.textSecondary }]}
+        >
+          A new version of the CRM App is available. This update includes
+          critical data schema updates and must be installed to continue
+          working.
+        </Text>
+
         {releaseNotes ? (
-          <View style={[styles.releaseNotesContainer, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
-            <Text style={[styles.releaseNotesSubtitle, { color: theme.colors.textSecondary }]}>What's New:</Text>
-            <Text style={[styles.releaseNotesText, { color: theme.colors.text }]}>{releaseNotes}</Text>
+          <View
+            style={[
+              styles.releaseNotesContainer,
+              {
+                backgroundColor: theme.colors.surfaceAlt,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.releaseNotesSubtitle,
+                { color: theme.colors.textSecondary },
+              ]}
+            >
+              What's New:
+            </Text>
+            <Text
+              style={[styles.releaseNotesText, { color: theme.colors.text }]}
+            >
+              {releaseNotes}
+            </Text>
           </View>
         ) : null}
       </View>
 
-      <View style={[styles.footer, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.border }]}>
-        <TouchableOpacity 
-          style={[styles.updateButton, { backgroundColor: theme.colors.primary }]} 
-          onPress={handleUpdate}>
-          <Icon name="cloud-download-outline" size={20} color={theme.colors.surface} />
-          <Text style={[styles.updateButtonText, { color: theme.colors.surface }]}>Download Update</Text>
+      <View
+        style={[
+          styles.footer,
+          {
+            backgroundColor: theme.colors.surface,
+            borderTopColor: theme.colors.border,
+          },
+        ]}
+      >
+        <TouchableOpacity
+          style={[
+            styles.updateButton,
+            { backgroundColor: theme.colors.primary },
+          ]}
+          onPress={handleUpdate}
+        >
+          <Icon
+            name="cloud-download-outline"
+            size={20}
+            color={theme.colors.surface}
+          />
+          <Text
+            style={[styles.updateButtonText, { color: theme.colors.surface }]}
+          >
+            Download Update
+          </Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -114,5 +173,5 @@ const styles = StyleSheet.create({
   updateButtonText: {
     fontSize: 18,
     fontWeight: 'bold',
-  }
+  },
 });

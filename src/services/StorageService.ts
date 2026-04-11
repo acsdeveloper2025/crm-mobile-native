@@ -25,7 +25,8 @@ class StorageServiceClass {
       // Free space
       const freeSpace = await RNFS.getFSInfo();
       const totalPhotoCount = await MaintenanceRepository.getAttachmentCount();
-      const pendingSyncCount = await MaintenanceRepository.getPendingSyncCount();
+      const pendingSyncCount =
+        await MaintenanceRepository.getPendingSyncCount();
 
       return {
         totalPhotosBytes: 0, // Calculated dynamically in CameraService instead
@@ -78,7 +79,8 @@ class StorageServiceClass {
 
     try {
       // Delete synced photo files
-      const syncedPhotos = await MaintenanceRepository.listSyncedAttachmentsOlderThan(cutoff);
+      const syncedPhotos =
+        await MaintenanceRepository.listSyncedAttachmentsOlderThan(cutoff);
 
       for (const photo of syncedPhotos) {
         try {
@@ -86,7 +88,7 @@ class StorageServiceClass {
           if (exists) {
             await RNFS.unlink(photo.localPath);
           }
-          if (photo.thumbnailPath && await RNFS.exists(photo.thumbnailPath)) {
+          if (photo.thumbnailPath && (await RNFS.exists(photo.thumbnailPath))) {
             await RNFS.unlink(photo.thumbnailPath);
           }
           await MaintenanceRepository.deleteAttachmentById(photo.id);
@@ -97,10 +99,12 @@ class StorageServiceClass {
       }
 
       // Delete synced locations
-      deletedLocations = await MaintenanceRepository.deleteSyncedLocationsOlderThan(cutoff);
+      deletedLocations =
+        await MaintenanceRepository.deleteSyncedLocationsOlderThan(cutoff);
 
       // Delete completed sync queue items
-      deletedSyncItems = await MaintenanceRepository.deleteCompletedSyncItemsOlderThan(cutoff);
+      deletedSyncItems =
+        await MaintenanceRepository.deleteCompletedSyncItemsOlderThan(cutoff);
 
       // Delete synced audit logs
       await MaintenanceRepository.deleteSyncedAuditLogsOlderThan(cutoff);

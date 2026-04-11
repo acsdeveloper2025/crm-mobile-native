@@ -38,7 +38,11 @@ export const useTasks = (statusFilter?: string, searchQuery?: string): any => {
       await ProjectionStore.ensureSelector(selector, { force: true });
     } catch (refreshError) {
       Logger.warn(TAG, 'Failed to refresh projected tasks', refreshError);
-      setError(refreshError instanceof Error ? refreshError.message : 'Failed to refresh tasks');
+      setError(
+        refreshError instanceof Error
+          ? refreshError.message
+          : 'Failed to refresh tasks',
+      );
     } finally {
       setIsLoading(false);
     }

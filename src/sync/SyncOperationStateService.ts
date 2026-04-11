@@ -17,7 +17,10 @@ class SyncOperationStateServiceClass {
     return Boolean(value);
   }
 
-  async markProcessed(operationId: string, processedAt: string = new Date().toISOString()): Promise<void> {
+  async markProcessed(
+    operationId: string,
+    processedAt: string = new Date().toISOString(),
+  ): Promise<void> {
     await KeyValueRepository.set(this.key(operationId), processedAt);
   }
 
@@ -27,13 +30,18 @@ class SyncOperationStateServiceClass {
    */
   async clearExpired(): Promise<void> {
     try {
-      const cutoff = new Date(Date.now() - EXPIRY_HOURS * 60 * 60 * 1000).toISOString();
+      const cutoff = new Date(
+        Date.now() - EXPIRY_HOURS * 60 * 60 * 1000,
+      ).toISOString();
       const result = await DatabaseService.execute(
         `DELETE FROM key_value_store WHERE key LIKE ? AND value < ?`,
         [`${DONE_PREFIX}%`, cutoff],
       );
       if (result.rowsAffected > 0) {
-        Logger.info(TAG, `Cleaned up ${result.rowsAffected} expired operation state keys`);
+        Logger.info(
+          TAG,
+          `Cleaned up ${result.rowsAffected} expired operation state keys`,
+        );
       }
     } catch (error) {
       Logger.warn(TAG, 'Failed to clear expired operation state keys', error);

@@ -36,7 +36,10 @@ const toRecord = (value: unknown): Record<string, unknown> =>
 const asString = (value: unknown): string | null =>
   typeof value === 'string' && value.trim().length > 0 ? value : null;
 
-const inferLegacyType = (item: SyncQueueItem, payload: Record<string, unknown>): SyncOperationType => {
+const inferLegacyType = (
+  item: SyncQueueItem,
+  payload: Record<string, unknown>,
+): SyncOperationType => {
   if (item.entityType === 'ATTACHMENT' || item.entityType === 'VISIT_PHOTO') {
     return 'PHOTO_CAPTURED';
   }
@@ -72,26 +75,32 @@ export const priorityForOperationType = (type: SyncOperationType): number =>
   OPERATION_PRIORITY[type] ?? OPERATION_PRIORITY.LEGACY_OPERATION;
 
 export const toSyncOperation = (item: SyncQueueItem): SyncOperation => {
-  const rawPayload = toRecord((() => {
-    try {
-      return JSON.parse(item.payloadJson || '{}');
-    } catch {
-      return {};
-    }
-  })());
+  const rawPayload = toRecord(
+    (() => {
+      try {
+        return JSON.parse(item.payloadJson || '{}');
+      } catch {
+        return {};
+      }
+    })(),
+  );
   const operationMeta = toRecord(rawPayload._operation);
   const inferredType = inferLegacyType(item, rawPayload);
-  const operationType = (asString(operationMeta.type) as SyncOperationType | null) || inferredType;
+  const operationType =
+    (asString(operationMeta.type) as SyncOperationType | null) || inferredType;
   const operationId = asString(operationMeta.operationId) || item.id;
-  const createdAt = asString(operationMeta.created_at) || item.createdAt;
+  const createdAt = asString(operationMeta.createdAt) || item.createdAt;
   const priority = Number(operationMeta.priority);
   const operationPriority = Number.isFinite(priority)
     ? priority
     : priorityForOperationType(operationType);
-  const taskKey = asString(rawPayload.localTaskId)
-    || asString(rawPayload.taskId)
-    || asString(rawPayload.visitId)
-    || (item.entityType === 'TASK' || item.entityType === 'TASK_STATUS' ? item.entityId : item.id);
+  const taskKey =
+    asString(rawPayload.localTaskId) ||
+    asString(rawPayload.taskId) ||
+    asString(rawPayload.visitId) ||
+    (item.entityType === 'TASK' || item.entityType === 'TASK_STATUS'
+      ? item.entityId
+      : item.id);
 
   return {
     operationId,

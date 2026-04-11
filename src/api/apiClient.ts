@@ -27,6 +27,21 @@ interface RefreshSubscriber {
   reject: (error: unknown) => void;
 }
 
+/**
+ * Maximum number of concurrent requests that can wait on a single in-flight
+ * token refresh. Bounding the queue prevents unbounded memory growth if the
+ * refresh endpoint hangs — the surplus requests fail fast with a clear error
+ * instead of leaking forever.
+ */
+const MAX_REFRESH_SUBSCRIBERS = 64;
+
+/**
+ * Hard timeout for a token refresh cycle. If the refresh does not complete
+ * within this window, all queued subscribers are rejected and the client is
+ * handed over to the unauthorized handler (typically forcing a logout).
+ */
+const REFRESH_TIMEOUT_MS = 20000;
+
 class ApiClientClass {
   private client: AxiosInstance;
   private isRefreshing = false;
@@ -90,6 +105,17 @@ class ApiClientClass {
           !isAuthRefresh
         ) {
           if (this.isRefreshing) {
+            if (this.refreshSubscribers.length >= MAX_REFRESH_SUBSCRIBERS) {
+              Logger.warn(
+                'ApiClient',
+                `Refresh subscriber queue is full (${MAX_REFRESH_SUBSCRIBERS}); rejecting request`,
+              );
+              return Promise.reject(
+                new Error(
+                  'REFRESH_QUEUE_FULL: too many requests waiting on token refresh',
+                ),
+              );
+            }
             // Queue this request until token is refreshed
             return new Promise((resolve, reject) => {
               this.refreshSubscribers.push({
@@ -115,7 +141,9 @@ class ApiClientClass {
           this.isRefreshing = true;
 
           try {
-            const newToken = await this.refreshHandler();
+            const newToken = await this.runRefreshWithTimeout(
+              this.refreshHandler,
+            );
             if (newToken) {
               this.resolveRefreshSubscribers(newToken);
               if (originalRequest.headers) {
@@ -143,12 +171,16 @@ class ApiClientClass {
         }
 
         const responseStatus = error.response?.status || 0;
-        const isNotificationRegisterError = requestUrl.includes('/auth/notifications/register');
+        const isNotificationRegisterError = requestUrl.includes(
+          '/auth/notifications/register',
+        );
         const isNotificationListError =
           requestMethod === 'GET' &&
           requestUrl.includes('/notifications') &&
           responseStatus >= 500;
-        const isTelemetryIngestError = requestUrl.includes('/telemetry/mobile/ingest');
+        const isTelemetryIngestError = requestUrl.includes(
+          '/telemetry/mobile/ingest',
+        );
         const isAutoSaveForbidden =
           requestUrl.includes('/auto-save') && responseStatus === 403;
         const isAutoSaveServerError =
@@ -195,6 +227,35 @@ class ApiClientClass {
     this.refreshSubscribers = [];
   }
 
+  /**
+   * Race the refresh handler against a hard timeout. If the handler takes
+   * longer than REFRESH_TIMEOUT_MS, reject with a clear error so queued
+   * subscribers fail fast instead of leaking forever.
+   */
+  private runRefreshWithTimeout(
+    handler: RefreshHandler,
+  ): Promise<string | null> {
+    return new Promise<string | null>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        reject(
+          new Error(
+            `REFRESH_TIMEOUT: token refresh exceeded ${REFRESH_TIMEOUT_MS}ms`,
+          ),
+        );
+      }, REFRESH_TIMEOUT_MS);
+
+      handler()
+        .then(token => {
+          clearTimeout(timer);
+          resolve(token);
+        })
+        .catch(err => {
+          clearTimeout(timer);
+          reject(err);
+        });
+    });
+  }
+
   setRefreshHandler(handler: RefreshHandler | null): void {
     this.refreshHandler = handler;
   }
@@ -214,7 +275,11 @@ class ApiClientClass {
   /**
    * POST request
    */
-  async post<T>(url: string, data?: unknown, reqConfig?: AxiosRequestConfig): Promise<T> {
+  async post<T>(
+    url: string,
+    data?: unknown,
+    reqConfig?: AxiosRequestConfig,
+  ): Promise<T> {
     const response = await this.client.post<T>(url, data, reqConfig);
     return response.data;
   }
@@ -222,7 +287,11 @@ class ApiClientClass {
   /**
    * PUT request
    */
-  async put<T>(url: string, data?: unknown, reqConfig?: AxiosRequestConfig): Promise<T> {
+  async put<T>(
+    url: string,
+    data?: unknown,
+    reqConfig?: AxiosRequestConfig,
+  ): Promise<T> {
     const response = await this.client.put<T>(url, data, reqConfig);
     return response.data;
   }

@@ -8,11 +8,11 @@ interface SkeletonProps {
   style?: object;
 }
 
-export const SkeletonBox: React.FC<SkeletonProps> = ({ 
-  width = '100%', 
-  height = 20, 
+export const SkeletonBox: React.FC<SkeletonProps> = ({
+  width = '100%',
+  height = 20,
   borderRadius = 4,
-  style 
+  style,
 }) => {
   const opacity = useRef(new Animated.Value(0.3)).current;
 
@@ -29,17 +29,13 @@ export const SkeletonBox: React.FC<SkeletonProps> = ({
           duration: 800,
           useNativeDriver: true,
         }),
-      ])
+      ]),
     ).start();
   }, [opacity]);
 
   return (
-    <Animated.View 
-      style={[
-        styles.skeleton, 
-        { width, height, borderRadius, opacity },
-        style
-      ]} 
+    <Animated.View
+      style={[styles.skeleton, { width, height, borderRadius, opacity }, style]}
     />
   );
 };
@@ -105,5 +101,5 @@ const styles = StyleSheet.create({
   },
   mb12: { marginBottom: 12 },
   mb16: { marginBottom: 16 },
-  mb8: { marginBottom: 8 }
+  mb8: { marginBottom: 8 },
 });

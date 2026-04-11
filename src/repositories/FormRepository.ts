@@ -13,7 +13,14 @@ class FormRepositoryClass {
       `INSERT INTO form_submissions
         (id, task_id, case_id, form_type, form_data_json, status, submitted_at, metadata_json, attachment_ids_json, photo_data_json, sync_status, sync_attempts)
        VALUES (?, ?, ?, ?, ?, 'SUBMITTED_LOCALLY', ?, '{}', '[]', '[]', 'PENDING', 0)`,
-      [input.id, input.taskId, input.caseId, input.formType, JSON.stringify(input.formData), input.submittedAt],
+      [
+        input.id,
+        input.taskId,
+        input.caseId,
+        input.formType,
+        JSON.stringify(input.formData),
+        input.submittedAt,
+      ],
     );
   }
 
@@ -27,11 +34,19 @@ class FormRepositoryClass {
       `UPDATE form_submissions
        SET metadata_json = ?, attachment_ids_json = ?, photo_data_json = ?
        WHERE id = ?`,
-      [JSON.stringify(metadata), JSON.stringify(attachmentIds), JSON.stringify(photos), id],
+      [
+        JSON.stringify(metadata),
+        JSON.stringify(attachmentIds),
+        JSON.stringify(photos),
+        id,
+      ],
     );
   }
 
-  async updateSubmissionAttachmentIds(id: string, attachmentIds: string[]): Promise<void> {
+  async updateSubmissionAttachmentIds(
+    id: string,
+    attachmentIds: string[],
+  ): Promise<void> {
     await DatabaseService.execute(
       'UPDATE form_submissions SET attachment_ids_json = ? WHERE id = ?',
       [JSON.stringify(attachmentIds), id],
@@ -45,30 +60,48 @@ class FormRepositoryClass {
     );
   }
 
-  async getSubmissionSyncStatus(taskId: string): Promise<{ status: string; syncStatus: string; syncError?: string } | null> {
+  async getSubmissionSyncStatus(taskId: string): Promise<{
+    status: string;
+    syncStatus: string;
+    syncError?: string;
+  } | null> {
     // Check form_submissions table first
-    const rows = await DatabaseService.query<{ status: string; sync_status: string; sync_error: string | null }>(
+    const rows = await DatabaseService.query<{
+      status: string;
+      syncStatus: string;
+      syncError: string | null;
+    }>(
       `SELECT status, sync_status, sync_error FROM form_submissions WHERE task_id = ? ORDER BY submitted_at DESC LIMIT 1`,
       [taskId],
     );
     if (!rows[0]) return null;
 
     // If form_submissions says SYNCED, trust it
-    if (rows[0].sync_status === 'SYNCED') {
+    if (rows[0].syncStatus === 'SYNCED') {
       return { status: rows[0].status, syncStatus: 'SYNCED' };
     }
 
     // Check sync_queue for failed FORM_SUBMISSION items for this task
-    const failedQueue = await DatabaseService.query<{ status: string; error: string | null }>(
+    const failedQueue = await DatabaseService.query<{
+      status: string;
+      error: string | null;
+    }>(
       `SELECT status, error FROM sync_queue WHERE entity_type = 'FORM_SUBMISSION' AND json_extract(payload_json, '$.localTaskId') = ? ORDER BY created_at DESC LIMIT 1`,
       [taskId],
     );
 
     if (failedQueue[0]) {
       if (failedQueue[0].status === 'FAILED') {
-        return { status: 'FAILED', syncStatus: 'FAILED', syncError: failedQueue[0].error || 'Upload failed' };
+        return {
+          status: 'FAILED',
+          syncStatus: 'FAILED',
+          syncError: failedQueue[0].error || 'Upload failed',
+        };
       }
-      if (failedQueue[0].status === 'PENDING' || failedQueue[0].status === 'IN_PROGRESS') {
+      if (
+        failedQueue[0].status === 'PENDING' ||
+        failedQueue[0].status === 'IN_PROGRESS'
+      ) {
         return { status: 'PENDING', syncStatus: 'PENDING' };
       }
       if (failedQueue[0].status === 'COMPLETED') {
@@ -76,7 +109,11 @@ class FormRepositoryClass {
       }
     }
 
-    return { status: rows[0].status, syncStatus: rows[0].sync_status, syncError: rows[0].sync_error || undefined };
+    return {
+      status: rows[0].status,
+      syncStatus: rows[0].syncStatus,
+      syncError: rows[0].syncError || undefined,
+    };
   }
 
   async getCachedTemplate(verificationType: string, outcome: string) {

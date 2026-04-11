@@ -218,7 +218,9 @@ class ProjectionUpdaterClass {
   ): Promise<void> {
     try {
       await DatabaseService.transaction(async tx => {
-        await tx.executeSql('DELETE FROM task_list_projection WHERE id = ?', [taskId]);
+        await tx.executeSql('DELETE FROM task_list_projection WHERE id = ?', [
+          taskId,
+        ]);
         await tx.executeSql(
           `INSERT INTO task_list_projection (
              id, case_id, verification_task_id, verification_task_number, title, customer_name,
@@ -243,7 +245,9 @@ class ProjectionUpdaterClass {
            WHERE id = ?`,
           [taskId],
         );
-        await tx.executeSql('DELETE FROM task_detail_projection WHERE id = ?', [taskId]);
+        await tx.executeSql('DELETE FROM task_detail_projection WHERE id = ?', [
+          taskId,
+        ]);
         await tx.executeSql(
           `INSERT INTO task_detail_projection (id, task_json, updated_at)
            SELECT id, json_object(
@@ -305,7 +309,11 @@ class ProjectionUpdaterClass {
         await this.rebuildDashboard(false);
       }
     } catch (error) {
-      Logger.warn(TAG, `Failed to rebuild task projections for ${taskId}, triggering full rebuild`, error);
+      Logger.warn(
+        TAG,
+        `Failed to rebuild task projections for ${taskId}, triggering full rebuild`,
+        error,
+      );
       await this.rebuildAll();
       return;
     }
@@ -319,7 +327,7 @@ class ProjectionUpdaterClass {
 
   async rebuildDashboard(shouldNotify: boolean = true): Promise<void> {
     // Wrap in transaction so dashboard is never empty between DELETE and INSERT
-    await DatabaseService.transaction(async (tx) => {
+    await DatabaseService.transaction(async tx => {
       await tx.executeSql('DELETE FROM dashboard_projection WHERE id = 1');
       await tx.executeSql(
         `INSERT INTO dashboard_projection

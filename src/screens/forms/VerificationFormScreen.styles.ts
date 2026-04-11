@@ -1,7 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-export const styles = StyleSheet.create(
-{
+export const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
@@ -238,5 +237,19 @@ export const styles = StyleSheet.create(
   progressFill: {
     height: '100%',
     borderRadius: 4,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  actionButtonSecondary: {
+    flex: 1,
+    borderWidth: 1,
+  },
+  actionButtonPrimary: {
+    flex: 2,
+  },
+  actionButtonDimmed: {
+    opacity: 0.7,
   },
 });

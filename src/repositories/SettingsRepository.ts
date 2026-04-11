@@ -17,7 +17,9 @@ class SettingsRepositoryClass {
   }
 
   async removeValue(key: string): Promise<void> {
-    await DatabaseService.execute('DELETE FROM key_value_store WHERE key = ?', [key]);
+    await DatabaseService.execute('DELETE FROM key_value_store WHERE key = ?', [
+      key,
+    ]);
   }
 }
 

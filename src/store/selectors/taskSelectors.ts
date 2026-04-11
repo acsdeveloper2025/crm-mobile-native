@@ -10,7 +10,9 @@ const buildTaskListSelectorKey = (
   return `task-list:${normalizedStatus}:${normalizedSearch}`;
 };
 
-export const selectTaskById = (taskId: string): ProjectionSelector<LocalTask | null> => ({
+export const selectTaskById = (
+  taskId: string,
+): ProjectionSelector<LocalTask | null> => ({
   key: `task:${taskId}`,
   select: state => state.tasksById[taskId] || null,
   ensure: (store, options) => store.ensureTask(taskId, options),
@@ -24,7 +26,8 @@ export const selectTasksByStatus = (
   return {
     key,
     select: state => state.taskLists[key] || [],
-    ensure: (store, options) => store.ensureTaskList(key, { statusFilter, searchQuery }, options),
+    ensure: (store, options) =>
+      store.ensureTaskList(key, { statusFilter, searchQuery }, options),
   };
 };
 

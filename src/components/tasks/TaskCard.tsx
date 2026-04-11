@@ -1,5 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, ActivityIndicator, Alert } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Animated,
+  ActivityIndicator,
+  Alert,
+} from 'react-native';
 import { LocalTask } from '../../types/mobile';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
@@ -18,7 +26,8 @@ interface TaskCardProps {
   onMoveTask?: (taskId: string, direction: 'up' | 'down') => void;
 }
 
-const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpacity);
+const AnimatedTouchableOpacity =
+  Animated.createAnimatedComponent(TouchableOpacity);
 
 const TaskCardComponent: React.FC<TaskCardProps> = ({
   task,
@@ -49,17 +58,21 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         toValue: 0,
         duration: 400,
         useNativeDriver: true,
-      })
+      }),
     ]).start();
   }, [fadeAnim, slideAnim]);
 
   const getStatusColor = (status: string) => {
     if (!status) return theme.colors.textMuted;
     switch (status.toUpperCase()) {
-      case 'ASSIGNED': return theme.colors.primary;
-      case 'IN_PROGRESS': return theme.colors.warning;
-      case 'COMPLETED': return theme.colors.success;
-      default: return theme.colors.textMuted;
+      case 'ASSIGNED':
+        return theme.colors.primary;
+      case 'IN_PROGRESS':
+        return theme.colors.warning;
+      case 'COMPLETED':
+        return theme.colors.success;
+      default:
+        return theme.colors.textMuted;
     }
   };
 
@@ -101,125 +114,241 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
       await startVisitUseCase(task.id);
       onStatusChange?.();
     } catch (e: unknown) {
-      Alert.alert('Error', 'Failed to accept task: ' + (e instanceof Error ? e.message : String(e)));
+      Alert.alert(
+        'Error',
+        'Failed to accept task: ' +
+          (e instanceof Error ? e.message : String(e)),
+      );
     } finally {
       setIsAccepting(false);
     }
   };
 
   return (
-    <AnimatedTouchableOpacity 
+    <AnimatedTouchableOpacity
       style={[
-        styles.card, 
-        { 
+        styles.card,
+        {
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.border,
           borderLeftColor: getCardAccentColor(task.status),
         },
-        (task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS' || task.status === 'COMPLETED') && styles.cardStatusAccent,
-        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }
-      ]} 
-      onPress={() => onPress(task)} 
-      activeOpacity={0.7}>
+        (task.status === 'ASSIGNED' ||
+          task.status === 'IN_PROGRESS' ||
+          task.status === 'COMPLETED') &&
+          styles.cardStatusAccent,
+        { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+      ]}
+      onPress={() => onPress(task)}
+      activeOpacity={0.7}
+    >
       <View style={styles.header}>
-        <Text style={[styles.verificationType, { color: theme.colors.primary }]}>
+        <Text
+          style={[styles.verificationType, { color: theme.colors.primary }]}
+        >
           {task.verificationTypeName || task.verificationType || 'VERIFICATION'}
         </Text>
         {task.isSaved === 1 && (
-          <View style={[styles.savedBadge, { backgroundColor: theme.colors.warning + '20', borderColor: theme.colors.warning + '50' }]}>
-            <Text style={[styles.savedBadgeText, { color: theme.colors.warning }]}>Draft Saved</Text>
+          <View
+            style={[
+              styles.savedBadge,
+              {
+                backgroundColor: theme.colors.warning + '20',
+                borderColor: theme.colors.warning + '50',
+              },
+            ]}
+          >
+            <Text
+              style={[styles.savedBadgeText, { color: theme.colors.warning }]}
+            >
+              Draft Saved
+            </Text>
           </View>
         )}
       </View>
 
       <Text style={[styles.caseId, { color: theme.colors.text }]}>
-        Case ID: #{task.caseId}  |  VT ID: {task.verificationTaskNumber || 'N/A'}
+        Case ID: #{task.caseId} | VT ID: {task.verificationTaskNumber || 'N/A'}
       </Text>
-      <Text style={[styles.customerName, { color: theme.colors.text }]}>{task.customerName}</Text>
-      
+      <Text style={[styles.customerName, { color: theme.colors.text }]}>
+        {task.customerName}
+      </Text>
+
       <View style={styles.addressContainer}>
         <Text style={styles.addressIcon}>📍</Text>
-        <Text style={[styles.addressText, { color: theme.colors.textSecondary }]} numberOfLines={2}>
-          {task.addressStreet}, {task.addressCity}, {task.addressState} {task.addressPincode}
+        <Text
+          style={[styles.addressText, { color: theme.colors.textSecondary }]}
+          numberOfLines={2}
+        >
+          {task.addressStreet}, {task.addressCity}, {task.addressState}{' '}
+          {task.addressPincode}
         </Text>
       </View>
 
-      <Text style={[styles.timestamp, { color: theme.colors.textMuted }]}>{getDynamicTimestamp()}</Text>
-      
+      <Text style={[styles.timestamp, { color: theme.colors.textMuted }]}>
+        {getDynamicTimestamp()}
+      </Text>
+
       {task.isRevoked === 1 && (
-        <View style={[styles.revokedBanner, { backgroundColor: theme.colors.danger + '20' }]}>
-          <Text style={[styles.revokedBannerText, { color: theme.colors.danger }]}>REVOKED</Text>
+        <View
+          style={[
+            styles.revokedBanner,
+            { backgroundColor: theme.colors.danger + '20' },
+          ]}
+        >
+          <Text
+            style={[styles.revokedBannerText, { color: theme.colors.danger }]}
+          >
+            REVOKED
+          </Text>
         </View>
       )}
 
       <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
         <View style={styles.actionButtons}>
-          {(task.status === 'ASSIGNED' && task.isRevoked !== 1) && (
+          {task.status === 'ASSIGNED' && task.isRevoked !== 1 && (
             <>
-              <TouchableOpacity style={styles.iconButton} onPress={handleAccept} disabled={isAccepting}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={handleAccept}
+                disabled={isAccepting}
+              >
                 {isAccepting ? (
-                  <ActivityIndicator size="small" color={theme.colors.success} />
+                  <ActivityIndicator
+                    size="small"
+                    color={theme.colors.success}
+                  />
                 ) : (
-                  <Icon name="checkmark-circle" size={32} color={theme.colors.success} />
+                  <Icon
+                    name="checkmark-circle"
+                    size={32}
+                    color={theme.colors.success}
+                  />
                 )}
-                <Text style={[styles.actionLabel, { color: theme.colors.success }]}>
+                <Text
+                  style={[styles.actionLabel, { color: theme.colors.success }]}
+                >
                   {isAccepting ? 'Accepting...' : 'Accept'}
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.iconButton} onPress={() => onRevokePress?.(task)}>
-                <Icon name="close-circle" size={32} color={theme.colors.danger} />
-                <Text style={[styles.actionLabel, { color: theme.colors.danger }]}>Revoke</Text>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => onRevokePress?.(task)}
+              >
+                <Icon
+                  name="close-circle"
+                  size={32}
+                  color={theme.colors.danger}
+                />
+                <Text
+                  style={[styles.actionLabel, { color: theme.colors.danger }]}
+                >
+                  Revoke
+                </Text>
               </TouchableOpacity>
             </>
           )}
 
-          <TouchableOpacity style={styles.iconButton} onPress={() => onInfoPress?.(task)}>
-            <Icon name="information-circle" size={32} color={theme.colors.info || '#3b82f6'} />
-            <Text style={[styles.actionLabel, { color: theme.colors.info || '#3b82f6' }]}>Info</Text>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => onInfoPress?.(task)}
+          >
+            <Icon
+              name="information-circle"
+              size={32}
+              color={theme.colors.info || '#3b82f6'}
+            />
+            <Text
+              style={[
+                styles.actionLabel,
+                { color: theme.colors.info || '#3b82f6' },
+              ]}
+            >
+              Info
+            </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.iconButton} onPress={() => (onAttachmentsPress ? onAttachmentsPress(task) : onPress(task))}>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() =>
+              onAttachmentsPress ? onAttachmentsPress(task) : onPress(task)
+            }
+          >
             <Icon name="attach" size={28} color={theme.colors.primary} />
-            {(task.attachmentCount || 0)> 0 && (
-              <View style={[styles.badgeContainer, { backgroundColor: theme.colors.danger }]}>
+            {(task.attachmentCount || 0) > 0 && (
+              <View
+                style={[
+                  styles.badgeContainer,
+                  { backgroundColor: theme.colors.danger },
+                ]}
+              >
                 <Text style={styles.badgeText}>{task.attachmentCount}</Text>
               </View>
             )}
-            <Text style={[styles.actionLabel, { color: theme.colors.primary }]}>Attachments</Text>
+            <Text style={[styles.actionLabel, { color: theme.colors.primary }]}>
+              Attachments
+            </Text>
           </TouchableOpacity>
         </View>
-        
+
         <View style={styles.statusBadgeContainer}>
           {isReorderEnabled && (
             <View style={styles.reorderButtons}>
               <TouchableOpacity
-                style={[styles.reorderButton, !canMoveUp && styles.reorderButtonDisabled]}
+                style={[
+                  styles.reorderButton,
+                  !canMoveUp && styles.reorderButtonDisabled,
+                ]}
                 onPress={() => onMoveTask?.(task.id, 'up')}
-                disabled={!canMoveUp}>
+                disabled={!canMoveUp}
+              >
                 <Icon
                   name="chevron-up-outline"
                   size={16}
-                  color={canMoveUp ? theme.colors.textSecondary : theme.colors.textMuted}
+                  color={
+                    canMoveUp
+                      ? theme.colors.textSecondary
+                      : theme.colors.textMuted
+                  }
                 />
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.reorderButton, !canMoveDown && styles.reorderButtonDisabled]}
+                style={[
+                  styles.reorderButton,
+                  !canMoveDown && styles.reorderButtonDisabled,
+                ]}
                 onPress={() => onMoveTask?.(task.id, 'down')}
-                disabled={!canMoveDown}>
+                disabled={!canMoveDown}
+              >
                 <Icon
                   name="chevron-down-outline"
                   size={16}
-                  color={canMoveDown ? theme.colors.textSecondary : theme.colors.textMuted}
+                  color={
+                    canMoveDown
+                      ? theme.colors.textSecondary
+                      : theme.colors.textMuted
+                  }
                 />
               </TouchableOpacity>
             </View>
           )}
-          <View style={[styles.badge, { backgroundColor: getStatusColor(task.status) }]}>
-            <Text style={[styles.statusText, { color: theme.colors.surface }]}>{task.status ? task.status.replace('_', ' ') : 'UNKNOWN'}</Text>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: getStatusColor(task.status) },
+            ]}
+          >
+            <Text style={[styles.statusText, { color: theme.colors.surface }]}>
+              {task.status ? task.status.replace('_', ' ') : 'UNKNOWN'}
+            </Text>
           </View>
           {(task.status === 'IN_PROGRESS' || task.status === 'REVISIT') && (
-            <Icon name="chevron-forward" size={20} color={theme.colors.textMuted} />
+            <Icon
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
           )}
         </View>
       </View>

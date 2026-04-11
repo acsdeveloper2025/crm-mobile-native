@@ -44,7 +44,9 @@ class AttachmentServiceClass {
     Logger.info(TAG, `Offline mode: ${offline}`);
   }
 
-  async getRemoteTaskAttachments(taskId: string): Promise<RemoteTaskAttachment[]> {
+  async getRemoteTaskAttachments(
+    taskId: string,
+  ): Promise<RemoteTaskAttachment[]> {
     try {
       const response = await ApiClient.get<{
         success: boolean;
@@ -80,7 +82,11 @@ class AttachmentServiceClass {
         };
       });
     } catch (error) {
-      Logger.warn(TAG, `Failed to load remote attachments for task ${taskId}`, error);
+      Logger.warn(
+        TAG,
+        `Failed to load remote attachments for task ${taskId}`,
+        error,
+      );
       return [];
     }
   }
@@ -105,11 +111,14 @@ class AttachmentServiceClass {
   }
 
   private async downloadAndCache(attachment: Attachment): Promise<string> {
-    const safeName = attachment.name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
+    const safeName = attachment.name
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .slice(0, 80);
     const filename = `${attachment.id}_${safeName}`;
     const destPath = `${CACHE_DIR}/${filename}`;
     const exists = await RNFS.exists(destPath);
-    if (exists) return Platform.OS === 'android' ? `file://${destPath}` : destPath;
+    if (exists)
+      return Platform.OS === 'android' ? `file://${destPath}` : destPath;
 
     const token = await SessionStore.getAccessToken();
     const headers: Record<string, string> = {
@@ -134,10 +143,15 @@ class AttachmentServiceClass {
       }
 
       lastFailureStatus = result.statusCode;
-      Logger.warn(TAG, `Attachment download attempt failed (${result.statusCode}) for ${url}`);
+      Logger.warn(
+        TAG,
+        `Attachment download attempt failed (${result.statusCode}) for ${url}`,
+      );
     }
 
-    throw new Error(`Attachment download failed (${lastFailureStatus || 'unknown'})`);
+    throw new Error(
+      `Attachment download failed (${lastFailureStatus || 'unknown'})`,
+    );
   }
 
   formatFileSize(bytes: number): string {
@@ -149,10 +163,14 @@ class AttachmentServiceClass {
   }
 
   private mapAttachmentType(mimeType: string | undefined): 'image' | 'pdf' {
-    return (mimeType || '').toLowerCase().startsWith('image/') ? 'image' : 'pdf';
+    return (mimeType || '').toLowerCase().startsWith('image/')
+      ? 'image'
+      : 'pdf';
   }
 
-  private mapAttachmentMimeType(mimeType: string | undefined): Attachment['mimeType'] {
+  private mapAttachmentMimeType(
+    mimeType: string | undefined,
+  ): Attachment['mimeType'] {
     const normalizedMime = (mimeType || '').toLowerCase();
     if (normalizedMime === 'image/png') return 'image/png';
     if (normalizedMime === 'image/jpg') return 'image/jpg';
@@ -160,7 +178,10 @@ class AttachmentServiceClass {
     return 'application/pdf';
   }
 
-  private normalizeRemoteAttachmentUrl(url: string | undefined, attachmentId: string): string {
+  private normalizeRemoteAttachmentUrl(
+    url: string | undefined,
+    attachmentId: string,
+  ): string {
     if (!url) return `${config.apiBaseUrl}/attachments/${attachmentId}/content`;
     if (url.startsWith('http')) return url;
 
@@ -226,7 +247,9 @@ class AttachmentServiceClass {
       `${config.apiBaseUrl}/attachments/${attachment.id}/content`,
     ];
     if (attachment.taskId) {
-      urls.push(`${config.apiBaseUrl}/verification-tasks/${attachment.taskId}/attachments/${attachment.id}`);
+      urls.push(
+        `${config.apiBaseUrl}/verification-tasks/${attachment.taskId}/attachments/${attachment.id}`,
+      );
     }
     return Array.from(new Set(urls));
   }

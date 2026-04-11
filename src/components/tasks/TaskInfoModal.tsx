@@ -1,5 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  ScrollView,
+} from 'react-native';
 import { LocalTask } from '../../types/mobile';
 import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -10,14 +17,30 @@ interface TaskInfoModalProps {
   onClose: () => void;
 }
 
-const InfoRow = ({ label, value, theme }: { label: string; value: string; theme: any }) => (
+const InfoRow = ({
+  label,
+  value,
+  theme,
+}: {
+  label: string;
+  value: string;
+  theme: any;
+}) => (
   <View style={styles.infoRow}>
-    <Text style={[styles.infoLabel, { color: theme.colors.textMuted }]}>{label}</Text>
-    <Text style={[styles.infoValue, { color: theme.colors.text }]}>{value || 'N/A'}</Text>
+    <Text style={[styles.infoLabel, { color: theme.colors.textMuted }]}>
+      {label}
+    </Text>
+    <Text style={[styles.infoValue, { color: theme.colors.text }]}>
+      {value || 'N/A'}
+    </Text>
   </View>
 );
 
-export const TaskInfoModal: React.FC<TaskInfoModalProps> = ({ visible, task, onClose }) => {
+export const TaskInfoModal: React.FC<TaskInfoModalProps> = ({
+  visible,
+  task,
+  onClose,
+}) => {
   const { theme } = useTheme();
 
   if (!task) {
@@ -26,21 +49,46 @@ export const TaskInfoModal: React.FC<TaskInfoModalProps> = ({ visible, task, onC
 
   const getPriorityText = (priority: string): string => {
     switch (priority) {
-      case '1': return 'Low';
-      case '2': return 'Medium';
-      case '3': return 'High';
-      case '4': return 'Urgent';
-      default: return priority || 'Medium';
+      case '1':
+        return 'Low';
+      case '2':
+        return 'Medium';
+      case '3':
+        return 'High';
+      case '4':
+        return 'Urgent';
+      default:
+        return priority || 'Medium';
     }
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View style={styles.overlay}>
-        <View style={[styles.modalContainer, { backgroundColor: theme.colors.surface }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Task Information</Text>
-            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+        <View
+          style={[
+            styles.modalContainer,
+            { backgroundColor: theme.colors.surface },
+          ]}
+        >
+          <View
+            style={[
+              styles.modalHeader,
+              { borderBottomColor: theme.colors.border },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Task Information
+            </Text>
+            <TouchableOpacity
+              onPress={onClose}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            >
               <Icon name="close" size={24} color={theme.colors.textMuted} />
             </TouchableOpacity>
           </View>
@@ -50,33 +98,102 @@ export const TaskInfoModal: React.FC<TaskInfoModalProps> = ({ visible, task, onC
             contentContainerStyle={styles.modalBodyContent}
             showsVerticalScrollIndicator
             persistentScrollbar
-            indicatorStyle="default">
-            <InfoRow label="Customer Name" value={task.customerName} theme={theme} />
+            indicatorStyle="default"
+          >
+            <InfoRow
+              label="Customer Name"
+              value={task.customerName}
+              theme={theme}
+            />
             <InfoRow label="Case ID" value={`#${task.caseId}`} theme={theme} />
-            <InfoRow label="Verification Task Number" value={task.verificationTaskNumber || ''} theme={theme} />
+            <InfoRow
+              label="Verification Task Number"
+              value={task.verificationTaskNumber || ''}
+              theme={theme}
+            />
             <InfoRow label="Client" value={task.clientName} theme={theme} />
-            <InfoRow label="Product" value={task.productName || ''} theme={theme} />
-            <InfoRow label="Verification Type" value={task.verificationTypeName || task.verificationType || ''} theme={theme} />
-            <InfoRow label="Applicant Type" value={task.applicantType || ''} theme={theme} />
-            <InfoRow label="Created By" value={task.createdByBackendUser || ''} theme={theme} />
-            <InfoRow label="Contact Number" value={task.backendContactNumber || ''} theme={theme} />
-            <InfoRow label="Assigned To" value={task.assignedToFieldUser || ''} theme={theme} />
-            <InfoRow label="Priority" value={getPriorityText(task.priority)} theme={theme} />
-            <InfoRow label="Trigger / Notes" value={task.notes || task.description || ''} theme={theme} />
-            <InfoRow label="Customer Calling Code" value={task.customerCallingCode || ''} theme={theme} />
+            <InfoRow
+              label="Product"
+              value={task.productName || ''}
+              theme={theme}
+            />
+            <InfoRow
+              label="Verification Type"
+              value={task.verificationTypeName || task.verificationType || ''}
+              theme={theme}
+            />
+            <InfoRow
+              label="Applicant Type"
+              value={task.applicantType || ''}
+              theme={theme}
+            />
+            <InfoRow
+              label="Created By"
+              value={task.createdByBackendUser || ''}
+              theme={theme}
+            />
+            <InfoRow
+              label="Contact Number"
+              value={task.backendContactNumber || ''}
+              theme={theme}
+            />
+            <InfoRow
+              label="Assigned To"
+              value={task.assignedToFieldUser || ''}
+              theme={theme}
+            />
+            <InfoRow
+              label="Priority"
+              value={getPriorityText(task.priority)}
+              theme={theme}
+            />
+            <InfoRow
+              label="Trigger / Notes"
+              value={task.notes || task.description || ''}
+              theme={theme}
+            />
+            <InfoRow
+              label="Customer Calling Code"
+              value={task.customerCallingCode || ''}
+              theme={theme}
+            />
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: theme.colors.textMuted }]}>Address</Text>
+              <Text
+                style={[styles.infoLabel, { color: theme.colors.textMuted }]}
+              >
+                Address
+              </Text>
               <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-                {task.addressStreet || [task.addressCity, task.addressState, task.addressPincode].filter(Boolean).join(' ').trim()}
+                {task.addressStreet ||
+                  [task.addressCity, task.addressState, task.addressPincode]
+                    .filter(Boolean)
+                    .join(' ')
+                    .trim()}
               </Text>
             </View>
           </ScrollView>
 
-          <View style={[styles.modalFooter, { borderTopColor: theme.colors.border }]}>
+          <View
+            style={[
+              styles.modalFooter,
+              { borderTopColor: theme.colors.border },
+            ]}
+          >
             <TouchableOpacity
-              style={[styles.closeButton, { backgroundColor: theme.colors.primary }]}
-              onPress={onClose}>
-              <Text style={[styles.closeButtonText, { color: theme.colors.surface }]}>Close</Text>
+              style={[
+                styles.closeButton,
+                { backgroundColor: theme.colors.primary },
+              ]}
+              onPress={onClose}
+            >
+              <Text
+                style={[
+                  styles.closeButtonText,
+                  { color: theme.colors.surface },
+                ]}
+              >
+                Close
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

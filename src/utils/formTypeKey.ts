@@ -94,7 +94,9 @@ const normalizeNameToken = (value: string): string =>
     .replace(/-/g, ' ')
     .replace(/\s+/g, ' ');
 
-const resolveFormTypeKeyFromString = (rawValue: string | null | undefined): FormTypeKey | null => {
+const resolveFormTypeKeyFromString = (
+  rawValue: string | null | undefined,
+): FormTypeKey | null => {
   if (!rawValue) return null;
   const value = rawValue.trim();
   if (!value) return null;

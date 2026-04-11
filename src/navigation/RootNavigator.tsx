@@ -1,6 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { NavigationContainer, type NavigationContainerRef } from '@react-navigation/native';
-import { createNativeStackNavigator, type NativeStackNavigationOptions } from '@react-navigation/native-stack';
+import {
+  NavigationContainer,
+  type NavigationContainerRef,
+} from '@react-navigation/native';
+import {
+  createNativeStackNavigator,
+  type NativeStackNavigationOptions,
+} from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -37,8 +43,31 @@ export type RootStackParamList = {
   Main: undefined;
   TaskDetail: { taskId: string };
   TaskAttachments: { taskId: string };
-  CameraCapture: { taskId: string; componentType?: 'photo' | 'selfie'; taskMeta?: { caseId?: string; taskNumber?: string; customerName?: string; clientName?: string; productName?: string; verificationType?: string } };
-  WatermarkPreview: { photoPath: string; taskId: string; componentType?: 'photo' | 'selfie'; taskMeta?: { caseId?: string; taskNumber?: string; customerName?: string; clientName?: string; productName?: string; verificationType?: string } };
+  CameraCapture: {
+    taskId: string;
+    componentType?: 'photo' | 'selfie';
+    taskMeta?: {
+      caseId?: string;
+      taskNumber?: string;
+      customerName?: string;
+      clientName?: string;
+      productName?: string;
+      verificationType?: string;
+    };
+  };
+  WatermarkPreview: {
+    photoPath: string;
+    taskId: string;
+    componentType?: 'photo' | 'selfie';
+    taskMeta?: {
+      caseId?: string;
+      taskNumber?: string;
+      customerName?: string;
+      clientName?: string;
+      productName?: string;
+      verificationType?: string;
+    };
+  };
   VerificationForm: { taskId: string };
   SyncLogs: undefined;
   Profile: undefined;
@@ -64,7 +93,17 @@ const getCameraScreenOptions = (): NativeStackNavigationOptions => ({
   animation: Platform.OS === 'ios' ? 'default' : 'fade',
 });
 
-const TabBarIcon = ({ route, focused, color, size }: { route: { name: string }; focused: boolean; color: string; size: number }) => {
+const TabBarIcon = ({
+  route,
+  focused,
+  color,
+  size,
+}: {
+  route: { name: string };
+  focused: boolean;
+  color: string;
+  size: number;
+}) => {
   let iconName = 'list';
 
   if (route.name === 'Dashboard') {
@@ -79,11 +118,24 @@ const TabBarIcon = ({ route, focused, color, size }: { route: { name: string }; 
     iconName = focused ? 'checkmark-circle' : 'checkmark-circle-outline';
   }
 
-  return <Icon name={iconName} size={size} color={color} testID={`tab-icon-${route.name}`} />;
+  return (
+    <Icon
+      name={iconName}
+      size={size}
+      color={color}
+      testID={`tab-icon-${route.name}`}
+    />
+  );
 };
 
-const getTabScreenOptions = ({ route }: { route: { name: string } }, theme: ReturnType<typeof useTheme>['theme'], insets: { bottom: number }) => ({
-  tabBarIcon: (props: { focused: boolean; color: string; size: number }) => <TabBarIcon route={route} {...props} />,
+const getTabScreenOptions = (
+  { route }: { route: { name: string } },
+  theme: ReturnType<typeof useTheme>['theme'],
+  insets: { bottom: number },
+) => ({
+  tabBarIcon: (props: { focused: boolean; color: string; size: number }) => (
+    <TabBarIcon route={route} {...props} />
+  ),
   tabBarActiveTintColor: theme.colors.primary,
   tabBarInactiveTintColor: theme.colors.textMuted,
   headerShown: false,
@@ -113,7 +165,7 @@ const MainTabs = () => {
   return (
     <Tab.Navigator
       initialRouteName="Dashboard"
-      screenOptions={(props) => getTabScreenOptions(props, theme, insets)}
+      screenOptions={props => getTabScreenOptions(props, theme, insets)}
     >
       <Tab.Screen
         name="Dashboard"
@@ -168,7 +220,8 @@ const linking = {
 };
 
 // Exported navigation ref for use outside React tree (e.g., notification handlers)
-export const navigationRef = React.createRef<NavigationContainerRef<RootStackParamList>>();
+export const navigationRef =
+  React.createRef<NavigationContainerRef<RootStackParamList>>();
 
 export const RootNavigator = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
@@ -188,7 +241,9 @@ export const RootNavigator = () => {
           navigationRef.current?.navigate('TaskDetail', { taskId });
         }
       })
-      .catch(err => Logger.warn('RootNavigator', 'getInitialNotification failed', err));
+      .catch(err =>
+        Logger.warn('RootNavigator', 'getInitialNotification failed', err),
+      );
 
     // Handle notification taps when app is in background
     const unsubscribe = messaging().onNotificationOpenedApp(remoteMessage => {
@@ -207,7 +262,14 @@ export const RootNavigator = () => {
     const checkAppVersion = async () => {
       try {
         const result = await VersionService.checkVersion();
-        console.warn('[VERSION_DEBUG]', JSON.stringify({ forceUpdate: result.forceUpdate, updateRequired: result.updateRequired, version: result.version }));
+        console.warn(
+          '[VERSION_DEBUG]',
+          JSON.stringify({
+            forceUpdate: result.forceUpdate,
+            updateRequired: result.updateRequired,
+            version: result.version,
+          }),
+        );
         if (isMounted) {
           setVersionResult(result);
         }
@@ -226,8 +288,17 @@ export const RootNavigator = () => {
 
   if (authLoading) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
-        <ActivityIndicator size="large" color={theme.colors.primary} testID="auth-loading" />
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: theme.colors.background },
+        ]}
+      >
+        <ActivityIndicator
+          size="large"
+          color={theme.colors.primary}
+          testID="auth-loading"
+        />
       </View>
     );
   }
@@ -242,7 +313,7 @@ export const RootNavigator = () => {
             component={ForceUpdateScreen}
             initialParams={{
               downloadUrl: versionResult.downloadUrl,
-              releaseNotes: versionResult.releaseNotes
+              releaseNotes: versionResult.releaseNotes,
             }}
           />
         </Stack.Navigator>
@@ -251,8 +322,16 @@ export const RootNavigator = () => {
   }
 
   return (
-    <NavigationContainer ref={navigationRef} linking={linking} onReady={() => { isNavigationReady.current = true; }}>
-      <Stack.Navigator screenOptions={{ headerShown: false, animation: 'none' }}>
+    <NavigationContainer
+      ref={navigationRef}
+      linking={linking}
+      onReady={() => {
+        isNavigationReady.current = true;
+      }}
+    >
+      <Stack.Navigator
+        screenOptions={{ headerShown: false, animation: 'none' }}
+      >
         {!isAuthenticated ? (
           <Stack.Screen name="Auth" component={LoginScreen} />
         ) : (
@@ -261,12 +340,20 @@ export const RootNavigator = () => {
             <Stack.Screen
               name="TaskDetail"
               component={TaskDetailScreen}
-              options={{ headerShown: false, title: 'Task Details', headerBackTitle: 'Back' }}
+              options={{
+                headerShown: false,
+                title: 'Task Details',
+                headerBackTitle: 'Back',
+              }}
             />
             <Stack.Screen
               name="TaskAttachments"
               component={TaskAttachmentsScreen}
-              options={{ headerShown: false, title: 'Attachments', headerBackTitle: 'Back' }}
+              options={{
+                headerShown: false,
+                title: 'Attachments',
+                headerBackTitle: 'Back',
+              }}
             />
             <Stack.Screen
               name="CameraCapture"
@@ -286,17 +373,29 @@ export const RootNavigator = () => {
             <Stack.Screen
               name="SyncLogs"
               component={SyncLogsScreen}
-              options={{ headerShown: false, title: 'Sync Diagnostics', headerBackTitle: 'Back' }}
+              options={{
+                headerShown: false,
+                title: 'Sync Diagnostics',
+                headerBackTitle: 'Back',
+              }}
             />
             <Stack.Screen
               name="Profile"
               component={ProfileScreen}
-              options={{ headerShown: false, title: 'Profile', headerBackTitle: 'Back' }}
+              options={{
+                headerShown: false,
+                title: 'Profile',
+                headerBackTitle: 'Back',
+              }}
             />
             <Stack.Screen
               name="DigitalIdCard"
               component={DigitalIdCardScreen}
-              options={{ headerShown: false, title: 'Digital ID Card', headerBackTitle: 'Back' }}
+              options={{
+                headerShown: false,
+                title: 'Digital ID Card',
+                headerBackTitle: 'Back',
+              }}
             />
             <Stack.Screen
               name="DataCleanup"

@@ -1,5 +1,12 @@
 import React, { useState, useCallback } from 'react';
-import { View, Text, TextInput, StyleSheet, Switch, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  StyleSheet,
+  Switch,
+  TouchableOpacity,
+} from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useTheme } from '../../context/ThemeContext';
 
@@ -26,24 +33,29 @@ const NUMERIC_FIELD_NAME_PATTERNS = [
   'area',
 ];
 
-const PHONE_FIELD_NAMES = [
-  'tpcPhone1',
-  'tpcPhone2',
-  'backendContactNumber',
-];
+const PHONE_FIELD_NAMES = ['tpcPhone1', 'tpcPhone2', 'backendContactNumber'];
 
 const EMAIL_FIELD_NAME_PATTERNS = ['email', 'mail'];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-const shouldUseNumericKeyboard = (field: { id: string; type: string; name?: string }): boolean => {
+const shouldUseNumericKeyboard = (field: {
+  id: string;
+  type: string;
+  name?: string;
+}): boolean => {
   if (field.type === 'number') return true;
   const fieldName = (field.name || field.id || '').toLowerCase();
-  return NUMERIC_FIELD_NAME_PATTERNS.some(pattern => fieldName.includes(pattern));
+  return NUMERIC_FIELD_NAME_PATTERNS.some(pattern =>
+    fieldName.includes(pattern),
+  );
 };
 
 const isPhoneField = (fieldName: string): boolean => {
   const lower = fieldName.toLowerCase();
-  return PHONE_FIELD_NAMES.some(name => lower === name.toLowerCase()) || lower.includes('phone');
+  return (
+    PHONE_FIELD_NAMES.some(name => lower === name.toLowerCase()) ||
+    lower.includes('phone')
+  );
 };
 
 const validateField = (
@@ -79,7 +91,8 @@ const validateField = (
   }
 
   // Email validation
-  const isEmail = field.type === 'email' ||
+  const isEmail =
+    field.type === 'email' ||
     EMAIL_FIELD_NAME_PATTERNS.some(p => fieldName.toLowerCase().includes(p));
   if (isEmail && !EMAIL_REGEX.test(strValue)) {
     return 'Please enter a valid email address';
@@ -88,10 +101,17 @@ const validateField = (
   return null;
 };
 
-const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, value, onChange, error }) => {
+const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({
+  field,
+  value,
+  onChange,
+  error,
+}) => {
   const { theme } = useTheme();
   const [touched, setTouched] = useState(false);
-  const [localValidationError, setLocalValidationError] = useState<string | null>(null);
+  const [localValidationError, setLocalValidationError] = useState<
+    string | null
+  >(null);
   const placeholder = `Enter ${field.label.toLowerCase()}`;
   const options = Array.isArray(field.options) ? field.options : [];
 
@@ -115,13 +135,21 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
               styles.input,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: displayError ? theme.colors.danger : theme.colors.border,
-                color: theme.colors.text
+                borderColor: displayError
+                  ? theme.colors.danger
+                  : theme.colors.border,
+                color: theme.colors.text,
               },
-              displayError && [styles.inputError, { borderColor: theme.colors.danger, backgroundColor: theme.colors.danger + '10' }]
+              displayError && [
+                styles.inputError,
+                {
+                  borderColor: theme.colors.danger,
+                  backgroundColor: theme.colors.danger + '10',
+                },
+              ],
             ]}
             value={value?.toString() || ''}
-            onChangeText={(text) => {
+            onChangeText={text => {
               if (field.type === 'number') {
                 onChange(field.id, text.trim() === '' ? '' : Number(text));
                 return;
@@ -145,13 +173,21 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
               styles.textArea,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: displayError ? theme.colors.danger : theme.colors.border,
-                color: theme.colors.text
+                borderColor: displayError
+                  ? theme.colors.danger
+                  : theme.colors.border,
+                color: theme.colors.text,
               },
-              displayError && [styles.inputError, { borderColor: theme.colors.danger, backgroundColor: theme.colors.danger + '10' }]
+              displayError && [
+                styles.inputError,
+                {
+                  borderColor: theme.colors.danger,
+                  backgroundColor: theme.colors.danger + '10',
+                },
+              ],
             ]}
             value={value?.toString() || ''}
-            onChangeText={(text) => onChange(field.id, text)}
+            onChangeText={text => onChange(field.id, text)}
             onBlur={handleBlur}
             multiline
             numberOfLines={4}
@@ -169,13 +205,21 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
               styles.input,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: displayError ? theme.colors.danger : theme.colors.border,
-                color: theme.colors.text
+                borderColor: displayError
+                  ? theme.colors.danger
+                  : theme.colors.border,
+                color: theme.colors.text,
               },
-              displayError && [styles.inputError, { borderColor: theme.colors.danger, backgroundColor: theme.colors.danger + '10' }]
+              displayError && [
+                styles.inputError,
+                {
+                  borderColor: theme.colors.danger,
+                  backgroundColor: theme.colors.danger + '10',
+                },
+              ],
             ]}
             value={value?.toString() || ''}
-            onChangeText={(text) => onChange(field.id, text)}
+            onChangeText={text => onChange(field.id, text)}
             onBlur={handleBlur}
             placeholder="YYYY-MM-DD"
             placeholderTextColor={theme.colors.textMuted}
@@ -188,14 +232,30 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
       case 'boolean':
       case 'checkbox':
         return (
-          <View style={[styles.switchContainer, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]} testID={`field-switch-${field.id}`}>
-            <Text style={[styles.switchLabel, { color: theme.colors.text }]}>{value ? 'Yes' : 'No'}</Text>
+          <View
+            style={[
+              styles.switchContainer,
+              {
+                backgroundColor: theme.colors.surfaceAlt,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            testID={`field-switch-${field.id}`}
+          >
+            <Text style={[styles.switchLabel, { color: theme.colors.text }]}>
+              {value ? 'Yes' : 'No'}
+            </Text>
             <Switch
               value={!!value}
-              onValueChange={(val) => onChange(field.id, val)}
+              onValueChange={val => onChange(field.id, val)}
               accessibilityLabel={`${field.label}: ${value ? 'Yes' : 'No'}`}
-              trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-              thumbColor={value ? theme.colors.surface : theme.colors.surfaceAlt}
+              trackColor={{
+                false: theme.colors.border,
+                true: theme.colors.primary,
+              }}
+              thumbColor={
+                value ? theme.colors.surface : theme.colors.surfaceAlt
+              }
             />
           </View>
         );
@@ -207,13 +267,21 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
               styles.input,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: displayError ? theme.colors.danger : theme.colors.border,
-                color: theme.colors.text
+                borderColor: displayError
+                  ? theme.colors.danger
+                  : theme.colors.border,
+                color: theme.colors.text,
               },
-              displayError && [styles.inputError, { borderColor: theme.colors.danger, backgroundColor: theme.colors.danger + '10' }]
+              displayError && [
+                styles.inputError,
+                {
+                  borderColor: theme.colors.danger,
+                  backgroundColor: theme.colors.danger + '10',
+                },
+              ],
             ]}
             value={value?.toString() || ''}
-            onChangeText={(text) => onChange(field.id, text.trim())}
+            onChangeText={text => onChange(field.id, text.trim())}
             onBlur={handleBlur}
             keyboardType="email-address"
             autoCapitalize="none"
@@ -231,14 +299,18 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
               styles.pickerContainer,
               {
                 backgroundColor: theme.colors.surface,
-                borderColor: displayError ? theme.colors.danger : theme.colors.border,
+                borderColor: displayError
+                  ? theme.colors.danger
+                  : theme.colors.border,
               },
-            ]}>
+            ]}
+          >
             <Picker
               selectedValue={value ?? ''}
               onValueChange={selectedValue => onChange(field.id, selectedValue)}
               dropdownIconColor={theme.colors.text}
-              style={{ color: theme.colors.text }}>
+              style={{ color: theme.colors.text }}
+            >
               <Picker.Item
                 label={`Select ${field.label}`}
                 value=""
@@ -255,68 +327,107 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({ field, val
           </View>
         );
 
-      case 'multiselect':
-        {
-          const selectedValues = Array.isArray(value) ? value as string[] : [];
-          return (
-            <View style={styles.multiselectContainer}>
-              {options.map((opt, index) => {
-                const isSelected = selectedValues.includes(opt.value);
-                return (
-                  <TouchableOpacity
-                    key={`${field.id}_multi_${String(opt.value)}_${index}`}
-                    onPress={() => {
-                      const next = isSelected
-                        ? selectedValues.filter(v => v !== opt.value)
-                        : [...selectedValues, opt.value];
-                      onChange(field.id, next);
-                    }}
+      case 'multiselect': {
+        const selectedValues = Array.isArray(value) ? (value as string[]) : [];
+        return (
+          <View style={styles.multiselectContainer}>
+            {options.map((opt, index) => {
+              const isSelected = selectedValues.includes(opt.value);
+              return (
+                <TouchableOpacity
+                  key={`${field.id}_multi_${String(opt.value)}_${index}`}
+                  onPress={() => {
+                    const next = isSelected
+                      ? selectedValues.filter(v => v !== opt.value)
+                      : [...selectedValues, opt.value];
+                    onChange(field.id, next);
+                  }}
+                  style={[
+                    styles.switchContainer,
+                    {
+                      backgroundColor: isSelected
+                        ? theme.colors.primary + '15'
+                        : theme.colors.surface,
+                      borderColor: isSelected
+                        ? theme.colors.primary
+                        : theme.colors.border,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.switchLabel, { color: theme.colors.text }]}
+                  >
+                    {opt.label}
+                  </Text>
+                  {/* eslint-disable react-native/no-inline-styles */}
+                  <View
                     style={[
-                      styles.switchContainer,
-                      {
-                        backgroundColor: isSelected ? theme.colors.primary + '15' : theme.colors.surface,
-                        borderColor: isSelected ? theme.colors.primary : theme.colors.border,
-                      },
-                    ]}>
-                    <Text style={[styles.switchLabel, { color: theme.colors.text }]}>{opt.label}</Text>
-                    {/* eslint-disable react-native/no-inline-styles */}
-                    <View style={[
                       styles.checkboxBox,
                       {
-                        borderColor: isSelected ? theme.colors.primary : theme.colors.border,
-                        backgroundColor: isSelected ? theme.colors.primary : 'transparent',
+                        borderColor: isSelected
+                          ? theme.colors.primary
+                          : theme.colors.border,
+                        backgroundColor: isSelected
+                          ? theme.colors.primary
+                          : 'transparent',
                       },
-                    ]}>
+                    ]}
+                  >
                     {/* eslint-enable react-native/no-inline-styles */}
-                      {isSelected && <Text style={styles.checkboxCheckmark}>✓</Text>}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          );
-        }
+                    {isSelected && (
+                      <Text style={styles.checkboxCheckmark}>✓</Text>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        );
+      }
 
       default:
-        return <Text style={[styles.unsupportedText, { color: theme.colors.textMuted }]}>Unsupported field type: {field.type}</Text>;
+        return (
+          <Text
+            style={[styles.unsupportedText, { color: theme.colors.textMuted }]}
+          >
+            Unsupported field type: {field.type}
+          </Text>
+        );
     }
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.labelContainer}>
-        <Text style={[styles.label, { color: theme.colors.text }]}>{field.label}</Text>
-        {field.required && <Text style={[styles.requiredStar, { color: theme.colors.danger }]}>*</Text>}
+        <Text style={[styles.label, { color: theme.colors.text }]}>
+          {field.label}
+        </Text>
+        {field.required && (
+          <Text style={[styles.requiredStar, { color: theme.colors.danger }]}>
+            *
+          </Text>
+        )}
       </View>
       {renderInput()}
-      {displayError ? <Text style={[styles.errorText, { color: theme.colors.danger }]}>{displayError}</Text> : null}
+      {displayError ? (
+        <Text style={[styles.errorText, { color: theme.colors.danger }]}>
+          {displayError}
+        </Text>
+      ) : null}
     </View>
   );
 };
 
-const areEqual = (prev: DynamicFieldProps, next: DynamicFieldProps): boolean => {
-  const prevOptions = Array.isArray(prev.field.options) ? prev.field.options : [];
-  const nextOptions = Array.isArray(next.field.options) ? next.field.options : [];
+const areEqual = (
+  prev: DynamicFieldProps,
+  next: DynamicFieldProps,
+): boolean => {
+  const prevOptions = Array.isArray(prev.field.options)
+    ? prev.field.options
+    : [];
+  const nextOptions = Array.isArray(next.field.options)
+    ? next.field.options
+    : [];
 
   if (prevOptions.length !== nextOptions.length) {
     return false;
@@ -340,7 +451,10 @@ const areEqual = (prev: DynamicFieldProps, next: DynamicFieldProps): boolean => 
   );
 };
 
-export const DynamicFieldRenderer = React.memo(DynamicFieldRendererComponent, areEqual);
+export const DynamicFieldRenderer = React.memo(
+  DynamicFieldRendererComponent,
+  areEqual,
+);
 
 const styles = StyleSheet.create({
   container: {

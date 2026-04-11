@@ -23,13 +23,16 @@ class NetworkServiceClass {
   private netInfoUnavailable = false;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
-  private normalizeState(state: Partial<NetInfoState> | null | undefined): NetInfoState {
+  private normalizeState(
+    state: Partial<NetInfoState> | null | undefined,
+  ): NetInfoState {
     const isConnected = state?.isConnected ?? null;
     return {
       type: state?.type ?? 'unknown',
       isConnected,
       isInternetReachable:
-        state?.isInternetReachable ?? (isConnected === null ? null : isConnected),
+        state?.isInternetReachable ??
+        (isConnected === null ? null : isConnected),
       details: state?.details ?? null,
       isWifiEnabled: state?.isWifiEnabled,
     } as NetInfoState;
@@ -46,29 +49,33 @@ class NetworkServiceClass {
     }
 
     try {
-      this.unsubscribeNetInfo = NetInfo.addEventListener((state: NetInfoState) => {
-        const normalizedState = this.normalizeState(state);
-        const wasOnline = this.isOnline;
-        this.isOnline =
-          normalizedState.isConnected === true &&
-          normalizedState.isInternetReachable !== false;
-        this.connectionType = normalizedState.type;
+      this.unsubscribeNetInfo = NetInfo.addEventListener(
+        (state: NetInfoState) => {
+          const normalizedState = this.normalizeState(state);
+          const wasOnline = this.isOnline;
+          this.isOnline =
+            normalizedState.isConnected === true &&
+            normalizedState.isInternetReachable !== false;
+          this.connectionType = normalizedState.type;
 
-        if (wasOnline !== this.isOnline) {
-          Logger.info(
-            TAG,
-            `Network status changed: ${this.isOnline ? 'ONLINE' : 'OFFLINE'} (${normalizedState.type})`,
-          );
-          // Debounce to prevent rapid sync triggers from WiFi/cellular handoffs
-          if (this.debounceTimer) {
-            clearTimeout(this.debounceTimer);
+          if (wasOnline !== this.isOnline) {
+            Logger.info(
+              TAG,
+              `Network status changed: ${
+                this.isOnline ? 'ONLINE' : 'OFFLINE'
+              } (${normalizedState.type})`,
+            );
+            // Debounce to prevent rapid sync triggers from WiFi/cellular handoffs
+            if (this.debounceTimer) {
+              clearTimeout(this.debounceTimer);
+            }
+            this.debounceTimer = setTimeout(() => {
+              this.debounceTimer = null;
+              this.notifySubscribers();
+            }, NETWORK_DEBOUNCE_MS);
           }
-          this.debounceTimer = setTimeout(() => {
-            this.debounceTimer = null;
-            this.notifySubscribers();
-          }, NETWORK_DEBOUNCE_MS);
-        }
-      });
+        },
+      );
     } catch (error) {
       this.netInfoUnavailable = true;
       this.isOnline = true;
@@ -122,7 +129,8 @@ class NetworkServiceClass {
 
     try {
       const state = this.normalizeState(await NetInfo.fetch());
-      this.isOnline = state.isConnected === true && state.isInternetReachable !== false;
+      this.isOnline =
+        state.isConnected === true && state.isInternetReachable !== false;
       this.connectionType = state.type;
     } catch (error) {
       this.netInfoUnavailable = true;

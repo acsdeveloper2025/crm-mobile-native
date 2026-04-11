@@ -103,15 +103,15 @@ export const lightTheme: Theme = {
     primary: '#00A950',
     primaryLight: '#00C75F',
     primaryDark: '#008A42',
-    
+
     background: '#FFFFFF',
     surface: '#F9FAFB',
     surfaceAlt: '#F3F4F6',
-    
+
     text: '#111827',
     textSecondary: '#6B7280',
     textMuted: '#9CA3AF',
-    
+
     success: '#10B981', // emerald-500
     warning: '#F59E0B', // amber-500
     danger: '#EF4444', // red-500
@@ -121,7 +121,7 @@ export const lightTheme: Theme = {
     completed: '#10B981',
     saved: '#EF4444',
     revoked: '#EF4444',
-    
+
     border: '#E5E7EB',
     borderLight: '#F3F4F6',
   },
@@ -133,15 +133,15 @@ export const darkTheme: Theme = {
     primary: '#00A950',
     primaryLight: '#00C75F',
     primaryDark: '#008A42',
-    
+
     background: '#111827', // gray-900
     surface: '#1F2937', // gray-800
     surfaceAlt: '#374151', // gray-700
-    
+
     text: '#F9FAFB', // gray-50
     textSecondary: '#D1D5DB', // gray-300
     textMuted: '#6B7280', // gray-500
-    
+
     success: '#34D399', // emerald-400
     warning: '#FBBF24', // amber-400
     danger: '#F87171', // red-400
@@ -151,7 +151,7 @@ export const darkTheme: Theme = {
     completed: '#34D399',
     saved: '#F87171',
     revoked: '#F87171',
-    
+
     border: '#374151', // gray-700
     borderLight: '#1F2937', // gray-800
   },

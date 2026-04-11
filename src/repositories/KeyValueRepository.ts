@@ -21,10 +21,9 @@ class KeyValueRepositoryClass {
   }
 
   async remove(key: string): Promise<void> {
-    await DatabaseService.execute(
-      'DELETE FROM key_value_store WHERE key = ?',
-      [key],
-    );
+    await DatabaseService.execute('DELETE FROM key_value_store WHERE key = ?', [
+      key,
+    ]);
   }
 
   async removeLike(pattern: string): Promise<void> {

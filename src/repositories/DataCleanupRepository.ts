@@ -29,8 +29,16 @@ class DataCleanupRepositoryClass {
     return rows.map(row => row.id);
   }
 
-  async listAttachmentsForTask(taskId: string): Promise<Array<{ id: string; localPath: string; thumbnailPath: string | null }>> {
-    return DatabaseService.query<{ id: string; localPath: string; thumbnailPath: string | null }>(
+  async listAttachmentsForTask(
+    taskId: string,
+  ): Promise<
+    Array<{ id: string; localPath: string; thumbnailPath: string | null }>
+  > {
+    return DatabaseService.query<{
+      id: string;
+      localPath: string;
+      thumbnailPath: string | null;
+    }>(
       `SELECT id, local_path as localPath, thumbnail_path as thumbnailPath
        FROM attachments
        WHERE task_id = ?`,
@@ -40,9 +48,13 @@ class DataCleanupRepositoryClass {
 
   async deleteTaskGraph(taskId: string): Promise<void> {
     await DatabaseService.transaction(async tx => {
-      await tx.executeSql(`DELETE FROM attachments WHERE task_id = ?`, [taskId]);
+      await tx.executeSql(`DELETE FROM attachments WHERE task_id = ?`, [
+        taskId,
+      ]);
       await tx.executeSql(`DELETE FROM locations WHERE task_id = ?`, [taskId]);
-      await tx.executeSql(`DELETE FROM form_submissions WHERE task_id = ?`, [taskId]);
+      await tx.executeSql(`DELETE FROM form_submissions WHERE task_id = ?`, [
+        taskId,
+      ]);
       await tx.executeSql(
         `DELETE FROM sync_queue
          WHERE entity_id = ?
@@ -51,15 +63,27 @@ class DataCleanupRepositoryClass {
             OR json_extract(payload_json, '$.visitId') = ?`,
         [taskId, taskId, taskId, taskId],
       );
-      await tx.executeSql(`DELETE FROM key_value_store WHERE key LIKE ?`, [`auto_save_${taskId}%`]);
+      await tx.executeSql(`DELETE FROM key_value_store WHERE key LIKE ?`, [
+        `auto_save_${taskId}%`,
+      ]);
       await tx.executeSql(`DELETE FROM tasks WHERE id = ?`, [taskId]);
-      await tx.executeSql(`DELETE FROM task_list_projection WHERE id = ?`, [taskId]);
-      await tx.executeSql(`DELETE FROM task_detail_projection WHERE id = ?`, [taskId]);
+      await tx.executeSql(`DELETE FROM task_list_projection WHERE id = ?`, [
+        taskId,
+      ]);
+      await tx.executeSql(`DELETE FROM task_detail_projection WHERE id = ?`, [
+        taskId,
+      ]);
     });
   }
 
-  async listAllAttachments(): Promise<Array<{ id: string; localPath: string; thumbnailPath: string | null }>> {
-    return DatabaseService.query<{ id: string; localPath: string; thumbnailPath: string | null }>(
+  async listAllAttachments(): Promise<
+    Array<{ id: string; localPath: string; thumbnailPath: string | null }>
+  > {
+    return DatabaseService.query<{
+      id: string;
+      localPath: string;
+      thumbnailPath: string | null;
+    }>(
       `SELECT id, local_path as localPath, thumbnail_path as thumbnailPath FROM attachments`,
     );
   }

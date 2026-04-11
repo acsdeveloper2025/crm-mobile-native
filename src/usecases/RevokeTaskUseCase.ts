@@ -5,7 +5,10 @@ import { SYNC_PRIORITY } from '../services/SyncQueue';
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-const resolveBackendTaskId = (taskId: string, verificationTaskId?: string | null): string => {
+const resolveBackendTaskId = (
+  taskId: string,
+  verificationTaskId?: string | null,
+): string => {
   if (verificationTaskId && UUID_REGEX.test(verificationTaskId.trim())) {
     return verificationTaskId.trim();
   }

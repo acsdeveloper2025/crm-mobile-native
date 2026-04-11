@@ -4,7 +4,10 @@ import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import { config } from '../config';
 import { Logger } from '../utils/logger';
-import type { MobileVersionCheckResponse, MobileVersionCheckRequest } from '../types/api';
+import type {
+  MobileVersionCheckResponse,
+  MobileVersionCheckRequest,
+} from '../types/api';
 
 export const APP_VERSION = config.appVersion;
 
@@ -33,17 +36,20 @@ class VersionServiceClass {
     try {
       const payload: MobileVersionCheckRequest = {
         currentVersion: APP_VERSION,
-        platform: Platform.OS === 'ios' ? 'IOS' : 'ANDROID'
+        platform: Platform.OS === 'ios' ? 'IOS' : 'ANDROID',
       };
 
       const response = await ApiClient.post<MobileVersionCheckResponse>(
         ENDPOINTS.VERSION.CHECK,
         payload,
-        { timeout: 5000 }
+        { timeout: 5000 },
       );
 
       if (response && response.success) {
-        Logger.info(TAG, `Version Check: App=${APP_VERSION}, forceUpdate=${response.forceUpdate}`);
+        Logger.info(
+          TAG,
+          `Version Check: App=${APP_VERSION}, forceUpdate=${response.forceUpdate}`,
+        );
         return {
           version: response.latestVersion || APP_VERSION,
           releaseDate: response.releaseDate || new Date().toISOString(),
@@ -55,12 +61,11 @@ class VersionServiceClass {
           releaseNotes: response.releaseNotes ? [response.releaseNotes] : [],
           features: response.features || [],
           bugFixes: response.bugFixes || [],
-          downloadUrl: response.downloadUrl
+          downloadUrl: response.downloadUrl,
         };
       }
 
       return this.getDefaultUpdateInfo();
-      
     } catch (error) {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status || 0;
@@ -73,7 +78,10 @@ class VersionServiceClass {
           Logger.error(TAG, `Version check failed (${status})`, error);
         }
       } else {
-        Logger.warn(TAG, 'Recoverable version check failure; using default update policy');
+        Logger.warn(
+          TAG,
+          'Recoverable version check failure; using default update policy',
+        );
       }
       return this.getDefaultUpdateInfo();
     }
@@ -84,7 +92,10 @@ class VersionServiceClass {
     return info.updateRequired ? info : null;
   }
 
-  startAutoCheck(intervalMs: number = 3600000, callback?: (result: UpdateInfo) => void) {
+  startAutoCheck(
+    intervalMs: number = 3600000,
+    callback?: (result: UpdateInfo) => void,
+  ) {
     const interval = setInterval(async () => {
       const result = await this.checkVersion();
       if (result.updateRequired && callback) {
@@ -102,7 +113,7 @@ class VersionServiceClass {
     return {
       currentVersion: APP_VERSION,
       platform: Platform.OS,
-      notificationStyle: 'modal' as 'modal' | 'banner'
+      notificationStyle: 'modal' as 'modal' | 'banner',
     };
   }
 
@@ -115,10 +126,9 @@ class VersionServiceClass {
       required: false,
       releaseNotes: [],
       features: [],
-      bugFixes: []
+      bugFixes: [],
     };
   }
-
 }
 
 export const VersionService = new VersionServiceClass();

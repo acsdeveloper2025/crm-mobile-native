@@ -25,18 +25,30 @@ const cardWidth = screenWidth * 0.9;
 
 export const DigitalIdCard: React.FC<DigitalIdCardProps> = ({
   userProfile,
-  companyName = "All Check Services LLP",
-  companyAddress = "Office No. 406, 4th Floor, Neptune Flying Colors, Din Dayal Upadhyay Rd, Mumbai, Maharashtra 400080",
+  companyName = 'All Check Services LLP',
+  companyAddress = 'Office No. 406, 4th Floor, Neptune Flying Colors, Din Dayal Upadhyay Rd, Mumbai, Maharashtra 400080',
 }) => {
   const { theme } = useTheme();
 
   return (
     <View style={styles.cardContainer}>
-      <View style={[styles.card, { width: cardWidth, backgroundColor: theme.colors.surface }]}>
+      <View
+        style={[
+          styles.card,
+          { width: cardWidth, backgroundColor: theme.colors.surface },
+        ]}
+      >
         {/* Header Section with Company Branding */}
-        <View style={[styles.header, { backgroundColor: theme.colors.primary }]}>
+        <View
+          style={[styles.header, { backgroundColor: theme.colors.primary }]}
+        >
           <View style={styles.headerContent}>
-            <View style={[styles.companyLogoPlaceholder, { backgroundColor: theme.colors.surface }]}>
+            <View
+              style={[
+                styles.companyLogoPlaceholder,
+                { backgroundColor: theme.colors.surface },
+              ]}
+            >
               <Icon name="business" size={24} color={theme.colors.primary} />
             </View>
             <View style={styles.headerText}>
@@ -52,78 +64,192 @@ export const DigitalIdCard: React.FC<DigitalIdCardProps> = ({
           <View style={styles.photoSection}>
             <View style={styles.photoContainer}>
               {userProfile.profilePhoto ? (
-                <Image 
-                  source={{ uri: userProfile.profilePhoto }} 
-                  style={[styles.profilePhoto, { borderColor: theme.colors.primary }]}
+                <Image
+                  source={{ uri: userProfile.profilePhoto }}
+                  style={[
+                    styles.profilePhoto,
+                    { borderColor: theme.colors.primary },
+                  ]}
                 />
               ) : (
-                <View style={[styles.placeholderPhoto, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.primary }]}>
-                  <Text style={[styles.placeholderText, { color: theme.colors.text }]}>
-                    {userProfile.fullName ? userProfile.fullName.split(' ').map(n => n?.[0]).join('').substring(0,2).toUpperCase() : '?'}
+                <View
+                  style={[
+                    styles.placeholderPhoto,
+                    {
+                      backgroundColor: theme.colors.surfaceAlt,
+                      borderColor: theme.colors.primary,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.placeholderText,
+                      { color: theme.colors.text },
+                    ]}
+                  >
+                    {userProfile.fullName
+                      ? userProfile.fullName
+                          .split(' ')
+                          .map(n => n?.[0])
+                          .join('')
+                          .substring(0, 2)
+                          .toUpperCase()
+                      : '?'}
                   </Text>
                 </View>
               )}
             </View>
-            <Text style={[styles.userName, { color: theme.colors.text }]}>{userProfile.fullName.toUpperCase()}</Text>
+            <Text style={[styles.userName, { color: theme.colors.text }]}>
+              {userProfile.fullName.toUpperCase()}
+            </Text>
           </View>
 
           {/* User Details Section */}
           <View style={styles.detailsSection}>
             <View style={styles.detailsContainer}>
               <View style={styles.detailRow}>
-                <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Employee ID:</Text>
-                <Text style={[styles.detailValue, { color: theme.colors.text }]}>{userProfile.employeeId}</Text>
+                <Text
+                  style={[
+                    styles.detailLabel,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                >
+                  Employee ID:
+                </Text>
+                <Text
+                  style={[styles.detailValue, { color: theme.colors.text }]}
+                >
+                  {userProfile.employeeId}
+                </Text>
               </View>
 
               {userProfile.designation && (
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Designation:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.text }]}>{userProfile.designation}</Text>
+                  <Text
+                    style={[
+                      styles.detailLabel,
+                      { color: theme.colors.textSecondary },
+                    ]}
+                  >
+                    Designation:
+                  </Text>
+                  <Text
+                    style={[styles.detailValue, { color: theme.colors.text }]}
+                  >
+                    {userProfile.designation}
+                  </Text>
                 </View>
               )}
 
               {userProfile.department && (
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Department:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.text }]}>{userProfile.department}</Text>
+                  <Text
+                    style={[
+                      styles.detailLabel,
+                      { color: theme.colors.textSecondary },
+                    ]}
+                  >
+                    Department:
+                  </Text>
+                  <Text
+                    style={[styles.detailValue, { color: theme.colors.text }]}
+                  >
+                    {userProfile.department}
+                  </Text>
                 </View>
               )}
 
               {userProfile.phoneNumber && (
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Phone:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.text }]}>{userProfile.phoneNumber}</Text>
+                  <Text
+                    style={[
+                      styles.detailLabel,
+                      { color: theme.colors.textSecondary },
+                    ]}
+                  >
+                    Phone:
+                  </Text>
+                  <Text
+                    style={[styles.detailValue, { color: theme.colors.text }]}
+                  >
+                    {userProfile.phoneNumber}
+                  </Text>
                 </View>
               )}
 
               {userProfile.email && (
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Email:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.text }]}>{userProfile.email}</Text>
+                  <Text
+                    style={[
+                      styles.detailLabel,
+                      { color: theme.colors.textSecondary },
+                    ]}
+                  >
+                    Email:
+                  </Text>
+                  <Text
+                    style={[styles.detailValue, { color: theme.colors.text }]}
+                  >
+                    {userProfile.email}
+                  </Text>
                 </View>
               )}
 
               {userProfile.validUntil && (
                 <View style={styles.detailRow}>
-                  <Text style={[styles.detailLabel, { color: theme.colors.textSecondary }]}>Valid Until:</Text>
-                  <Text style={[styles.detailValue, { color: theme.colors.text }]}>{userProfile.validUntil}</Text>
+                  <Text
+                    style={[
+                      styles.detailLabel,
+                      { color: theme.colors.textSecondary },
+                    ]}
+                  >
+                    Valid Until:
+                  </Text>
+                  <Text
+                    style={[styles.detailValue, { color: theme.colors.text }]}
+                  >
+                    {userProfile.validUntil}
+                  </Text>
                 </View>
               )}
             </View>
-            
+
             {/* Company Stamp Section (Placeholder icon) */}
             <View style={styles.stampSection}>
-              <Icon name="checkmark-circle" size={40} color={theme.colors.success + '80'} />
-              <Text style={[styles.stampText, { color: theme.colors.textMuted }]}>VERIFIED</Text>
+              <Icon
+                name="checkmark-circle"
+                size={40}
+                color={theme.colors.success + '80'}
+              />
+              <Text
+                style={[styles.stampText, { color: theme.colors.textMuted }]}
+              >
+                VERIFIED
+              </Text>
             </View>
-            
           </View>
         </View>
 
         {/* Company Address Footer */}
-        <View style={[styles.addressSection, { backgroundColor: theme.colors.surfaceAlt, borderTopColor: theme.colors.border }]}>
-          <Text style={[styles.addressText, { color: theme.colors.textSecondary }]}>{companyAddress}</Text>
-          <Text style={[styles.disclaimerText, { color: theme.colors.textMuted }]}>If found, please return to the address above.</Text>
+        <View
+          style={[
+            styles.addressSection,
+            {
+              backgroundColor: theme.colors.surfaceAlt,
+              borderTopColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.addressText, { color: theme.colors.textSecondary }]}
+          >
+            {companyAddress}
+          </Text>
+          <Text
+            style={[styles.disclaimerText, { color: theme.colors.textMuted }]}
+          >
+            If found, please return to the address above.
+          </Text>
         </View>
       </View>
     </View>
@@ -269,5 +395,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 4,
     fontStyle: 'italic',
-  }
+  },
 });

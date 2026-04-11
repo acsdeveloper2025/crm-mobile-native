@@ -6,7 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  Alert
+  Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -24,11 +24,17 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
   const { taskId } = route.params || {};
   const { task, isLoading, error, refetch } = useTask(taskId);
   const [isActionLoading, setIsActionLoading] = useState(false);
-  const [submissionSync, setSubmissionSync] = useState<{ status: string; syncStatus: string; syncError?: string } | null>(null);
+  const [submissionSync, setSubmissionSync] = useState<{
+    status: string;
+    syncStatus: string;
+    syncError?: string;
+  } | null>(null);
 
   useEffect(() => {
     if (task?.status === 'COMPLETED' && task?.id) {
-      FormRepository.getSubmissionSyncStatus(task.id).then(setSubmissionSync).catch(() => {});
+      FormRepository.getSubmissionSyncStatus(task.id)
+        .then(setSubmissionSync)
+        .catch(() => {});
     }
   }, [task?.status, task?.id]);
 
@@ -36,16 +42,20 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
   const getStatusColor = (status: string) => {
     if (!status) return theme.colors.textMuted;
     switch (status.toUpperCase()) {
-      case 'ASSIGNED': return theme.colors.primary;
-      case 'IN_PROGRESS': return theme.colors.warning;
-      case 'COMPLETED': return theme.colors.success;
-      default: return theme.colors.textMuted;
+      case 'ASSIGNED':
+        return theme.colors.primary;
+      case 'IN_PROGRESS':
+        return theme.colors.warning;
+      case 'COMPLETED':
+        return theme.colors.success;
+      default:
+        return theme.colors.textMuted;
     }
   };
 
   const handleStartVisit = async () => {
     if (!task) return;
-    
+
     setIsActionLoading(true);
     try {
       await startVisitUseCase(task.id);
@@ -53,7 +63,11 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
       refetch();
       navigation.navigate('VerificationForm', { taskId: task.id });
     } catch (err: unknown) {
-      Alert.alert('Error', (err instanceof Error ? err.message : String(err)) || 'Failed to start visit.');
+      Alert.alert(
+        'Error',
+        (err instanceof Error ? err.message : String(err)) ||
+          'Failed to start visit.',
+      );
     } finally {
       setIsActionLoading(false);
     }
@@ -67,7 +81,9 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
     if (!task) return;
     setIsActionLoading(true);
     try {
-      const { SyncEngineRepository } = await import('../../repositories/SyncEngineRepository');
+      const { SyncEngineRepository } = await import(
+        '../../repositories/SyncEngineRepository'
+      );
 
       // Check if there are failed sync items to re-queue
       const failedItems = await SyncEngineRepository.query<{ id: string }>(
@@ -96,7 +112,11 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
           'No saved submission found for this task. Would you like to fill the form again?',
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Open Form', onPress: () => navigation.navigate('VerificationForm', { taskId: task.id }) },
+            {
+              text: 'Open Form',
+              onPress: () =>
+                navigation.navigate('VerificationForm', { taskId: task.id }),
+            },
           ],
         );
       }
@@ -110,64 +130,130 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
 
   if (isLoading) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: theme.colors.background }]}>
+      <View
+        style={[
+          styles.centerContainer,
+          { backgroundColor: theme.colors.background },
+        ]}
+      >
         <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={[styles.stateText, { color: theme.colors.textSecondary }]}>Loading task details...</Text>
+        <Text style={[styles.stateText, { color: theme.colors.textSecondary }]}>
+          Loading task details...
+        </Text>
       </View>
     );
   }
 
   if (error || !task) {
     return (
-      <View style={[styles.centerContainer, { backgroundColor: theme.colors.background }]}>
-        <Icon name="alert-circle-outline" size={48} color={theme.colors.danger} />
-        <Text style={[styles.errorText, { color: theme.colors.danger }]}>{error || 'Task not found'}</Text>
-        <TouchableOpacity 
-          style={[styles.retryButton, { backgroundColor: theme.colors.primary }]} 
+      <View
+        style={[
+          styles.centerContainer,
+          { backgroundColor: theme.colors.background },
+        ]}
+      >
+        <Icon
+          name="alert-circle-outline"
+          size={48}
+          color={theme.colors.danger}
+        />
+        <Text style={[styles.errorText, { color: theme.colors.danger }]}>
+          {error || 'Task not found'}
+        </Text>
+        <TouchableOpacity
+          style={[
+            styles.retryButton,
+            { backgroundColor: theme.colors.primary },
+          ]}
           onPress={() => navigation.goBack()}
-          activeOpacity={0.85}>
-          <Text style={[styles.retryText, { color: theme.colors.surface }]}>Back to Task List</Text>
+          activeOpacity={0.85}
+        >
+          <Text style={[styles.retryText, { color: theme.colors.surface }]}>
+            Back to Task List
+          </Text>
         </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <ScreenHeader title="Task Details" />
-      <ScrollView contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 16) + 24 }]}>
-
+      <ScrollView
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 16) + 24 },
+        ]}
+      >
         {/* Header Header */}
-        <View style={[styles.headerCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+        <View
+          style={[
+            styles.headerCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
           <View style={styles.headerTop}>
-            <Text style={[styles.taskNumber, { color: theme.colors.textMuted }]}>
+            <Text
+              style={[styles.taskNumber, { color: theme.colors.textMuted }]}
+            >
               {task.verificationTaskNumber || `Case #${task.caseId}`}
             </Text>
-            <View style={[styles.badge, { backgroundColor: getStatusColor(task.status) }]}>
-              <Text style={[styles.badgeText, { color: theme.colors.surface }]}>{task.status.replace('_', ' ')}</Text>
+            <View
+              style={[
+                styles.badge,
+                { backgroundColor: getStatusColor(task.status) },
+              ]}
+            >
+              <Text style={[styles.badgeText, { color: theme.colors.surface }]}>
+                {task.status.replace('_', ' ')}
+              </Text>
             </View>
           </View>
           <Text style={[styles.title, { color: theme.colors.text }]}>
             {task.customerName || task.title}
           </Text>
-          <Text style={[styles.clientName, { color: theme.colors.primary }]}>{task.clientName}</Text>
+          <Text style={[styles.clientName, { color: theme.colors.primary }]}>
+            {task.clientName}
+          </Text>
         </View>
 
         {/* Revoke Banner */}
         {(task.isRevoked === 1 || task.status === 'REVOKED') && (
           <View style={[styles.sectionCard, styles.revokedBannerContainer]}>
             <View style={styles.revokedBannerHeader}>
-              <Icon name="alert-circle" size={24} color="#DC2626" style={styles.icon} />
+              <Icon
+                name="alert-circle"
+                size={24}
+                color="#DC2626"
+                style={styles.icon}
+              />
               <View style={styles.flex1}>
-                <Text style={[styles.sectionTitle, styles.revokedBannerTitle]}>Task Revoked</Text>
+                <Text style={[styles.sectionTitle, styles.revokedBannerTitle]}>
+                  Task Revoked
+                </Text>
                 {task.revokeReason ? (
-                  <Text style={[styles.detailValue, styles.revokedBannerText]}>Reason: {task.revokeReason}</Text>
+                  <Text style={[styles.detailValue, styles.revokedBannerText]}>
+                    Reason: {task.revokeReason}
+                  </Text>
                 ) : null}
                 {task.revokedByName ? (
-                  <Text style={[styles.detailLabel, styles.revokedBannerSubtext]}>By: {task.revokedByName}</Text>
+                  <Text
+                    style={[styles.detailLabel, styles.revokedBannerSubtext]}
+                  >
+                    By: {task.revokedByName}
+                  </Text>
                 ) : null}
                 {task.revokedAt ? (
-                  <Text style={[styles.detailLabel, styles.revokedBannerSubtext]}>At: {new Date(task.revokedAt).toLocaleString()}</Text>
+                  <Text
+                    style={[styles.detailLabel, styles.revokedBannerSubtext]}
+                  >
+                    At: {new Date(task.revokedAt).toLocaleString()}
+                  </Text>
                 ) : null}
               </View>
             </View>
@@ -175,68 +261,178 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
         )}
 
         {/* Customer Info */}
-        <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>Customer Details</Text>
+        <View
+          style={[
+            styles.sectionCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.sectionTitle, { color: theme.colors.textMuted }]}
+          >
+            Customer Details
+          </Text>
           <View style={styles.detailRow}>
-            <Icon name="person-outline" size={20} color={theme.colors.textSecondary} style={styles.icon} />
+            <Icon
+              name="person-outline"
+              size={20}
+              color={theme.colors.textSecondary}
+              style={styles.icon}
+            />
             <View>
-              <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Name</Text>
-              <Text style={[styles.detailValue, { color: theme.colors.text }]}>{task.customerName}</Text>
+              <Text
+                style={[styles.detailLabel, { color: theme.colors.textMuted }]}
+              >
+                Name
+              </Text>
+              <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                {task.customerName}
+              </Text>
             </View>
           </View>
           <View style={styles.detailRow}>
-            <Icon name="call-outline" size={20} color={theme.colors.textSecondary} style={styles.icon} />
+            <Icon
+              name="call-outline"
+              size={20}
+              color={theme.colors.textSecondary}
+              style={styles.icon}
+            />
             <View style={styles.phoneBlock}>
-              <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Phone</Text>
-              <Text style={[styles.detailValue, { color: theme.colors.text }]}>{task.customerPhone || 'N/A'}</Text>
+              <Text
+                style={[styles.detailLabel, { color: theme.colors.textMuted }]}
+              >
+                Phone
+              </Text>
+              <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                {task.customerPhone || 'N/A'}
+              </Text>
             </View>
             <View style={styles.phoneBlock}>
-              <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Calling Code</Text>
-              <Text style={[styles.detailValue, { color: theme.colors.text }]}>{task.customerCallingCode || 'N/A'}</Text>
+              <Text
+                style={[styles.detailLabel, { color: theme.colors.textMuted }]}
+              >
+                Calling Code
+              </Text>
+              <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                {task.customerCallingCode || 'N/A'}
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Case Details */}
-        <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>Case Details</Text>
+        <View
+          style={[
+            styles.sectionCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.sectionTitle, { color: theme.colors.textMuted }]}
+          >
+            Case Details
+          </Text>
           <View style={styles.detailsGrid}>
             <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Verification Type</Text>
-              <Text style={[styles.detailValue, { color: theme.colors.text }]}>{task.verificationTypeName || task.verificationType || 'N/A'}</Text>
+              <Text
+                style={[styles.detailLabel, { color: theme.colors.textMuted }]}
+              >
+                Verification Type
+              </Text>
+              <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                {task.verificationTypeName || task.verificationType || 'N/A'}
+              </Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Product</Text>
-              <Text style={[styles.detailValue, { color: theme.colors.text }]}>{task.productName || 'N/A'}</Text>
+              <Text
+                style={[styles.detailLabel, { color: theme.colors.textMuted }]}
+              >
+                Product
+              </Text>
+              <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                {task.productName || 'N/A'}
+              </Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Applicant Type</Text>
-              <Text style={[styles.detailValue, { color: theme.colors.text }]}>{task.applicantType || 'N/A'}</Text>
+              <Text
+                style={[styles.detailLabel, { color: theme.colors.textMuted }]}
+              >
+                Applicant Type
+              </Text>
+              <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                {task.applicantType || 'N/A'}
+              </Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Created By (Backend)</Text>
-              <Text style={[styles.detailValue, { color: theme.colors.text }]}>{task.createdByBackendUser || 'N/A'}</Text>
+              <Text
+                style={[styles.detailLabel, { color: theme.colors.textMuted }]}
+              >
+                Created By (Backend)
+              </Text>
+              <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                {task.createdByBackendUser || 'N/A'}
+              </Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Backend Contact</Text>
-              <Text style={[styles.detailValue, { color: theme.colors.text }]}>{task.backendContactNumber || 'N/A'}</Text>
+              <Text
+                style={[styles.detailLabel, { color: theme.colors.textMuted }]}
+              >
+                Backend Contact
+              </Text>
+              <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                {task.backendContactNumber || 'N/A'}
+              </Text>
             </View>
             <View style={styles.detailRow}>
-              <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Trigger / Notes</Text>
-              <Text style={[styles.detailValue, { color: theme.colors.text }]}>{task.notes || task.description || 'N/A'}</Text>
+              <Text
+                style={[styles.detailLabel, { color: theme.colors.textMuted }]}
+              >
+                Trigger / Notes
+              </Text>
+              <Text style={[styles.detailValue, { color: theme.colors.text }]}>
+                {task.notes || task.description || 'N/A'}
+              </Text>
             </View>
           </View>
         </View>
 
         {/* Address Info */}
-        <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.textMuted }]}>Location</Text>
+        <View
+          style={[
+            styles.sectionCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.sectionTitle, { color: theme.colors.textMuted }]}
+          >
+            Location
+          </Text>
           <View style={styles.detailRow}>
-            <Icon name="location-outline" size={20} color={theme.colors.textSecondary} style={styles.icon} />
+            <Icon
+              name="location-outline"
+              size={20}
+              color={theme.colors.textSecondary}
+              style={styles.icon}
+            />
             <View style={styles.addressRowContent}>
-              <Text style={[styles.detailLabel, { color: theme.colors.textMuted }]}>Address</Text>
+              <Text
+                style={[styles.detailLabel, { color: theme.colors.textMuted }]}
+              >
+                Address
+              </Text>
               <Text style={[styles.detailValue, { color: theme.colors.text }]}>
-                {task.addressStreet}, {task.addressCity}, {task.addressState} {task.addressPincode}
+                {task.addressStreet}, {task.addressCity}, {task.addressState}{' '}
+                {task.addressPincode}
               </Text>
             </View>
           </View>
@@ -249,44 +445,71 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
       </ScrollView>
 
       {/* Sticky Action Footer */}
-      {(task.isRevoked !== 1) && (
-        <View style={[
-          styles.footer, 
-          { 
-            backgroundColor: theme.colors.surface, 
-            borderTopColor: theme.colors.border,
-            paddingBottom: Math.max(insets.bottom, 16),
-          }
-        ]}>
+      {task.isRevoked !== 1 && (
+        <View
+          style={[
+            styles.footer,
+            {
+              backgroundColor: theme.colors.surface,
+              borderTopColor: theme.colors.border,
+              paddingBottom: Math.max(insets.bottom, 16),
+            },
+          ]}
+        >
           {task.status === 'ASSIGNED' && (
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[
                 styles.primaryButton,
                 { backgroundColor: theme.colors.primary },
                 isActionLoading && styles.primaryButtonDisabled,
               ]}
               onPress={handleStartVisit}
-              disabled={isActionLoading}>
+              disabled={isActionLoading}
+            >
               {isActionLoading ? (
                 <>
                   <ActivityIndicator color={theme.colors.surface} />
-                  <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Starting Visit...</Text>
+                  <Text
+                    style={[styles.buttonText, { color: theme.colors.surface }]}
+                  >
+                    Starting Visit...
+                  </Text>
                 </>
               ) : (
                 <>
-                  <Icon name="play-outline" size={20} color={theme.colors.surface} />
-                  <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Start Visit</Text>
+                  <Icon
+                    name="play-outline"
+                    size={20}
+                    color={theme.colors.surface}
+                  />
+                  <Text
+                    style={[styles.buttonText, { color: theme.colors.surface }]}
+                  >
+                    Start Visit
+                  </Text>
                 </>
               )}
             </TouchableOpacity>
           )}
 
           {(task.status === 'IN_PROGRESS' || task.status === 'REVISIT') && (
-            <TouchableOpacity 
-              style={[styles.primaryButton, { backgroundColor: theme.colors.primary }]}
-              onPress={handleFillForm}>
-              <Icon name="create-outline" size={20} color={theme.colors.surface} />
-              <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Continue Verification</Text>
+            <TouchableOpacity
+              style={[
+                styles.primaryButton,
+                { backgroundColor: theme.colors.primary },
+              ]}
+              onPress={handleFillForm}
+            >
+              <Icon
+                name="create-outline"
+                size={20}
+                color={theme.colors.surface}
+              />
+              <Text
+                style={[styles.buttonText, { color: theme.colors.surface }]}
+              >
+                Continue Verification
+              </Text>
             </TouchableOpacity>
           )}
 
@@ -294,42 +517,142 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
             <View>
               {/* Sync Status Banner */}
               {submissionSync?.syncStatus === 'SYNCED' ? (
-                <View style={[styles.completedBanner, { backgroundColor: theme.colors.success + '10', borderColor: theme.colors.success }]}>
-                  <Icon name="checkmark-circle" size={24} color={theme.colors.success} />
-                  <Text style={[styles.completedText, { color: theme.colors.success }]}>Submitted to Server</Text>
+                <View
+                  style={[
+                    styles.completedBanner,
+                    {
+                      backgroundColor: theme.colors.success + '10',
+                      borderColor: theme.colors.success,
+                    },
+                  ]}
+                >
+                  <Icon
+                    name="checkmark-circle"
+                    size={24}
+                    color={theme.colors.success}
+                  />
+                  <Text
+                    style={[
+                      styles.completedText,
+                      { color: theme.colors.success },
+                    ]}
+                  >
+                    Submitted to Server
+                  </Text>
                 </View>
               ) : submissionSync?.syncStatus === 'PENDING' ? (
-                <View style={[styles.completedBanner, { backgroundColor: theme.colors.warning + '15', borderColor: theme.colors.warning }]}>
-                  <Icon name="cloud-upload-outline" size={24} color={theme.colors.warning} />
-                  <Text style={[styles.completedText, { color: theme.colors.warning }]}>Pending Upload</Text>
+                <View
+                  style={[
+                    styles.completedBanner,
+                    {
+                      backgroundColor: theme.colors.warning + '15',
+                      borderColor: theme.colors.warning,
+                    },
+                  ]}
+                >
+                  <Icon
+                    name="cloud-upload-outline"
+                    size={24}
+                    color={theme.colors.warning}
+                  />
+                  <Text
+                    style={[
+                      styles.completedText,
+                      { color: theme.colors.warning },
+                    ]}
+                  >
+                    Pending Upload
+                  </Text>
                 </View>
               ) : submissionSync ? (
-                <View style={[styles.completedBanner, { backgroundColor: theme.colors.danger + '10', borderColor: theme.colors.danger }]}>
-                  <Icon name="alert-circle" size={24} color={theme.colors.danger} />
-                  <Text style={[styles.completedText, { color: theme.colors.danger }]}>Upload Failed</Text>
+                <View
+                  style={[
+                    styles.completedBanner,
+                    {
+                      backgroundColor: theme.colors.danger + '10',
+                      borderColor: theme.colors.danger,
+                    },
+                  ]}
+                >
+                  <Icon
+                    name="alert-circle"
+                    size={24}
+                    color={theme.colors.danger}
+                  />
+                  <Text
+                    style={[
+                      styles.completedText,
+                      { color: theme.colors.danger },
+                    ]}
+                  >
+                    Upload Failed
+                  </Text>
                 </View>
               ) : (
-                <View style={[styles.completedBanner, { backgroundColor: theme.colors.textMuted + '10', borderColor: theme.colors.textMuted }]}>
-                  <Icon name="help-circle-outline" size={24} color={theme.colors.textMuted} />
-                  <Text style={[styles.completedText, { color: theme.colors.textMuted }]}>No Submission Found</Text>
+                <View
+                  style={[
+                    styles.completedBanner,
+                    {
+                      backgroundColor: theme.colors.textMuted + '10',
+                      borderColor: theme.colors.textMuted,
+                    },
+                  ]}
+                >
+                  <Icon
+                    name="help-circle-outline"
+                    size={24}
+                    color={theme.colors.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.completedText,
+                      { color: theme.colors.textMuted },
+                    ]}
+                  >
+                    No Submission Found
+                  </Text>
                 </View>
               )}
 
               {/* Resubmit button — show when sync failed, pending, or no submission found */}
               {(!submissionSync || submissionSync.syncStatus !== 'SYNCED') && (
                 <TouchableOpacity
-                  style={[styles.primaryButton, { backgroundColor: theme.colors.warning, marginTop: 10 }, isActionLoading && { opacity: 0.7 }]}
+                  style={[
+                    styles.primaryButton,
+                    styles.resubmitButton,
+                    { backgroundColor: theme.colors.warning },
+                    isActionLoading && styles.buttonDimmed,
+                  ]}
                   onPress={handleResubmit}
-                  disabled={isActionLoading}>
+                  disabled={isActionLoading}
+                >
                   {isActionLoading ? (
                     <>
                       <ActivityIndicator color={theme.colors.surface} />
-                      <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Resubmitting...</Text>
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          { color: theme.colors.surface },
+                        ]}
+                      >
+                        Resubmitting...
+                      </Text>
                     </>
                   ) : (
                     <>
-                      <Icon name="refresh-outline" size={20} color={theme.colors.surface} />
-                      <Text style={[styles.buttonText, { color: theme.colors.surface }]}>Resubmit</Text>
+                      <Icon
+                        name="refresh-outline"
+                        size={20}
+                        color={theme.colors.surface}
+                      />
+                      <Text
+                        style={[
+                          styles.buttonText,
+                          { color: theme.colors.surface },
+                        ]}
+                      >
+                        Resubmit
+                      </Text>
                     </>
                   )}
                 </TouchableOpacity>
@@ -480,6 +803,12 @@ const styles = StyleSheet.create({
   },
   primaryButtonDisabled: {
     opacity: 0.9,
+  },
+  resubmitButton: {
+    marginTop: 10,
+  },
+  buttonDimmed: {
+    opacity: 0.7,
   },
   buttonText: {
     fontSize: 16,

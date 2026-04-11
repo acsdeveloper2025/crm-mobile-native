@@ -101,7 +101,11 @@ class SyncQueueRepositoryClass {
     );
   }
 
-  async markInProgress(id: string, startedAt: string, leaseExpiresAt: string): Promise<void> {
+  async markInProgress(
+    id: string,
+    startedAt: string,
+    leaseExpiresAt: string,
+  ): Promise<void> {
     await DatabaseService.execute(
       `UPDATE sync_queue
        SET status = 'IN_PROGRESS',
@@ -147,7 +151,11 @@ class SyncQueueRepositoryClass {
     return rows[0]?.attempts ?? 0;
   }
 
-  async markFailed(id: string, error: string, nextRetryAt: string | null): Promise<void> {
+  async markFailed(
+    id: string,
+    error: string,
+    nextRetryAt: string | null,
+  ): Promise<void> {
     await DatabaseService.execute(
       `UPDATE sync_queue
        SET status = 'FAILED',
@@ -209,10 +217,14 @@ class SyncQueueRepositoryClass {
     );
   }
 
-  async listLogs(filter: 'ALL' | 'FAILED', limit: number = 100): Promise<SyncQueueItem[]> {
-    const query = filter === 'FAILED'
-      ? `SELECT * FROM sync_queue WHERE status = 'FAILED' ORDER BY created_at DESC LIMIT ?`
-      : `SELECT * FROM sync_queue ORDER BY created_at DESC LIMIT ?`;
+  async listLogs(
+    filter: 'ALL' | 'FAILED',
+    limit: number = 100,
+  ): Promise<SyncQueueItem[]> {
+    const query =
+      filter === 'FAILED'
+        ? `SELECT * FROM sync_queue WHERE status = 'FAILED' ORDER BY created_at DESC LIMIT ?`
+        : `SELECT * FROM sync_queue ORDER BY created_at DESC LIMIT ?`;
     return DatabaseService.query<SyncQueueItem>(query, [limit]);
   }
 
@@ -223,14 +235,22 @@ class SyncQueueRepositoryClass {
   }
 
   async clearCompleted(): Promise<void> {
-    await DatabaseService.execute(`DELETE FROM sync_queue WHERE status = 'COMPLETED'`);
+    await DatabaseService.execute(
+      `DELETE FROM sync_queue WHERE status = 'COMPLETED'`,
+    );
   }
 
   async updatePayload(id: string, payloadJson: string): Promise<void> {
-    await DatabaseService.execute('UPDATE sync_queue SET payload_json = ? WHERE id = ?', [payloadJson, id]);
+    await DatabaseService.execute(
+      'UPDATE sync_queue SET payload_json = ? WHERE id = ?',
+      [payloadJson, id],
+    );
   }
 
-  async listPendingAttachmentQueueItems(taskId: string, backendTaskId: string): Promise<Array<{ id: string; payloadJson: string }>> {
+  async listPendingAttachmentQueueItems(
+    taskId: string,
+    backendTaskId: string,
+  ): Promise<Array<{ id: string; payloadJson: string }>> {
     return DatabaseService.query<{ id: string; payloadJson: string }>(
       `SELECT id, payload_json
        FROM sync_queue

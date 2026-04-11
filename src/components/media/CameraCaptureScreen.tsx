@@ -1,7 +1,20 @@
 import React, { useRef, useState, useCallback } from 'react';
-import { View, StyleSheet, TouchableOpacity, Text, ActivityIndicator, Alert, Platform, AppState } from 'react-native';
+import {
+  View,
+  StyleSheet,
+  TouchableOpacity,
+  Text,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  AppState,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Camera, useCameraDevice, useCameraFormat } from 'react-native-vision-camera';
+import {
+  Camera,
+  useCameraDevice,
+  useCameraFormat,
+} from 'react-native-vision-camera';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect } from '@react-navigation/native';
 import { Logger } from '../../utils/logger';
@@ -37,18 +50,23 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
       Logger.info(TAG, `Camera permission: ${cameraPermission}`);
 
       if (!granted) {
-        Alert.alert('Permission needed', 'Camera permission is required to take photos.');
+        Alert.alert(
+          'Permission needed',
+          'Camera permission is required to take photos.',
+        );
         navigation.goBack();
         return;
       }
 
       // Request location permission (non-blocking) — actual GPS fix happens in WatermarkPreviewScreen
       const { LocationService } = require('../../services/LocationService');
-      LocationService.requestPermissions().then((locationGranted: boolean) => {
-        if (!locationGranted) {
-          setGpsWarning('GPS unavailable — photos will lack location data');
-        }
-      }).catch(() => {});
+      LocationService.requestPermissions()
+        .then((locationGranted: boolean) => {
+          if (!locationGranted) {
+            setGpsWarning('GPS unavailable — photos will lack location data');
+          }
+        })
+        .catch(() => {});
 
       // Activate camera ONLY after permission is confirmed.
       // On real devices, a small delay lets the native camera HAL initialize.
@@ -71,7 +89,7 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
 
       // Handle app going to background/foreground — camera must deactivate
       // when app is backgrounded to release the hardware resource on real devices.
-      const subscription = AppState.addEventListener('change', (nextState) => {
+      const subscription = AppState.addEventListener('change', nextState => {
         if (nextState === 'active' && hasPermission) {
           setIsActive(true);
         } else if (nextState === 'background' || nextState === 'inactive') {
@@ -84,7 +102,7 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
         subscription.remove();
       };
       // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [requestPermissions])
+    }, [requestPermissions]),
   );
 
   const handleCapture = async () => {
@@ -92,14 +110,12 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
 
     try {
       setIsCapturing(true);
-      
-      const photo = await camera.current.takePhoto(
-        {
-          flash: 'off',
-          enableShutterSound: false,
-          qualityPrioritization: 'speed',
-        } as any,
-      );
+
+      const photo = await camera.current.takePhoto({
+        flash: 'off',
+        enableShutterSound: false,
+        qualityPrioritization: 'speed',
+      } as any);
 
       // Redirect to Watermark compositor instead of immediately saving
       navigation.navigate('WatermarkPreview', {
@@ -109,7 +125,11 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
         taskMeta,
       });
     } catch (err: unknown) {
-      Alert.alert('Capture Error', (err instanceof Error ? err.message : String(err)) || 'Failed to capture photo.');
+      Alert.alert(
+        'Capture Error',
+        (err instanceof Error ? err.message : String(err)) ||
+          'Failed to capture photo.',
+      );
     } finally {
       setIsCapturing(false);
     }
@@ -119,12 +139,15 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
     return (
       <View style={styles.centerContainer}>
         <Icon name="camera-outline" size={48} color="#9CA3AF" />
-        <Text style={styles.loadingText}>No camera available on this device.</Text>
+        <Text style={styles.loadingText}>
+          No camera available on this device.
+        </Text>
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.goBackButton}
           accessibilityRole="button"
-          accessibilityLabel="Go back">
+          accessibilityLabel="Go back"
+        >
           <Text style={styles.goBackButtonText}>Go Back</Text>
         </TouchableOpacity>
       </View>
@@ -136,7 +159,9 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
       <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#2563EB" />
         <Text style={styles.loadingText}>
-          {!hasPermission ? 'Requesting camera permission...' : 'Preparing camera...'}
+          {!hasPermission
+            ? 'Requesting camera permission...'
+            : 'Preparing camera...'}
         </Text>
       </View>
     );
@@ -157,7 +182,7 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
         isActive={isActive}
         photo={true}
         format={format}
-        onError={(error) => {
+        onError={error => {
           Logger.error(TAG, 'Camera runtime error', error);
           Alert.alert(
             'Camera Error',
@@ -168,7 +193,7 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
           Logger.info(TAG, 'Camera initialized successfully on device');
         }}
       />
-      
+
       {/* Controls Overlay */}
       <View
         style={[
@@ -177,18 +202,26 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
             paddingTop: Math.max(insets.top, 16),
             paddingBottom: Math.max(insets.bottom, 16),
           },
-        ]}>
+        ]}
+      >
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.iconButton}
+          >
             <Icon name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
           <View style={styles.topInfoWrap}>
             <View style={styles.captureModeBadge}>
               <Text style={styles.captureModeText}>
-                {componentType === 'selfie' ? 'Selfie Capture' : 'Photo Capture'}
+                {componentType === 'selfie'
+                  ? 'Selfie Capture'
+                  : 'Photo Capture'}
               </Text>
             </View>
-            <Text style={styles.taskHintText}>Task: {String(taskId).slice(0, 8)}</Text>
+            <Text style={styles.taskHintText}>
+              Task: {String(taskId).slice(0, 8)}
+            </Text>
           </View>
           <View style={styles.topSpacer} />
         </View>
@@ -202,15 +235,30 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
 
         <View style={styles.bottomBar}>
           <TouchableOpacity
-            style={[styles.captureButtonOuter, isCapturing && styles.captureButtonDisabled]}
+            style={[
+              styles.captureButtonOuter,
+              isCapturing && styles.captureButtonDisabled,
+            ]}
             onPress={handleCapture}
-            disabled={isCapturing}>
-            <View style={[styles.captureButtonInner, isCapturing && styles.capturingState]} />
+            disabled={isCapturing}
+          >
+            <View
+              style={[
+                styles.captureButtonInner,
+                isCapturing && styles.capturingState,
+              ]}
+            />
           </TouchableOpacity>
           <Text style={styles.captureHint}>
-            {isCapturing ? 'Saving...' : componentType === 'selfie' ? 'Tap to capture selfie' : 'Tap to capture photo'}
+            {isCapturing
+              ? 'Saving...'
+              : componentType === 'selfie'
+              ? 'Tap to capture selfie'
+              : 'Tap to capture photo'}
           </Text>
-          <Text style={styles.captureHintSub}>Fast mode enabled for quicker capture</Text>
+          <Text style={styles.captureHintSub}>
+            Fast mode enabled for quicker capture
+          </Text>
         </View>
       </View>
     </View>

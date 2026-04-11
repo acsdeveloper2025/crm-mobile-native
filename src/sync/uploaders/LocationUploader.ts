@@ -21,7 +21,16 @@ class LocationUploaderClass {
       );
       return { outcome: 'SUCCESS' };
     } catch (error: unknown) {
-      const axiosErr = error as { response?: { status?: number; data?: { error?: { code?: string }; message?: string; success?: boolean } } };
+      const axiosErr = error as {
+        response?: {
+          status?: number;
+          data?: {
+            error?: { code?: string };
+            message?: string;
+            success?: boolean;
+          };
+        };
+      };
       const status = axiosErr?.response?.status;
 
       // 409: Location already captured for this task — treat as success

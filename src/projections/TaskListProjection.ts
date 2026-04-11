@@ -65,7 +65,10 @@ class TaskListProjectionClass {
     return (rows[0]?.count ?? 0) > 0;
   }
 
-  async list(statusFilter?: string, searchQuery?: string): Promise<LocalTask[]> {
+  async list(
+    statusFilter?: string,
+    searchQuery?: string,
+  ): Promise<LocalTask[]> {
     let sql = `SELECT * FROM task_list_projection WHERE (is_revoked IS NULL OR is_revoked = 0)`;
     const params: Array<string | number | null> = [];
 
@@ -85,9 +88,14 @@ class TaskListProjectionClass {
       END,
       assigned_at DESC`;
 
-    const rawProjected = await DatabaseService.query<Record<string, unknown>>(sql, params);
+    const rawProjected = await DatabaseService.query<Record<string, unknown>>(
+      sql,
+      params,
+    );
     const projected = mapSqliteTasks(rawProjected as never[]);
-    const filtered = projected.filter(task => this.matchesSearch(task, searchQuery));
+    const filtered = projected.filter(task =>
+      this.matchesSearch(task, searchQuery),
+    );
     if (filtered.length > 0 || (searchQuery?.trim() ?? '').length > 0) {
       return filtered;
     }
@@ -99,11 +107,18 @@ class TaskListProjectionClass {
 
     Logger.warn(
       TAG,
-      `Projection stale for filter ${statusFilter || 'ALL'}, rebuilding projections`,
+      `Projection stale for filter ${
+        statusFilter || 'ALL'
+      }, rebuilding projections`,
     );
     await ProjectionUpdater.rebuildAll();
-    const rawRefreshed = await DatabaseService.query<Record<string, unknown>>(sql, params);
-    return mapSqliteTasks(rawRefreshed as never[]).filter(task => this.matchesSearch(task, searchQuery));
+    const rawRefreshed = await DatabaseService.query<Record<string, unknown>>(
+      sql,
+      params,
+    );
+    return mapSqliteTasks(rawRefreshed as never[]).filter(task =>
+      this.matchesSearch(task, searchQuery),
+    );
   }
 
   async getCounts(): Promise<{
@@ -142,16 +157,24 @@ class TaskListProjectionClass {
       all += row.count;
     });
 
-    return { ALL: all, ASSIGNED: assigned, IN_PROGRESS: inProgress, COMPLETED: completed, SAVED: saved };
+    return {
+      ALL: all,
+      ASSIGNED: assigned,
+      IN_PROGRESS: inProgress,
+      COMPLETED: completed,
+      SAVED: saved,
+    };
   }
 
-  async listRecentActivity(limit: number): Promise<Array<{
-    id: string;
-    customerName: string;
-    status: string;
-    verificationTaskNumber: string | null;
-    updatedAt: string | null;
-  }>> {
+  async listRecentActivity(limit: number): Promise<
+    Array<{
+      id: string;
+      customerName: string;
+      status: string;
+      verificationTaskNumber: string | null;
+      updatedAt: string | null;
+    }>
+  > {
     return DatabaseService.query<{
       id: string;
       customerName: string;

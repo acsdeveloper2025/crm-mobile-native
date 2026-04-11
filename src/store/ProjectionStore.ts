@@ -1,5 +1,11 @@
-import { DashboardProjection, type DashboardProjectionStats } from '../projections/DashboardProjection';
-import { ProjectionUpdater, type ProjectionChangeEvent } from '../projections/ProjectionUpdater';
+import {
+  DashboardProjection,
+  type DashboardProjectionStats,
+} from '../projections/DashboardProjection';
+import {
+  ProjectionUpdater,
+  type ProjectionChangeEvent,
+} from '../projections/ProjectionUpdater';
 import { TaskDetailProjection } from '../projections/TaskDetailProjection';
 import { TaskListProjection } from '../projections/TaskListProjection';
 import type { LocalTask } from '../types/mobile';
@@ -9,7 +15,10 @@ export type ProjectionEntityType = 'task' | 'all' | 'dashboard';
 export interface ProjectionStoreState {
   dashboard: DashboardProjectionStats | null;
   taskLists: Record<string, string[]>;
-  taskListQueries: Record<string, { statusFilter?: string; searchQuery?: string }>;
+  taskListQueries: Record<
+    string,
+    { statusFilter?: string; searchQuery?: string }
+  >;
   taskDetailsLoaded: Record<string, true>;
   tasksById: Record<string, LocalTask>;
 }
@@ -17,7 +26,10 @@ export interface ProjectionStoreState {
 export interface ProjectionSelector<T> {
   key: string;
   select: (state: ProjectionStoreState) => T;
-  ensure?: (store: ProjectionStoreClass, options?: { force?: boolean }) => Promise<void>;
+  ensure?: (
+    store: ProjectionStoreClass,
+    options?: { force?: boolean },
+  ) => Promise<void>;
   equalityFn?: (previous: T, next: T) => boolean;
 }
 
@@ -108,7 +120,10 @@ class ProjectionStoreClass {
     await selector.ensure(this, options);
   }
 
-  async ensureTask(taskId: string, options?: { force?: boolean }): Promise<void> {
+  async ensureTask(
+    taskId: string,
+    options?: { force?: boolean },
+  ): Promise<void> {
     if (!taskId) {
       return;
     }
@@ -192,7 +207,10 @@ class ProjectionStoreClass {
     await this.dashboardPromise;
   }
 
-  notifyProjectionChange(entityType: ProjectionEntityType, entityId?: string): void {
+  notifyProjectionChange(
+    entityType: ProjectionEntityType,
+    entityId?: string,
+  ): void {
     if (entityType === 'all') {
       this.pendingAll = true;
       this.pendingTaskIds.clear();
@@ -230,9 +248,13 @@ class ProjectionStoreClass {
 
     if (shouldReloadAll) {
       const listEntries = Object.entries(this.state.taskListQueries);
-      await Promise.all(listEntries.map(([key, query]) => this.reloadTaskList(key, query)));
+      await Promise.all(
+        listEntries.map(([key, query]) => this.reloadTaskList(key, query)),
+      );
       const detailIds = Object.keys(this.state.taskDetailsLoaded);
-      await Promise.all(detailIds.map(taskId => this.ensureTask(taskId, { force: true })));
+      await Promise.all(
+        detailIds.map(taskId => this.ensureTask(taskId, { force: true })),
+      );
       if (shouldReloadDashboard || this.state.dashboard) {
         await this.ensureDashboard({ force: true });
       }
@@ -241,8 +263,12 @@ class ProjectionStoreClass {
 
     if (taskIds.length > 0) {
       const listEntries = Object.entries(this.state.taskListQueries);
-      await Promise.all(taskIds.map(taskId => this.ensureTask(taskId, { force: true })));
-      await Promise.all(listEntries.map(([key, query]) => this.reloadTaskList(key, query)));
+      await Promise.all(
+        taskIds.map(taskId => this.ensureTask(taskId, { force: true })),
+      );
+      await Promise.all(
+        listEntries.map(([key, query]) => this.reloadTaskList(key, query)),
+      );
     }
 
     if (shouldReloadDashboard && this.state.dashboard) {
@@ -254,7 +280,10 @@ class ProjectionStoreClass {
     key: string,
     query: { statusFilter?: string; searchQuery?: string },
   ): Promise<void> {
-    const tasks = await TaskListProjection.list(query.statusFilter, query.searchQuery);
+    const tasks = await TaskListProjection.list(
+      query.statusFilter,
+      query.searchQuery,
+    );
 
     this.setState(current => {
       const nextTasksById = { ...current.tasksById };
@@ -280,7 +309,9 @@ class ProjectionStoreClass {
     });
   }
 
-  private setState(updater: (current: ProjectionStoreState) => ProjectionStoreState): void {
+  private setState(
+    updater: (current: ProjectionStoreState) => ProjectionStoreState,
+  ): void {
     let nextState = updater(this.state);
     if (nextState === this.state) {
       return;
@@ -300,7 +331,9 @@ class ProjectionStoreClass {
 
     // Keep tasks that are in active lists or have loaded details
     const activeIds = new Set<string>();
-    Object.values(state.taskLists).forEach(ids => ids.forEach(id => activeIds.add(id)));
+    Object.values(state.taskLists).forEach(ids =>
+      ids.forEach(id => activeIds.add(id)),
+    );
     Object.keys(state.taskDetailsLoaded).forEach(id => activeIds.add(id));
 
     // Remove non-active tasks first, then oldest active if still over limit
@@ -318,7 +351,11 @@ class ProjectionStoreClass {
       delete nextDetailsLoaded[id];
     });
 
-    return { ...state, tasksById: nextTasksById, taskDetailsLoaded: nextDetailsLoaded };
+    return {
+      ...state,
+      tasksById: nextTasksById,
+      taskDetailsLoaded: nextDetailsLoaded,
+    };
   }
 
   private notifySubscribers(): void {

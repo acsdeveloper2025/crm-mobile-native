@@ -48,7 +48,11 @@ const COMMON_BUSINESS_TYPE_OPTIONS = [
   'Partnership Firm',
 ];
 
-const COMMON_OWNERSHIP_TYPE_OPTIONS = ['Are Partners', 'Are Directors', 'Is Proprietor'];
+const COMMON_OWNERSHIP_TYPE_OPTIONS = [
+  'Are Partners',
+  'Are Directors',
+  'Is Proprietor',
+];
 const COMMON_ADDRESS_STATUS_OPTIONS = [
   'On a Self Owned Basis',
   'On a Rental Basis',
@@ -69,17 +73,134 @@ const COMMON_RELATIONSHIP_OPTIONS = [
   'Other',
 ];
 
-const COMMON_COLOR_OPTIONS = ['White', 'Off-White', 'Cream', 'Yellow', 'Blue', 'Green', 'Red', 'Brown', 'Gray', 'Black', 'Pink', 'Orange', 'Mixed', 'Other'];
+const COMMON_COLOR_OPTIONS = [
+  'White',
+  'Off-White',
+  'Cream',
+  'Yellow',
+  'Blue',
+  'Green',
+  'Red',
+  'Brown',
+  'Gray',
+  'Black',
+  'Pink',
+  'Orange',
+  'Mixed',
+  'Other',
+];
 
-const COMMON_PERIOD_OPTIONS = ['Less than 1 Year', '1-3 Years', '3-5 Years', '5-10 Years', '10-15 Years', '15-20 Years', '20+ Years'];
+const COMMON_PERIOD_OPTIONS = [
+  'Less than 1 Year',
+  '1-3 Years',
+  '3-5 Years',
+  '5-10 Years',
+  '10-15 Years',
+  '15-20 Years',
+  '20+ Years',
+];
 
-const COMMON_FAMILY_MEMBERS_OPTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20+'];
+const COMMON_FAMILY_MEMBERS_OPTIONS = [
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  '11',
+  '12',
+  '13',
+  '14',
+  '15',
+  '16',
+  '17',
+  '18',
+  '19',
+  '20+',
+];
 
-const COMMON_EARNING_OPTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '25', '30', '40', '50', '75', '100+'];
+const COMMON_EARNING_OPTIONS = [
+  '1',
+  '2',
+  '3',
+  '4',
+  '5',
+  '6',
+  '7',
+  '8',
+  '9',
+  '10',
+  '11',
+  '12',
+  '13',
+  '14',
+  '15',
+  '16',
+  '17',
+  '18',
+  '19',
+  '20',
+  '25',
+  '30',
+  '40',
+  '50',
+  '75',
+  '100+',
+];
 
-const COMMON_ADDRESS_STRUCTURE_OPTIONS = ['G+0', 'G+1', 'G+2', 'G+3', 'G+4', 'G+5', 'G+6', 'G+7', 'G+8', 'G+9', 'G+10', 'G+11', 'G+12', 'G+13', 'G+14', 'G+15', 'G+16', 'G+17', 'G+18', 'G+19', 'G+20', 'G+20+'];
+const COMMON_ADDRESS_STRUCTURE_OPTIONS = [
+  'G+0',
+  'G+1',
+  'G+2',
+  'G+3',
+  'G+4',
+  'G+5',
+  'G+6',
+  'G+7',
+  'G+8',
+  'G+9',
+  'G+10',
+  'G+11',
+  'G+12',
+  'G+13',
+  'G+14',
+  'G+15',
+  'G+16',
+  'G+17',
+  'G+18',
+  'G+19',
+  'G+20',
+  'G+20+',
+];
 
-const COMMON_FLOOR_OPTIONS = ['G+0', 'G+1', 'G+2', 'G+3', 'G+4', 'G+5', 'G+6', 'G+7', 'G+8', 'G+9', 'G+10', 'G+11', 'G+12', 'G+13', 'G+14', 'G+15', 'G+16', 'G+17', 'G+18', 'G+19', 'G+20', 'G+20+'];
+const COMMON_FLOOR_OPTIONS = [
+  'G+0',
+  'G+1',
+  'G+2',
+  'G+3',
+  'G+4',
+  'G+5',
+  'G+6',
+  'G+7',
+  'G+8',
+  'G+9',
+  'G+10',
+  'G+11',
+  'G+12',
+  'G+13',
+  'G+14',
+  'G+15',
+  'G+16',
+  'G+17',
+  'G+18',
+  'G+19',
+  'G+20',
+  'G+20+',
+];
 
 const RESIDENCE_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
@@ -235,7 +356,9 @@ const PROPERTY_APF_DICTIONARY: Record<string, string[]> = {
   applicantStayingFloor: COMMON_FLOOR_OPTIONS,
 };
 
-const DICTIONARY_BY_FORM_TYPE: Partial<Record<FormTypeKey, Record<string, string[]>>> = {
+const DICTIONARY_BY_FORM_TYPE: Partial<
+  Record<FormTypeKey, Record<string, string[]>>
+> = {
   residence: RESIDENCE_DICTIONARY,
   'residence-cum-office': RESIDENCE_CUM_OFFICE_DICTIONARY,
   office: OFFICE_DICTIONARY,
@@ -281,19 +404,27 @@ const buildTemplateFromBackend = (
               field.type === 'boolean'
                 ? 'checkbox'
                 : field.type === 'number'
-                  ? 'number'
-                  : field.type === 'textarea'
-                    ? 'textarea'
-                    : field.type === 'select' && Array.isArray(field.options) && field.options.length > 0
-                      ? 'select'
-                      : 'text',
+                ? 'number'
+                : field.type === 'textarea'
+                ? 'textarea'
+                : field.type === 'select' &&
+                  Array.isArray(field.options) &&
+                  field.options.length > 0
+                ? 'select'
+                : 'text',
             name: field.name,
             order: index + 1,
             required: !!field.required,
             options: Array.isArray(field.options)
               ? field.options.map((option: any) => ({
-                  label: typeof option === 'string' ? option : String(option?.label ?? option?.value ?? ''),
-                  value: typeof option === 'string' ? option : String(option?.value ?? option?.label ?? ''),
+                  label:
+                    typeof option === 'string'
+                      ? option
+                      : String(option?.label ?? option?.value ?? ''),
+                  value:
+                    typeof option === 'string'
+                      ? option
+                      : String(option?.value ?? option?.label ?? ''),
                 }))
               : undefined,
           })),
@@ -309,11 +440,17 @@ const buildTemplateFromBackend = (
 export interface LoadFormTemplateParams {
   verificationType: FormTypeKey;
   outcome: string;
-  getLegacyTemplate: (verificationType: FormTypeKey, outcome: string) => FormTemplate | null;
+  getLegacyTemplate: (
+    verificationType: FormTypeKey,
+    outcome: string,
+  ) => FormTemplate | null;
 }
 
 class FormTemplateServiceClass {
-  private applyDropdownDictionary(template: FormTemplate, verificationType: FormTypeKey): FormTemplate {
+  private applyDropdownDictionary(
+    template: FormTemplate,
+    verificationType: FormTypeKey,
+  ): FormTemplate {
     const dictionary = DICTIONARY_BY_FORM_TYPE[verificationType];
     if (!dictionary) {
       return template;
@@ -358,7 +495,10 @@ class FormTemplateServiceClass {
       return this.applyDropdownDictionary(legacyTemplate, verificationType);
     }
 
-    const tplData = await FormRepository.getCachedTemplate(verificationType, outcome);
+    const tplData = await FormRepository.getCachedTemplate(
+      verificationType,
+      outcome,
+    );
     if (tplData) {
       const parsedSections = (() => {
         try {

@@ -13,7 +13,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
 import { Logger } from '../../utils/logger';
-import { notificationService, NotificationData } from '../../services/NotificationService';
+import {
+  notificationService,
+  NotificationData,
+} from '../../services/NotificationService';
 import Icon from 'react-native-vector-icons/Ionicons';
 
 interface NotificationCenterProps {
@@ -40,7 +43,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   }, [visible]);
 
   useEffect(() => {
-    const unsubscribe = notificationService.subscribe((updatedNotifications) => {
+    const unsubscribe = notificationService.subscribe(updatedNotifications => {
       setNotifications(updatedNotifications);
       setLoading(false);
     });
@@ -75,7 +78,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         onClose();
       }
     } catch (error) {
-      Logger.error('NotificationCenter', 'Failed to handle notification press', error);
+      Logger.error(
+        'NotificationCenter',
+        'Failed to handle notification press',
+        error,
+      );
     }
   };
 
@@ -100,34 +107,49 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             try {
               await notificationService.clearAllNotifications();
             } catch (error) {
-              Logger.error('NotificationCenter', 'Failed to clear notifications', error);
+              Logger.error(
+                'NotificationCenter',
+                'Failed to clear notifications',
+                error,
+              );
             }
           },
         },
-      ]
+      ],
     );
   };
 
   const getNotificationIconName = (type: string) => {
     switch (type) {
-      case 'CASE_ASSIGNED': return 'checkmark-circle';
-      case 'CASE_REASSIGNED': return 'time';
-      case 'CASE_REMOVED': return 'close-circle';
-      case 'CASE_COMPLETED': return 'checkmark-circle';
-      case 'CASE_REVOKED': return 'close-circle';
-      case 'CASE_APPROVED': return 'checkmark-circle';
-      case 'CASE_REJECTED': return 'close-circle';
-      case 'SYSTEM_MAINTENANCE': return 'build';
-      case 'APP_UPDATE': return 'information-circle';
-      case 'EMERGENCY_ALERT': return 'warning';
-      default: return 'notifications';
+      case 'CASE_ASSIGNED':
+        return 'checkmark-circle';
+      case 'CASE_REASSIGNED':
+        return 'time';
+      case 'CASE_REMOVED':
+        return 'close-circle';
+      case 'CASE_COMPLETED':
+        return 'checkmark-circle';
+      case 'CASE_REVOKED':
+        return 'close-circle';
+      case 'CASE_APPROVED':
+        return 'checkmark-circle';
+      case 'CASE_REJECTED':
+        return 'close-circle';
+      case 'SYSTEM_MAINTENANCE':
+        return 'build';
+      case 'APP_UPDATE':
+        return 'information-circle';
+      case 'EMERGENCY_ALERT':
+        return 'warning';
+      default:
+        return 'notifications';
     }
   };
 
   const getNotificationColor = (type: string, priority?: string) => {
     if (priority === 'URGENT') return theme.colors.danger;
     if (priority === 'HIGH') return theme.colors.warning;
-    
+
     switch (type) {
       case 'CASE_ASSIGNED':
       case 'CASE_REASSIGNED':
@@ -145,11 +167,14 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         return theme.colors.textSecondary;
     }
   };
-  
+
   const formatDate = (dateString: string) => {
     try {
       const d = new Date(dateString);
-      return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+      return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+      })}`;
     } catch {
       return dateString;
     }
@@ -159,40 +184,97 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     <TouchableOpacity
       style={[
         styles.notificationItem,
-        { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border },
+        {
+          backgroundColor: theme.colors.surface,
+          borderBottomColor: theme.colors.border,
+        },
         !item.isRead && styles.unreadNotification,
         !item.isRead && { borderLeftColor: theme.colors.primary },
       ]}
       onPress={() => handleNotificationPress(item)}
-      activeOpacity={0.7}>
+      activeOpacity={0.7}
+    >
       <View style={styles.notificationContent}>
         <View style={styles.notificationHeader}>
-          <View style={[styles.iconContainer, { backgroundColor: theme.colors.background }]}>
-            <Icon name={getNotificationIconName(item.type)} size={20} color={getNotificationColor(item.type, item.priority)} />
+          <View
+            style={[
+              styles.iconContainer,
+              { backgroundColor: theme.colors.background },
+            ]}
+          >
+            <Icon
+              name={getNotificationIconName(item.type)}
+              size={20}
+              color={getNotificationColor(item.type, item.priority)}
+            />
           </View>
           <View style={styles.notificationInfo}>
-            <Text style={[styles.notificationTitle, { color: theme.colors.text }]} numberOfLines={2}>
+            <Text
+              style={[styles.notificationTitle, { color: theme.colors.text }]}
+              numberOfLines={2}
+            >
               {item.title}
             </Text>
-            <Text style={[styles.notificationMessage, { color: theme.colors.textSecondary }]} numberOfLines={3}>
+            <Text
+              style={[
+                styles.notificationMessage,
+                { color: theme.colors.textSecondary },
+              ]}
+              numberOfLines={3}
+            >
               {item.message}
             </Text>
             {item.caseNumber && (
-              <Text style={[styles.caseNumber, { color: theme.colors.primary }]}>Case: {item.caseNumber}</Text>
+              <Text
+                style={[styles.caseNumber, { color: theme.colors.primary }]}
+              >
+                Case: {item.caseNumber}
+              </Text>
             )}
           </View>
           <View style={styles.notificationMeta}>
             {item.priority === 'URGENT' && (
-              <View style={[styles.urgentBadge, { backgroundColor: theme.colors.danger + '20', borderColor: theme.colors.danger }]}>
-                <Text style={[styles.urgentText, { color: theme.colors.danger }]}>URGENT</Text>
+              <View
+                style={[
+                  styles.urgentBadge,
+                  {
+                    backgroundColor: theme.colors.danger + '20',
+                    borderColor: theme.colors.danger,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.urgentText, { color: theme.colors.danger }]}
+                >
+                  URGENT
+                </Text>
               </View>
             )}
             {item.priority === 'HIGH' && (
-              <View style={[styles.highBadge, { backgroundColor: theme.colors.warning + '20', borderColor: theme.colors.warning }]}>
-                <Text style={[styles.highText, { color: theme.colors.warning }]}>HIGH</Text>
+              <View
+                style={[
+                  styles.highBadge,
+                  {
+                    backgroundColor: theme.colors.warning + '20',
+                    borderColor: theme.colors.warning,
+                  },
+                ]}
+              >
+                <Text
+                  style={[styles.highText, { color: theme.colors.warning }]}
+                >
+                  HIGH
+                </Text>
               </View>
             )}
-            {!item.isRead && <View style={[styles.unreadDot, { backgroundColor: theme.colors.primary }]} />}
+            {!item.isRead && (
+              <View
+                style={[
+                  styles.unreadDot,
+                  { backgroundColor: theme.colors.primary },
+                ]}
+              />
+            )}
           </View>
         </View>
         <Text style={[styles.timestamp, { color: theme.colors.textMuted }]}>
@@ -209,28 +291,71 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       visible={visible}
       animationType="slide"
       presentationStyle="pageSheet"
-      onRequestClose={onClose}>
-      <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['top', 'bottom']}>
+      onRequestClose={onClose}
+    >
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
+        edges={['top', 'bottom']}
+      >
         {/* Header */}
-        <View style={[styles.header, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
+        <View
+          style={[
+            styles.header,
+            {
+              backgroundColor: theme.colors.surface,
+              borderBottomColor: theme.colors.border,
+            },
+          ]}
+        >
           <View style={styles.headerLeft}>
-            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>Notifications</Text>
-            {unreadCount> 0 && (
-              <View style={[styles.unreadBadge, { backgroundColor: theme.colors.danger }]}>
+            <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
+              Notifications
+            </Text>
+            {unreadCount > 0 && (
+              <View
+                style={[
+                  styles.unreadBadge,
+                  { backgroundColor: theme.colors.danger },
+                ]}
+              >
                 <Text style={styles.unreadBadgeText}>{unreadCount}</Text>
               </View>
             )}
           </View>
           <View style={styles.headerRight}>
-            {unreadCount> 0 && (
-              <TouchableOpacity style={styles.headerButton} onPress={handleMarkAllAsRead}>
-                <Icon name="checkmark-done" size={20} color={theme.colors.info} />
-                <Text style={[styles.headerButtonText, { color: theme.colors.info }]}>Mark All Read</Text>
+            {unreadCount > 0 && (
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={handleMarkAllAsRead}
+              >
+                <Icon
+                  name="checkmark-done"
+                  size={20}
+                  color={theme.colors.info}
+                />
+                <Text
+                  style={[
+                    styles.headerButtonText,
+                    { color: theme.colors.info },
+                  ]}
+                >
+                  Mark All Read
+                </Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity style={styles.headerButton} onPress={handleClearAll}>
+            <TouchableOpacity
+              style={styles.headerButton}
+              onPress={handleClearAll}
+            >
               <Icon name="trash" size={20} color={theme.colors.danger} />
-              <Text style={[styles.headerButtonText, { color: theme.colors.danger }]}>Clear</Text>
+              <Text
+                style={[
+                  styles.headerButtonText,
+                  { color: theme.colors.danger },
+                ]}
+              >
+                Clear
+              </Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Icon name="close" size={24} color={theme.colors.textSecondary} />
@@ -242,13 +367,31 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
-            <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading notifications...</Text>
+            <Text
+              style={[
+                styles.loadingText,
+                { color: theme.colors.textSecondary },
+              ]}
+            >
+              Loading notifications...
+            </Text>
           </View>
         ) : notifications.length === 0 ? (
           <View style={styles.centerContainer}>
-            <Icon name="notifications-off" size={64} color={theme.colors.border} />
-            <Text style={[styles.emptyText, { color: theme.colors.text }]}>No notifications</Text>
-            <Text style={[styles.emptySubtext, { color: theme.colors.textSecondary }]}>
+            <Icon
+              name="notifications-off"
+              size={64}
+              color={theme.colors.border}
+            />
+            <Text style={[styles.emptyText, { color: theme.colors.text }]}>
+              No notifications
+            </Text>
+            <Text
+              style={[
+                styles.emptySubtext,
+                { color: theme.colors.textSecondary },
+              ]}
+            >
               You'll see alerts here when you receive them.
             </Text>
           </View>
@@ -256,7 +399,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           <FlatList
             data={notifications}
             renderItem={renderNotificationItem}
-            keyExtractor={(item) => item.id}
+            keyExtractor={item => item.id}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -307,7 +450,7 @@ const styles = StyleSheet.create({
   headerButtonText: {
     fontSize: 12,
     marginLeft: 4,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   closeButton: {
     padding: 4,

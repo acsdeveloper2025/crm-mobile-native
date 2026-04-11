@@ -24,10 +24,10 @@ export interface LocationResult {
 }
 
 // Adaptive interval constants (battery-optimized for 1000+ field users)
-const MOVING_INTERVAL_MS = 60_000;      // 60s when agent is moving
-const STATIONARY_INTERVAL_MS = 120_000;  // 120s when agent is stationary
+const MOVING_INTERVAL_MS = 60_000; // 60s when agent is moving
+const STATIONARY_INTERVAL_MS = 120_000; // 120s when agent is stationary
 const STATIONARY_DISTANCE_THRESHOLD = 30; // meters — less than this in last update = stationary
-const DISTANCE_FILTER_METERS = 100;       // minimum meters between updates
+const DISTANCE_FILTER_METERS = 100; // minimum meters between updates
 
 class LocationServiceClass {
   private watchId: number | null = null;
@@ -191,10 +191,20 @@ class LocationServiceClass {
 
           if (isMoving && !wasMoving) {
             this.currentIntervalMs = MOVING_INTERVAL_MS;
-            Logger.info(TAG, `Agent moving (${distance.toFixed(0)}m), interval → ${MOVING_INTERVAL_MS / 1000}s`);
+            Logger.info(
+              TAG,
+              `Agent moving (${distance.toFixed(0)}m), interval → ${
+                MOVING_INTERVAL_MS / 1000
+              }s`,
+            );
           } else if (!isMoving && wasMoving) {
             this.currentIntervalMs = STATIONARY_INTERVAL_MS;
-            Logger.info(TAG, `Agent stationary (${distance.toFixed(0)}m), interval → ${STATIONARY_INTERVAL_MS / 1000}s`);
+            Logger.info(
+              TAG,
+              `Agent stationary (${distance.toFixed(0)}m), interval → ${
+                STATIONARY_INTERVAL_MS / 1000
+              }s`,
+            );
           }
         }
 
@@ -224,7 +234,12 @@ class LocationServiceClass {
       );
     }, STATIONARY_INTERVAL_MS);
 
-    Logger.info(TAG, `Adaptive location tracking started (${MOVING_INTERVAL_MS / 1000}s moving / ${STATIONARY_INTERVAL_MS / 1000}s stationary)`);
+    Logger.info(
+      TAG,
+      `Adaptive location tracking started (${
+        MOVING_INTERVAL_MS / 1000
+      }s moving / ${STATIONARY_INTERVAL_MS / 1000}s stationary)`,
+    );
   }
 
   /**
@@ -276,7 +291,12 @@ class LocationServiceClass {
   /**
    * Calculate distance in meters between two coordinates (Haversine formula)
    */
-  calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  calculateDistance(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number,
+  ): number {
     const R = 6371e3; // Earth radius in meters
     const toRadians = (deg: number) => deg * (Math.PI / 180);
     const φ1 = toRadians(lat1);
@@ -284,10 +304,10 @@ class LocationServiceClass {
     const Δφ = toRadians(lat2 - lat1);
     const Δλ = toRadians(lon2 - lon1);
 
-    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-              Math.cos(φ1) * Math.cos(φ2) *
-              Math.sin(Δλ/2) * Math.sin(Δλ/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const a =
+      Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+      Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
     return R * c; // in meters
   }
@@ -320,12 +340,14 @@ class LocationServiceClass {
 
       // Google returns multiple results sorted by specificity — first is most detailed
       const bestResult = data.results[0];
-      const components = bestResult.address_components || [];
+      const components = bestResult.addressComponents || [];
 
       // Extract structured parts
       const extract = (type: string): string => {
-        const comp = components.find((c: { types: string[]; long_name: string }) => c.types.includes(type));
-        return comp ? comp.long_name : '';
+        const comp = components.find(
+          (c: { types: string[]; longName: string }) => c.types.includes(type),
+        );
+        return comp ? comp.longName : '';
       };
 
       const parts: string[] = [];
@@ -344,11 +366,15 @@ class LocationServiceClass {
       if (premise) parts.push(premise);
 
       // Sublocality levels (neighborhood, area)
-      const sublocality = extract('sublocality_level_1') || extract('sublocality') || extract('neighborhood');
+      const sublocality =
+        extract('sublocality_level_1') ||
+        extract('sublocality') ||
+        extract('neighborhood');
       if (sublocality) parts.push(sublocality);
 
       // Locality (city/town)
-      const locality = extract('locality') || extract('administrative_area_level_3');
+      const locality =
+        extract('locality') || extract('administrative_area_level_3');
       if (locality) parts.push(locality);
 
       // District
@@ -367,9 +393,15 @@ class LocationServiceClass {
       const country = extract('country');
       if (country) parts.push(country);
 
-      return parts.length > 0 ? parts.join(', ') : bestResult.formatted_address || `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+      return parts.length > 0
+        ? parts.join(', ')
+        : bestResult.formattedAddress || `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
     } catch (error) {
-      Logger.warn(TAG, 'Google reverse geocoding failed, using coordinates', error);
+      Logger.warn(
+        TAG,
+        'Google reverse geocoding failed, using coordinates',
+        error,
+      );
       return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
     }
   }

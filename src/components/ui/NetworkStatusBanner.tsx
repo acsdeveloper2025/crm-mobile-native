@@ -18,15 +18,23 @@ export const NetworkStatusBanner: React.FC = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    const unsubscribe = NetworkService.onNetworkChange((online) => {
+    const unsubscribe = NetworkService.onNetworkChange(online => {
       setIsOnline(online);
 
       if (online && wasOfflineRef.current) {
         // Just came back online — show brief success banner
         setShowOnlineBanner(true);
-        Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true }).start();
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }).start();
         setTimeout(() => {
-          Animated.timing(fadeAnim, { toValue: 0, duration: 500, useNativeDriver: true }).start(() => {
+          Animated.timing(fadeAnim, {
+            toValue: 0,
+            duration: 500,
+            useNativeDriver: true,
+          }).start(() => {
             setShowOnlineBanner(false);
           });
         }, 3000);
@@ -43,10 +51,17 @@ export const NetworkStatusBanner: React.FC = () => {
 
   if (!isOnline) {
     return (
-      <View style={[styles.banner, styles.offlineBanner, { paddingTop: Math.max(insets.top, 8) }]}>
+      <View
+        style={[
+          styles.banner,
+          styles.offlineBanner,
+          { paddingTop: Math.max(insets.top, 8) },
+        ]}
+      >
         <Icon name="cloud-offline-outline" size={16} color="#FFFFFF" />
         <Text style={styles.offlineText}>
-          You are offline. Changes will be saved locally and synced when connection is restored.
+          You are offline. Changes will be saved locally and synced when
+          connection is restored.
         </Text>
       </View>
     );
@@ -54,7 +69,13 @@ export const NetworkStatusBanner: React.FC = () => {
 
   if (showOnlineBanner) {
     return (
-      <Animated.View style={[styles.banner, styles.onlineBanner, { paddingTop: Math.max(insets.top, 8), opacity: fadeAnim }]}>
+      <Animated.View
+        style={[
+          styles.banner,
+          styles.onlineBanner,
+          { paddingTop: Math.max(insets.top, 8), opacity: fadeAnim },
+        ]}
+      >
         <Icon name="cloud-done-outline" size={16} color="#FFFFFF" />
         <Text style={styles.onlineText}>Back online. Syncing...</Text>
       </Animated.View>

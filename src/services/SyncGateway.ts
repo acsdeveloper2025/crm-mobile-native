@@ -7,7 +7,13 @@ class SyncGatewayClass {
     payload: Record<string, unknown>,
     priority: number = SYNC_PRIORITY.NORMAL,
   ): Promise<void> {
-    await SyncQueue.enqueue('UPDATE', 'TASK', backendTaskId, { localTaskId, ...payload }, priority);
+    await SyncQueue.enqueue(
+      'UPDATE',
+      'TASK',
+      backendTaskId,
+      { localTaskId, ...payload },
+      priority,
+    );
   }
 
   async enqueueTaskStatus(
@@ -33,15 +39,27 @@ class SyncGatewayClass {
     );
   }
 
-  async enqueueLocation(id: string, payload: Record<string, unknown>, priority: number = SYNC_PRIORITY.CRITICAL): Promise<void> {
+  async enqueueLocation(
+    id: string,
+    payload: Record<string, unknown>,
+    priority: number = SYNC_PRIORITY.CRITICAL,
+  ): Promise<void> {
     await SyncQueue.enqueue('CREATE', 'LOCATION', id, payload, priority);
   }
 
-  async enqueueAttachment(id: string, payload: Record<string, unknown>, priority: number = SYNC_PRIORITY.HIGH): Promise<void> {
+  async enqueueAttachment(
+    id: string,
+    payload: Record<string, unknown>,
+    priority: number = SYNC_PRIORITY.HIGH,
+  ): Promise<void> {
     await SyncQueue.enqueue('CREATE', 'ATTACHMENT', id, payload, priority);
   }
 
-  async enqueueFormSubmission(id: string, payload: Record<string, unknown>, priority: number = SYNC_PRIORITY.HIGH): Promise<void> {
+  async enqueueFormSubmission(
+    id: string,
+    payload: Record<string, unknown>,
+    priority: number = SYNC_PRIORITY.HIGH,
+  ): Promise<void> {
     await SyncQueue.enqueue('CREATE', 'FORM_SUBMISSION', id, payload, priority);
   }
 }

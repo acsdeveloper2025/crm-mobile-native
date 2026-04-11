@@ -45,7 +45,10 @@ class SyncHealthServiceClass {
   async getMetrics(): Promise<SyncHealthMetrics> {
     const queueLength = await SyncQueue.getPendingCount();
     const averageSyncDurationMs = this.durations.length
-      ? Math.round(this.durations.reduce((sum, value) => sum + value, 0) / this.durations.length)
+      ? Math.round(
+          this.durations.reduce((sum, value) => sum + value, 0) /
+            this.durations.length,
+        )
       : 0;
 
     return {

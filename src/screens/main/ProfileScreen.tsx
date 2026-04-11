@@ -1,5 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  Image,
+} from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme, ThemePreference } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -12,34 +19,58 @@ export const ProfileScreen = ({ navigation }: any) => {
   const { theme, themePreference, setThemePreference } = useTheme();
 
   const renderThemeToggle = () => {
-    const preferences: { id: ThemePreference; label: string; icon: string }[] = [
-      { id: 'light', label: 'Light', icon: 'sunny-outline' },
-      { id: 'dark', label: 'Dark', icon: 'moon-outline' },
-      { id: 'system', label: 'System', icon: 'settings-outline' },
-    ];
+    const preferences: { id: ThemePreference; label: string; icon: string }[] =
+      [
+        { id: 'light', label: 'Light', icon: 'sunny-outline' },
+        { id: 'dark', label: 'Dark', icon: 'moon-outline' },
+        { id: 'system', label: 'System', icon: 'settings-outline' },
+      ];
 
     return (
       <View style={styles.themeContainer}>
-        <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>App Theme</Text>
-        <View style={[styles.toggleWrapper, { backgroundColor: theme.colors.surfaceAlt }]}>
-          {preferences.map((pref) => (
+        <Text
+          style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}
+        >
+          App Theme
+        </Text>
+        <View
+          style={[
+            styles.toggleWrapper,
+            { backgroundColor: theme.colors.surfaceAlt },
+          ]}
+        >
+          {preferences.map(pref => (
             <TouchableOpacity
               key={pref.id}
               onPress={() => setThemePreference(pref.id)}
               style={[
                 styles.toggleItem,
-                themePreference === pref.id && [styles.activeToggle, { backgroundColor: theme.colors.primary }]
-              ]}>
-              <Icon 
-                name={pref.icon} 
-                size={20} 
-                color={themePreference === pref.id ? theme.colors.surface : theme.colors.textSecondary} 
+                themePreference === pref.id && [
+                  styles.activeToggle,
+                  { backgroundColor: theme.colors.primary },
+                ],
+              ]}
+            >
+              <Icon
+                name={pref.icon}
+                size={20}
+                color={
+                  themePreference === pref.id
+                    ? theme.colors.surface
+                    : theme.colors.textSecondary
+                }
               />
-              <Text 
+              <Text
                 style={[
-                  styles.toggleLabel, 
-                  { color: themePreference === pref.id ? theme.colors.surface : theme.colors.textSecondary }
-                ]}>
+                  styles.toggleLabel,
+                  {
+                    color:
+                      themePreference === pref.id
+                        ? theme.colors.surface
+                        : theme.colors.textSecondary,
+                  },
+                ]}
+              >
                 {pref.label}
               </Text>
             </TouchableOpacity>
@@ -50,56 +81,114 @@ export const ProfileScreen = ({ navigation }: any) => {
   };
 
   return (
-    <View style={[styles.safeArea, { backgroundColor: theme.colors.background }]}>
+    <View
+      style={[styles.safeArea, { backgroundColor: theme.colors.background }]}
+    >
       <ScreenHeader title="Profile" />
       <ScrollView
         style={[styles.container, { backgroundColor: theme.colors.background }]}
-        contentContainerStyle={{
-          paddingBottom: 96,
-        }}
-        showsVerticalScrollIndicator={false}>
-
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.avatarSection}>
           <View style={styles.avatarWrapper}>
-            <View style={[styles.avatarContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+            <View
+              style={[
+                styles.avatarContainer,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderColor: theme.colors.border,
+                },
+              ]}
+            >
               {user?.profilePhotoUrl ? (
-                <Image source={{ uri: user.profilePhotoUrl }} style={styles.avatarImage} />
+                <Image
+                  source={{ uri: user.profilePhotoUrl }}
+                  style={styles.avatarImage}
+                />
               ) : (
-                <Icon name="person" size={44} color={theme.colors.textSecondary} />
+                <Icon
+                  name="person"
+                  size={44}
+                  color={theme.colors.textSecondary}
+                />
               )}
             </View>
             <TouchableOpacity
-              style={[styles.avatarEditButton, { backgroundColor: theme.colors.primary }]}
-              onPress={() => navigation.navigate('ProfilePhotoCapture')}>
+              style={[
+                styles.avatarEditButton,
+                { backgroundColor: theme.colors.primary },
+              ]}
+              onPress={() => navigation.navigate('ProfilePhotoCapture')}
+            >
               <Icon name="camera" size={16} color={theme.colors.surface} />
             </TouchableOpacity>
           </View>
-          <Text style={[styles.avatarName, { color: theme.colors.text }]}>{user?.name || 'Agent'}</Text>
-          <Text style={[styles.avatarSubtext, { color: theme.colors.textSecondary }]}>
+          <Text style={[styles.avatarName, { color: theme.colors.text }]}>
+            {user?.name || 'Agent'}
+          </Text>
+          <Text
+            style={[
+              styles.avatarSubtext,
+              { color: theme.colors.textSecondary },
+            ]}
+          >
             Agent ID: {user?.employeeId || user?.username || 'N/A'}
           </Text>
         </View>
-      
-        <View style={[styles.infoContainer, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
+
+        <View
+          style={[
+            styles.infoContainer,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
           <View style={styles.detailRow}>
-            <Text style={[styles.label, { color: theme.colors.textMuted }]}>Name</Text>
-            <Text style={[styles.value, { color: theme.colors.text }]}>{user?.name}</Text>
+            <Text style={[styles.label, { color: theme.colors.textMuted }]}>
+              Name
+            </Text>
+            <Text style={[styles.value, { color: theme.colors.text }]}>
+              {user?.name}
+            </Text>
           </View>
           <View style={styles.detailRow}>
-            <Text style={[styles.label, { color: theme.colors.textMuted }]}>Agent ID</Text>
-            <Text style={[styles.value, { color: theme.colors.text }]}>{user?.employeeId || user?.username}</Text>
+            <Text style={[styles.label, { color: theme.colors.textMuted }]}>
+              Agent ID
+            </Text>
+            <Text style={[styles.value, { color: theme.colors.text }]}>
+              {user?.employeeId || user?.username}
+            </Text>
           </View>
           <View style={styles.detailRow}>
-            <Text style={[styles.label, { color: theme.colors.textMuted }]}>Email</Text>
-            <Text style={[styles.value, { color: theme.colors.text }]}>{user?.email || 'N/A'}</Text>
+            <Text style={[styles.label, { color: theme.colors.textMuted }]}>
+              Email
+            </Text>
+            <Text style={[styles.value, { color: theme.colors.text }]}>
+              {user?.email || 'N/A'}
+            </Text>
           </View>
           <View style={styles.detailRow}>
-            <Text style={[styles.label, { color: theme.colors.textMuted }]}>Role</Text>
-            <Text style={[styles.value, { color: theme.colors.text }]}>{user?.role || 'N/A'}</Text>
+            <Text style={[styles.label, { color: theme.colors.textMuted }]}>
+              Role
+            </Text>
+            <Text style={[styles.value, { color: theme.colors.text }]}>
+              {user?.role || 'N/A'}
+            </Text>
           </View>
           <View style={styles.detailRow}>
-            <Text style={[styles.label, { color: theme.colors.textMuted }]}>App Version</Text>
-            <Text style={[styles.value, styles.versionValue, { color: theme.colors.textSecondary }]}>
+            <Text style={[styles.label, { color: theme.colors.textMuted }]}>
+              App Version
+            </Text>
+            <Text
+              style={[
+                styles.value,
+                styles.versionValue,
+                { color: theme.colors.textSecondary },
+              ]}
+            >
               {config.appVersion} (Build {config.buildNumber})
             </Text>
           </View>
@@ -108,38 +197,104 @@ export const ProfileScreen = ({ navigation }: any) => {
         {renderThemeToggle()}
 
         <View style={styles.actionsContainer}>
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-            onPress={() => navigation.navigate('DigitalIdCard')}>
-            <Icon name="card-outline" size={22} color={theme.colors.textSecondary} />
-            <Text style={[styles.actionText, { color: theme.colors.textSecondary }]}>View Digital ID Card</Text>
-            <Icon name="chevron-forward" size={20} color={theme.colors.textMuted} />
-          </TouchableOpacity>
-
-          <TouchableOpacity 
-            style={[styles.actionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-            onPress={() => navigation.navigate('SyncLogs')}>
-            <Icon name="bug-outline" size={22} color={theme.colors.textSecondary} />
-            <Text style={[styles.actionText, { color: theme.colors.textSecondary }]}>Diagnostics & Sync Logs</Text>
-            <Icon name="chevron-forward" size={20} color={theme.colors.textMuted} />
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            onPress={() => navigation.navigate('DigitalIdCard')}
+          >
+            <Icon
+              name="card-outline"
+              size={22}
+              color={theme.colors.textSecondary}
+            />
+            <Text
+              style={[styles.actionText, { color: theme.colors.textSecondary }]}
+            >
+              View Digital ID Card
+            </Text>
+            <Icon
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[styles.actionButton, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}
-            onPress={() => navigation.navigate('DataCleanup' as never)}>
-            <Icon name="trash-outline" size={22} color={theme.colors.textSecondary} />
-            <Text style={[styles.actionText, { color: theme.colors.textSecondary }]}>
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            onPress={() => navigation.navigate('SyncLogs')}
+          >
+            <Icon
+              name="bug-outline"
+              size={22}
+              color={theme.colors.textSecondary}
+            />
+            <Text
+              style={[styles.actionText, { color: theme.colors.textSecondary }]}
+            >
+              Diagnostics & Sync Logs
+            </Text>
+            <Icon
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            onPress={() => navigation.navigate('DataCleanup' as never)}
+          >
+            <Icon
+              name="trash-outline"
+              size={22}
+              color={theme.colors.textSecondary}
+            />
+            <Text
+              style={[styles.actionText, { color: theme.colors.textSecondary }]}
+            >
               Data Cleanup Manager
             </Text>
-            <Icon name="chevron-forward" size={20} color={theme.colors.textMuted} />
+            <Icon
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity
-          style={[styles.logoutCallout, { backgroundColor: theme.colors.danger + '10', borderColor: theme.colors.danger }]}
-          onPress={logout}>
+          style={[
+            styles.logoutCallout,
+            {
+              backgroundColor: theme.colors.danger + '10',
+              borderColor: theme.colors.danger,
+            },
+          ]}
+          onPress={logout}
+        >
           <Icon name="log-out-outline" size={22} color={theme.colors.danger} />
-          <Text style={[styles.logoutCalloutText, { color: theme.colors.danger }]}>Logout</Text>
+          <Text
+            style={[styles.logoutCalloutText, { color: theme.colors.danger }]}
+          >
+            Logout
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     </View>
@@ -154,6 +309,9 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
     paddingTop: 12,
+  },
+  scrollContent: {
+    paddingBottom: 96,
   },
   title: {
     fontSize: 26,

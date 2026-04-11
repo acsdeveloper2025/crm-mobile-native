@@ -24,12 +24,18 @@ interface PhotoGalleryProps {
   onPhotosLoaded?: (count: number) => void;
 }
 
-export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentType, onPhotosLoaded }) => {
+export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
+  taskId,
+  componentType,
+  onPhotosLoaded,
+}) => {
   const { theme } = useTheme();
   const [photos, setPhotos] = useState<LocalAttachment[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<LocalAttachment | null>(null);
+  const [selectedPhoto, setSelectedPhoto] = useState<LocalAttachment | null>(
+    null,
+  );
   const isMountedRef = useRef(true);
   const requestIdRef = useRef(0);
 
@@ -49,13 +55,19 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
       const results = await Promise.race<LocalAttachment[]>([
         AttachmentRepository.listForTask(taskId, componentType),
         new Promise<LocalAttachment[]>((_, reject) =>
-          setTimeout(() => reject(new Error('Attachment query timed out')), 3000),
+          setTimeout(
+            () => reject(new Error('Attachment query timed out')),
+            3000,
+          ),
         ),
       ]);
 
       if (isMountedRef.current && requestId === requestIdRef.current) {
         const photoList = results || [];
-        console.warn(`[PhotoGallery] loadPhotos: taskId=${taskId}, type=${componentType}, found=${photoList.length}`, photoList.map(p => p.id));
+        console.warn(
+          `[PhotoGallery] loadPhotos: taskId=${taskId}, type=${componentType}, found=${photoList.length}`,
+          photoList.map(p => p.id),
+        );
         setPhotos(photoList);
         onPhotosLoaded?.(photoList.length);
       }
@@ -75,7 +87,11 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
     }, [loadPhotos]),
   );
 
-  const handleDelete = (id: string, _localPath: string, _thumbnailPath?: string) => {
+  const handleDelete = (
+    id: string,
+    _localPath: string,
+    _thumbnailPath?: string,
+  ) => {
     Alert.alert('Delete Photo', 'Are you sure you want to delete this photo?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -107,9 +123,17 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
     <View
       style={[
         styles.photoContainer,
-        { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-      ]}>
-      <TouchableOpacity activeOpacity={0.9} onPress={() => openPreview(item)} style={styles.thumbnailPress}>
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => openPreview(item)}
+        style={styles.thumbnailPress}
+      >
         <Image
           source={{ uri: `file://${item.thumbnailPath || item.localPath}` }}
           style={styles.thumbnail}
@@ -120,7 +144,9 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
         </View>
       </TouchableOpacity>
 
-      <View style={[styles.photoMeta, { backgroundColor: theme.colors.surfaceAlt }]}>
+      <View
+        style={[styles.photoMeta, { backgroundColor: theme.colors.surfaceAlt }]}
+      >
         <View style={styles.badgeRow}>
           <View
             style={[
@@ -128,12 +154,15 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
               item.componentType === 'selfie'
                 ? styles.badgeSelfie
                 : { backgroundColor: theme.colors.primary },
-            ]}>
+            ]}
+          >
             <Text style={[styles.badgeText, { color: theme.colors.surface }]}>
               {item.componentType.toUpperCase()}
             </Text>
           </View>
-          <View style={[styles.badge, { backgroundColor: theme.colors.textMuted }]}>
+          <View
+            style={[styles.badge, { backgroundColor: theme.colors.textMuted }]}
+          >
             <Text style={[styles.badgeText, { color: theme.colors.surface }]}>
               {item.syncStatus}
             </Text>
@@ -143,8 +172,13 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
 
       <TouchableOpacity
         style={styles.deleteButton}
-        onPress={() => handleDelete(item.id, item.localPath, item.thumbnailPath)}
-        disabled={item.syncStatus === 'UPLOADING' || item.syncStatus === 'SYNCED'}>
+        onPress={() =>
+          handleDelete(item.id, item.localPath, item.thumbnailPath)
+        }
+        disabled={
+          item.syncStatus === 'UPLOADING' || item.syncStatus === 'SYNCED'
+        }
+      >
         <Icon name="trash" size={18} color="white" />
       </TouchableOpacity>
     </View>
@@ -163,8 +197,12 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
       <View
         style={[
           styles.emptyContainer,
-          { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border },
-        ]}>
+          {
+            backgroundColor: theme.colors.surfaceAlt,
+            borderColor: theme.colors.border,
+          },
+        ]}
+      >
         <Icon name="images-outline" size={24} color={theme.colors.textMuted} />
         <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
           No {componentType || 'photos'} captured yet.
@@ -190,13 +228,22 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({ taskId, componentTyp
         visible={Boolean(selectedPhoto)}
         transparent
         animationType="fade"
-        onRequestClose={() => setSelectedPhoto(null)}>
+        onRequestClose={() => setSelectedPhoto(null)}
+      >
         <View style={styles.previewOverlay}>
-          <View style={[styles.previewHeader, { borderBottomColor: theme.colors.border }]}>
+          <View
+            style={[
+              styles.previewHeader,
+              { borderBottomColor: theme.colors.border },
+            ]}
+          >
             <Text style={styles.previewTitle} numberOfLines={1}>
               {selectedPhoto?.filename || 'Preview'}
             </Text>
-            <TouchableOpacity onPress={() => setSelectedPhoto(null)} style={styles.previewClose}>
+            <TouchableOpacity
+              onPress={() => setSelectedPhoto(null)}
+              style={styles.previewClose}
+            >
               <Icon name="close" size={24} color="#ffffff" />
             </TouchableOpacity>
           </View>
