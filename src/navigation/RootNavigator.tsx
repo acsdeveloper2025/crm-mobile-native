@@ -35,6 +35,18 @@ import { SyncLogsScreen } from '../screens/main/SyncLogsScreen';
 import { DataCleanupScreen } from '../screens/main/DataCleanupScreen';
 import { VersionService, UpdateInfo } from '../services/VersionService';
 import { useTheme } from '../context/ThemeContext';
+import { TaskRepository } from '../repositories/TaskRepository';
+
+// M6: shape-check a taskId from an FCM push before it drives
+// navigation. FCM data fields are strings by spec but nothing stops
+// an attacker (or a buggy server) from shipping a crafted payload.
+// Accept UUIDs and the legacy numeric-string task ids produced by
+// older backends; reject anything that could be a path traversal,
+// a URL, or excessively long.
+const TASK_ID_PATTERN = /^[a-zA-Z0-9-]{1,64}$/;
+
+const isPlausibleTaskId = (value: unknown): value is string =>
+  typeof value === 'string' && TASK_ID_PATTERN.test(value);
 
 // Typed navigation param list — replaces `any` on all route params
 export type RootStackParamList = {
@@ -230,16 +242,51 @@ export const RootNavigator = () => {
 
   const [versionResult, setVersionResult] = useState<UpdateInfo | null>(null);
 
-  // Handle push notification taps — navigate to TaskDetail when user taps a notification
+  // Handle push notification taps — navigate to TaskDetail when user taps a notification.
+  //
+  // M6: before navigating, shape-check the taskId and verify the
+  // task actually exists in the local DB. Without this, a crafted
+  // push with taskId='../../admin' or taskId='<1kb of junk>' would
+  // drive a navigate() call that either crashes TaskDetailScreen
+  // mid-render or loads a "task not found" state — either way a
+  // confusing UX and a potential crash vector.
   useEffect(() => {
+    const handleTaskIdNavigation = async (
+      rawTaskId: unknown,
+      source: string,
+    ) => {
+      if (!isPlausibleTaskId(rawTaskId)) {
+        if (rawTaskId != null) {
+          Logger.warn('RootNavigator', `Rejected push ${source} taskId shape`, {
+            sample: String(rawTaskId).slice(0, 80),
+          });
+        }
+        return;
+      }
+      try {
+        const identity = await TaskRepository.getTaskIdentity(rawTaskId);
+        if (!identity) {
+          Logger.warn(
+            'RootNavigator',
+            `Push ${source} taskId not in local DB — skipping deep link`,
+            { taskId: rawTaskId },
+          );
+          return;
+        }
+      } catch (err) {
+        Logger.warn('RootNavigator', `Task lookup failed for ${source}`, err);
+        return;
+      }
+      if (isNavigationReady.current) {
+        navigationRef.current?.navigate('TaskDetail', { taskId: rawTaskId });
+      }
+    };
+
     // Handle notification that opened the app from quit state
     messaging()
       .getInitialNotification()
       .then(remoteMessage => {
-        const taskId = remoteMessage?.data?.taskId;
-        if (typeof taskId === 'string' && taskId && isNavigationReady.current) {
-          navigationRef.current?.navigate('TaskDetail', { taskId });
-        }
+        handleTaskIdNavigation(remoteMessage?.data?.taskId, 'initial');
       })
       .catch(err =>
         Logger.warn('RootNavigator', 'getInitialNotification failed', err),
@@ -247,10 +294,7 @@ export const RootNavigator = () => {
 
     // Handle notification taps when app is in background
     const unsubscribe = messaging().onNotificationOpenedApp(remoteMessage => {
-      const taskId = remoteMessage?.data?.taskId;
-      if (typeof taskId === 'string' && taskId && isNavigationReady.current) {
-        navigationRef.current?.navigate('TaskDetail', { taskId });
-      }
+      handleTaskIdNavigation(remoteMessage?.data?.taskId, 'opened');
     });
 
     return unsubscribe;

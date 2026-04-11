@@ -7,6 +7,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { NotificationRepository } from '../repositories/NotificationRepository';
 import { validateResponse } from '../api/schemas/runtime';
 import { MobileNotificationListSchema } from '../api/schemas/sync.schema';
+import {
+  FcmRemoteMessageSchema,
+  normalizeFcmType,
+  sanitizeFcmActionUrl,
+} from '../api/schemas/fcm.schema';
 
 const TAG = 'NotificationService';
 
@@ -193,23 +198,38 @@ class NotificationServiceImpl {
   }
 
   private async handleIncomingRemoteMessage(
-    remoteMessage: any,
+    remoteMessage: unknown,
     source: 'foreground' | 'opened' | 'initial',
   ): Promise<void> {
     try {
-      const data =
-        (remoteMessage && typeof remoteMessage === 'object'
-          ? remoteMessage.data
-          : null) || {};
-      const notification =
-        (remoteMessage && typeof remoteMessage === 'object'
-          ? remoteMessage.notification
-          : null) || {};
-      const type = String(
-        data.type || data.notificationType || 'SYSTEM_NOTIFICATION',
-      );
-      const taskId = data.taskId || data.verificationTaskId || null;
-      const caseNumber = data.caseNumber || data.caseId || null;
+      // M4: validate the RemoteMessage shape before touching any
+      // field. safeParse-based so a shape drift from FCM or the
+      // backend notification builder surfaces as a warning in
+      // telemetry instead of crashing the handler on a
+      // .toUpperCase() of undefined.
+      const parsed = FcmRemoteMessageSchema.safeParse(remoteMessage);
+      if (!parsed.success) {
+        Logger.warn(TAG, `Rejected malformed ${source} push notification`, {
+          issues: parsed.error.issues.slice(0, 5),
+        });
+        return;
+      }
+
+      const data = parsed.data.data ?? {};
+      const notification = parsed.data.notification ?? {};
+
+      // M4: normalize type against the known allowlist. Unknown
+      // enum values coerce to SYSTEM_NOTIFICATION so an attacker
+      // cannot branch the handler via a crafted type like
+      // 'CASE_ASSIGNED_ADMIN' that bypasses the dedupe check.
+      const type = normalizeFcmType(data.type ?? data.notificationType);
+      const taskId = data.taskId ?? data.verificationTaskId ?? null;
+      const caseNumber =
+        data.caseNumber != null
+          ? String(data.caseNumber)
+          : data.caseId != null
+          ? String(data.caseId)
+          : null;
       const title = String(data.title || notification.title || 'Notification');
       const message = String(
         data.message ||
@@ -220,6 +240,19 @@ class NotificationServiceImpl {
       const priority = this.toNotificationPriority(
         data.priority || data.severity,
       );
+
+      // M5: sanitize actionUrl against the scheme + host allowlist
+      // (crmapp:// or https://crm.allcheckservices.com). Any other
+      // value — raw http, phishing host, mailto:, javascript: —
+      // is dropped to null and the notification still fires. This
+      // protects any downstream Linking.openURL / in-app webview
+      // that might consume actionUrl from the persisted record.
+      const actionUrl = sanitizeFcmActionUrl(data.actionUrl);
+      if (data.actionUrl && !actionUrl) {
+        Logger.warn(TAG, 'Rejected FCM actionUrl not on allowlist', {
+          rawSample: String(data.actionUrl).slice(0, 200),
+        });
+      }
 
       let shouldInsertNotification = true;
       if (type === 'CASE_ASSIGNED' && taskId) {
@@ -233,9 +266,9 @@ class NotificationServiceImpl {
           title,
           message,
           priority,
-          taskId,
-          caseNumber,
-          actionUrl: data.actionUrl || null,
+          taskId: taskId ?? undefined,
+          caseNumber: caseNumber ?? undefined,
+          actionUrl: actionUrl ?? undefined,
           timestamp: new Date().toISOString(),
         });
       }
