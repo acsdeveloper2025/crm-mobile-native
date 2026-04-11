@@ -39,11 +39,23 @@ const STARTUP_PERMISSIONS_KEY = 'startup_permissions_requested_v1';
 // ErrorBoundary cannot intercept (non-render async code).
 const g = globalThis as Record<string, unknown>;
 const defaultHandler = g.ErrorUtils
-  ? (g.ErrorUtils as { getGlobalHandler: () => ((error: Error, isFatal?: boolean) => void) | undefined }).getGlobalHandler()
+  ? (
+      g.ErrorUtils as {
+        getGlobalHandler: () =>
+          | ((error: Error, isFatal?: boolean) => void)
+          | undefined;
+      }
+    ).getGlobalHandler()
   : undefined;
 
 if (g.ErrorUtils) {
-  (g.ErrorUtils as { setGlobalHandler: (handler: (error: Error, isFatal?: boolean) => void) => void }).setGlobalHandler((error: Error, isFatal?: boolean) => {
+  (
+    g.ErrorUtils as {
+      setGlobalHandler: (
+        handler: (error: Error, isFatal?: boolean) => void,
+      ) => void;
+    }
+  ).setGlobalHandler((error: Error, isFatal?: boolean) => {
     Logger.error(TAG, `Global ${isFatal ? 'FATAL' : 'non-fatal'} error`, {
       message: error?.message,
       stack: error?.stack,
@@ -86,7 +98,8 @@ const requestStartupPermissionsIfNeeded = async (): Promise<void> => {
     PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
     {
       title: 'Location Permission',
-      message: 'Location is required for visit start, geo-tagging, and form submission.',
+      message:
+        'Location is required for visit start, geo-tagging, and form submission.',
       buttonPositive: 'Allow',
       buttonNegative: 'Deny',
     },
@@ -128,7 +141,9 @@ const requestStartupPermissionsIfNeeded = async (): Promise<void> => {
   if (denied.length > 0) {
     Alert.alert(
       'Permissions Required',
-      `${denied.join(', ')} permission denied. Some features may not work until enabled in Settings.`,
+      `${denied.join(
+        ', ',
+      )} permission denied. Some features may not work until enabled in Settings.`,
     );
   }
 };
@@ -144,11 +159,13 @@ function App(): React.JSX.Element {
       try {
         Logger.info(TAG, 'Starting app initialization...');
 
-        await DatabaseService.initialize();
-        Logger.info(TAG, 'Database initialized');
-
-        await SyncQueue.recoverExpiredLeases();
-        Logger.info(TAG, 'Queue lease recovery completed');
+        // Phase C4: open the DB and create tables inline, but defer the
+        // potentially slow data-migration pass. Login and session
+        // restore only touch v1-compatible tables (user_session,
+        // key_value_store) so they can proceed while migrations run in
+        // the background.
+        await DatabaseService.initialize({ deferMigrations: true });
+        Logger.info(TAG, 'Database opened (migrations deferred)');
 
         NetworkService.initialize();
         Logger.info(TAG, 'Network monitoring started');
@@ -157,6 +174,25 @@ function App(): React.JSX.Element {
           setIsInitializing(false);
         }
 
+        // Run pending migrations in the background. Anything that
+        // needs migrated schema awaits DatabaseService.awaitMigrationsReady()
+        // before querying.
+        DatabaseService.runPendingMigrations()
+          .then(() => {
+            Logger.info(TAG, 'Deferred migrations completed');
+            // Queue lease recovery reads sync_queue which is v7+,
+            // so it runs after migrations. Errors are non-fatal.
+            return SyncQueue.recoverExpiredLeases();
+          })
+          .then(() => Logger.info(TAG, 'Queue lease recovery completed'))
+          .catch(error =>
+            Logger.warn(
+              TAG,
+              'Deferred migrations or lease recovery failed',
+              error,
+            ),
+          );
+
         // Non-blocking startup tasks (do not delay first app paint)
         notificationService
           .ensureLoaded()
@@ -164,26 +200,44 @@ function App(): React.JSX.Element {
             notificationService.initializePushListeners();
             Logger.info(TAG, 'Notification service initialized');
           })
-          .catch(error => Logger.warn(TAG, 'Notification service deferred init failed', error));
+          .catch(error =>
+            Logger.warn(
+              TAG,
+              'Notification service deferred init failed',
+              error,
+            ),
+          );
 
         BackgroundSyncDaemon.start()
           .then(() => Logger.info(TAG, 'Background sync daemon started'))
-          .catch(error => Logger.warn(TAG, 'Background sync daemon deferred init failed', error));
+          .catch(error =>
+            Logger.warn(
+              TAG,
+              'Background sync daemon deferred init failed',
+              error,
+            ),
+          );
 
         Promise.resolve()
           .then(() => {
             MobileTelemetryService.initialize();
             Logger.info(TAG, 'Mobile telemetry initialized');
           })
-          .catch(error => Logger.warn(TAG, 'Mobile telemetry deferred init failed', error));
+          .catch(error =>
+            Logger.warn(TAG, 'Mobile telemetry deferred init failed', error),
+          );
 
         CameraService.initialize()
           .then(() => Logger.info(TAG, 'Camera service initialized'))
-          .catch(error => Logger.warn(TAG, 'Camera service deferred init failed', error));
+          .catch(error =>
+            Logger.warn(TAG, 'Camera service deferred init failed', error),
+          );
 
         requestStartupPermissionsIfNeeded()
           .then(() => Logger.info(TAG, 'Startup permission check completed'))
-          .catch(error => Logger.warn(TAG, 'Startup permission check failed', error));
+          .catch(error =>
+            Logger.warn(TAG, 'Startup permission check failed', error),
+          );
       } catch (error: any) {
         Logger.error(TAG, 'Initialization failed', error);
         if (mounted) {
@@ -200,7 +254,11 @@ function App(): React.JSX.Element {
       NetworkService.destroy();
       notificationService.destroyPushListeners();
       BackgroundSyncDaemon.stop().catch(error => {
-        Logger.warn(TAG, 'Background sync daemon stop failed during unmount', error);
+        Logger.warn(
+          TAG,
+          'Background sync daemon stop failed during unmount',
+          error,
+        );
       });
     };
   }, []);
@@ -208,7 +266,9 @@ function App(): React.JSX.Element {
   if (isInitializing) {
     return (
       <SafeAreaProvider>
-        <View style={[styles.container, styles.center, styles.loadingBackground]}>
+        <View
+          style={[styles.container, styles.center, styles.loadingBackground]}
+        >
           <StatusBar barStyle="dark-content" />
           <ActivityIndicator size="large" color="#00a950" />
           <Text style={styles.initText}>Initializing...</Text>
@@ -220,7 +280,9 @@ function App(): React.JSX.Element {
   if (initError) {
     return (
       <SafeAreaProvider>
-        <View style={[styles.container, styles.center, styles.loadingBackground]}>
+        <View
+          style={[styles.container, styles.center, styles.loadingBackground]}
+        >
           <StatusBar barStyle="dark-content" />
           <Text style={styles.errorText}>Initialization Error</Text>
           <Text style={styles.errorDetail}>{initError}</Text>

@@ -12,6 +12,12 @@ SQLite.enablePromise(true);
 class DatabaseServiceClass {
   private db: SQLiteDatabase | null = null;
   private initialized = false;
+  // Phase C4: migrations can run deferred. This promise is set by
+  // initialize() and resolved either synchronously (if called without
+  // `deferMigrations`) or by runPendingMigrations() when the caller
+  // explicitly triggers the background migration pass.
+  private migrationsReady: Promise<void> = Promise.resolve();
+  private migrationsStarted = false;
 
   private toCamelCase(key: string): string {
     return key.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
@@ -31,10 +37,29 @@ class DatabaseServiceClass {
   }
 
   /**
-   * Initialize the database connection, create tables and run migrations.
-   * Must be called once at app startup before any data operations.
+   * Initialize the database connection, create tables, and optionally run
+   * migrations.
+   *
+   * `options.deferMigrations` (Phase C4) lets the caller split migration
+   * work off the critical path:
+   *
+   *   - false (default): migrations run inline before the promise
+   *     resolves. Safe default; behavior matches pre-C4.
+   *   - true: the method returns as soon as the schema is opened and
+   *     CREATE IF NOT EXISTS / indexes have run. Pending migrations are
+   *     NOT applied until runPendingMigrations() is called explicitly.
+   *     Callers that need migrated schema (anything reading the v8+
+   *     projection tables, in-progress task uploads, etc.) should
+   *     `await DatabaseService.awaitMigrationsReady()` before touching
+   *     the DB. Cheap initial paths (login, session restore) can skip
+   *     the wait and interact with the v1-compatible subset.
+   *
+   * CREATE TABLE IF NOT EXISTS and CREATE INDEX IF NOT EXISTS are
+   * idempotent, so running them on every startup is cheap (< 100ms on
+   * a cold DB). The heavy work — ALTER TABLE and data-copying
+   * migrations — is what benefits from deferral.
    */
-  async initialize(): Promise<void> {
+  async initialize(options: { deferMigrations?: boolean } = {}): Promise<void> {
     if (this.initialized) {
       return;
     }
@@ -96,15 +121,59 @@ class DatabaseServiceClass {
         await this.db.executeSql(index + ';');
       }
 
-      // Run migrations
-      await this.runMigrations();
-
+      // Mark the DB usable *before* the potentially slow migration pass.
+      // Callers that don't need migrated schema can proceed immediately.
       this.initialized = true;
+
+      if (options.deferMigrations) {
+        Logger.info('DatabaseService', 'Database opened; migrations deferred');
+        // Caller is responsible for invoking runPendingMigrations().
+        // The migrationsReady promise stays pending until then.
+        this.migrationsReady = new Promise<void>((resolve, reject) => {
+          this.deferredMigrationResolve = resolve;
+          this.deferredMigrationReject = reject;
+        });
+        return;
+      }
+
+      await this.runMigrations();
       Logger.info('DatabaseService', 'Database initialized successfully');
     } catch (error) {
       Logger.error('DatabaseService', 'Failed to initialize database', error);
       throw error;
     }
+  }
+
+  private deferredMigrationResolve: (() => void) | null = null;
+  private deferredMigrationReject: ((err: unknown) => void) | null = null;
+
+  /**
+   * Run any pending migrations that were skipped by
+   * initialize({ deferMigrations: true }). Safe to call once; subsequent
+   * calls are no-ops because migrationsStarted flips to true on entry.
+   */
+  async runPendingMigrations(): Promise<void> {
+    if (this.migrationsStarted) {
+      return this.migrationsReady;
+    }
+    this.migrationsStarted = true;
+    try {
+      await this.runMigrations();
+      Logger.info('DatabaseService', 'Deferred migrations completed');
+      this.deferredMigrationResolve?.();
+    } catch (error) {
+      Logger.error('DatabaseService', 'Deferred migrations failed', error);
+      this.deferredMigrationReject?.(error);
+      throw error;
+    }
+  }
+
+  /**
+   * Wait for any pending migrations to finish. Resolves immediately if
+   * migrations ran inline or have already completed.
+   */
+  awaitMigrationsReady(): Promise<void> {
+    return this.migrationsReady;
   }
 
   /**
