@@ -1,5 +1,7 @@
 import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
+import { validateResponse } from '../api/schemas/runtime';
+import { MobileSyncDownloadResponseSchema } from '../api/schemas/sync.schema';
 import { config } from '../config';
 import { DatabaseService } from '../database/DatabaseService';
 import { ProjectionUpdater } from '../projections/ProjectionUpdater';
@@ -51,6 +53,14 @@ class SyncDownloadServiceClass {
         if (!response.success || !payload) {
           throw new Error('Invalid sync download response');
         }
+        // Drift detection at the sync boundary: non-strict so a brand-new
+        // field on the backend never bricks a field agent mid-shift.
+        // Validation warnings land in telemetry and show up in the next
+        // log batch for the team to investigate.
+        validateResponse(MobileSyncDownloadResponseSchema, payload, {
+          service: 'sync',
+          endpoint: 'GET /sync/download',
+        });
 
         for (const task of payload.cases) {
           const canonicalTaskId = (
