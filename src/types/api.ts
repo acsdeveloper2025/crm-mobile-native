@@ -292,7 +292,9 @@ export interface MobileAppConfigResponse {
   features: {
     offlineMode: boolean;
     backgroundSync: boolean;
-    biometricAuth: boolean;
+    // Phase E4: biometricAuth removed — never implemented on this
+    // client. If re-added it must be behind a real
+    // react-native-biometrics integration, not a config flag.
     darkMode: boolean;
     analytics: boolean;
   };
