@@ -9,6 +9,8 @@
     "lint:src": "eslint src --ext .ts,.tsx",
     "start": "react-native start",
     "typecheck": "tsc --noEmit",
+    "check:ssl-pins": "bash scripts/check-ssl-pins.sh",
+    "prerelease": "npm run typecheck && npm run lint && npm run check:ssl-pins",
     "postinstall": "patch-package"
   },
   "dependencies": {
