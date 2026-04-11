@@ -1,9 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Network Security Configuration for CRM Mobile Native
-  - Disables cleartext (HTTP) traffic in production
-  - Allows localhost cleartext for development (Metro bundler)
-  - Pins SSL certificate for production API domain
+  Network Security Configuration for CRM Mobile Native (Phase E1 follow-up).
+
+  Policy:
+    - Cleartext (HTTP) globally blocked.
+    - Localhost + emulator loopback (10.0.2.2) allowed cleartext for
+      Metro bundler + local backend during development only.
+    - Production API domain uses strict TLS AND certificate pinning
+      via <pin-set>. The pin set below MUST be populated with real
+      SPKI SHA-256 fingerprints before a production build ships —
+      see docs/ssl-pinning.md for the exact openssl command and
+      rollout procedure.
+
+  Rollout invariant: always keep AT LEAST TWO pins in the set at any
+  time — the current leaf cert's key plus a backup. When rotating,
+  publish the next cert's pin as the backup in a new app release,
+  wait for adoption, then switch. This prevents a rotated cert from
+  bricking the app between releases.
 -->
 <network-security-config>
     <!-- Block cleartext traffic globally -->
@@ -19,21 +32,29 @@
         <domain includeSubdomains="false">10.0.2.2</domain>
     </domain-config>
 
-    <!-- Pin production API domain certificate -->
+    <!--
+      Pin production API domain certificate.
+
+      The pins below are PLACEHOLDERS. They are valid SHA-256
+      digests (the openssl example output), but they do NOT match
+      the production cert — a debug build with these pins will
+      fail every TLS handshake. That is intentional: any developer
+      who forgets to swap them before cutting a release candidate
+      will notice immediately.
+
+      Ops: replace both values before `./gradlew assembleRelease`.
+      See docs/ssl-pinning.md for the exact rotation procedure.
+    -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">crm.allcheckservices.com</domain>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
-        <!--
-          To enable certificate pinning, uncomment below and add your cert's SHA-256 pin:
-          Get pin via: openssl s_client -connect crm.allcheckservices.com:443 | openssl x509 -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
-          Include a backup pin from a different CA for key rotation.
-
         <pin-set expiration="2027-01-01">
-            <pin digest="SHA-256">YOUR_PRIMARY_PIN_BASE64</pin>
-            <pin digest="SHA-256">YOUR_BACKUP_PIN_BASE64</pin>
+            <!-- PLACEHOLDER — replace with the current cert's SPKI SHA-256 -->
+            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
+            <!-- PLACEHOLDER — replace with the NEXT rotation cert's SPKI SHA-256 -->
+            <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
         </pin-set>
-        -->
     </domain-config>
 </network-security-config>
