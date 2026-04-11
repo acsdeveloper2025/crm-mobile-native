@@ -86,3 +86,70 @@ export const MobileFormTemplateSchema = z
 
 export type MobileNotificationDto = z.infer<typeof MobileNotificationSchema>;
 export type MobileFormTemplateDto = z.infer<typeof MobileFormTemplateSchema>;
+
+// --- Remote attachments --------------------------------------------------
+//
+// /verification-tasks/:id/attachments powers the "server-side uploads"
+// list on the task detail screen. Drift here would break the attachment
+// viewer without any user-facing error.
+
+export const MobileAttachmentSchema = z
+  .object({
+    id: z.string(),
+    filename: z.string().optional(),
+    originalName: z.string().optional(),
+    mimeType: z.string().optional(),
+    size: z.union([z.number(), z.string()]).optional(),
+    url: z.string().optional(),
+    uploadedAt: z.string().optional(),
+  })
+  .passthrough();
+
+export const MobileAttachmentListSchema = z.array(MobileAttachmentSchema);
+
+// --- Auth refresh --------------------------------------------------------
+//
+// /auth/refresh is called silently in the 401 interceptor. A silent
+// rename of accessToken would log the field agent out every five
+// minutes, so we validate non-strict and let the shape warn in
+// telemetry before it becomes a support ticket.
+
+export const MobileRefreshResponseSchema = z
+  .object({
+    success: z.boolean(),
+    message: z.string().optional(),
+    data: z
+      .object({
+        accessToken: z.string().min(1),
+        refreshToken: z.string().optional(),
+        expiresIn: z.number(),
+      })
+      .passthrough()
+      .optional(),
+  })
+  .passthrough();
+
+// --- Version check -------------------------------------------------------
+//
+// POST /mobile/version-check gates the whole app on force-update. If
+// the backend renames forceUpdate the client silently drops to the
+// default update policy (= no prompt), which is dangerous. Permissive
+// shape, but the top-level success + forceUpdate are required.
+
+export const MobileVersionCheckResponseSchema = z
+  .object({
+    success: z.boolean(),
+    forceUpdate: z.boolean().optional(),
+    updateRequired: z.boolean().optional(),
+    latestVersion: z.string().optional(),
+    releaseDate: z.string().optional(),
+    urgent: z.boolean().optional(),
+    size: z.string().optional(),
+    releaseNotes: z.union([z.string(), z.array(z.string())]).optional(),
+    features: z.array(z.string()).optional(),
+    bugFixes: z.array(z.string()).optional(),
+    downloadUrl: z.string().optional(),
+  })
+  .passthrough();
+
+export type MobileAttachmentDto = z.infer<typeof MobileAttachmentSchema>;

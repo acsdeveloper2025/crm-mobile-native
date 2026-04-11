@@ -11,6 +11,8 @@ import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import { config } from '../config';
 import { SessionStore } from './SessionStore';
+import { validateResponse } from '../api/schemas/runtime';
+import { MobileAttachmentListSchema } from '../api/schemas/sync.schema';
 
 const TAG = 'AttachmentService';
 const CACHE_DIR = `${RNFS.CachesDirectoryPath}/attachments`;
@@ -64,6 +66,11 @@ class AttachmentServiceClass {
       if (!response.success || !Array.isArray(response.data)) {
         return [];
       }
+
+      validateResponse(MobileAttachmentListSchema, response.data, {
+        service: 'attachments',
+        endpoint: `GET ${ENDPOINTS.ATTACHMENTS.LIST(taskId)}`,
+      });
 
       return response.data.map(attachment => {
         const mimeType = attachment.mimeType || 'application/pdf';

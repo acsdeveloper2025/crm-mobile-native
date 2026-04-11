@@ -15,6 +15,8 @@ import { SessionStore } from './SessionStore';
 import { KeyValueRepository } from '../repositories/KeyValueRepository';
 import { UserSessionRepository } from '../repositories/UserSessionRepository';
 import type { MobileDeviceInfo, UserProfile } from '../types/api';
+import { validateResponse } from '../api/schemas/runtime';
+import { MobileRefreshResponseSchema } from '../api/schemas/sync.schema';
 
 const TAG = 'AuthService';
 const TOKEN_KEY = 'auth_access_token';
@@ -218,6 +220,11 @@ class AuthServiceClass {
         };
       }>(ENDPOINTS.AUTH.REFRESH, {
         refreshToken: this.refreshToken,
+      });
+
+      validateResponse(MobileRefreshResponseSchema, response, {
+        service: 'auth',
+        endpoint: 'POST /auth/refresh',
       });
 
       if (response.success && response.data) {

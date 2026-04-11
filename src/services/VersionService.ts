@@ -8,6 +8,8 @@ import type {
   MobileVersionCheckResponse,
   MobileVersionCheckRequest,
 } from '../types/api';
+import { validateResponse } from '../api/schemas/runtime';
+import { MobileVersionCheckResponseSchema } from '../api/schemas/sync.schema';
 
 export const APP_VERSION = config.appVersion;
 
@@ -46,6 +48,11 @@ class VersionServiceClass {
       );
 
       if (response && response.success) {
+        validateResponse(MobileVersionCheckResponseSchema, response, {
+          service: 'version',
+          endpoint: 'POST /mobile/version-check',
+        });
+
         Logger.info(
           TAG,
           `Version Check: App=${APP_VERSION}, forceUpdate=${response.forceUpdate}`,
