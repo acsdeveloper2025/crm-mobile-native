@@ -44,16 +44,98 @@ export interface LogBufferEntry {
 const MAX_BUFFER_SIZE = 500;
 
 /**
+ * Case-insensitive pattern matching keys whose values should be
+ * redacted before the entry lands in the ring buffer (and therefore
+ * before they can be shipped to the backend telemetry collector
+ * via RemoteLogService).
+ *
+ * M29: the prior serializer stringified arbitrary data objects,
+ * including well-meaning `Logger.error(tag, msg, { response })` calls
+ * that embedded full axios responses with Authorization headers and
+ * user PII. The buffer's entire purpose is to flush to the server
+ * on crash, so every captured token was one network hop from living
+ * in a log aggregator. This filter is the minimum viable guardrail:
+ * it redacts values for keys whose name looks sensitive, regardless
+ * of how deep they are in the object.
+ */
+const SENSITIVE_KEY_PATTERN =
+  /(access[_-]?token|refresh[_-]?token|id[_-]?token|auth(?:orization)?|password|passcode|pin(?![a-z])|secret|api[_-]?key|private[_-]?key|ssn|aadhaar|pan(?:[_-]?card)?|credit[_-]?card|cvv|otp|session[_-]?id|cookie|bearer)/i;
+
+const REDACTED = '[REDACTED]';
+// Bound recursion on deeply nested or cyclic inputs.
+const MAX_REDACT_DEPTH = 6;
+
+/**
+ * Deep-clone an arbitrary value, redacting any object property
+ * whose key name matches SENSITIVE_KEY_PATTERN. Returns the value
+ * unchanged if it is a primitive. Gracefully handles cycles,
+ * Error instances, and depth overruns so the logger never throws.
+ */
+function redactSensitiveFields(
+  value: unknown,
+  depth: number,
+  seen: WeakSet<object>,
+): unknown {
+  if (value === null || value === undefined) {
+    return value;
+  }
+  const t = typeof value;
+  if (t === 'string' || t === 'number' || t === 'boolean' || t === 'bigint') {
+    return value;
+  }
+  if (depth >= MAX_REDACT_DEPTH) {
+    return '[max depth]';
+  }
+  if (value instanceof Error) {
+    return {
+      name: value.name,
+      message: value.message,
+      stack: value.stack,
+    };
+  }
+  if (t !== 'object') {
+    return String(value);
+  }
+  const obj = value as object;
+  if (seen.has(obj)) {
+    return '[circular]';
+  }
+  seen.add(obj);
+
+  if (Array.isArray(obj)) {
+    return obj.map(entry => redactSensitiveFields(entry, depth + 1, seen));
+  }
+
+  const out: Record<string, unknown> = {};
+  for (const [key, entry] of Object.entries(obj as Record<string, unknown>)) {
+    if (SENSITIVE_KEY_PATTERN.test(key)) {
+      out[key] = REDACTED;
+      continue;
+    }
+    out[key] = redactSensitiveFields(entry, depth + 1, seen);
+  }
+  return out;
+}
+
+/**
  * Safely serialize arbitrary `data` argument. Falls back to a
  * constant string on circular references or unserializable values
  * so the logger never throws when called from an error handler.
+ *
+ * Before serialization, runs the structure through a sensitive-key
+ * redactor (M29) so tokens, PINs, API keys, and similar fields
+ * never land in the buffer.
  */
 function serializeData(data: unknown): string | null {
   if (data === undefined || data === null) {
     return null;
   }
+  if (typeof data === 'string') {
+    return data;
+  }
   try {
-    return typeof data === 'string' ? data : JSON.stringify(data);
+    const redacted = redactSensitiveFields(data, 0, new WeakSet());
+    return JSON.stringify(redacted);
   } catch {
     return '[unserializable]';
   }
