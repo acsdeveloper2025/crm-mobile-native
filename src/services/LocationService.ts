@@ -65,6 +65,24 @@ class LocationServiceClass {
   }
 
   /**
+   * M27: a GPS fix is considered stale if its device-reported
+   * timestamp is more than STALE_FIX_THRESHOLD_MS behind wall-
+   * clock. `maximumAge: 10000` below already asks the OS for a
+   * fix at most 10 seconds old, but on Android some vendor HALs
+   * ignore that hint and return the cached fix anyway. A mock-
+   * location app can also hold a stale fix on purpose to defeat
+   * travel-time checks.
+   *
+   * 30 seconds is the ceiling: a field agent walking between
+   * doors may naturally have a 5-10s old fix, but anything beyond
+   * 30s means either the device hasn't seen the sky in a while or
+   * something is feeding us a cached coordinate. Rejecting forces
+   * the next call to either re-request or surface the "GPS not
+   * ready" state to the UI.
+   */
+  private static readonly STALE_FIX_THRESHOLD_MS = 30_000;
+
+  /**
    * Get current location (one-shot)
    */
   async getCurrentLocation(): Promise<LocationResult | null> {
@@ -78,6 +96,30 @@ class LocationServiceClass {
       return new Promise((resolve, reject) => {
         Geolocation.getCurrentPosition(
           (position: GeolocationResponse) => {
+            // M27: reject fixes whose device-reported timestamp is
+            // older than the staleness threshold. Return null so
+            // the caller can retry or fall through to the "no
+            // location" UX rather than silently accepting an old
+            // coordinate.
+            const positionAgeMs = Date.now() - position.timestamp;
+            if (positionAgeMs > LocationServiceClass.STALE_FIX_THRESHOLD_MS) {
+              Logger.warn(
+                TAG,
+                `Rejecting stale GPS fix (${Math.round(
+                  positionAgeMs / 1000,
+                )}s old > ${Math.round(
+                  LocationServiceClass.STALE_FIX_THRESHOLD_MS / 1000,
+                )}s threshold)`,
+                {
+                  lat: position.coords.latitude,
+                  lon: position.coords.longitude,
+                  reportedAt: new Date(position.timestamp).toISOString(),
+                },
+              );
+              resolve(null);
+              return;
+            }
+
             const result: LocationResult = {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,

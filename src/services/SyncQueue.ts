@@ -85,11 +85,6 @@ class SyncQueueClass {
       }
     }
 
-    if (entityType === 'TASK_STATUS') {
-      // Keep only the latest pending status mutation per task to avoid stale regressions.
-      await SyncQueueRepository.deletePendingStatusItems(entityId);
-    }
-
     const id = uuidv4();
     const now = new Date().toISOString();
     const operationType = inferOperationType(actionType, entityType, payload);
@@ -106,16 +101,36 @@ class SyncQueueClass {
         priority: operationPriority,
       },
     };
+    const payloadJson = JSON.stringify(payloadWithOperation);
 
-    await SyncQueueRepository.insert(
-      id,
-      actionType,
-      entityType,
-      entityId,
-      JSON.stringify(payloadWithOperation),
-      priority,
-      now,
-    );
+    if (entityType === 'TASK_STATUS') {
+      // M22: delete-pending-then-insert must be atomic. Previously
+      // those were two separate awaits, so a concurrent second
+      // enqueue (user double-taps "Start Visit", a queued sync
+      // trigger races with a user tap, etc.) could pass the delete
+      // before the first insert committed and produce duplicate
+      // PENDING rows keyed on the same task. Single-transaction path
+      // keyed by entityId preserves the "at most one PENDING status
+      // mutation per task" invariant.
+      await SyncQueueRepository.replaceLatestStatusItem(
+        entityId,
+        id,
+        actionType,
+        payloadJson,
+        priority,
+        now,
+      );
+    } else {
+      await SyncQueueRepository.insert(
+        id,
+        actionType,
+        entityType,
+        entityId,
+        payloadJson,
+        priority,
+        now,
+      );
+    }
 
     Logger.debug(
       TAG,
@@ -146,14 +161,20 @@ class SyncQueueClass {
   }
 
   /**
-   * Mark an item as in-progress with dynamic lease timeout
+   * Attempt to claim an item for processing with a dynamic lease
+   * timeout. Returns true if the CAS succeeded (this processor now
+   * owns the lease), false if another processor already claimed it.
+   *
+   * M23: callers MUST branch on the return value and skip the
+   * upload when false — otherwise two processors can race on the
+   * same row and double-submit to the server.
    */
   async markInProgress(
     id: string,
     leaseTimeoutMs: number = DEFAULT_LEASE_TIMEOUT_MS,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const now = new Date().toISOString();
-    await SyncQueueRepository.markInProgress(
+    return SyncQueueRepository.markInProgress(
       id,
       now,
       this.getLeaseExpiry(leaseTimeoutMs),
