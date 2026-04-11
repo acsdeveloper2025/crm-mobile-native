@@ -38,7 +38,8 @@
     "react-native-view-shot": "^4.0.3",
     "react-native-vision-camera": "^4.7.3",
     "react-native-webview": "^13.16.1",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
