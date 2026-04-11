@@ -1,3 +1,4 @@
+import { NetworkService } from '../services/NetworkService';
 import { SyncQueue } from '../services/SyncQueue';
 import { MobileTelemetryService } from '../telemetry/MobileTelemetryService';
 import { Logger } from '../utils/logger';
@@ -40,6 +41,20 @@ class SyncProcessorClass {
     const errors: string[] = [];
     let uploaded = 0;
     let retriesSeen = 0;
+
+    // M26: short-circuit when offline. Without this guard the
+    // processor would load pending items and fire axios calls
+    // against each one while the radio was off, each waiting for
+    // the 30s default timeout. At 50 queued items that burns
+    // ~25 minutes of battery for zero progress, and on some
+    // devices keeps the modem powered the whole time. The real
+    // trigger for sync-on-reconnect lives in NetworkService's
+    // change listener; this is just the "don't run when the
+    // answer is obviously no" bailout.
+    if (!NetworkService.getIsOnline()) {
+      Logger.info(TAG, 'processPending skipped — network offline');
+      return { uploaded, errors, retriesSeen };
+    }
 
     const pendingItems = await SyncQueue.getPendingItems(limit);
 
