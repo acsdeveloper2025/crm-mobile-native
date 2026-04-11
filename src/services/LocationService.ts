@@ -12,6 +12,7 @@ import { SyncGateway } from './SyncGateway';
 import { SYNC_PRIORITY } from './SyncQueue';
 import { Logger } from '../utils/logger';
 import type { MobileLocationCaptureRequest } from '../types/api';
+import { GOOGLE_GEOCODING_API_KEY } from '../config/googleMaps';
 
 const TAG = 'LocationService';
 
@@ -317,10 +318,12 @@ class LocationServiceClass {
    * Returns detailed address: street, locality, city, district, state, pincode, country.
    */
   async getAddressFromCoordinates(lat: number, lon: number): Promise<string> {
-    const GOOGLE_API_KEY = 'AIzaSyDjCfPbgYjzM8XyzJxQp9MVDdNj-i7FOTE';
     try {
+      // M7: key lives in src/config/googleMaps.ts now. See the
+      // comment there for the rotation procedure and the TODO
+      // about proxying through the backend.
       // No result_type filter — let Google return the best match at any level
-      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${GOOGLE_API_KEY}&language=en`;
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${GOOGLE_GEOCODING_API_KEY}&language=en`;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
