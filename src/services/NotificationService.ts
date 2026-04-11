@@ -5,6 +5,8 @@ import { PushTokenService } from './PushTokenService';
 import { Logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { NotificationRepository } from '../repositories/NotificationRepository';
+import { validateResponse } from '../api/schemas/runtime';
+import { MobileNotificationListSchema } from '../api/schemas/sync.schema';
 
 const TAG = 'NotificationService';
 
@@ -493,6 +495,11 @@ class NotificationServiceImpl {
       if (!response.success || !response.data) {
         throw new Error('Invalid notifications response');
       }
+
+      validateResponse(MobileNotificationListSchema, response.data, {
+        service: 'notifications',
+        endpoint: 'GET /notifications',
+      });
 
       await this.upsertBackendNotifications(response.data || []);
 
