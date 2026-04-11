@@ -13,6 +13,12 @@
   },
   "dependencies": {
     "@bam.tech/react-native-image-resizer": "^3.0.11",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/auto-instrumentations-node": "^0.72.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.214.0",
+    "@opentelemetry/resources": "^2.6.1",
+    "@opentelemetry/sdk-node": "^0.214.0",
+    "@opentelemetry/semantic-conventions": "^1.40.0",
     "@react-native-community/geolocation": "^3.4.0",
     "@react-native-community/netinfo": "^12.0.1",
     "@react-native-firebase/app": "^23.8.6",
