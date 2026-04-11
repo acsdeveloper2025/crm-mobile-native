@@ -222,6 +222,16 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
         showsHorizontalScrollIndicator={false}
         initialNumToRender={6}
         windowSize={5}
+        // Phase C5: item width is fixed (142 + 12 marginRight = 154),
+        // so getItemLayout lets the virtualizer skip the intrinsic
+        // measurement pass for every item and compute scroll positions
+        // in O(1). Measurable improvement on galleries with 50+ photos.
+        getItemLayout={(_data, index) => ({
+          length: 154,
+          offset: 154 * index,
+          index,
+        })}
+        removeClippedSubviews
       />
 
       <Modal
