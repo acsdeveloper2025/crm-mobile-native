@@ -67,6 +67,35 @@ $EDITOR android/app/src/main/res/xml/network_security_config.xml
 # at least one pin is wrong — recompute from the live cert.
 ```
 
+### Pre-release check (M30)
+
+`scripts/check-ssl-pins.sh` greps the config for the known
+placeholder digests and exits non-zero if either is still present.
+It is wired into `npm run prerelease` which also runs typecheck
+and lint, so the recommended release sequence is:
+
+```bash
+npm run prerelease         # fails if placeholders are still in place
+./gradlew assembleRelease  # only runs after prerelease succeeds
+```
+
+You can also run the check standalone:
+
+```bash
+npm run check:ssl-pins
+```
+
+Exit code 0 means the config contains no placeholder pins (safe).
+Exit code 1 means at least one placeholder is still present
+(abort release). Exit code 2 means the config file is missing
+(something is structurally wrong — do not release).
+
+The check does NOT verify the pins are correct — only that the
+distinctive placeholder strings are gone. Verifying pin
+correctness still requires a real TLS handshake against the
+production cert; the logcat instructions above are the canonical
+way to do that.
+
 ## iOS — TrustKit (not yet installed)
 
 iOS has no built-in SPKI pinning equivalent to Android's
