@@ -1,6 +1,7 @@
 import { DatabaseService } from '../database/DatabaseService';
 import type { MobileCaseResponse } from '../types/api';
 import { Logger } from '../utils/logger';
+import { TimeService } from '../services/TimeService';
 
 interface ExistingTaskState {
   status: string;
@@ -21,19 +22,20 @@ interface ResolvedTaskState {
 }
 
 class SyncConflictResolver {
+  /**
+   * Phase D5 — delegate to TimeService so the comparison runs in
+   * server-clock space with a skew tolerance window. If TimeService
+   * has flagged the device clock as unreliable (|offset| > 1h) this
+   * returns false unconditionally, which means the resolver accepts
+   * server state instead of overwriting it with timestamps it can't
+   * trust. That's the safer default on a field device with a broken
+   * clock.
+   */
   private isLocalFresher(
     localUpdatedAt: string | null | undefined,
     serverUpdatedAt: string | null | undefined,
   ): boolean {
-    if (!localUpdatedAt || !serverUpdatedAt) {
-      return false;
-    }
-    const localMs = Date.parse(localUpdatedAt);
-    const serverMs = Date.parse(serverUpdatedAt);
-    if (Number.isNaN(localMs) || Number.isNaN(serverMs)) {
-      return false;
-    }
-    return localMs > serverMs;
+    return TimeService.isLocalFresher(localUpdatedAt, serverUpdatedAt);
   }
 
   /**

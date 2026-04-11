@@ -18,6 +18,7 @@ import axios, {
 import { config } from '../config';
 import { Logger } from '../utils/logger';
 import { SessionStore } from '../services/SessionStore';
+import { TimeService } from '../services/TimeService';
 
 type RefreshHandler = () => Promise<string | null>;
 type UnauthorizedHandler = () => Promise<void> | void;
@@ -85,9 +86,25 @@ class ApiClientClass {
       },
     );
 
-    // Response interceptor - handle 401 (token refresh)
+    // Response interceptor - handle 401 (token refresh) and sample
+    // server time for clock-skew tracking (Phase D5).
     this.client.interceptors.response.use(
-      response => response,
+      response => {
+        const headers = response.headers ?? {};
+        const dateHeader =
+          (headers as Record<string, unknown>).date ??
+          (headers as Record<string, unknown>).Date;
+        const headerValue = Array.isArray(dateHeader)
+          ? dateHeader[0]
+          : dateHeader;
+        const serverMs = TimeService.parseDateHeader(
+          typeof headerValue === 'string' ? headerValue : null,
+        );
+        if (serverMs != null) {
+          TimeService.recordServerTime(serverMs);
+        }
+        return response;
+      },
       async (error: AxiosError) => {
         const originalRequest = error.config as InternalAxiosRequestConfig & {
           _retry?: boolean;
