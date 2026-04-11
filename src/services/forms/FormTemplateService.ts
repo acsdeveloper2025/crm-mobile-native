@@ -3,6 +3,8 @@ import { ENDPOINTS } from '../../api/endpoints';
 import { FormRepository } from '../../repositories/FormRepository';
 import type { FormFieldTemplate, FormTemplate } from '../../types/api';
 import { toBackendFormType, type FormTypeKey } from '../../utils/formTypeKey';
+import { validateResponse } from '../../api/schemas/runtime';
+import { MobileFormTemplateSchema } from '../../api/schemas/sync.schema';
 
 const toOptions = (values: string[]): { label: string; value: string }[] =>
   values.map(value => ({ label: value, value }));
@@ -539,6 +541,11 @@ class FormTemplateServiceClass {
     if (!response.success || !response.data) {
       return null;
     }
+
+    validateResponse(MobileFormTemplateSchema, response.data, {
+      service: 'forms',
+      endpoint: `GET ${ENDPOINTS.FORMS.TEMPLATE(backendFormType)}`,
+    });
 
     const backendTemplate = buildTemplateFromBackend(
       verificationType,

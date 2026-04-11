@@ -41,3 +41,48 @@ export type MobileCaseDto = z.infer<typeof MobileCaseSchema>;
 export type MobileSyncDownloadResponseDto = z.infer<
   typeof MobileSyncDownloadResponseSchema
 >;
+
+// --- Notifications -------------------------------------------------------
+//
+// The mobile notification list is small and iterated directly into SQLite
+// via NotificationRepository.upsertBatch. A rename of `taskId` or the
+// priority enum would silently null-out the UI badge. Keep the schema
+// permissive — we only guard the fields SQLite-persists.
+
+export const MobileNotificationSchema = z
+  .object({
+    id: z.string(),
+    type: z.string(),
+    title: z.string().optional(),
+    message: z.string().optional(),
+    priority: z.string().optional(),
+    isRead: z.boolean().optional(),
+    taskId: z.string().nullable().optional(),
+    caseNumber: z.union([z.string(), z.number()]).nullable().optional(),
+    actionUrl: z.string().nullable().optional(),
+    createdAt: z.string().optional(),
+    updatedAt: z.string().optional(),
+  })
+  .passthrough();
+
+export const MobileNotificationListSchema = z.array(MobileNotificationSchema);
+
+// --- Form templates ------------------------------------------------------
+//
+// The form template drives the entire data-capture UX. A drift in
+// `sections` or `fields` corrupts the renderer for every verification
+// started offline until the next fresh download. Only the outer shape is
+// validated — field-level schemas vary by verification type.
+
+export const MobileFormTemplateSchema = z
+  .object({
+    formType: z.string().optional(),
+    name: z.string().optional(),
+    description: z.string().optional(),
+    sections: z.array(z.record(z.string(), z.unknown())).optional(),
+    version: z.string().optional(),
+  })
+  .passthrough();
+
+export type MobileNotificationDto = z.infer<typeof MobileNotificationSchema>;
+export type MobileFormTemplateDto = z.infer<typeof MobileFormTemplateSchema>;

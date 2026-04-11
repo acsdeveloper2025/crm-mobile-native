@@ -19,6 +19,7 @@ import { config } from '../config';
 import { Logger } from '../utils/logger';
 import { SessionStore } from '../services/SessionStore';
 import { TimeService } from '../services/TimeService';
+import { buildTraceparent } from './tracing';
 
 type RefreshHandler = () => Promise<string | null>;
 type UnauthorizedHandler = () => Promise<void> | void;
@@ -71,6 +72,16 @@ class ApiClientClass {
         const token = await SessionStore.getAccessToken();
         if (token && requestConfig.headers) {
           requestConfig.headers.Authorization = `Bearer ${token}`;
+        }
+
+        // W3C Trace Context propagation (Phase F1 follow-up).
+        // Every outbound mobile request gets a fresh traceparent so
+        // the backend server span inherits a parent trace-id. If a
+        // caller has already set traceparent explicitly we do not
+        // overwrite it — that lets future in-app span creation
+        // piggyback on the same interceptor.
+        if (requestConfig.headers && !requestConfig.headers.traceparent) {
+          requestConfig.headers.traceparent = buildTraceparent();
         }
 
         Logger.debug(
