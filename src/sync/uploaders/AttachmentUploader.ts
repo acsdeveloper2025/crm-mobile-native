@@ -94,21 +94,71 @@ class AttachmentUploaderClass {
       return { outcome: 'FAILURE', error: 'Attachment upload failed' };
     }
 
+    // M21: the server has already accepted the upload at this
+    // point and is protected by the Idempotency-Key header above,
+    // so a retry on the next sync cycle will return the same
+    // result without uploading twice. The remaining risk is that
+    // the LOCAL row fails to transition to SYNCED — which leaves
+    // sync_queue in a loop of "upload succeeds → local update
+    // fails → retry → idempotent response → local update fails".
+    // The retry loop here catches transient SQLite contention
+    // (BUSY, LOCKED) at a cost of up to ~450ms total before we
+    // give up and let the outer queue retry from scratch.
     const uploadedAttachment = response.data?.attachments?.[0];
-    await SyncEngineRepository.execute(
-      `UPDATE attachments
-       SET sync_status = 'SYNCED',
-           backend_attachment_id = COALESCE(?, backend_attachment_id),
-           remote_path = COALESCE(?, remote_path),
-           last_sync_attempt_at = ?
-       WHERE id = ?`,
-      [
-        uploadedAttachment?.id || null,
-        uploadedAttachment?.url || null,
-        new Date().toISOString(),
-        String(payload.id),
-      ],
-    );
+    const attachmentId = String(payload.id);
+    const now = new Date().toISOString();
+
+    let lastUpdateError: unknown = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        await SyncEngineRepository.execute(
+          `UPDATE attachments
+           SET sync_status = 'SYNCED',
+               backend_attachment_id = COALESCE(?, backend_attachment_id),
+               remote_path = COALESCE(?, remote_path),
+               last_sync_attempt_at = ?
+           WHERE id = ?`,
+          [
+            uploadedAttachment?.id || null,
+            uploadedAttachment?.url || null,
+            now,
+            attachmentId,
+          ],
+        );
+        lastUpdateError = null;
+        break;
+      } catch (err) {
+        lastUpdateError = err;
+        // 50ms, 150ms backoff — short enough that the outer lease
+        // timeout is not at risk.
+        await new Promise(resolve =>
+          setTimeout(resolve, 50 * (attempt + 1) ** 2),
+        );
+      }
+    }
+
+    if (lastUpdateError) {
+      // Log with the backend id so a manual reconciliation pass
+      // can pair the local row with the server record even if the
+      // next sync cycle never succeeds. Falls back to FAILURE so
+      // the queue retries the whole operation — server will
+      // deduplicate via Idempotency-Key.
+      Logger.error(
+        TAG,
+        'Attachment local SYNCED update failed after 3 attempts',
+        {
+          attachmentId,
+          backendAttachmentId: uploadedAttachment?.id,
+          operationId: operation.operationId,
+          error: lastUpdateError,
+        },
+      );
+      return {
+        outcome: 'FAILURE',
+        error: 'Attachment upload succeeded but local SYNCED update failed',
+      };
+    }
+
     return { outcome: 'SUCCESS' };
   }
 }

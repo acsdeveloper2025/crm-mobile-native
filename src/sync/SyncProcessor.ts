@@ -118,7 +118,19 @@ class SyncProcessorClass {
           }
 
           try {
-            await SyncQueue.markInProgress(item.id);
+            // M23: markInProgress now returns false if another
+            // processor already claimed this row (CAS lost). When
+            // that happens, silently skip — the winning processor
+            // will drive the upload and we'd double-submit if we
+            // proceeded.
+            const leased = await SyncQueue.markInProgress(item.id);
+            if (!leased) {
+              Logger.debug(
+                TAG,
+                `Skipped ${item.id} — lease already held by another processor`,
+              );
+              continue;
+            }
             const result = await SyncUploadService.processOperation(operation);
             if (result.outcome === 'SUCCESS') {
               await SyncQueue.markCompleted(item.id);

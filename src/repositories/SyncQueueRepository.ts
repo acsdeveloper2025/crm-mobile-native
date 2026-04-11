@@ -84,6 +84,50 @@ class SyncQueueRepositoryClass {
     );
   }
 
+  /**
+   * Atomically replace the latest TASK_STATUS mutation for a given
+   * entityId: delete any PENDING/FAILED rows and insert a new one in
+   * a single SQLite transaction.
+   *
+   * M22: the previous enqueue path did delete + insert as two separate
+   * awaits. If two enqueue calls raced (e.g. the user double-taps
+   * "Start Visit" on a flaky network), both could pass the delete
+   * before either insert completed — both inserts would then succeed,
+   * leaving two duplicate pending status mutations keyed on the same
+   * entity. On the next sync cycle the server would see both and the
+   * second would bounce off the `must-revoke-first` state check,
+   * corrupting the audit trail.
+   *
+   * Wrapping delete + insert in a single transaction serializes them
+   * at the SQLite level so the invariant "at most one PENDING
+   * TASK_STATUS mutation per entityId" holds even under concurrent
+   * enqueues.
+   */
+  async replaceLatestStatusItem(
+    entityId: string,
+    id: string,
+    actionType: string,
+    payloadJson: string,
+    priority: number,
+    createdAt: string,
+  ): Promise<void> {
+    await DatabaseService.transaction(async tx => {
+      await tx.executeSql(
+        `DELETE FROM sync_queue
+         WHERE entity_type = 'TASK_STATUS'
+           AND entity_id = ?
+           AND status IN ('PENDING', 'FAILED')`,
+        [entityId],
+      );
+      await tx.executeSql(
+        `INSERT INTO sync_queue
+          (id, action_type, entity_type, entity_id, payload_json, status, priority, created_at, attempts, max_attempts, started_at, lease_expires_at)
+         VALUES (?, ?, 'TASK_STATUS', ?, ?, 'PENDING', ?, ?, 0, 3, NULL, NULL)`,
+        [id, actionType, entityId, payloadJson, priority, createdAt],
+      );
+    });
+  }
+
   async listProcessible(now: string, limit: number): Promise<SyncQueueItem[]> {
     return DatabaseService.query<SyncQueueItem>(
       `SELECT * FROM sync_queue
@@ -101,20 +145,44 @@ class SyncQueueRepositoryClass {
     );
   }
 
+  /**
+   * Atomically claim a queue item for processing.
+   *
+   * M23: the previous implementation did an unconditional
+   * `UPDATE … WHERE id = ?`, which meant two concurrent processors
+   * (foreground sync triggered from a user action + a scheduled
+   * BackgroundSyncDaemon tick) could both read the same PENDING row
+   * from listProcessible, both call markInProgress, and both
+   * proceed to upload the same operation. With a server-side
+   * idempotency key this is merely wasteful; without one it's a
+   * duplicate-submission bug.
+   *
+   * Compare-and-swap: the UPDATE only commits if the row is still
+   * PENDING (or FAILED with a next_retry window that has elapsed).
+   * Returns true if the CAS succeeded, false if another processor
+   * beat us to it. Callers must branch on the return value and
+   * skip the upload when the lease was lost.
+   */
   async markInProgress(
     id: string,
     startedAt: string,
     leaseExpiresAt: string,
-  ): Promise<void> {
-    await DatabaseService.execute(
+  ): Promise<boolean> {
+    const result = await DatabaseService.execute(
       `UPDATE sync_queue
        SET status = 'IN_PROGRESS',
            attempts = attempts + 1,
            started_at = ?,
            lease_expires_at = ?
-       WHERE id = ?`,
-      [startedAt, leaseExpiresAt, id],
+       WHERE id = ?
+         AND (
+           status = 'PENDING'
+           OR (status = 'FAILED' AND attempts < max_attempts)
+           OR (status = 'IN_PROGRESS' AND lease_expires_at IS NOT NULL AND lease_expires_at < ?)
+         )`,
+      [startedAt, leaseExpiresAt, id, startedAt],
     );
+    return result.rowsAffected > 0;
   }
 
   async markCompleted(id: string, processedAt: string): Promise<void> {
