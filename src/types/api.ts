@@ -304,6 +304,19 @@ export interface MobileAppConfigResponse {
     locationAccuracyThreshold: number;
     syncBatchSize: number;
   };
+  /**
+   * Phase E1: SSL pinning kill switch served by the backend. The
+   * mobile app caches this and consults it on every request — when
+   * `enabled` is false the native pinning layer (Android
+   * network_security_config.xml / iOS ATS) falls through to stock
+   * TLS so a rotated cert that slipped through the overlap window
+   * does not brick the app in the field. `pinSha256s` is a set of
+   * public-key SHA256 fingerprints; matching any one is a pass.
+   */
+  pinning?: {
+    enabled: boolean;
+    pinSha256s: string[];
+  };
   endpoints: {
     apiBaseUrl: string;
     wsUrl: string;
