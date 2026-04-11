@@ -13,6 +13,8 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { ApiClient } from '../../api/apiClient';
 import { ENDPOINTS } from '../../api/endpoints';
+import { validateResponse } from '../../api/schemas/runtime';
+import { MobileLoginResponseSchema } from '../../api/schemas/auth.schema';
 import { Logger } from '../../utils/logger';
 import { AuthService } from '../../services/AuthService';
 import type { MobileLoginResponse } from '../../types/api';
@@ -134,6 +136,14 @@ export const LoginScreen = () => {
           deviceInfo,
         },
       );
+
+      // Drift detection at the auth boundary. Non-strict so a new optional
+      // field on user/tokens never blocks a login, but strict enough to
+      // catch a renamed accessToken field in the next telemetry batch.
+      validateResponse(MobileLoginResponseSchema, response, {
+        service: 'auth',
+        endpoint: 'POST /auth/login',
+      });
 
       if (response?.data?.tokens) {
         // Reset rate limiting on successful login
