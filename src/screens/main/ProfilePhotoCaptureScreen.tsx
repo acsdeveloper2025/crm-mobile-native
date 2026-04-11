@@ -1,7 +1,18 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { Camera, useCameraDevice, useCameraFormat } from 'react-native-vision-camera';
+import {
+  Camera,
+  useCameraDevice,
+  useCameraFormat,
+} from 'react-native-vision-camera';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import RNFS from 'react-native-fs';
@@ -28,7 +39,10 @@ export const ProfilePhotoCaptureScreen = ({ navigation }: any) => {
       const cameraPermission = await Camera.requestCameraPermission();
       setHasPermission(cameraPermission === 'granted');
       if (cameraPermission !== 'granted') {
-        Alert.alert('Permission needed', 'Camera permission is required to take a profile photo.');
+        Alert.alert(
+          'Permission needed',
+          'Camera permission is required to take a profile photo.',
+        );
         navigation.goBack();
       }
     } finally {
@@ -41,7 +55,7 @@ export const ProfilePhotoCaptureScreen = ({ navigation }: any) => {
       requestPermissions();
       setIsActive(true);
       return () => setIsActive(false);
-    }, [requestPermissions])
+    }, [requestPermissions]),
   );
 
   const handleCapture = async () => {
@@ -75,7 +89,12 @@ export const ProfilePhotoCaptureScreen = ({ navigation }: any) => {
       await updateProfilePhoto(`file://${destPath}`);
       navigation.goBack();
     } catch (err: unknown) {
-      Alert.alert('Capture Error', err instanceof Error ? err.message : String(err) || 'Failed to capture photo.');
+      Alert.alert(
+        'Capture Error',
+        err instanceof Error
+          ? err.message
+          : String(err) || 'Failed to capture photo.',
+      );
     } finally {
       setIsCapturing(false);
     }
@@ -108,26 +127,41 @@ export const ProfilePhotoCaptureScreen = ({ navigation }: any) => {
             paddingTop: Math.max(insets.top, 16),
             paddingBottom: Math.max(insets.bottom, 16),
           },
-        ]}>
+        ]}
+      >
         <View style={styles.topBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconButton}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.iconButton}
+          >
             <Icon name="arrow-back" size={24} color="white" />
           </TouchableOpacity>
           <View style={styles.topInfoWrap}>
             <View style={styles.captureModeBadge}>
               <Text style={styles.captureModeText}>Profile Photo</Text>
             </View>
-            <Text style={styles.taskHintText}>Center your face and tap capture</Text>
+            <Text style={styles.taskHintText}>
+              Center your face and tap capture
+            </Text>
           </View>
           <View style={styles.topSpacer} />
         </View>
 
         <View style={styles.bottomBar}>
           <TouchableOpacity
-            style={[styles.captureButtonOuter, isCapturing && styles.captureButtonDisabled]}
+            style={[
+              styles.captureButtonOuter,
+              isCapturing && styles.captureButtonDisabled,
+            ]}
             onPress={handleCapture}
-            disabled={isCapturing}>
-            <View style={[styles.captureButtonInner, isCapturing && styles.capturingState]} />
+            disabled={isCapturing}
+          >
+            <View
+              style={[
+                styles.captureButtonInner,
+                isCapturing && styles.capturingState,
+              ]}
+            />
           </TouchableOpacity>
           <Text style={styles.captureHint}>
             {isCapturing ? 'Saving...' : 'Tap to capture'}

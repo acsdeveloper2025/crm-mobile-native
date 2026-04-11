@@ -1,10 +1,7 @@
 // DatabaseService - SQLite CRUD operations and lifecycle management
 // This is the single entry point for all local data operations
 
-import SQLite, {
-  SQLiteDatabase,
-  ResultSet,
-} from 'react-native-sqlite-storage';
+import SQLite, { SQLiteDatabase, ResultSet } from 'react-native-sqlite-storage';
 import { config } from '../config';
 import { SCHEMA_SQL, INDEX_SQL, MIGRATIONS, DB_VERSION } from './schema';
 import { Logger } from '../utils/logger';
@@ -53,9 +50,31 @@ class DatabaseServiceClass {
       // Encryption: When using react-native-sqlcipher-storage, set the key
       // before any other PRAGMA. The key is derived from the device keychain
       // so it's unique per installation and not stored in plaintext.
-      if (config.dbEncryptionKey) {
-        await this.db.executeSql(`PRAGMA key = '${config.dbEncryptionKey}';`);
+      //
+      // Safety:
+      //  - The key must be a 64-character hex string (256 bits). Any other
+      //    format is rejected to prevent SQL injection via PRAGMA interpolation.
+      //  - In release builds (__DEV__ === false) a key is REQUIRED; starting
+      //    an unencrypted DB in production is a hard failure.
+      const encryptionKey = config.dbEncryptionKey;
+      if (encryptionKey) {
+        if (!DatabaseServiceClass.isValidEncryptionKey(encryptionKey)) {
+          throw new Error(
+            'Invalid database encryption key format (expected 64-char hex string)',
+          );
+        }
+        await this.db.executeSql(`PRAGMA key = "x'${encryptionKey}'";`);
         Logger.info('DatabaseService', 'Database encryption enabled');
+      } else if (!__DEV__) {
+        throw new Error(
+          'Database encryption key is required in production builds. ' +
+            'Set config.dbEncryptionKey from the Keychain before initialize().',
+        );
+      } else {
+        Logger.warn(
+          'DatabaseService',
+          'Starting database WITHOUT encryption (development build)',
+        );
       }
 
       // Enable WAL mode for better concurrent read/write performance
@@ -98,9 +117,12 @@ class DatabaseServiceClass {
 
     // Get current schema version
     const [result] = await this.db.executeSql('PRAGMA user_version;');
-    const currentVersion = result.rows.item(0).user_version || 0;
+    const currentVersion = result.rows.item(0).userVersion || 0;
 
-    Logger.info('DatabaseService', `Current DB version: ${currentVersion}, target: ${DB_VERSION}`);
+    Logger.info(
+      'DatabaseService',
+      `Current DB version: ${currentVersion}, target: ${DB_VERSION}`,
+    );
 
     if (currentVersion === 0) {
       await this.db.executeSql(`PRAGMA user_version = ${DB_VERSION};`);
@@ -109,10 +131,17 @@ class DatabaseServiceClass {
 
     // Apply pending migrations — each migration runs inside a transaction so a
     // crash mid-migration doesn't leave the schema in a half-applied state.
-    const pendingMigrations = MIGRATIONS.filter(m => m.version > currentVersion);
+    const pendingMigrations = MIGRATIONS.filter(
+      m => m.version > currentVersion,
+    );
     for (const migration of pendingMigrations) {
-      Logger.info('DatabaseService', `Running migration v${migration.version}: ${migration.description}`);
-      const migrationStatements = migration.sql.split(';').filter(s => s.trim().length > 0);
+      Logger.info(
+        'DatabaseService',
+        `Running migration v${migration.version}: ${migration.description}`,
+      );
+      const migrationStatements = migration.sql
+        .split(';')
+        .filter(s => s.trim().length > 0);
       await this.db.executeSql('BEGIN TRANSACTION;');
       try {
         for (const stmt of migrationStatements) {
@@ -124,7 +153,11 @@ class DatabaseServiceClass {
         try {
           await this.db.executeSql('ROLLBACK;');
         } catch (rollbackError) {
-          Logger.error('DatabaseService', `Migration v${migration.version} rollback failed`, rollbackError);
+          Logger.error(
+            'DatabaseService',
+            `Migration v${migration.version} rollback failed`,
+            rollbackError,
+          );
         }
         throw migrationError;
       }
@@ -190,7 +223,11 @@ class DatabaseServiceClass {
       try {
         await db.executeSql('ROLLBACK;');
       } catch (rollbackError) {
-        Logger.error('DatabaseService', 'Transaction rollback failed', rollbackError);
+        Logger.error(
+          'DatabaseService',
+          'Transaction rollback failed',
+          rollbackError,
+        );
       }
       throw error;
     }
@@ -227,11 +264,30 @@ class DatabaseServiceClass {
     return this.initialized && this.db !== null;
   }
 
+  /**
+   * Validate a SQLCipher encryption key. Must be a 64-character lowercase-or-
+   * uppercase hex string (256 bits of entropy). Rejecting anything else
+   * prevents PRAGMA-injection via an attacker-controlled key source.
+   */
+  private static isValidEncryptionKey(key: string): boolean {
+    return /^[A-Fa-f0-9]{64}$/.test(key);
+  }
+
   /** Whitelist of known table names to prevent SQL injection via dynamic table refs */
   private static readonly ALLOWED_TABLES = new Set([
-    'tasks', 'attachments', 'locations', 'form_submissions', 'form_templates',
-    'sync_queue', 'sync_metadata', 'user_session', 'audit_log', 'notifications',
-    'key_value_store', 'task_list_projection', 'task_detail_projection',
+    'tasks',
+    'attachments',
+    'locations',
+    'form_submissions',
+    'form_templates',
+    'sync_queue',
+    'sync_metadata',
+    'user_session',
+    'audit_log',
+    'notifications',
+    'key_value_store',
+    'task_list_projection',
+    'task_detail_projection',
     'dashboard_projection',
   ]);
 

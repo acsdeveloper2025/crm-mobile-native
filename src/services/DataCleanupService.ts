@@ -19,7 +19,6 @@ export interface CleanupResult {
 }
 
 export class DataCleanupService {
-  
   static async getConfig(key: string): Promise<string | null> {
     try {
       return await KeyValueRepository.get(key);
@@ -41,7 +40,7 @@ export class DataCleanupService {
       if (isEnabled === 'true') {
         const lastCleanup = await this.getConfig(LAST_CLEANUP_DATE_KEY);
         const today = new Date().toISOString().split('T')[0];
-        
+
         // Run once per day
         if (lastCleanup !== today) {
           Logger.info(TAG, 'Running scheduled auto-cleanup');
@@ -66,13 +65,15 @@ export class DataCleanupService {
   /**
    * Manually delete cases and their attachments older than 45 days
    */
-  static async manualCleanup(days: number = RETENTION_DAYS): Promise<CleanupResult> {
+  static async manualCleanup(
+    days: number = RETENTION_DAYS,
+  ): Promise<CleanupResult> {
     const result: CleanupResult = {
       success: true,
       deletedCases: 0,
       deletedFiles: 0,
       deletedSize: 0,
-      errors: []
+      errors: [],
     };
 
     try {
@@ -81,7 +82,9 @@ export class DataCleanupService {
       const cutoffIso = cutoffDate.toISOString();
 
       // Find old COMPLETED/REVOKED cases (don't delete ASSIGNED/IN_PROGRESS)
-      const oldTaskIds = await DataCleanupRepository.listOldTerminalTaskIds(cutoffIso);
+      const oldTaskIds = await DataCleanupRepository.listOldTerminalTaskIds(
+        cutoffIso,
+      );
 
       if (oldTaskIds.length === 0) {
         return result; // Nothing to delete
@@ -89,30 +92,34 @@ export class DataCleanupService {
 
       for (const taskId of oldTaskIds) {
         try {
-          const attachments = await DataCleanupRepository.listAttachmentsForTask(taskId);
+          const attachments =
+            await DataCleanupRepository.listAttachmentsForTask(taskId);
           for (const att of attachments) {
-            if (att.localPath && await RNFS.exists(att.localPath)) {
+            if (att.localPath && (await RNFS.exists(att.localPath))) {
               const stat = await RNFS.stat(att.localPath);
               result.deletedSize += stat.size;
               await RNFS.unlink(att.localPath);
               result.deletedFiles++;
             }
-            if (att.thumbnailPath && await RNFS.exists(att.thumbnailPath)) {
+            if (att.thumbnailPath && (await RNFS.exists(att.thumbnailPath))) {
               await RNFS.unlink(att.thumbnailPath);
             }
           }
 
           await DataCleanupRepository.deleteTaskGraph(taskId);
-          
+
           result.deletedCases++;
         } catch (taskErr: unknown) {
-          result.errors.push(`Failed cleaning task ${taskId}: ${taskErr instanceof Error ? taskErr.message : String(taskErr)}`);
+          result.errors.push(
+            `Failed cleaning task ${taskId}: ${
+              taskErr instanceof Error ? taskErr.message : String(taskErr)
+            }`,
+          );
         }
       }
 
       if (result.errors.length > 0) result.success = false;
       await ProjectionUpdater.rebuildDashboard();
-
     } catch (err: unknown) {
       result.success = false;
       result.errors.push(err instanceof Error ? err.message : String(err));
@@ -139,7 +146,10 @@ export class DataCleanupService {
   /**
    * Clears only attachment files and DB map
    */
-  static async clearAttachmentCache(): Promise<{ deleted: number, size: number }> {
+  static async clearAttachmentCache(): Promise<{
+    deleted: number;
+    size: number;
+  }> {
     let deletedFiles = 0;
     let deletedSize = 0;
     const cutoff = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000;
@@ -168,7 +178,7 @@ export class DataCleanupService {
     } catch (err) {
       Logger.error(TAG, 'Error clearing attachments cache', err);
     }
-    
+
     return { deleted: deletedFiles, size: deletedSize };
   }
 }

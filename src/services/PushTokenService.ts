@@ -89,7 +89,10 @@ class PushTokenServiceClass {
 
       const hasPermission = await this.ensureNotificationPermission();
       if (!hasPermission) {
-        Logger.warn(TAG, 'Notification permission denied. Push token cannot be generated.');
+        Logger.warn(
+          TAG,
+          'Notification permission denied. Push token cannot be generated.',
+        );
         return null;
       }
 

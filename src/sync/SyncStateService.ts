@@ -14,9 +14,12 @@ class SyncStateServiceClass {
       if (!NetworkService.getIsOnline()) {
         return false;
       }
-      const response = await ApiClient.get<{ status: string }>(ENDPOINTS.HEALTH, {
-        timeout: 3000,
-      });
+      const response = await ApiClient.get<{ status: string }>(
+        ENDPOINTS.HEALTH,
+        {
+          timeout: 3000,
+        },
+      );
       return response.status === 'OK' || response.status === 'ok';
     } catch {
       Logger.warn(TAG, 'Backend is unreachable despite network connectivity');
@@ -34,14 +37,18 @@ class SyncStateServiceClass {
     );
   }
 
-  async getStatus(isSyncing: boolean): Promise<{ pendingItems: number; lastSyncAt: string | null; isSyncing: boolean }> {
+  async getStatus(isSyncing: boolean): Promise<{
+    pendingItems: number;
+    lastSyncAt: string | null;
+    isSyncing: boolean;
+  }> {
     const pendingItems = await SyncQueue.getPendingCount();
-    const syncMeta = await SyncEngineRepository.query<{ last_download_sync_at: string | null }>(
-      'SELECT last_download_sync_at FROM sync_metadata WHERE id = 1',
-    );
+    const syncMeta = await SyncEngineRepository.query<{
+      lastDownloadSyncAt: string | null;
+    }>('SELECT last_download_sync_at FROM sync_metadata WHERE id = 1');
     return {
       pendingItems,
-      lastSyncAt: syncMeta[0]?.last_download_sync_at || null,
+      lastSyncAt: syncMeta[0]?.lastDownloadSyncAt || null,
       isSyncing,
     };
   }

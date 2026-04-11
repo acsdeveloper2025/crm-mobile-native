@@ -7,11 +7,18 @@ class SyncEngineRepositoryClass {
     return DatabaseService.query<T>(sql, params);
   }
 
-  execute(sql: string, params: SqlParam[] = []): Promise<{ rowsAffected: number; insertId?: number }> {
+  execute(
+    sql: string,
+    params: SqlParam[] = [],
+  ): Promise<{ rowsAffected: number; insertId?: number }> {
     return DatabaseService.execute(sql, params);
   }
 
-  count(table: string, whereClause?: string, params: SqlParam[] = []): Promise<number> {
+  count(
+    table: string,
+    whereClause?: string,
+    params: SqlParam[] = [],
+  ): Promise<number> {
     return DatabaseService.count(table, whereClause, params);
   }
 }

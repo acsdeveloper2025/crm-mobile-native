@@ -35,10 +35,14 @@ class SyncEngineClass {
     SyncWatchdogService.recoverIfStalled(WATCHDOG_MAX_TIMEOUT_MS)
       .then(stalled => {
         if (stalled && !this.syncInProgress) {
-          this.performSync().catch(error => Logger.warn(TAG, 'Recovery sync failed', error));
+          this.performSync().catch(error =>
+            Logger.warn(TAG, 'Recovery sync failed', error),
+          );
         }
       })
-      .catch(error => Logger.warn(TAG, 'Watchdog recovery check failed', error));
+      .catch(error =>
+        Logger.warn(TAG, 'Watchdog recovery check failed', error),
+      );
     syncScheduler.start(() => this.performSync(), intervalMs);
   }
 
@@ -46,12 +50,14 @@ class SyncEngineClass {
     syncScheduler.stop();
   }
 
-  async validateVisitStart(taskId: string): Promise<{ allowed: boolean; reason?: string }> {
+  async validateVisitStart(
+    taskId: string,
+  ): Promise<{ allowed: boolean; reason?: string }> {
     try {
-      const rows = await SyncEngineRepository.query<{ latitude: number | null; longitude: number | null }>(
-        'SELECT latitude, longitude FROM tasks WHERE id = ?',
-        [taskId],
-      );
+      const rows = await SyncEngineRepository.query<{
+        latitude: number | null;
+        longitude: number | null;
+      }>('SELECT latitude, longitude FROM tasks WHERE id = ?', [taskId]);
       if (rows.length === 0) {
         return { allowed: false, reason: 'Task not found' };
       }
@@ -76,7 +82,9 @@ class SyncEngineClass {
       if (distanceInMeters > 100) {
         return {
           allowed: false,
-          reason: `You are ${distanceInMeters.toFixed(0)} meters away. Must be within 100 meters to start.`,
+          reason: `You are ${distanceInMeters.toFixed(
+            0,
+          )} meters away. Must be within 100 meters to start.`,
         };
       }
       return { allowed: true };
@@ -95,7 +103,9 @@ class SyncEngineClass {
 
     const backendReachable = await SyncStateService.isBackendReachable();
     if (!backendReachable) {
-      MobileTelemetryService.trackSyncError('backend_unreachable', { isSyncing: this.syncInProgress });
+      MobileTelemetryService.trackSyncError('backend_unreachable', {
+        isSyncing: this.syncInProgress,
+      });
       return {
         success: false,
         uploadedStatusItems: 0,
@@ -118,7 +128,10 @@ class SyncEngineClass {
   private async _doSync(): Promise<SyncResult> {
     const startedAt = Date.now();
     const initialQueueLength = await SyncQueue.getPendingCount();
-    MobileTelemetryService.trackQueueBacklog(initialQueueLength, 'sync_cycle_start');
+    MobileTelemetryService.trackQueueBacklog(
+      initialQueueLength,
+      'sync_cycle_start',
+    );
     // Dynamic timeout: base + 30s per item, capped at 10 min.
     // A single 10MB photo on 3G (1 Mbps) takes ~80s, so 2-min fixed timeout is too aggressive.
     const dynamicTimeoutMs = Math.min(
@@ -170,7 +183,8 @@ class SyncEngineClass {
       if (watchdogTriggered) {
         errors.push('Sync watchdog interrupted processing');
       } else {
-        const downloadResult = await SyncDownloadService.downloadServerChanges();
+        const downloadResult =
+          await SyncDownloadService.downloadServerChanges();
         downloadedTasks = downloadResult.tasksDownloaded;
         conflicts = downloadResult.conflicts;
         errors.push(...downloadResult.errors);
@@ -199,10 +213,17 @@ class SyncEngineClass {
       };
     } catch (error: unknown) {
       Logger.error(TAG, 'Sync failed', error);
-      errors.push(error instanceof Error ? error.message : String(error) || 'Unknown sync error');
+      errors.push(
+        error instanceof Error
+          ? error.message
+          : String(error) || 'Unknown sync error',
+      );
       SyncHealthService.recordCycleResult(Date.now() - startedAt, false);
       MobileTelemetryService.trackSyncError('sync_cycle_failed', {
-        message: error instanceof Error ? error.message : String(error) || 'Unknown sync error',
+        message:
+          error instanceof Error
+            ? error.message
+            : String(error) || 'Unknown sync error',
         uploadedItems,
         downloadedTasks,
         conflicts,
@@ -237,8 +258,12 @@ class SyncEngineClass {
           if (!this.syncInProgress) {
             this.syncInProgress = true; // Claim the lock before async work
             this.performSync()
-              .catch(error => Logger.warn(TAG, 'Watchdog restart sync failed', error))
-              .finally(() => { /* syncInProgress is reset inside performSync's finally */ });
+              .catch(error =>
+                Logger.warn(TAG, 'Watchdog restart sync failed', error),
+              )
+              .finally(() => {
+                /* syncInProgress is reset inside performSync's finally */
+              });
           }
         }, 1000);
       }
@@ -249,7 +274,11 @@ class SyncEngineClass {
     return this.syncInProgress;
   }
 
-  async getSyncStatus(): Promise<{ pendingItems: number; lastSyncAt: string | null; isSyncing: boolean }> {
+  async getSyncStatus(): Promise<{
+    pendingItems: number;
+    lastSyncAt: string | null;
+    isSyncing: boolean;
+  }> {
     return SyncStateService.getStatus(this.syncInProgress);
   }
 

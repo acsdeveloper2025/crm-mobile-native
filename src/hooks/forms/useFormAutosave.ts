@@ -10,8 +10,14 @@ interface UseFormAutosaveParams {
   taskFormDataJson: string | null;
   formValues: Record<string, unknown>;
   setFormValues: (values: Record<string, unknown>) => void;
-  getAutoSavedForm: (taskId: string, formType: string) => Promise<Record<string, unknown> | null>;
-  updateTaskFormData: (taskId: string, patch: Record<string, unknown>) => Promise<void>;
+  getAutoSavedForm: (
+    taskId: string,
+    formType: string,
+  ) => Promise<Record<string, unknown> | null>;
+  updateTaskFormData: (
+    taskId: string,
+    patch: Record<string, unknown>,
+  ) => Promise<void>;
   persistAutoSave: (
     taskId: string,
     payload: {
@@ -31,7 +37,10 @@ export const useFormAutosave = ({
   getAutoSavedForm,
   updateTaskFormData,
   persistAutoSave,
-}: UseFormAutosaveParams): { isInitialized: boolean; autoSaveError: boolean } => {
+}: UseFormAutosaveParams): {
+  isInitialized: boolean;
+  autoSaveError: boolean;
+} => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [autoSaveError, setAutoSaveError] = useState(false);
   const isMountedRef = useRef(true);
@@ -57,14 +66,14 @@ export const useFormAutosave = ({
       const currentTaskId = latestTaskIdRef.current;
       const latestValues = latestFormValuesRef.current;
       if (currentTaskId && Object.keys(latestValues).length > 0) {
-        updateTaskFormData(currentTaskId, latestValues).catch((err) => {
+        updateTaskFormData(currentTaskId, latestValues).catch(err => {
           Logger.error(TAG, 'Failed to persist form data on unmount', err);
         });
         persistAutoSave(currentTaskId, {
           formType: latestTaskFormTypeRef.current || 'DEFAULT',
           formData: latestValues,
           timestamp: new Date().toISOString(),
-        }).catch((err) => {
+        }).catch(err => {
           Logger.error(TAG, 'Failed to persist auto-save on unmount', err);
         });
       }
@@ -86,15 +95,21 @@ export const useFormAutosave = ({
 
     const initializeDraft = async () => {
       try {
-        const localDraft = taskFormDataJson ? JSON.parse(taskFormDataJson) : null;
-        const localDraftTimestamp = localDraft?.__submission?.updatedAt || localDraft?.__autosave?.timestamp;
+        const localDraft = taskFormDataJson
+          ? JSON.parse(taskFormDataJson)
+          : null;
+        const localDraftTimestamp =
+          localDraft?.__submission?.updatedAt ||
+          localDraft?.__autosave?.timestamp;
 
         // Also check autosave storage for potentially newer data
         let savedDraft: Record<string, unknown> | null = null;
         let savedDraftTimestamp: string | undefined;
         if (taskFormTypeKey) {
           savedDraft = await getAutoSavedForm(taskId, taskFormTypeKey);
-          savedDraftTimestamp = (savedDraft as any)?.timestamp || (savedDraft as any)?.__autosave?.timestamp;
+          savedDraftTimestamp =
+            (savedDraft as any)?.timestamp ||
+            (savedDraft as any)?.__autosave?.timestamp;
         }
 
         // Use whichever draft is newer (compare timestamps if both exist)
@@ -102,9 +117,17 @@ export const useFormAutosave = ({
         const useSavedDraft = savedDraft && typeof savedDraft === 'object';
         let chosenDraft: Record<string, unknown> | null = null;
 
-        if (useLocalDraft && useSavedDraft && localDraftTimestamp && savedDraftTimestamp) {
+        if (
+          useLocalDraft &&
+          useSavedDraft &&
+          localDraftTimestamp &&
+          savedDraftTimestamp
+        ) {
           // Both exist with timestamps — use the newer one
-          chosenDraft = new Date(savedDraftTimestamp) > new Date(localDraftTimestamp) ? savedDraft : localDraft;
+          chosenDraft =
+            new Date(savedDraftTimestamp) > new Date(localDraftTimestamp)
+              ? savedDraft
+              : localDraft;
         } else if (useLocalDraft) {
           chosenDraft = localDraft;
         } else if (useSavedDraft) {
@@ -153,21 +176,32 @@ export const useFormAutosave = ({
         const currentTaskId = latestTaskIdRef.current;
         const latestValues = latestFormValuesRef.current;
         if (currentTaskId && Object.keys(latestValues).length > 0) {
-          updateTaskFormData(currentTaskId, latestValues).catch((err) => {
-            Logger.error(TAG, 'Failed to persist form data on app background', err);
+          updateTaskFormData(currentTaskId, latestValues).catch(err => {
+            Logger.error(
+              TAG,
+              'Failed to persist form data on app background',
+              err,
+            );
           });
           persistAutoSave(currentTaskId, {
             formType: latestTaskFormTypeRef.current || 'DEFAULT',
             formData: latestValues,
             timestamp: new Date().toISOString(),
-          }).catch((err) => {
-            Logger.error(TAG, 'Failed to persist auto-save on app background', err);
+          }).catch(err => {
+            Logger.error(
+              TAG,
+              'Failed to persist auto-save on app background',
+              err,
+            );
           });
         }
       }
     };
 
-    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    const subscription = AppState.addEventListener(
+      'change',
+      handleAppStateChange,
+    );
     return () => {
       subscription.remove();
     };
@@ -190,7 +224,11 @@ export const useFormAutosave = ({
           setAutoSaveError(false);
         }
       } catch (err) {
-        Logger.error(TAG, 'Auto-save failed — form data may not be persisted', err);
+        Logger.error(
+          TAG,
+          'Auto-save failed — form data may not be persisted',
+          err,
+        );
         if (isMountedRef.current) {
           setAutoSaveError(true);
         }

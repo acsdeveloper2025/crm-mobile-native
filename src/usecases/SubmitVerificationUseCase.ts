@@ -13,7 +13,11 @@ import { StorageService } from '../services/StorageService';
 import { SyncService } from '../services/SyncService';
 import type { GeoLocation, MobileFormSubmissionRequest } from '../types/api';
 import type { LocalAttachment } from '../types/mobile';
-import { resolveFormTypeKey, toBackendFormType as toBackendFormTypeKey, type FormTypeKey } from '../utils/formTypeKey';
+import {
+  resolveFormTypeKey,
+  toBackendFormType as toBackendFormTypeKey,
+  type FormTypeKey,
+} from '../utils/formTypeKey';
 import { ENDPOINTS } from '../api/endpoints';
 
 const UUID_REGEX =
@@ -37,7 +41,9 @@ const parseFormData = (raw?: string | null): Record<string, unknown> => {
   }
   try {
     const parsed = JSON.parse(raw);
-    return parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : {};
+    return parsed && typeof parsed === 'object'
+      ? (parsed as Record<string, unknown>)
+      : {};
   } catch {
     return {};
   }
@@ -45,9 +51,12 @@ const parseFormData = (raw?: string | null): Record<string, unknown> => {
 
 const toSubmissionPhotoType = (
   componentType: LocalAttachment['componentType'],
-): 'verification' | 'selfie' => (componentType === 'selfie' ? 'selfie' : 'verification');
+): 'verification' | 'selfie' =>
+  componentType === 'selfie' ? 'selfie' : 'verification';
 
-const toAttachmentGeoLocation = (attachment: LocalAttachment): GeoLocation | null => {
+const toAttachmentGeoLocation = (
+  attachment: LocalAttachment,
+): GeoLocation | null => {
   if (attachment.latitude == null || attachment.longitude == null) {
     return null;
   }
@@ -59,7 +68,10 @@ const toAttachmentGeoLocation = (attachment: LocalAttachment): GeoLocation | nul
   };
 };
 
-const resolveBackendTaskId = (taskId: string, verificationTaskId?: string | null): string => {
+const resolveBackendTaskId = (
+  taskId: string,
+  verificationTaskId?: string | null,
+): string => {
   if (verificationTaskId && UUID_REGEX.test(verificationTaskId.trim())) {
     return verificationTaskId.trim();
   }
@@ -81,7 +93,10 @@ export const SubmitVerificationUseCase = {
       throw new Error('Task not found');
     }
 
-    const backendTaskId = resolveBackendTaskId(task.id, task.verificationTaskId);
+    const backendTaskId = resolveBackendTaskId(
+      task.id,
+      task.verificationTaskId,
+    );
     const submissionId = uuidv4();
     const now = new Date().toISOString();
     const taskFormType = resolveFormTypeKey({
@@ -96,10 +111,16 @@ export const SubmitVerificationUseCase = {
     }
 
     const attachments = await AttachmentRepository.listForSubmission(task.id);
-    const verificationPhotos = attachments.filter(attachment => attachment.componentType === 'photo');
-    const selfiePhotos = attachments.filter(attachment => attachment.componentType === 'selfie');
+    const verificationPhotos = attachments.filter(
+      attachment => attachment.componentType === 'photo',
+    );
+    const selfiePhotos = attachments.filter(
+      attachment => attachment.componentType === 'selfie',
+    );
     if (verificationPhotos.length < 5) {
-      throw new Error('At least 5 verification photos are required before submission.');
+      throw new Error(
+        'At least 5 verification photos are required before submission.',
+      );
     }
     if (selfiePhotos.length < 1) {
       throw new Error('At least 1 selfie is required before submission.');
@@ -108,7 +129,9 @@ export const SubmitVerificationUseCase = {
     const photos = attachments.map(attachment => {
       const geoLocation = toAttachmentGeoLocation(attachment);
       if (!geoLocation) {
-        throw new Error('All photos must include geo-location data before submission.');
+        throw new Error(
+          'All photos must include geo-location data before submission.',
+        );
       }
       return {
         attachmentId: attachment.id,
@@ -122,13 +145,17 @@ export const SubmitVerificationUseCase = {
     });
 
     // Use GPS from captured photos — photos are the source of truth for location
-    const latestGeoPhoto = attachments.find(a => a.latitude != null && a.longitude != null);
+    const latestGeoPhoto = attachments.find(
+      a => a.latitude != null && a.longitude != null,
+    );
     const geoLocation = latestGeoPhoto
       ? toAttachmentGeoLocation(latestGeoPhoto)!
       : { latitude: 0, longitude: 0, accuracy: 0, timestamp: now };
 
     const deviceInfo = await AuthService.getDeviceInfo();
-    const backendFormType = toBackendFormTypeKey(taskFormType) as MobileFormSubmissionRequest['formType'];
+    const backendFormType = toBackendFormTypeKey(
+      taskFormType,
+    ) as MobileFormSubmissionRequest['formType'];
     // Only send form field values — outcome and verificationType are sent as separate top-level fields
     const mergedFormData = { ...input.formData };
     const persistedFormData = {
@@ -142,7 +169,8 @@ export const SubmitVerificationUseCase = {
       },
     };
 
-    const submissionPayload: MobileFormSubmissionRequest & Record<string, unknown> = {
+    const submissionPayload: MobileFormSubmissionRequest &
+      Record<string, unknown> = {
       submissionId,
       localTaskId: task.id,
       taskId: backendTaskId,
@@ -178,7 +206,9 @@ export const SubmitVerificationUseCase = {
     // Check storage quota BEFORE writing to DB to prevent orphaned forms
     const hasSpace = await StorageService.hasEnoughSpace(10);
     if (!hasSpace) {
-      throw new Error('Device storage is full. Please free up space before submitting the verification form.');
+      throw new Error(
+        'Device storage is full. Please free up space before submitting the verification form.',
+      );
     }
 
     // Wrap all DB writes + sync queue enqueue in a single transaction.
@@ -200,13 +230,27 @@ export const SubmitVerificationUseCase = {
         submissionPayload.photos as unknown[],
       );
 
-      await TaskRepository.updateFormData(task.id, persistedFormData, task.status);
-      await TaskRepository.updateVerificationOutcome(task.id, input.verificationOutcome || null);
+      await TaskRepository.updateFormData(
+        task.id,
+        persistedFormData,
+        task.status,
+      );
+      await TaskRepository.updateVerificationOutcome(
+        task.id,
+        input.verificationOutcome || null,
+      );
 
-      const pendingItems = await SyncQueueRepository.listPendingAttachmentQueueItems(task.id, backendTaskId);
+      const pendingItems =
+        await SyncQueueRepository.listPendingAttachmentQueueItems(
+          task.id,
+          backendTaskId,
+        );
       for (const queueItem of pendingItems) {
         try {
-          const payload = JSON.parse(queueItem.payloadJson) as Record<string, unknown>;
+          const payload = JSON.parse(queueItem.payloadJson) as Record<
+            string,
+            unknown
+          >;
           const nextPayload = {
             ...payload,
             taskId: backendTaskId,
@@ -215,9 +259,14 @@ export const SubmitVerificationUseCase = {
             verificationType: payload.verificationType || backendFormType,
             photoType:
               payload.photoType ||
-              ((payload.componentType as string | undefined) === 'selfie' ? 'selfie' : 'verification'),
+              ((payload.componentType as string | undefined) === 'selfie'
+                ? 'selfie'
+                : 'verification'),
           };
-          await SyncQueueRepository.updatePayload(queueItem.id, JSON.stringify(nextPayload));
+          await SyncQueueRepository.updatePayload(
+            queueItem.id,
+            JSON.stringify(nextPayload),
+          );
         } catch {
           // best effort
         }

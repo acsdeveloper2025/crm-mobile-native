@@ -81,7 +81,10 @@ export const LoginScreen = () => {
     if (typeof nestedError === 'string' && nestedError.trim().length > 0) {
       return nestedError;
     }
-    if (typeof backendMessage === 'string' && backendMessage.trim().length > 0) {
+    if (
+      typeof backendMessage === 'string' &&
+      backendMessage.trim().length > 0
+    ) {
       return backendMessage;
     }
 
@@ -109,7 +112,9 @@ export const LoginScreen = () => {
     const now = Date.now();
     if (now < lockoutUntilRef.current) {
       const remainingSec = Math.ceil((lockoutUntilRef.current - now) / 1000);
-      setError(`Too many failed attempts. Please wait ${remainingSec} seconds before trying again.`);
+      setError(
+        `Too many failed attempts. Please wait ${remainingSec} seconds before trying again.`,
+      );
       return;
     }
 
@@ -120,12 +125,15 @@ export const LoginScreen = () => {
       Logger.info(TAG, `Attempting login for ${parsed.username}`);
 
       const deviceInfo = await AuthService.getDeviceInfo();
-      const response = await ApiClient.post<MobileLoginResponse>(ENDPOINTS.AUTH.LOGIN, {
-        username: parsed.username,
-        password: parsed.password,
-        deviceId: deviceInfo.deviceId,
-        deviceInfo,
-      });
+      const response = await ApiClient.post<MobileLoginResponse>(
+        ENDPOINTS.AUTH.LOGIN,
+        {
+          username: parsed.username,
+          password: parsed.password,
+          deviceId: deviceInfo.deviceId,
+          deviceInfo,
+        },
+      );
 
       if (response?.data?.tokens) {
         // Reset rate limiting on successful login
@@ -145,7 +153,10 @@ export const LoginScreen = () => {
       // Exponential backoff: 5s, 10s, 20s, 40s, 60s max
       failedAttemptsRef.current += 1;
       if (failedAttemptsRef.current >= 3) {
-        const backoffMs = Math.min(5000 * Math.pow(2, failedAttemptsRef.current - 3), 60000);
+        const backoffMs = Math.min(
+          5000 * Math.pow(2, failedAttemptsRef.current - 3),
+          60000,
+        );
         lockoutUntilRef.current = Date.now() + backoffMs;
       }
       setError(extractErrorMessage(e));
@@ -156,11 +167,18 @@ export const LoginScreen = () => {
 
   return (
     <View style={styles.container}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.keyboardContainer}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardContainer}
+      >
         <View style={styles.content}>
           <View style={styles.headerSection}>
             <View style={styles.logoCircle}>
-              <Image source={require('../../assets/images/company-logo-square.png')} style={styles.logoImage} resizeMode="cover" />
+              <Image
+                source={require('../../assets/images/company-logo-square.png')}
+                style={styles.logoImage}
+                resizeMode="cover"
+              />
             </View>
             <Text style={styles.title}>CaseFlow Mobile</Text>
             <Text style={styles.subtitle}>Verification Management System</Text>
@@ -168,7 +186,11 @@ export const LoginScreen = () => {
 
           <View style={styles.formContainer}>
             {error ? (
-              <Text style={styles.errorText} numberOfLines={3} ellipsizeMode="tail">
+              <Text
+                style={styles.errorText}
+                numberOfLines={3}
+                ellipsizeMode="tail"
+              >
                 {error}
               </Text>
             ) : null}
@@ -208,8 +230,18 @@ export const LoginScreen = () => {
               />
             </View>
 
-            <TouchableOpacity style={[styles.button, loading && styles.buttonDisabled]} onPress={handleLogin} disabled={loading} testID="login-submit-button" accessibilityLabel="Sign in button">
-              {loading ? <ActivityIndicator color="#ffffff" testID="login-loading" /> : <Text style={styles.buttonText}>Sign In</Text>}
+            <TouchableOpacity
+              style={[styles.button, loading && styles.buttonDisabled]}
+              onPress={handleLogin}
+              disabled={loading}
+              testID="login-submit-button"
+              accessibilityLabel="Sign in button"
+            >
+              {loading ? (
+                <ActivityIndicator color="#ffffff" testID="login-loading" />
+              ) : (
+                <Text style={styles.buttonText}>Sign In</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>

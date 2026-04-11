@@ -366,7 +366,17 @@ export interface FormFieldCondition {
 export interface FormFieldTemplate {
   id: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'multiselect' | 'date' | 'boolean' | 'textarea' | 'checkbox' | 'radio' | 'file';
+  type:
+    | 'text'
+    | 'number'
+    | 'select'
+    | 'multiselect'
+    | 'date'
+    | 'boolean'
+    | 'textarea'
+    | 'checkbox'
+    | 'radio'
+    | 'file';
   name: string;
   order: number;
   required?: boolean;

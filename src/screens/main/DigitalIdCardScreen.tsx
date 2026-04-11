@@ -13,16 +13,19 @@ export const DigitalIdCardScreen = () => {
     fullName: user?.name || 'Unknown Agent',
     employeeId: user?.employeeId || user?.username || 'N/A',
     department: 'Verification Services',
-    designation: user?.role === 'AGENT' ? 'Field Verification Agent' : user?.role,
+    designation:
+      user?.role === 'AGENT' ? 'Field Verification Agent' : user?.role,
     email: user?.email,
     validUntil: '31 Dec 2026',
     profilePhoto: user?.profilePhotoUrl,
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <ScreenHeader title="Digital ID Card" />
-      <ScrollView style={{ flex: 1 }}>
+      <ScrollView style={styles.scroll}>
         <View style={styles.content}>
           <DigitalIdCard userProfile={userProfileInfo} />
         </View>
@@ -33,6 +36,9 @@ export const DigitalIdCardScreen = () => {
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
+  },
+  scroll: {
     flex: 1,
   },
   content: {

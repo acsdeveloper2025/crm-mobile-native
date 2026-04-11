@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ProjectionStore, type ProjectionSelector } from './ProjectionStore';
 
-export const shallowEqual = <T,>(previous: T, next: T): boolean => {
+export const shallowEqual = <T>(previous: T, next: T): boolean => {
   if (Object.is(previous, next)) {
     return true;
   }
@@ -45,13 +45,15 @@ export const shallowEqual = <T,>(previous: T, next: T): boolean => {
   return false;
 };
 
-export const useSelector = <T,>(selector: ProjectionSelector<T>): T => {
+export const useSelector = <T>(selector: ProjectionSelector<T>): T => {
   const selectorRef = useRef(selector);
   selectorRef.current = selector;
   const selectorKey = selector.key;
 
   const equalityFn = selector.equalityFn || shallowEqual<T>;
-  const [selectedValue, setSelectedValue] = useState<T>(() => ProjectionStore.select(selector));
+  const [selectedValue, setSelectedValue] = useState<T>(() =>
+    ProjectionStore.select(selector),
+  );
 
   useEffect(() => {
     const currentSelector = selectorRef.current;

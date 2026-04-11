@@ -62,10 +62,14 @@ export function getDeviceModel(): string {
     if (Platform.OS === 'android') {
       const brand = String(constants.Brand || constants.Manufacturer || '');
       const model = String(constants.Model || '');
-      return brand && model ? `${brand} ${model}` : model || brand || 'Android Device';
+      return brand && model
+        ? `${brand} ${model}`
+        : model || brand || 'Android Device';
     }
     // iOS: systemName is always 'iPhone OS', but we can get model from constants
-    const model = String(constants.interfaceIdiom || constants.systemName || 'iPhone');
+    const model = String(
+      constants.interfaceIdiom || constants.systemName || 'iPhone',
+    );
     return model;
   } catch {
     return 'Unknown';

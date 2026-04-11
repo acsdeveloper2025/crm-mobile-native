@@ -53,7 +53,8 @@ class TaskUploaderClass {
   async uploadTaskStatus(operation: SyncOperation): Promise<SyncUploadResult> {
     const payload = operation.payload;
     const status = String(payload.status || payload.action || '').toUpperCase();
-    const localTaskId = typeof payload.localTaskId === 'string' ? payload.localTaskId : null;
+    const localTaskId =
+      typeof payload.localTaskId === 'string' ? payload.localTaskId : null;
     const now = new Date().toISOString();
     let response: { success: boolean } | null = null;
 

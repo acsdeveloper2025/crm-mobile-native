@@ -15,11 +15,13 @@ class MaintenanceRepositoryClass {
     return rows[0]?.count ?? 0;
   }
 
-  async listSyncedAttachmentsOlderThan(cutoffIso: string): Promise<Array<{
-    id: string;
-    localPath: string;
-    thumbnailPath: string | null;
-  }>> {
+  async listSyncedAttachmentsOlderThan(cutoffIso: string): Promise<
+    Array<{
+      id: string;
+      localPath: string;
+      thumbnailPath: string | null;
+    }>
+  > {
     return DatabaseService.query<{
       id: string;
       localPath: string;
@@ -61,9 +63,19 @@ class MaintenanceRepositoryClass {
 
   /** Whitelist of tables safe to bulk-clear during maintenance */
   private static readonly CLEARABLE_TABLES = new Set([
-    'tasks', 'attachments', 'locations', 'form_submissions', 'form_templates',
-    'sync_queue', 'sync_metadata', 'audit_log', 'notifications', 'key_value_store',
-    'task_list_projection', 'task_detail_projection', 'dashboard_projection',
+    'tasks',
+    'attachments',
+    'locations',
+    'form_submissions',
+    'form_templates',
+    'sync_queue',
+    'sync_metadata',
+    'audit_log',
+    'notifications',
+    'key_value_store',
+    'task_list_projection',
+    'task_detail_projection',
+    'dashboard_projection',
   ]);
 
   async clearAllTables(tableNames: string[]): Promise<void> {

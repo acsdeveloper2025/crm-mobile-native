@@ -8,12 +8,27 @@ const TAG = 'WatermarkReStampQueue';
 
 export interface ReStampJob {
   attachmentId: string;
-  rawPhotoPath: string;     // Original camera photo (no watermark)
-  savedPhotoPath: string;   // Current watermarked photo (may lack address)
+  rawPhotoPath: string; // Original camera photo (no watermark)
+  savedPhotoPath: string; // Current watermarked photo (may lack address)
   taskId: string;
   componentType: 'photo' | 'selfie';
-  location: { lat: number; lng: number; alt: number; spd: number; accuracy?: number; heading?: number; timestamp?: string };
-  taskMeta: { caseId?: string; taskNumber?: string; customerName?: string; clientName?: string; productName?: string; verificationType?: string };
+  location: {
+    lat: number;
+    lng: number;
+    alt: number;
+    spd: number;
+    accuracy?: number;
+    heading?: number;
+    timestamp?: string;
+  };
+  taskMeta: {
+    caseId?: string;
+    taskNumber?: string;
+    customerName?: string;
+    clientName?: string;
+    productName?: string;
+    verificationType?: string;
+  };
   dateStr: string;
   timeStr: string;
   queuedAt: number;

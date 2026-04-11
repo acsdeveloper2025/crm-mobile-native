@@ -11,22 +11,43 @@ interface ScreenHeaderProps {
   rightAction?: React.ReactNode;
 }
 
-export const ScreenHeader: React.FC<ScreenHeaderProps> = ({ title, showBack = true, rightAction }) => {
+export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
+  title,
+  showBack = true,
+  rightAction,
+}) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
+    <View
+      style={[
+        styles.container,
+        {
+          paddingTop: insets.top,
+          backgroundColor: theme.colors.surface,
+          borderBottomColor: theme.colors.border,
+        },
+      ]}
+    >
       <View style={styles.row}>
         {showBack ? (
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+          >
             <Icon name="chevron-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>
         ) : (
           <View style={styles.backPlaceholder} />
         )}
-        <Text style={[styles.title, { color: theme.colors.text }]} numberOfLines={1}>{title}</Text>
+        <Text
+          style={[styles.title, { color: theme.colors.text }]}
+          numberOfLines={1}
+        >
+          {title}
+        </Text>
         {rightAction ? rightAction : <View style={styles.backPlaceholder} />}
       </View>
     </View>

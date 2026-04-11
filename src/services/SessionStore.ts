@@ -19,7 +19,9 @@ class SessionStoreClass {
     }
 
     try {
-      const parsed = JSON.parse(credentials.password) as Partial<StoredSessionTokens>;
+      const parsed = JSON.parse(
+        credentials.password,
+      ) as Partial<StoredSessionTokens>;
       if (!parsed.accessToken || !parsed.refreshToken) {
         return null;
       }

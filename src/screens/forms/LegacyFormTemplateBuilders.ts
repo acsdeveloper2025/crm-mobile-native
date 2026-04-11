@@ -1,9 +1,22 @@
-import type { FormTemplate, FormFieldCondition, FormFieldTemplate } from '../../types/api';
+import type {
+  FormTemplate,
+  FormFieldCondition,
+  FormFieldTemplate,
+} from '../../types/api';
 import type { FormTypeKey } from '../../utils/formTypeKey';
 
-type ResidenceOutcome = 'POSITIVE' | 'SHIFTED' | 'NSP' | 'ENTRY_RESTRICTED' | 'UNTRACEABLE';
+type ResidenceOutcome =
+  | 'POSITIVE'
+  | 'SHIFTED'
+  | 'NSP'
+  | 'ENTRY_RESTRICTED'
+  | 'UNTRACEABLE';
 type PropertyApfOutcome = 'POSITIVE' | 'ENTRY_RESTRICTED' | 'UNTRACEABLE';
-type PropertyIndividualOutcome = 'POSITIVE' | 'NSP' | 'ENTRY_RESTRICTED' | 'UNTRACEABLE';
+type PropertyIndividualOutcome =
+  | 'POSITIVE'
+  | 'NSP'
+  | 'ENTRY_RESTRICTED'
+  | 'UNTRACEABLE';
 type AllOutcome = ResidenceOutcome;
 type NormalizedOutcome = AllOutcome;
 type OutcomeCoercionResult = {
@@ -12,7 +25,9 @@ type OutcomeCoercionResult = {
 };
 
 const normalizeOutcome = (rawOutcome?: string | null): NormalizedOutcome => {
-  const value = String(rawOutcome || '').trim().toUpperCase();
+  const value = String(rawOutcome || '')
+    .trim()
+    .toUpperCase();
   if (!value) {
     return 'POSITIVE';
   }
@@ -22,7 +37,11 @@ const normalizeOutcome = (rawOutcome?: string | null): NormalizedOutcome => {
   if (value.includes('NO SUCH PERSON')) {
     return 'NSP';
   }
-  if (value.includes('NSP') || value.includes('PERSON NOT MET') || value.includes('NSP DOOR LOCKED')) {
+  if (
+    value.includes('NSP') ||
+    value.includes('PERSON NOT MET') ||
+    value.includes('NSP DOOR LOCKED')
+  ) {
     return 'NSP';
   }
   if (value.includes('POSITIVE')) {
@@ -31,7 +50,11 @@ const normalizeOutcome = (rawOutcome?: string | null): NormalizedOutcome => {
   if (value.includes('DOOR LOCK')) {
     return 'POSITIVE';
   }
-  if (value === 'ERT' || value.includes('ENTRY') || value.includes('RESTRICT')) {
+  if (
+    value === 'ERT' ||
+    value.includes('ENTRY') ||
+    value.includes('RESTRICT')
+  ) {
     return 'ENTRY_RESTRICTED';
   }
   if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND')) {
@@ -40,7 +63,9 @@ const normalizeOutcome = (rawOutcome?: string | null): NormalizedOutcome => {
   return 'POSITIVE';
 };
 
-type ResidenceFieldInput = Omit<FormFieldTemplate, 'id' | 'order'> & { id?: string };
+type ResidenceFieldInput = Omit<FormFieldTemplate, 'id' | 'order'> & {
+  id?: string;
+};
 
 const COMMON_LEGACY_OUTCOMES: readonly AllOutcome[] = [
   'POSITIVE',
@@ -50,7 +75,10 @@ const COMMON_LEGACY_OUTCOMES: readonly AllOutcome[] = [
   'UNTRACEABLE',
 ];
 
-const getOutcomeLabel = (formTypeKey: FormTypeKey | null, outcome: AllOutcome): string => {
+const getOutcomeLabel = (
+  formTypeKey: FormTypeKey | null,
+  outcome: AllOutcome,
+): string => {
   if (formTypeKey === 'property-apf') {
     const apfLabelByOutcome: Record<PropertyApfOutcome, string> = {
       POSITIVE: 'Positive & Negative',
@@ -58,19 +86,24 @@ const getOutcomeLabel = (formTypeKey: FormTypeKey | null, outcome: AllOutcome): 
       UNTRACEABLE: 'Untraceable',
     };
     const normalizedApfOutcome: PropertyApfOutcome =
-      outcome === 'ENTRY_RESTRICTED' || outcome === 'UNTRACEABLE' ? outcome : 'POSITIVE';
+      outcome === 'ENTRY_RESTRICTED' || outcome === 'UNTRACEABLE'
+        ? outcome
+        : 'POSITIVE';
     return apfLabelByOutcome[normalizedApfOutcome];
   }
 
   if (formTypeKey === 'property-individual') {
-    const individualLabelByOutcome: Record<PropertyIndividualOutcome, string> = {
-      POSITIVE: 'Positive & Door Locked',
-      NSP: 'No Such Person & Door Locked No Such Person',
-      ENTRY_RESTRICTED: 'ERT',
-      UNTRACEABLE: 'Untraceable',
-    };
+    const individualLabelByOutcome: Record<PropertyIndividualOutcome, string> =
+      {
+        POSITIVE: 'Positive & Door Locked',
+        NSP: 'No Such Person & Door Locked No Such Person',
+        ENTRY_RESTRICTED: 'ERT',
+        UNTRACEABLE: 'Untraceable',
+      };
     const normalizedIndividualOutcome: PropertyIndividualOutcome =
-      outcome === 'NSP' || outcome === 'ENTRY_RESTRICTED' || outcome === 'UNTRACEABLE'
+      outcome === 'NSP' ||
+      outcome === 'ENTRY_RESTRICTED' ||
+      outcome === 'UNTRACEABLE'
         ? outcome
         : 'POSITIVE';
     return individualLabelByOutcome[normalizedIndividualOutcome];
@@ -86,19 +119,27 @@ const getOutcomeLabel = (formTypeKey: FormTypeKey | null, outcome: AllOutcome): 
   return labelByOutcome[outcome];
 };
 
-const LEGACY_OUTCOMES_BY_FORM_TYPE: Record<FormTypeKey, readonly AllOutcome[]> = {
-  residence: COMMON_LEGACY_OUTCOMES,
-  'residence-cum-office': COMMON_LEGACY_OUTCOMES,
-  office: COMMON_LEGACY_OUTCOMES,
-  business: COMMON_LEGACY_OUTCOMES,
-  builder: COMMON_LEGACY_OUTCOMES,
-  noc: COMMON_LEGACY_OUTCOMES,
-  'dsa-connector': COMMON_LEGACY_OUTCOMES,
-  'property-individual': ['NSP', 'ENTRY_RESTRICTED', 'POSITIVE', 'UNTRACEABLE'],
-  'property-apf': ['UNTRACEABLE', 'ENTRY_RESTRICTED', 'POSITIVE'],
-};
+const LEGACY_OUTCOMES_BY_FORM_TYPE: Record<FormTypeKey, readonly AllOutcome[]> =
+  {
+    residence: COMMON_LEGACY_OUTCOMES,
+    'residence-cum-office': COMMON_LEGACY_OUTCOMES,
+    office: COMMON_LEGACY_OUTCOMES,
+    business: COMMON_LEGACY_OUTCOMES,
+    builder: COMMON_LEGACY_OUTCOMES,
+    noc: COMMON_LEGACY_OUTCOMES,
+    'dsa-connector': COMMON_LEGACY_OUTCOMES,
+    'property-individual': [
+      'NSP',
+      'ENTRY_RESTRICTED',
+      'POSITIVE',
+      'UNTRACEABLE',
+    ],
+    'property-apf': ['UNTRACEABLE', 'ENTRY_RESTRICTED', 'POSITIVE'],
+  };
 
-const PREFERRED_DEFAULT_OUTCOME_BY_FORM_TYPE: Partial<Record<FormTypeKey, AllOutcome>> = {
+const PREFERRED_DEFAULT_OUTCOME_BY_FORM_TYPE: Partial<
+  Record<FormTypeKey, AllOutcome>
+> = {
   residence: 'POSITIVE',
   'residence-cum-office': 'POSITIVE',
   office: 'POSITIVE',
@@ -110,16 +151,22 @@ const PREFERRED_DEFAULT_OUTCOME_BY_FORM_TYPE: Partial<Record<FormTypeKey, AllOut
   'property-apf': 'POSITIVE',
 };
 
-const getAllowedOutcomes = (formTypeKey: FormTypeKey | null): readonly AllOutcome[] => {
+const getAllowedOutcomes = (
+  formTypeKey: FormTypeKey | null,
+): readonly AllOutcome[] => {
   if (!formTypeKey) {
     return COMMON_LEGACY_OUTCOMES;
   }
   return LEGACY_OUTCOMES_BY_FORM_TYPE[formTypeKey];
 };
 
-const getFallbackOutcomeForFormType = (formTypeKey: FormTypeKey | null): AllOutcome => {
+const getFallbackOutcomeForFormType = (
+  formTypeKey: FormTypeKey | null,
+): AllOutcome => {
   const allowedOutcomes = getAllowedOutcomes(formTypeKey);
-  const preferredDefault = formTypeKey ? PREFERRED_DEFAULT_OUTCOME_BY_FORM_TYPE[formTypeKey] : 'POSITIVE';
+  const preferredDefault = formTypeKey
+    ? PREFERRED_DEFAULT_OUTCOME_BY_FORM_TYPE[formTypeKey]
+    : 'POSITIVE';
 
   if (preferredDefault && allowedOutcomes.includes(preferredDefault)) {
     return preferredDefault;
@@ -157,13 +204,41 @@ const NUMBERS_1_TO_50 = Array.from({ length: 50 }, (_, i) => String(i + 1));
 const NUMBERS_1_TO_100 = Array.from({ length: 100 }, (_, i) => String(i + 1));
 const STAYING_PERIOD_UNITS = ['Month', 'Year'];
 const STANDARD_COLORS = [
-  'White', 'Off White', 'Cream', 'Ivory', 'Beige',
-  'Light Grey', 'Grey', 'Dark Grey', 'Black', 'Silver',
-  'Brown', 'Dark Brown', 'Light Brown', 'Tan', 'Maroon',
-  'Red', 'Dark Red', 'Pink', 'Light Pink', 'Orange',
-  'Yellow', 'Light Yellow', 'Gold', 'Green', 'Dark Green',
-  'Light Green', 'Olive', 'Blue', 'Dark Blue', 'Light Blue',
-  'Sky Blue', 'Navy Blue', 'Purple', 'Violet', 'Teal',
+  'White',
+  'Off White',
+  'Cream',
+  'Ivory',
+  'Beige',
+  'Light Grey',
+  'Grey',
+  'Dark Grey',
+  'Black',
+  'Silver',
+  'Brown',
+  'Dark Brown',
+  'Light Brown',
+  'Tan',
+  'Maroon',
+  'Red',
+  'Dark Red',
+  'Pink',
+  'Light Pink',
+  'Orange',
+  'Yellow',
+  'Light Yellow',
+  'Gold',
+  'Green',
+  'Dark Green',
+  'Light Green',
+  'Olive',
+  'Blue',
+  'Dark Blue',
+  'Light Blue',
+  'Sky Blue',
+  'Navy Blue',
+  'Purple',
+  'Violet',
+  'Teal',
 ];
 
 /** Common select options shared across all form types */
@@ -178,26 +253,75 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
   officeExistFloor: NUMBERS_1_TO_100,
   addressExistAt: NUMBERS_1_TO_100,
   designation: [
-    'Applicant Self', 'Reception', 'Reception Security', 'Company Security',
-    'Manager', 'H.R.', 'Sr. Officer', 'Accountant', 'Admin', 'Office Staff',
-    'Clark', 'Principal', 'Other',
+    'Applicant Self',
+    'Reception',
+    'Reception Security',
+    'Company Security',
+    'Manager',
+    'H.R.',
+    'Sr. Officer',
+    'Accountant',
+    'Admin',
+    'Office Staff',
+    'Clark',
+    'Principal',
+    'Other',
   ],
   addressStructureColor: STANDARD_COLORS,
   doorColor: STANDARD_COLORS,
   relation: [
-    'Self', 'Mother', 'Father', 'Wife', 'Son', 'Daughter', 'Sister', 'Brother',
-    'Aunty', 'Uncle', 'Mother in Law', 'Father in Law', 'Daughter in Law',
-    'Sister in Law', 'Brother in Law', 'Other',
+    'Self',
+    'Mother',
+    'Father',
+    'Wife',
+    'Son',
+    'Daughter',
+    'Sister',
+    'Brother',
+    'Aunty',
+    'Uncle',
+    'Mother in Law',
+    'Father in Law',
+    'Daughter in Law',
+    'Sister in Law',
+    'Brother in Law',
+    'Other',
   ],
   relationResiCumOffice: [
-    'Self', 'Mother', 'Father', 'Wife', 'Son', 'Daughter', 'Sister', 'Brother',
-    'Aunty', 'Uncle', 'Mother in Law', 'Father in Law', 'Daughter in Law',
-    'Sister in Law', 'Brother in Law', 'Other',
+    'Self',
+    'Mother',
+    'Father',
+    'Wife',
+    'Son',
+    'Daughter',
+    'Sister',
+    'Brother',
+    'Aunty',
+    'Uncle',
+    'Mother in Law',
+    'Father in Law',
+    'Daughter in Law',
+    'Sister in Law',
+    'Brother in Law',
+    'Other',
   ],
   relationship: [
-    'Self', 'Mother', 'Father', 'Wife', 'Son', 'Daughter', 'Sister', 'Brother',
-    'Aunty', 'Uncle', 'Mother in Law', 'Father in Law', 'Daughter in Law',
-    'Sister in Law', 'Brother in Law', 'Other',
+    'Self',
+    'Mother',
+    'Father',
+    'Wife',
+    'Son',
+    'Daughter',
+    'Sister',
+    'Brother',
+    'Aunty',
+    'Uncle',
+    'Mother in Law',
+    'Father in Law',
+    'Daughter in Law',
+    'Sister in Law',
+    'Brother in Law',
+    'Other',
   ],
   companyNameBoard: ['SIGHTED AS', 'NOT SIGHTED'],
   companyNamePlateStatus: ['SIGHTED AS', 'NOT SIGHTED'],
@@ -209,35 +333,74 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
   tpcMetPerson: ['Neighbour', 'Security'],
   tpcConfirmation: ['Confirmed', 'Not Confirmed'],
   locality: [
-    'Commercial Tower', 'Residential Building', 'Office Building', 'Shop Line',
-    'Row House', 'Single House', 'Chawl / Slum', 'Patra Shed', 'Gala / Godown',
-    'Tea Stall', 'Sharing Office', 'Road Side', 'Govt. Office', 'Bank',
-    'Cabin', 'Table Space', 'Bunglow',
+    'Commercial Tower',
+    'Residential Building',
+    'Office Building',
+    'Shop Line',
+    'Row House',
+    'Single House',
+    'Chawl / Slum',
+    'Patra Shed',
+    'Gala / Godown',
+    'Tea Stall',
+    'Sharing Office',
+    'Road Side',
+    'Govt. Office',
+    'Bank',
+    'Cabin',
+    'Table Space',
+    'Bunglow',
   ],
   localityResiCumOffice: [
-    'Commercial Tower', 'Residential Building', 'Office Building', 'Shop Line',
-    'Row House', 'Single House', 'Chawl / Slum', 'Patra Shed', 'Gala / Godown',
-    'Tea Stall', 'Sharing Office', 'Road Side', 'Govt. Office', 'Bank',
-    'Cabin', 'Table Space', 'Bunglow',
+    'Commercial Tower',
+    'Residential Building',
+    'Office Building',
+    'Shop Line',
+    'Row House',
+    'Single House',
+    'Chawl / Slum',
+    'Patra Shed',
+    'Gala / Godown',
+    'Tea Stall',
+    'Sharing Office',
+    'Road Side',
+    'Govt. Office',
+    'Bank',
+    'Cabin',
+    'Table Space',
+    'Bunglow',
   ],
   callRemark: [
-    'Did Not Pick Up Call', 'Number is Switch Off',
-    'Number is Unreachable', 'Refused to Guide Address',
+    'Did Not Pick Up Call',
+    'Number is Switch Off',
+    'Number is Unreachable',
+    'Refused to Guide Address',
   ],
   callRemarkUntraceable: [
-    'Did Not Pick Up Call', 'Number is Switch Off',
-    'Number is Unreachable', 'Refused to Guide Address',
+    'Did Not Pick Up Call',
+    'Number is Switch Off',
+    'Number is Unreachable',
+    'Refused to Guide Address',
   ],
   stayingStatus: [
-    'On a Self Owned Basis', 'On a Parental Owned Basis', 'On a Relative Owned Basis',
-    'On a Rental Basis', 'On a Pagadi System', 'In the Staff Quarters',
-    'As a Paying Guest', 'On a Company Accomodation',
-    'In the Bachelor Accommodation', 'In the Hostel',
+    'On a Self Owned Basis',
+    'On a Parental Owned Basis',
+    'On a Relative Owned Basis',
+    'On a Rental Basis',
+    'On a Pagadi System',
+    'In the Staff Quarters',
+    'As a Paying Guest',
+    'On a Company Accomodation',
+    'In the Bachelor Accommodation',
+    'In the Hostel',
   ],
   feedbackFromNeighbour: ['Adverse', 'No Adverse'],
   premisesStatus: ['Vacant', 'Rented To', 'Owned By'],
   premisesStatusBusiness: ['Vacant', 'Rented To', 'Owned By'],
-  politicalConnection: ['Having Political Connection', 'Not Having Political Connection'],
+  politicalConnection: [
+    'Having Political Connection',
+    'Not Having Political Connection',
+  ],
   dominatedArea: ['A Community Dominated', 'Not a Community Dominated'],
   finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
   finalStatusPositive: ['Positive', 'Refer', 'Hold'],
@@ -262,31 +425,78 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
     'No Such Person Staying At',
   ],
   officeType: [
-    'PVT. LTD. Company', 'LTD. Company', 'LLP Company', 'Govt. Office',
-    'Proprietorship Firm', 'Partnership Firm', 'Public Ltd. Company',
+    'PVT. LTD. Company',
+    'LTD. Company',
+    'LLP Company',
+    'Govt. Office',
+    'Proprietorship Firm',
+    'Partnership Firm',
+    'Public Ltd. Company',
   ],
   businessType: [
-    'PVT. LTD. Company', 'LTD. Company', 'LLP Company',
-    'Proprietorship Firm', 'Partnership Firm',
+    'PVT. LTD. Company',
+    'LTD. Company',
+    'LLP Company',
+    'Proprietorship Firm',
+    'Partnership Firm',
   ],
   ownershipType: ['Are Partners', 'Are Directors', 'Is Proprietor'],
-  addressStatus: ['On a Self Owned Basis', 'On a Rental Basis', 'On a Pagadi System', 'In Share Work Place'],
-  businessExistStatus: ['Business Exist At', 'Business Does Not Exist At', 'Business Shifted From'],
-  workingStatusOffice: ['Company Payroll', 'Third Party Payroll', 'Contract Payroll'],
+  addressStatus: [
+    'On a Self Owned Basis',
+    'On a Rental Basis',
+    'On a Pagadi System',
+    'In Share Work Place',
+  ],
+  businessExistStatus: [
+    'Business Exist At',
+    'Business Does Not Exist At',
+    'Business Shifted From',
+  ],
+  workingStatusOffice: [
+    'Company Payroll',
+    'Third Party Payroll',
+    'Contract Payroll',
+  ],
   applicantWorkingPremises: ['Same Location', 'Different Location'],
   applicantDesignation: [
-    'Applicant Self', 'Reception', 'Reception Security', 'Company Security',
-    'Manager', 'H.R.', 'Sr. Officer', 'Accountant', 'Admin', 'Office Staff',
-    'Clark', 'Principal', 'Other',
+    'Applicant Self',
+    'Reception',
+    'Reception Security',
+    'Company Security',
+    'Manager',
+    'H.R.',
+    'Sr. Officer',
+    'Accountant',
+    'Admin',
+    'Office Staff',
+    'Clark',
+    'Principal',
+    'Other',
   ],
 };
 
 const legacyResidenceSelectOptions: Record<string, string[]> = {
   ...COMMON_SELECT_OPTIONS,
-  metPersonRelation: ['Father', 'Mother', 'Spouse', 'Son', 'Daughter', 'Brother', 'Sister', 'Self', 'Other'],
+  metPersonRelation: [
+    'Father',
+    'Mother',
+    'Spouse',
+    'Son',
+    'Daughter',
+    'Brother',
+    'Sister',
+    'Self',
+    'Other',
+  ],
   workingStatus: ['Salaried', 'Self Employed', 'House Wife'],
   documentShownStatus: ['Showed', 'Did Not Showed Any Document'],
-  documentType: ['Electricity Bill', 'Adhar Card', 'Pan Card', 'Passport', 'Rent Deed'],
+  documentType: [
+    'Electricity Bill',
+    'Adhar Card',
+    'Pan Card',
+    'Passport',
+    'Rent Deed',
+  ],
   metPersonStatus: ['Owner', 'Tenant'],
 };
 
@@ -308,14 +518,19 @@ const legacyCondition = (
   value,
 });
 
-const withLegacyResidenceOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
+const withLegacyResidenceOrder = (
+  fields: ResidenceFieldInput[],
+): FormFieldTemplate[] =>
   fields.map((field, index) => {
     const optionKey = legacyResidenceOptionAliases[field.name] || field.name;
     const options = field.options
       ? field.options
       : field.type === 'select'
-        ? (legacyResidenceSelectOptions[optionKey] || []).map(value => ({ label: value, value }))
-        : undefined;
+      ? (legacyResidenceSelectOptions[optionKey] || []).map(value => ({
+          label: value,
+          value,
+        }))
+      : undefined;
     return {
       ...field,
       id: field.id || field.name,
@@ -325,131 +540,722 @@ const withLegacyResidenceOrder = (fields: ResidenceFieldInput[]): FormFieldTempl
   });
 
 const legacyPositiveResidenceFields = withLegacyResidenceOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'houseStatus', label: 'House Status', type: 'select', required: true },
-  { name: 'metPersonName', label: 'Met Person Name', type: 'text', conditional: legacyCondition('houseStatus', 'equals', 'Open'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Open') },
-  { name: 'metPersonRelation', label: 'Relation', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Open'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Open') },
-  { name: 'totalFamilyMembers', label: 'Total Family Members', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Open'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Open') },
-  { name: 'totalEarning', label: 'Total Earning', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Open'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Open') },
-  { name: 'workingStatus', label: 'Working Status', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Open') },
-  { name: 'companyName', label: 'Company Name', type: 'text', conditional: legacyCondition('workingStatus', 'notIn', ['', null, 'House Wife']), requiredWhen: legacyCondition('workingStatus', 'notIn', ['', null, 'House Wife']) },
-  { name: 'stayingPeriodValue', label: 'Staying Period', type: 'select', required: true },
-  { name: 'stayingPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'stayingStatus', label: 'Ownership Type', type: 'select', required: true },
-  { name: 'approxArea', label: 'Approx Area (Sq. Feet)', type: 'number', conditional: legacyCondition('houseStatus', 'equals', 'Open'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Open') },
-  { name: 'documentShownStatus', label: 'Document Shown Status', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Open'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Open') },
-  { name: 'documentType', label: 'Document Type', type: 'select', conditional: legacyCondition('documentShownStatus', 'equals', 'Showed'), requiredWhen: legacyCondition('documentShownStatus', 'equals', 'Showed') },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'houseStatus',
+    label: 'House Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'metPersonName',
+    label: 'Met Person Name',
+    type: 'text',
+    conditional: legacyCondition('houseStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'metPersonRelation',
+    label: 'Relation',
+    type: 'select',
+    conditional: legacyCondition('houseStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'totalFamilyMembers',
+    label: 'Total Family Members',
+    type: 'select',
+    conditional: legacyCondition('houseStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'totalEarning',
+    label: 'Total Earning',
+    type: 'select',
+    conditional: legacyCondition('houseStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'workingStatus',
+    label: 'Working Status',
+    type: 'select',
+    conditional: legacyCondition('houseStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'companyName',
+    label: 'Company Name',
+    type: 'text',
+    conditional: legacyCondition('workingStatus', 'notIn', [
+      '',
+      null,
+      'House Wife',
+    ]),
+    requiredWhen: legacyCondition('workingStatus', 'notIn', [
+      '',
+      null,
+      'House Wife',
+    ]),
+  },
+  {
+    name: 'stayingPeriodValue',
+    label: 'Staying Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'stayingPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'stayingStatus',
+    label: 'Ownership Type',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'approxArea',
+    label: 'Approx Area (Sq. Feet)',
+    type: 'number',
+    conditional: legacyCondition('houseStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'documentShownStatus',
+    label: 'Document Shown Status',
+    type: 'select',
+    conditional: legacyCondition('houseStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'documentType',
+    label: 'Document Type',
+    type: 'select',
+    conditional: legacyCondition('documentShownStatus', 'equals', 'Showed'),
+    requiredWhen: legacyCondition('documentShownStatus', 'equals', 'Showed'),
+  },
   { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select' },
-  { name: 'tpcName1', label: 'Name of TPC 1', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'TPC Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'tpcName1',
+    label: 'Name of TPC 1',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'TPC Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person 2', type: 'select' },
-  { name: 'tpcName2', label: 'Name of TPC 2', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'TPC Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'tpcName2',
+    label: 'Name of TPC 2',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'TPC Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'applicantStayingFloor', label: 'Applicant Staying Floor', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantStayingFloor',
+    label: 'Applicant Staying Floor',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate Visible?', type: 'select', required: true },
-  { name: 'nameOnDoorPlate', label: 'Name on Door Plate', type: 'text', conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS') },
-  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
-  { name: 'nameOnSocietyBoard', label: 'Name on Society Board', type: 'text', conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'doorNamePlateStatus',
+    label: 'Door Name Plate Visible?',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnDoorPlate',
+    label: 'Name on Door Plate',
+    type: 'text',
+    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
+    requiredWhen: legacyCondition(
+      'doorNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
+  {
+    name: 'societyNamePlateStatus',
+    label: 'Society/Building Name Plate Visible?',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnSocietyBoard',
+    label: 'Name on Society Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherObservation',
+    label: 'Other Observation',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyShiftedResidenceFields = withLegacyResidenceOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'houseStatus', label: 'House Status', type: 'select', required: true },
-  { name: 'metPersonName', label: 'Met Person', type: 'text', conditional: legacyCondition('houseStatus', 'equals', 'Open'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Open') },
-  { name: 'metPersonStatus', label: 'Met Person Status', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Open'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Open') },
-  { name: 'stayingPeriodValue', label: 'Shifted Period', type: 'select', required: true },
-  { name: 'stayingPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'tpcMetPerson1', label: 'Third Party Confirmation 1', type: 'select' },
-  { name: 'tpcName1', label: 'TPC Met Person', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'TPC Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcMetPerson2', label: 'Third Party Confirmation 2', type: 'select' },
-  { name: 'tpcName2', label: 'TPC Met Person', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'TPC Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'premisesStatus', label: 'Premises Status', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Closed'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Closed') },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'houseStatus',
+    label: 'House Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'metPersonName',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('houseStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'metPersonStatus',
+    label: 'Met Person Status',
+    type: 'select',
+    conditional: legacyCondition('houseStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'stayingPeriodValue',
+    label: 'Shifted Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'stayingPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'tpcMetPerson1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+  },
+  {
+    name: 'tpcName1',
+    label: 'TPC Met Person',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'TPC Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcMetPerson2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+  },
+  {
+    name: 'tpcName2',
+    label: 'TPC Met Person',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'TPC Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'premisesStatus',
+    label: 'Premises Status',
+    type: 'select',
+    conditional: legacyCondition('houseStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Closed'),
+  },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressFloor', label: 'Address Floor', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressFloor',
+    label: 'Address Floor',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate Visible?', type: 'select', required: true },
-  { name: 'nameOnDoorPlate', label: 'Name on Door Plate', type: 'text', conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS') },
-  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
-  { name: 'nameOnSocietyBoard', label: 'Name on Society Board', type: 'text', conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'doorNamePlateStatus',
+    label: 'Door Name Plate Visible?',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnDoorPlate',
+    label: 'Name on Door Plate',
+    type: 'text',
+    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
+    requiredWhen: legacyCondition(
+      'doorNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
+  {
+    name: 'societyNamePlateStatus',
+    label: 'Society/Building Name Plate Visible?',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnSocietyBoard',
+    label: 'Name on Society Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherObservation',
+    label: 'Other Observation',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyNspResidenceFields = withLegacyResidenceOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'houseStatus', label: 'House Status', type: 'select', required: true },
-  { name: 'metPersonName', label: 'Met Person', type: 'text', conditional: legacyCondition('houseStatus', 'equals', 'Open'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Open') },
-  { name: 'metPersonStatus', label: 'Met Person Status', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Open'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Open') },
-  { name: 'stayingPeriodValue', label: 'Staying Period', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Open'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Open') },
-  { name: 'stayingPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', conditional: legacyCondition('houseStatus', 'equals', 'Open'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Open') },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'houseStatus',
+    label: 'House Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'metPersonName',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('houseStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'metPersonStatus',
+    label: 'Met Person Status',
+    type: 'select',
+    conditional: legacyCondition('houseStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'stayingPeriodValue',
+    label: 'Staying Period',
+    type: 'select',
+    conditional: legacyCondition('houseStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'stayingPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    conditional: legacyCondition('houseStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
+  },
   { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select' },
-  { name: 'tpcName1', label: 'Name of TPC 1', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'tpcName1',
+    label: 'Name of TPC 1',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person 2', type: 'select' },
-  { name: 'tpcName2', label: 'Name of TPC 2', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'stayingPersonName', label: 'Staying Person Name', type: 'text', conditional: legacyCondition('houseStatus', 'equals', 'Closed'), requiredWhen: legacyCondition('houseStatus', 'equals', 'Closed') },
+  {
+    name: 'tpcName2',
+    label: 'Name of TPC 2',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'stayingPersonName',
+    label: 'Staying Person Name',
+    type: 'text',
+    conditional: legacyCondition('houseStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Closed'),
+  },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'applicantStayingFloor', label: 'Applicant Staying Floor', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantStayingFloor',
+    label: 'Applicant Staying Floor',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate Visible?', type: 'select', required: true },
-  { name: 'nameOnDoorPlate', label: 'Name on Door Plate', type: 'text', conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS') },
-  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
-  { name: 'nameOnSocietyBoard', label: 'Name on Society Board', type: 'text', conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'doorNamePlateStatus',
+    label: 'Door Name Plate Visible?',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnDoorPlate',
+    label: 'Name on Door Plate',
+    type: 'text',
+    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
+    requiredWhen: legacyCondition(
+      'doorNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
+  {
+    name: 'societyNamePlateStatus',
+    label: 'Society/Building Name Plate Visible?',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnSocietyBoard',
+    label: 'Name on Society Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherObservation',
+    label: 'Other Observation',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOfMetPerson',
+    label: 'Name of Met Person',
+    type: 'text',
+    required: true,
+  },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
-  { name: 'metPersonConfirmation', label: 'Met Person Confirmation', type: 'select', required: true },
-  { name: 'applicantStayingStatus', label: 'Applicant Staying Status', type: 'select', required: true },
+  {
+    name: 'metPersonConfirmation',
+    label: 'Met Person Confirmation',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantStayingStatus',
+    label: 'Applicant Staying Status',
+    type: 'select',
+    required: true,
+  },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'applicantStayingFloor', label: 'Applicant Staying Floor', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
-  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
-  { name: 'nameOnSocietyBoard', label: 'Name on Society Board', type: 'text', conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantStayingFloor',
+    label: 'Applicant Staying Floor',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'societyNamePlateStatus',
+    label: 'Society/Building Name Plate Visible?',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnSocietyBoard',
+    label: 'Name on Society Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherObservation',
+    label: 'Other Observation',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyUntraceableResidenceFields = withLegacyResidenceOrder([
@@ -460,22 +1266,54 @@ const legacyUntraceableResidenceFields = withLegacyResidenceOrder([
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
   { name: 'landmark3', label: 'Landmark 3', type: 'text', required: true },
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherObservation',
+    label: 'Other Observation',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const normalizedResidenceOutcome = (rawOutcome: string): ResidenceOutcome => {
   const value = rawOutcome.trim().toUpperCase();
   if (value.includes('SHIFTED')) return 'SHIFTED';
   if (value.includes('NSP') || value.includes('PERSON NOT MET')) return 'NSP';
-  if (value.includes('ENTRY') || value.includes('RESTRICT')) return 'ENTRY_RESTRICTED';
-  if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND')) return 'UNTRACEABLE';
+  if (value.includes('ENTRY') || value.includes('RESTRICT'))
+    return 'ENTRY_RESTRICTED';
+  if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND'))
+    return 'UNTRACEABLE';
   return 'POSITIVE';
 };
 
-const legacyResidenceFieldsByOutcome: Record<ResidenceOutcome, FormFieldTemplate[]> = {
+const legacyResidenceFieldsByOutcome: Record<
+  ResidenceOutcome,
+  FormFieldTemplate[]
+> = {
   POSITIVE: legacyPositiveResidenceFields,
   SHIFTED: legacyShiftedResidenceFields,
   NSP: legacyNspResidenceFields,
@@ -520,10 +1358,21 @@ const legacyResiCumOfficeSelectOptions: Record<string, string[]> = {
   ...COMMON_SELECT_OPTIONS,
   addressTraceable: ['Traceable', 'Untraceable'],
   resiCumOfficeStatus: ['Open', 'Closed'],
-  businessStatusResiCumOffice: ['Self Employee', 'Proprietorship', 'Partnership Firm', 'NA'],
+  businessStatusResiCumOffice: [
+    'Self Employee',
+    'Proprietorship',
+    'Partnership Firm',
+    'NA',
+  ],
   businessLocation: ['At Same Address', 'From Different Address'],
   documentShownStatus: ['Showed', 'Did Not Showed Any Document'],
-  documentType: ['Electricity Bill', 'Adhar Card', 'Pan Card', 'Passport', 'Rent Deed'],
+  documentType: [
+    'Electricity Bill',
+    'Adhar Card',
+    'Pan Card',
+    'Passport',
+    'Rent Deed',
+  ],
   metPersonStatusShifted: ['Owner', 'Tenant'],
   businessStatusErtResiCumOffice: [
     'Office Exist At',
@@ -544,14 +1393,17 @@ const legacyResiCumOfficeOptionAliases: Record<string, string> = {
   metPerson: 'metPersonErt',
 };
 
-const withLegacyResiCumOfficeOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
+const withLegacyResiCumOfficeOrder = (
+  fields: ResidenceFieldInput[],
+): FormFieldTemplate[] =>
   fields.map((field, index) => {
-    const optionKey = legacyResiCumOfficeOptionAliases[field.name] || field.name;
+    const optionKey =
+      legacyResiCumOfficeOptionAliases[field.name] || field.name;
     const options = field.options
       ? field.options
       : field.type === 'select'
-        ? toSelectOptions(legacyResiCumOfficeSelectOptions[optionKey] || [])
-        : undefined;
+      ? toSelectOptions(legacyResiCumOfficeSelectOptions[optionKey] || [])
+      : undefined;
     return {
       ...field,
       id: field.id || field.name,
@@ -561,25 +1413,98 @@ const withLegacyResiCumOfficeOrder = (fields: ResidenceFieldInput[]): FormFieldT
   });
 
 const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'resiCumOfficeStatus', label: 'Resi-cum-Office Status', type: 'select', required: true },
-  { name: 'residenceSetup', label: 'Residence Setup', type: 'select', required: true },
-  { name: 'businessSetup', label: 'Business Setup', type: 'select', required: true },
-  { name: 'stayingPeriodValue', label: 'Staying Period', type: 'select', required: true },
-  { name: 'stayingPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'stayingStatus', label: 'Ownership Type', type: 'select', required: true },
-  { name: 'companyNatureOfBusiness', label: 'Company Nature of Business', type: 'text', required: true },
-  { name: 'businessPeriodValue', label: 'Business Period', type: 'select', required: true },
-  { name: 'businessPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'businessStatus', label: 'Business Status', type: 'select', required: true },
-  { name: 'businessLocation', label: 'Business Location', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'resiCumOfficeStatus',
+    label: 'Resi-cum-Office Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'residenceSetup',
+    label: 'Residence Setup',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'businessSetup',
+    label: 'Business Setup',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'stayingPeriodValue',
+    label: 'Staying Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'stayingPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'stayingStatus',
+    label: 'Ownership Type',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'companyNatureOfBusiness',
+    label: 'Company Nature of Business',
+    type: 'text',
+    required: true,
+  },
+  {
+    name: 'businessPeriodValue',
+    label: 'Business Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'businessPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'businessStatus',
+    label: 'Business Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'businessLocation',
+    label: 'Business Location',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'businessOperatingAddress',
     label: 'Business Operating Address',
     type: 'text',
-    conditional: legacyCondition('businessLocation', 'equals', 'From Different Address'),
-    requiredWhen: legacyCondition('businessLocation', 'equals', 'From Different Address'),
+    conditional: legacyCondition(
+      'businessLocation',
+      'equals',
+      'From Different Address',
+    ),
+    requiredWhen: legacyCondition(
+      'businessLocation',
+      'equals',
+      'From Different Address',
+    ),
   },
   { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select' },
   {
@@ -647,41 +1572,121 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     requiredWhen: legacyCondition('documentShownStatus', 'equals', 'Showed'),
   },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'applicantStayingFloor', label: 'Applicant Staying Floor', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantStayingFloor',
+    label: 'Applicant Staying Floor',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate Visible?', type: 'select', required: true },
+  {
+    name: 'doorNamePlateStatus',
+    label: 'Door Name Plate Visible?',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOnDoorPlate',
     label: 'Name on Door Plate',
     type: 'text',
     conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
-    requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
+    requiredWhen: legacyCondition(
+      'doorNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
   },
-  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
+  {
+    name: 'societyNamePlateStatus',
+    label: 'Society/Building Name Plate Visible?',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
     type: 'text',
-    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'),
-    requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
   },
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate Status', type: 'select', required: true },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate Status',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'),
-    requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherObservation',
+    label: 'Other Observation',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -692,9 +1697,24 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
 ]);
 
 const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'resiCumOfficeStatus', label: 'Resi-cum-Office Status', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'resiCumOfficeStatus',
+    label: 'Resi-cum-Office Status',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'metPerson',
     label: 'Met Person',
@@ -709,42 +1729,152 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
   },
-  { name: 'stayingPeriodValue', label: 'Shifted Period', type: 'select', required: true },
-  { name: 'stayingPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'tpcMetPerson1', label: 'Third Party Confirmation 1', type: 'select' },
-  { name: 'tpcName1', label: 'TPC Met Person', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'TPC Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcMetPerson2', label: 'Third Party Confirmation 2', type: 'select' },
-  { name: 'tpcName2', label: 'TPC Met Person', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'TPC Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'stayingPeriodValue',
+    label: 'Shifted Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'stayingPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'tpcMetPerson1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+  },
+  {
+    name: 'tpcName1',
+    label: 'TPC Met Person',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'TPC Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcMetPerson2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+  },
+  {
+    name: 'tpcName2',
+    label: 'TPC Met Person',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'TPC Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressFloor', label: 'Address Floor', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressFloor',
+    label: 'Address Floor',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate Visible?', type: 'select', required: true },
+  {
+    name: 'doorNamePlateStatus',
+    label: 'Door Name Plate Visible?',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOnDoorPlate',
     label: 'Name on Door Plate',
     type: 'text',
     conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
-    requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
+    requiredWhen: legacyCondition(
+      'doorNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
   },
-  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
+  {
+    name: 'societyNamePlateStatus',
+    label: 'Society/Building Name Plate Visible?',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
     type: 'text',
-    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'),
-    requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherObservation',
+    label: 'Other Observation',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -755,35 +1885,182 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
 ]);
 
 const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
-  { name: 'addressTraceable', label: 'Address Traceable', type: 'select', required: true },
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'resiCumOfficeStatus', label: 'Resi-cum-Office Status', type: 'select', required: true },
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Open') },
-  { name: 'metPersonStatus', label: 'Met Person Status', type: 'select', conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Open') },
-  { name: 'stayingPeriodValue', label: 'Staying Period', type: 'select', conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Open') },
-  { name: 'stayingPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Open') },
-  { name: 'tpcMetPerson1', label: 'Third Party Confirmation 1', type: 'select' },
-  { name: 'tpcName1', label: 'TPC Met Person', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'TPC Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcMetPerson2', label: 'Third Party Confirmation 2', type: 'select' },
-  { name: 'tpcName2', label: 'TPC Met Person', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'TPC Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'stayingPersonName', label: 'Staying Person Name', type: 'text', conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Closed'), requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Closed') },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'applicantStayingFloor', label: 'Applicant Staying Floor', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressTraceable',
+    label: 'Address Traceable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'resiCumOfficeStatus',
+    label: 'Resi-cum-Office Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'metPersonStatus',
+    label: 'Met Person Status',
+    type: 'select',
+    conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'stayingPeriodValue',
+    label: 'Staying Period',
+    type: 'select',
+    conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'stayingPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'tpcMetPerson1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+  },
+  {
+    name: 'tpcName1',
+    label: 'TPC Met Person',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'TPC Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcMetPerson2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+  },
+  {
+    name: 'tpcName2',
+    label: 'TPC Met Person',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'TPC Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'stayingPersonName',
+    label: 'Staying Person Name',
+    type: 'text',
+    conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Closed'),
+  },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantStayingFloor',
+    label: 'Applicant Staying Floor',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate', type: 'select', required: true },
-  { name: 'nameOnDoorPlate', label: 'Name on Door Plate', type: 'text', conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS') },
-  { name: 'societyNamePlateStatus', label: 'Society Name Plate', type: 'select', required: true },
-  { name: 'nameOnSocietyBoard', label: 'Name on Society Board', type: 'text', conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'doorNamePlateStatus',
+    label: 'Door Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnDoorPlate',
+    label: 'Name on Door Plate',
+    type: 'text',
+    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
+    requiredWhen: legacyCondition(
+      'doorNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
+  {
+    name: 'societyNamePlateStatus',
+    label: 'Society Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnSocietyBoard',
+    label: 'Name on Society Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -794,37 +2071,119 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
 ]);
 
 const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
-  { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
-  { name: 'metPersonConfirmation', label: 'Met Person Confirmation', type: 'select', required: true },
-  { name: 'applicantStayingStatus', label: 'Applicant Staying Status', type: 'select', required: true },
+  {
+    name: 'nameOfMetPerson',
+    label: 'Name of Met Person',
+    type: 'text',
+    required: true,
+  },
+  {
+    name: 'metPersonConfirmation',
+    label: 'Met Person Confirmation',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantStayingStatus',
+    label: 'Applicant Staying Status',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'businessStatus',
     label: 'Business Status',
     type: 'select',
     required: true,
-    options: toSelectOptions(legacyResiCumOfficeSelectOptions.businessStatusErtResiCumOffice),
+    options: toSelectOptions(
+      legacyResiCumOfficeSelectOptions.businessStatusErtResiCumOffice,
+    ),
   },
-  { name: 'societyNamePlateStatus', label: 'Society/Building Name Plate Visible?', type: 'select', required: true },
+  {
+    name: 'societyNamePlateStatus',
+    label: 'Society/Building Name Plate Visible?',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
     type: 'text',
-    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'),
-    requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
   },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherObservation',
+    label: 'Other Observation',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -842,9 +2201,30 @@ const legacyUntraceableResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
   { name: 'landmark3', label: 'Landmark 3', type: 'text', required: true },
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherObservation',
+    label: 'Other Observation',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -854,7 +2234,10 @@ const legacyUntraceableResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   },
 ]);
 
-const legacyResiCumOfficeFieldsByOutcome: Record<ResidenceOutcome, FormFieldTemplate[]> = {
+const legacyResiCumOfficeFieldsByOutcome: Record<
+  ResidenceOutcome,
+  FormFieldTemplate[]
+> = {
   POSITIVE: legacyPositiveResiCumOfficeFields,
   SHIFTED: legacyShiftedResiCumOfficeFields,
   NSP: legacyNspResiCumOfficeFields,
@@ -874,8 +2257,11 @@ const buildLegacyResidenceCumOfficeTemplate = (
     formType: verificationType,
     verificationType,
     outcome: normalizedOutcome,
-    name: `Residence Cum Office Verification - ${normalizedOutcome.split('_').join(' ')}`,
-    description: 'Loaded from native legacy Residence-cum-Office form definition',
+    name: `Residence Cum Office Verification - ${normalizedOutcome
+      .split('_')
+      .join(' ')}`,
+    description:
+      'Loaded from native legacy Residence-cum-Office form definition',
     sections: [
       {
         id: `residence-cum-office-${normalizedOutcome.toLowerCase()}-main`,
@@ -910,7 +2296,11 @@ const legacyOfficeSelectOptions: Record<string, string[]> = {
     'Other',
   ],
   officeExistence: ['Exist', 'Does Not Exist'],
-  officeStatusErtOffice: ['Office Exist At', 'Office Does Not Exist At', 'Office Shifted From'],
+  officeStatusErtOffice: [
+    'Office Exist At',
+    'Office Does Not Exist At',
+    'Office Shifted From',
+  ],
 };
 
 const legacyOfficeOptionAliases: Record<string, string> = {
@@ -922,14 +2312,16 @@ const legacyOfficeOptionAliases: Record<string, string> = {
   metPerson: 'metPersonErt',
 };
 
-const withLegacyOfficeOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
+const withLegacyOfficeOrder = (
+  fields: ResidenceFieldInput[],
+): FormFieldTemplate[] =>
   fields.map((field, index) => {
     const optionKey = legacyOfficeOptionAliases[field.name] || field.name;
     const options = field.options
       ? field.options
       : field.type === 'select'
-        ? toSelectOptions(legacyOfficeSelectOptions[optionKey] || [])
-        : undefined;
+      ? toSelectOptions(legacyOfficeSelectOptions[optionKey] || [])
+      : undefined;
     return {
       ...field,
       id: field.id || field.name,
@@ -939,86 +2331,424 @@ const withLegacyOfficeOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate
   });
 
 const legacyPositiveOfficeFields = withLegacyOfficeOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'businessPeriodValue', label: 'Working Period', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'businessPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'applicantDesignation', label: 'Applicant Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'workingStatus', label: 'Working Status', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'applicantWorkingPremises', label: 'Applicant Working Premises', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'sittingLocation', label: 'Sitting Location', type: 'text', conditional: legacyCondition('applicantWorkingPremises', 'equals', 'Different Location'), requiredWhen: legacyCondition('applicantWorkingPremises', 'equals', 'Different Location') },
-  { name: 'officeType', label: 'Office Type', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'companyNatureOfBusiness', label: 'Company Nature of Business', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'staffStrength', label: 'Staff Strength', type: 'number', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'staffSeen', label: 'Staff Seen', type: 'number', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'officeApproxArea', label: 'Office Approx Area (Sq. Feet)', type: 'number', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'designation',
+    label: 'Designation',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'businessPeriodValue',
+    label: 'Working Period',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'businessPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'applicantDesignation',
+    label: 'Applicant Designation',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'workingStatus',
+    label: 'Working Status',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'applicantWorkingPremises',
+    label: 'Applicant Working Premises',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'sittingLocation',
+    label: 'Sitting Location',
+    type: 'text',
+    conditional: legacyCondition(
+      'applicantWorkingPremises',
+      'equals',
+      'Different Location',
+    ),
+    requiredWhen: legacyCondition(
+      'applicantWorkingPremises',
+      'equals',
+      'Different Location',
+    ),
+  },
+  {
+    name: 'officeType',
+    label: 'Office Type',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'companyNatureOfBusiness',
+    label: 'Company Nature of Business',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'staffStrength',
+    label: 'Staff Strength',
+    type: 'number',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'staffSeen',
+    label: 'Staff Seen',
+    type: 'number',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'officeApproxArea',
+    label: 'Office Approx Area (Sq. Feet)',
+    type: 'number',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
   // --- Company plate + document ---
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
-  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS') },
-  { name: 'documentShown', label: 'Document Shown', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnBoard',
+    label: 'Name on Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
+  {
+    name: 'documentShown',
+    label: 'Document Shown',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc1', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc1',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc2', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc2',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   // --- Establishment + common ---
-  { name: 'establishmentPeriodValue', label: 'Establishment Period', type: 'select', required: true },
-  { name: 'establishmentPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
+  {
+    name: 'establishmentPeriodValue',
+    label: 'Establishment Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'establishmentPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyShiftedOfficeFields = withLegacyOfficeOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'currentCompanyName', label: 'Current Company Name', type: 'text', required: true },
-  { name: 'currentCompanyPeriodValue', label: 'Current Company Period', type: 'select', required: true },
-  { name: 'currentCompanyPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'oldOfficeShiftedPeriodValue', label: 'Old Office Shifted Period', type: 'select', required: true },
-  { name: 'oldOfficeShiftedPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'officeApproxArea', label: 'Office Approx Area (Sq. Feet)', type: 'number', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'designation',
+    label: 'Designation',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'currentCompanyName',
+    label: 'Current Company Name',
+    type: 'text',
+    required: true,
+  },
+  {
+    name: 'currentCompanyPeriodValue',
+    label: 'Current Company Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'currentCompanyPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'oldOfficeShiftedPeriodValue',
+    label: 'Old Office Shifted Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'oldOfficeShiftedPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeApproxArea',
+    label: 'Office Approx Area (Sq. Feet)',
+    type: 'number',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
   // --- Company plate ---
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
-  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnBoard',
+    label: 'Name on Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc1', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc1',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc2', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc2',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1029,33 +2759,145 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
 ]);
 
 const legacyNspOfficeFields = withLegacyOfficeOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
-  { name: 'officeExistence', label: 'Office Existence', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeExistence',
+    label: 'Office Existence',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'currentCompanyName', label: 'Current Company Name', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
+  {
+    name: 'currentCompanyName',
+    label: 'Current Company Name',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'designation',
+    label: 'Designation',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
   // --- Company plate ---
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
-  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnBoard',
+    label: 'Name on Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc1', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc1',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc2', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc2',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherObservation',
+    label: 'Other Observation',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1066,24 +2908,101 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
 ]);
 
 const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
-  { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
-  { name: 'metPersonConfirmation', label: 'Met Person Confirmation', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true, options: [{label:'Office Exist At',value:'Office Exist At'},{label:'Office Does Not Exist At',value:'Office Does Not Exist At'},{label:'Office Shifted From',value:'Office Shifted From'}] },
+  {
+    name: 'nameOfMetPerson',
+    label: 'Name of Met Person',
+    type: 'text',
+    required: true,
+  },
+  {
+    name: 'metPersonConfirmation',
+    label: 'Met Person Confirmation',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Office Exist At', value: 'Office Exist At' },
+      { label: 'Office Does Not Exist At', value: 'Office Does Not Exist At' },
+      { label: 'Office Shifted From', value: 'Office Shifted From' },
+    ],
+  },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'officeExistFloor', label: 'Office Exist Floor', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeExistFloor',
+    label: 'Office Exist Floor',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyUntraceableOfficeFields = withLegacyOfficeOrder([
@@ -1094,9 +3013,30 @@ const legacyUntraceableOfficeFields = withLegacyOfficeOrder([
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
   { name: 'landmark3', label: 'Landmark 3', type: 'text', required: true },
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherObservation',
+    label: 'Other Observation',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1110,12 +3050,17 @@ const normalizedOfficeOutcome = (rawOutcome: string): ResidenceOutcome => {
   const value = rawOutcome.trim().toUpperCase();
   if (value.includes('SHIFTED')) return 'SHIFTED';
   if (value.includes('NSP') || value.includes('PERSON NOT MET')) return 'NSP';
-  if (value.includes('ENTRY') || value.includes('RESTRICT')) return 'ENTRY_RESTRICTED';
-  if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND')) return 'UNTRACEABLE';
+  if (value.includes('ENTRY') || value.includes('RESTRICT'))
+    return 'ENTRY_RESTRICTED';
+  if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND'))
+    return 'UNTRACEABLE';
   return 'POSITIVE';
 };
 
-const legacyOfficeFieldsByOutcome: Record<ResidenceOutcome, FormFieldTemplate[]> = {
+const legacyOfficeFieldsByOutcome: Record<
+  ResidenceOutcome,
+  FormFieldTemplate[]
+> = {
   POSITIVE: legacyPositiveOfficeFields,
   SHIFTED: legacyShiftedOfficeFields,
   NSP: legacyNspOfficeFields,
@@ -1172,7 +3117,11 @@ const legacyBusinessSelectOptions: Record<string, string[]> = {
   ],
   businessExistence: ['Exist', 'Does Not Exist'],
   applicantExistence: ['Exist', 'Does Not Exist'],
-  officeStatusErtBusiness: ['Business Exist At', 'Business Does Not Exist At', 'Business Shifted From'],
+  officeStatusErtBusiness: [
+    'Business Exist At',
+    'Business Does Not Exist At',
+    'Business Shifted From',
+  ],
 };
 
 const legacyBusinessOptionAliases: Record<string, string> = {
@@ -1185,14 +3134,16 @@ const legacyBusinessOptionAliases: Record<string, string> = {
   metPerson: 'metPersonErt',
 };
 
-const withLegacyBusinessOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
+const withLegacyBusinessOrder = (
+  fields: ResidenceFieldInput[],
+): FormFieldTemplate[] =>
   fields.map((field, index) => {
     const optionKey = legacyBusinessOptionAliases[field.name] || field.name;
     const options = field.options
       ? field.options
       : field.type === 'select'
-        ? toSelectOptions(legacyBusinessSelectOptions[optionKey] || [])
-        : undefined;
+      ? toSelectOptions(legacyBusinessSelectOptions[optionKey] || [])
+      : undefined;
     return {
       ...field,
       id: field.id || field.name,
@@ -1202,84 +3153,402 @@ const withLegacyBusinessOrder = (fields: ResidenceFieldInput[]): FormFieldTempla
   });
 
 const legacyPositiveBusinessFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'businessType', label: 'Business Type', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'nameOfCompanyOwners', label: 'Name of Company Owners', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'ownershipType', label: 'Ownership Type', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'addressStatus', label: 'Address Status', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'companyNatureOfBusiness', label: 'Company Nature of Business', type: 'text', required: true },
-  { name: 'businessPeriodValue', label: 'Business Period', type: 'select', required: true },
-  { name: 'businessPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'officeApproxArea', label: 'Office Approx Area (Sq. Feet)', type: 'number', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'staffStrength', label: 'Staff Strength', type: 'number', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'staffSeen', label: 'Staff Seen', type: 'number', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'designation',
+    label: 'Designation',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'businessType',
+    label: 'Business Type',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'nameOfCompanyOwners',
+    label: 'Name of Company Owners',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'ownershipType',
+    label: 'Ownership Type',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'addressStatus',
+    label: 'Address Status',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'companyNatureOfBusiness',
+    label: 'Company Nature of Business',
+    type: 'text',
+    required: true,
+  },
+  {
+    name: 'businessPeriodValue',
+    label: 'Business Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'businessPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeApproxArea',
+    label: 'Office Approx Area (Sq. Feet)',
+    type: 'number',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'staffStrength',
+    label: 'Staff Strength',
+    type: 'number',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'staffSeen',
+    label: 'Staff Seen',
+    type: 'number',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
   // --- Company plate + document ---
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
-  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS') },
-  { name: 'documentShown', label: 'Document Shown', type: 'text', required: true },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnBoard',
+    label: 'Name on Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
+  {
+    name: 'documentShown',
+    label: 'Document Shown',
+    type: 'text',
+    required: true,
+  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc1', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc1',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc2', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc2',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyShiftedBusinessFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'designation',
+    label: 'Designation',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
   // --- Orange field (hidden when Vacant) ---
-  { name: 'premisesStatus', label: 'Premises Status', type: 'select', required: true },
-  { name: 'currentCompanyName', label: 'Current Company Name', type: 'text', conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'), requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant') },
-  { name: 'currentCompanyPeriodValue', label: 'Current Company Period', type: 'select', required: true },
-  { name: 'currentCompanyPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'oldOfficeShiftedPeriodValue', label: 'Old Office Shifted Period', type: 'select', required: true },
-  { name: 'oldOfficeShiftedPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'approxArea', label: 'Approx Area (Sq. Feet)', type: 'number', required: true },
+  {
+    name: 'premisesStatus',
+    label: 'Premises Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'currentCompanyName',
+    label: 'Current Company Name',
+    type: 'text',
+    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+  },
+  {
+    name: 'currentCompanyPeriodValue',
+    label: 'Current Company Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'currentCompanyPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'oldOfficeShiftedPeriodValue',
+    label: 'Old Office Shifted Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'oldOfficeShiftedPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'approxArea',
+    label: 'Approx Area (Sq. Feet)',
+    type: 'number',
+    required: true,
+  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc1', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc1',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc2', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc2',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
-  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnBoard',
+    label: 'Name on Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1290,56 +3559,242 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
 ]);
 
 const legacyNspBusinessFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
-  { name: 'businessExistance', label: 'Business Existence', type: 'select', required: true },
-  { name: 'applicantExistance', label: 'Applicant Existence', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'businessExistance',
+    label: 'Business Existence',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantExistance',
+    label: 'Applicant Existence',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'designation',
+    label: 'Designation',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
   // --- Orange field (hidden when Vacant) ---
-  { name: 'premisesStatus', label: 'Premises Status', type: 'select', required: true },
-  { name: 'currentCompanyName', label: 'Current Company Name', type: 'text', conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'), requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant') },
+  {
+    name: 'premisesStatus',
+    label: 'Premises Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'currentCompanyName',
+    label: 'Current Company Name',
+    type: 'text',
+    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+  },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
-  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnBoard',
+    label: 'Name on Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc1', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc1',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc2', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc2',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyEntryRestrictedBusinessFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
-  { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
-  { name: 'metPersonConfirmation', label: 'Met Person Confirmation', type: 'select', required: true },
-  { name: 'businessExistStatus', label: 'Business Exist Status', type: 'select', required: true },
+  {
+    name: 'nameOfMetPerson',
+    label: 'Name of Met Person',
+    type: 'text',
+    required: true,
+  },
+  {
+    name: 'metPersonConfirmation',
+    label: 'Met Person Confirmation',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'businessExistStatus',
+    label: 'Business Exist Status',
+    type: 'select',
+    required: true,
+  },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1357,9 +3812,30 @@ const legacyUntraceableBusinessFields = withLegacyBusinessOrder([
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
   { name: 'landmark3', label: 'Landmark 3', type: 'text', required: true },
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Extra Remark', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherObservation',
+    label: 'Other Extra Remark',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1373,12 +3849,17 @@ const normalizedBusinessOutcome = (rawOutcome: string): ResidenceOutcome => {
   const value = rawOutcome.trim().toUpperCase();
   if (value.includes('SHIFTED')) return 'SHIFTED';
   if (value.includes('NSP') || value.includes('PERSON NOT MET')) return 'NSP';
-  if (value === 'ERT' || value.includes('ENTRY') || value.includes('RESTRICT')) return 'ENTRY_RESTRICTED';
-  if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND')) return 'UNTRACEABLE';
+  if (value === 'ERT' || value.includes('ENTRY') || value.includes('RESTRICT'))
+    return 'ENTRY_RESTRICTED';
+  if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND'))
+    return 'UNTRACEABLE';
   return 'POSITIVE';
 };
 
-const legacyBusinessFieldsByOutcome: Record<ResidenceOutcome, FormFieldTemplate[]> = {
+const legacyBusinessFieldsByOutcome: Record<
+  ResidenceOutcome,
+  FormFieldTemplate[]
+> = {
   POSITIVE: legacyPositiveBusinessFields,
   SHIFTED: legacyShiftedBusinessFields,
   NSP: legacyNspBusinessFields,
@@ -1417,139 +3898,654 @@ const buildLegacyBusinessTemplate = (
 };
 
 const legacyPositiveBuilderFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'businessType', label: 'Business Type', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'nameOfCompanyOwners', label: 'Name of Company Owners', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'ownershipType', label: 'Ownership Type', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'addressStatus', label: 'Address Status', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'companyNatureOfBusiness', label: 'Company Nature of Business', type: 'text', required: true },
-  { name: 'businessPeriodValue', label: 'Business Period', type: 'select', required: true },
-  { name: 'businessPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'officeApproxArea', label: 'Office Approx Area (Sq. Feet)', type: 'number', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'staffStrength', label: 'Staff Strength', type: 'number', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'staffSeen', label: 'Staff Seen', type: 'number', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'designation',
+    label: 'Designation',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'businessType',
+    label: 'Business Type',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'nameOfCompanyOwners',
+    label: 'Name of Company Owners',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'ownershipType',
+    label: 'Ownership Type',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'addressStatus',
+    label: 'Address Status',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'companyNatureOfBusiness',
+    label: 'Company Nature of Business',
+    type: 'text',
+    required: true,
+  },
+  {
+    name: 'businessPeriodValue',
+    label: 'Business Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'businessPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeApproxArea',
+    label: 'Office Approx Area (Sq. Feet)',
+    type: 'number',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'staffStrength',
+    label: 'Staff Strength',
+    type: 'number',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'staffSeen',
+    label: 'Staff Seen',
+    type: 'number',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
   // --- Company plate + document ---
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
-  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS') },
-  { name: 'documentShown', label: 'Document Shown', type: 'text', required: true },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnBoard',
+    label: 'Name on Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
+  {
+    name: 'documentShown',
+    label: 'Document Shown',
+    type: 'text',
+    required: true,
+  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc1', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc1',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc2', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc2',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyShiftedBuilderFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'designation',
+    label: 'Designation',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
   // --- Orange field (hidden when Vacant) ---
-  { name: 'premisesStatus', label: 'Premises Status', type: 'select', required: true },
-  { name: 'currentCompanyName', label: 'Current Company Name', type: 'text', conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'), requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant') },
-  { name: 'currentCompanyPeriodValue', label: 'Current Company Period', type: 'select', required: true },
-  { name: 'currentCompanyPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'oldOfficeShiftedPeriodValue', label: 'Old Office Shifted Period', type: 'select', required: true },
-  { name: 'oldOfficeShiftedPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'approxArea', label: 'Approx Area (Sq. Feet)', type: 'number', required: true },
+  {
+    name: 'premisesStatus',
+    label: 'Premises Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'currentCompanyName',
+    label: 'Current Company Name',
+    type: 'text',
+    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+  },
+  {
+    name: 'currentCompanyPeriodValue',
+    label: 'Current Company Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'currentCompanyPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'oldOfficeShiftedPeriodValue',
+    label: 'Old Office Shifted Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'oldOfficeShiftedPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'approxArea',
+    label: 'Approx Area (Sq. Feet)',
+    type: 'number',
+    required: true,
+  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc1', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc1',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc2', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc2',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
-  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnBoard',
+    label: 'Name on Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyNspBuilderFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
-  { name: 'businessExistance', label: 'Business Existence', type: 'select', required: true },
-  { name: 'applicantExistance', label: 'Applicant Existence', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'businessExistance',
+    label: 'Business Existence',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantExistance',
+    label: 'Applicant Existence',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'designation',
+    label: 'Designation',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
   // --- Orange field (hidden when Vacant) ---
-  { name: 'premisesStatus', label: 'Premises Status', type: 'select', required: true },
-  { name: 'currentCompanyName', label: 'Current Company Name', type: 'text', conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'), requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant') },
+  {
+    name: 'premisesStatus',
+    label: 'Premises Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'currentCompanyName',
+    label: 'Current Company Name',
+    type: 'text',
+    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+  },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
-  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnBoard',
+    label: 'Name on Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc1', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc1',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc2', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc2',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyEntryRestrictedBuilderFields = withLegacyBusinessOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
-  { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
-  { name: 'metPersonConfirmation', label: 'Met Person Confirmation', type: 'select', required: true },
-  { name: 'businessExistStatus', label: 'Business Exist Status', type: 'select', required: true },
+  {
+    name: 'nameOfMetPerson',
+    label: 'Name of Met Person',
+    type: 'text',
+    required: true,
+  },
+  {
+    name: 'metPersonConfirmation',
+    label: 'Met Person Confirmation',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'businessExistStatus',
+    label: 'Business Exist Status',
+    type: 'select',
+    required: true,
+  },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyUntraceableBuilderFields = withLegacyBusinessOrder([
@@ -1560,9 +4556,30 @@ const legacyUntraceableBuilderFields = withLegacyBusinessOrder([
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
   { name: 'landmark3', label: 'Landmark 3', type: 'text', required: true },
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'otherExtraRemark', label: 'Other Extra Remark', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherExtraRemark',
+    label: 'Other Extra Remark',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1575,7 +4592,10 @@ const legacyUntraceableBuilderFields = withLegacyBusinessOrder([
 const normalizedBuilderOutcome = (rawOutcome: string): ResidenceOutcome =>
   normalizedBusinessOutcome(rawOutcome);
 
-const legacyBuilderFieldsByOutcome: Record<ResidenceOutcome, FormFieldTemplate[]> = {
+const legacyBuilderFieldsByOutcome: Record<
+  ResidenceOutcome,
+  FormFieldTemplate[]
+> = {
   POSITIVE: legacyPositiveBuilderFields,
   SHIFTED: legacyShiftedBuilderFields,
   NSP: legacyNspBuilderFields,
@@ -1616,7 +4636,17 @@ const buildLegacyBuilderTemplate = (
 const legacyNocSelectOptions: Record<string, string[]> = {
   ...COMMON_SELECT_OPTIONS,
   officeStatus: ['Open', 'Closed', 'Shifted'],
-  designationNoc: ['Chairman', 'Secretary', 'Treasurer', 'Society Manager', 'Proprietor', 'Partner', 'Director', 'Tenant', 'Other'],
+  designationNoc: [
+    'Chairman',
+    'Secretary',
+    'Treasurer',
+    'Society Manager',
+    'Proprietor',
+    'Partner',
+    'Director',
+    'Tenant',
+    'Other',
+  ],
   designationShiftedOffice: [
     'Applicant Self',
     'Reception',
@@ -1633,7 +4663,11 @@ const legacyNocSelectOptions: Record<string, string[]> = {
   ],
   businessExistence: ['Exist', 'Does Not Exist'],
   applicantExistence: ['Exist', 'Does Not Exist'],
-  officeStatusErtNoc: ['Office Exist At', 'Office Does Not Exist At', 'Office Shifted From'],
+  officeStatusErtNoc: [
+    'Office Exist At',
+    'Office Does Not Exist At',
+    'Office Shifted From',
+  ],
 };
 
 const legacyNocOptionAliases: Record<string, string> = {
@@ -1646,14 +4680,16 @@ const legacyNocOptionAliases: Record<string, string> = {
   tpcConfirmation2: 'tpcConfirmation',
 };
 
-const withLegacyNocOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
+const withLegacyNocOrder = (
+  fields: ResidenceFieldInput[],
+): FormFieldTemplate[] =>
   fields.map((field, index) => {
     const optionKey = legacyNocOptionAliases[field.name] || field.name;
     const options = field.options
       ? field.options
       : field.type === 'select'
-        ? toSelectOptions(legacyNocSelectOptions[optionKey] || [])
-        : undefined;
+      ? toSelectOptions(legacyNocSelectOptions[optionKey] || [])
+      : undefined;
     return {
       ...field,
       id: field.id || field.name,
@@ -1663,11 +4699,32 @@ const withLegacyNocOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] 
   });
 
 const legacyPositiveNocFields = withLegacyNocOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
   {
     name: 'designation',
     label: 'Designation',
@@ -1698,15 +4755,55 @@ const legacyPositiveNocFields = withLegacyNocOrder([
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
-  { name: 'otherExtraRemark', label: 'Other Extra Remark', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherExtraRemark',
+    label: 'Other Extra Remark',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1717,40 +4814,177 @@ const legacyPositiveNocFields = withLegacyNocOrder([
 ]);
 
 const legacyShiftedNocFields = withLegacyNocOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'designation', label: 'Designation', type: 'select', options: toSelectOptions(legacyNocSelectOptions.designationNoc), conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'currentCompanyName', label: 'Current Company Name', type: 'text', required: true },
-  { name: 'currentCompanyPeriodValue', label: 'Current Company Period', type: 'select', required: true },
-  { name: 'currentCompanyPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'oldOfficeShiftedPeriodValue', label: 'Old Office Shifted Period', type: 'select', required: true },
-  { name: 'oldOfficeShiftedPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'officeApproxArea', label: 'Office Approx Area (Sq. Feet)', type: 'number', required: true },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'designation',
+    label: 'Designation',
+    type: 'select',
+    options: toSelectOptions(legacyNocSelectOptions.designationNoc),
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'currentCompanyName',
+    label: 'Current Company Name',
+    type: 'text',
+    required: true,
+  },
+  {
+    name: 'currentCompanyPeriodValue',
+    label: 'Current Company Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'currentCompanyPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'oldOfficeShiftedPeriodValue',
+    label: 'Old Office Shifted Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'oldOfficeShiftedPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeApproxArea',
+    label: 'Office Approx Area (Sq. Feet)',
+    type: 'number',
+    required: true,
+  },
   // --- Company plate ---
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
-  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnBoard',
+    label: 'Name on Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc1', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc1',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc2', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc2',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1761,57 +4995,253 @@ const legacyShiftedNocFields = withLegacyNocOrder([
 ]);
 
 const legacyNspNocFields = withLegacyNocOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
-  { name: 'businessExistance', label: 'Business Existence', type: 'select', required: true },
-  { name: 'applicantExistance', label: 'Applicant Existence', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'businessExistance',
+    label: 'Business Existence',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantExistance',
+    label: 'Applicant Existence',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'designation',
+    label: 'Designation',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
   // --- Orange field (hidden when Vacant) ---
-  { name: 'premisesStatus', label: 'Premises Status', type: 'select', required: true },
-  { name: 'currentCompanyName', label: 'Current Company Name', type: 'text', conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'), requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant') },
+  {
+    name: 'premisesStatus',
+    label: 'Premises Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'currentCompanyName',
+    label: 'Current Company Name',
+    type: 'text',
+    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+  },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
-  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnBoard',
+    label: 'Name on Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc1', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc1',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc2', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc2',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyEntryRestrictedNocFields = withLegacyNocOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
-  { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
-  { name: 'metPersonConfirmation', label: 'Met Person Confirmation', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true, options: [{label:'Office Exist At',value:'Office Exist At'},{label:'Office Does Not Exist At',value:'Office Does Not Exist At'},{label:'Office Shifted From',value:'Office Shifted From'}] },
+  {
+    name: 'nameOfMetPerson',
+    label: 'Name of Met Person',
+    type: 'text',
+    required: true,
+  },
+  {
+    name: 'metPersonConfirmation',
+    label: 'Met Person Confirmation',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Office Exist At', value: 'Office Exist At' },
+      { label: 'Office Does Not Exist At', value: 'Office Does Not Exist At' },
+      { label: 'Office Shifted From', value: 'Office Shifted From' },
+    ],
+  },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1829,9 +5259,30 @@ const legacyUntraceableNocFields = withLegacyNocOrder([
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
   { name: 'landmark3', label: 'Landmark 3', type: 'text', required: true },
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'otherExtraRemark', label: 'Other Extra Remark', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherExtraRemark',
+    label: 'Other Extra Remark',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1844,13 +5295,14 @@ const legacyUntraceableNocFields = withLegacyNocOrder([
 const normalizedNocOutcome = (rawOutcome: string): ResidenceOutcome =>
   normalizedBusinessOutcome(rawOutcome);
 
-const legacyNocFieldsByOutcome: Record<ResidenceOutcome, FormFieldTemplate[]> = {
-  POSITIVE: legacyPositiveNocFields,
-  SHIFTED: legacyShiftedNocFields,
-  NSP: legacyNspNocFields,
-  ENTRY_RESTRICTED: legacyEntryRestrictedNocFields,
-  UNTRACEABLE: legacyUntraceableNocFields,
-};
+const legacyNocFieldsByOutcome: Record<ResidenceOutcome, FormFieldTemplate[]> =
+  {
+    POSITIVE: legacyPositiveNocFields,
+    SHIFTED: legacyShiftedNocFields,
+    NSP: legacyNspNocFields,
+    ENTRY_RESTRICTED: legacyEntryRestrictedNocFields,
+    UNTRACEABLE: legacyUntraceableNocFields,
+  };
 
 const buildLegacyNocTemplate = (
   verificationType: string,
@@ -1901,7 +5353,11 @@ const legacyDsaSelectOptions: Record<string, string[]> = {
   ],
   businessExistence: ['Exist', 'Does Not Exist'],
   applicantExistence: ['Exist', 'Does Not Exist'],
-  officeStatusErtDsa: ['Business Exist At', 'Business Does Not Exist At', 'Business Shifted From'],
+  officeStatusErtDsa: [
+    'Business Exist At',
+    'Business Does Not Exist At',
+    'Business Shifted From',
+  ],
 };
 
 const legacyDsaOptionAliases: Record<string, string> = {
@@ -1914,14 +5370,16 @@ const legacyDsaOptionAliases: Record<string, string> = {
   metPerson: 'metPersonErt',
 };
 
-const withLegacyDsaOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
+const withLegacyDsaOrder = (
+  fields: ResidenceFieldInput[],
+): FormFieldTemplate[] =>
   fields.map((field, index) => {
     const optionKey = legacyDsaOptionAliases[field.name] || field.name;
     const options = field.options
       ? field.options
       : field.type === 'select'
-        ? toSelectOptions(legacyDsaSelectOptions[optionKey] || [])
-        : undefined;
+      ? toSelectOptions(legacyDsaSelectOptions[optionKey] || [])
+      : undefined;
     return {
       ...field,
       id: field.id || field.name,
@@ -1931,45 +5389,214 @@ const withLegacyDsaOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] 
   });
 
 const legacyPositiveDsaFields = withLegacyDsaOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'businessType', label: 'Business Type', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'ownershipType', label: 'Ownership Type', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'nameOfCompanyOwners', label: 'Name of Company Owners', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'addressStatus', label: 'Address Status', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'companyNatureOfBusiness', label: 'Company Nature of Business', type: 'text', required: true },
-  { name: 'businessPeriodValue', label: 'Business Period', type: 'select', required: true },
-  { name: 'businessPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'officeApproxArea', label: 'Office Approx Area (Sq. Feet)', type: 'number', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'staffStrength', label: 'Staff Strength', type: 'number', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'staffSeen', label: 'Staff Seen', type: 'number', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'activeClient', label: 'Active Client', type: 'text', required: true },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'designation',
+    label: 'Designation',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'businessType',
+    label: 'Business Type',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'ownershipType',
+    label: 'Ownership Type',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'nameOfCompanyOwners',
+    label: 'Name of Company Owners',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'addressStatus',
+    label: 'Address Status',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'companyNatureOfBusiness',
+    label: 'Company Nature of Business',
+    type: 'text',
+    required: true,
+  },
+  {
+    name: 'businessPeriodValue',
+    label: 'Business Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'businessPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeApproxArea',
+    label: 'Office Approx Area (Sq. Feet)',
+    type: 'number',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'staffStrength',
+    label: 'Staff Strength',
+    type: 'number',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'staffSeen',
+    label: 'Staff Seen',
+    type: 'number',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'activeClient',
+    label: 'Active Client',
+    type: 'text',
+    required: true,
+  },
   // --- Company plate ---
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
-  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnBoard',
+    label: 'Name on Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc1', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc1',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc2', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc2',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -1980,97 +5607,443 @@ const legacyPositiveDsaFields = withLegacyDsaOrder([
 ]);
 
 const legacyShiftedDsaFields = withLegacyDsaOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'designation',
+    label: 'Designation',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
   // --- Orange field (hidden when Vacant) ---
-  { name: 'premisesStatus', label: 'Premises Status', type: 'select', required: true },
-  { name: 'currentCompanyName', label: 'Current Company Name', type: 'text', conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'), requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant') },
-  { name: 'currentCompanyPeriodValue', label: 'Current Company Period', type: 'select', required: true },
-  { name: 'currentCompanyPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'oldOfficeShiftedPeriodValue', label: 'Old Office Shifted Period', type: 'select', required: true },
-  { name: 'oldOfficeShiftedPeriodUnit', label: 'Period Unit (Month/Year)', type: 'select', required: true },
-  { name: 'approxArea', label: 'Approx Area (Sq. Feet)', type: 'number', required: true },
+  {
+    name: 'premisesStatus',
+    label: 'Premises Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'currentCompanyName',
+    label: 'Current Company Name',
+    type: 'text',
+    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+  },
+  {
+    name: 'currentCompanyPeriodValue',
+    label: 'Current Company Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'currentCompanyPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'oldOfficeShiftedPeriodValue',
+    label: 'Old Office Shifted Period',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'oldOfficeShiftedPeriodUnit',
+    label: 'Period Unit (Month/Year)',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'approxArea',
+    label: 'Approx Area (Sq. Feet)',
+    type: 'number',
+    required: true,
+  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc1', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc1',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc2', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc2',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
-  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnBoard',
+    label: 'Name on Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyNspDsaFields = withLegacyDsaOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'officeStatus', label: 'Office Status', type: 'select', required: true },
-  { name: 'businessExistance', label: 'Business Existence', type: 'select', required: true },
-  { name: 'applicantExistance', label: 'Applicant Existence', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'officeStatus',
+    label: 'Office Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'businessExistance',
+    label: 'Business Existence',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantExistance',
+    label: 'Applicant Existence',
+    type: 'select',
+    required: true,
+  },
   // --- Yellow fields (hidden when Closed) ---
-  { name: 'metPerson', label: 'Met Person', type: 'text', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
-  { name: 'designation', label: 'Designation', type: 'select', conditional: legacyCondition('officeStatus', 'equals', 'Open'), requiredWhen: legacyCondition('officeStatus', 'equals', 'Open') },
+  {
+    name: 'metPerson',
+    label: 'Met Person',
+    type: 'text',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
+  {
+    name: 'designation',
+    label: 'Designation',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+  },
   // --- Orange field (hidden when Vacant) ---
-  { name: 'premisesStatus', label: 'Premises Status', type: 'select', required: true },
-  { name: 'currentCompanyName', label: 'Current Company Name', type: 'text', conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'), requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant') },
+  {
+    name: 'premisesStatus',
+    label: 'Premises Status',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'currentCompanyName',
+    label: 'Current Company Name',
+    type: 'text',
+    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+  },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
-  { name: 'companyNamePlateStatus', label: 'Company Name Plate', type: 'select', required: true },
-  { name: 'nameOnBoard', label: 'Name on Board', type: 'text', conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS'), requiredWhen: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED AS') },
+  {
+    name: 'companyNamePlateStatus',
+    label: 'Company Name Plate',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'nameOnBoard',
+    label: 'Name on Board',
+    type: 'text',
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc1', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc1',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
+  },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
-  { name: 'nameOfTpc2', label: 'Name of TPC', type: 'text', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
-  { name: 'tpcConfirmation2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]), requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]) },
+  {
+    name: 'nameOfTpc2',
+    label: 'Name of TPC',
+    type: 'text',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+    requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
   { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
-  { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
-  { name: 'metPersonConfirmation', label: 'Met Person Confirmation', type: 'select', required: true },
-  { name: 'businessExistStatus', label: 'Business Exist Status', type: 'select', required: true },
+  {
+    name: 'nameOfMetPerson',
+    label: 'Name of Met Person',
+    type: 'text',
+    required: true,
+  },
+  {
+    name: 'metPersonConfirmation',
+    label: 'Met Person Confirmation',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'businessExistStatus',
+    label: 'Business Exist Status',
+    type: 'select',
+    required: true,
+  },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
+  {
+    name: 'holdReason',
+    label: 'Reason for Hold',
+    type: 'text',
+    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+  },
 ]);
 
 const legacyUntraceableDsaFields = withLegacyDsaOrder([
@@ -2081,9 +6054,30 @@ const legacyUntraceableDsaFields = withLegacyDsaOrder([
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
   { name: 'landmark3', label: 'Landmark 3', type: 'text', required: true },
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'otherExtraRemark', label: 'Other Extra Remark', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherExtraRemark',
+    label: 'Other Extra Remark',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2096,13 +6090,14 @@ const legacyUntraceableDsaFields = withLegacyDsaOrder([
 const normalizedDsaOutcome = (rawOutcome: string): ResidenceOutcome =>
   normalizedBusinessOutcome(rawOutcome);
 
-const legacyDsaFieldsByOutcome: Record<ResidenceOutcome, FormFieldTemplate[]> = {
-  POSITIVE: legacyPositiveDsaFields,
-  SHIFTED: legacyShiftedDsaFields,
-  NSP: legacyNspDsaFields,
-  ENTRY_RESTRICTED: legacyEntryRestrictedDsaFields,
-  UNTRACEABLE: legacyUntraceableDsaFields,
-};
+const legacyDsaFieldsByOutcome: Record<ResidenceOutcome, FormFieldTemplate[]> =
+  {
+    POSITIVE: legacyPositiveDsaFields,
+    SHIFTED: legacyShiftedDsaFields,
+    NSP: legacyNspDsaFields,
+    ENTRY_RESTRICTED: legacyEntryRestrictedDsaFields,
+    UNTRACEABLE: legacyUntraceableDsaFields,
+  };
 
 const buildLegacyDsaTemplate = (
   verificationType: string,
@@ -2116,7 +6111,9 @@ const buildLegacyDsaTemplate = (
     formType: verificationType,
     verificationType,
     outcome: normalizedOutcome,
-    name: `DSA DST & Connector Verification - ${normalizedOutcome.split('_').join(' ')}`,
+    name: `DSA DST & Connector Verification - ${normalizedOutcome
+      .split('_')
+      .join(' ')}`,
     description: 'Loaded from native legacy DSA/DST/Connector form definition',
     sections: [
       {
@@ -2154,14 +6151,16 @@ const legacyPropertyApfOptionAliases: Record<string, string> = {
   metPerson: 'metPersonErt',
 };
 
-const withLegacyPropertyApfOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
+const withLegacyPropertyApfOrder = (
+  fields: ResidenceFieldInput[],
+): FormFieldTemplate[] =>
   fields.map((field, index) => {
     const optionKey = legacyPropertyApfOptionAliases[field.name] || field.name;
     const options = field.options
       ? field.options
       : field.type === 'select'
-        ? toSelectOptions(legacyPropertyApfSelectOptions[optionKey] || [])
-        : undefined;
+      ? toSelectOptions(legacyPropertyApfSelectOptions[optionKey] || [])
+      : undefined;
     return {
       ...field,
       id: field.id || field.name,
@@ -2171,9 +6170,24 @@ const withLegacyPropertyApfOrder = (fields: ResidenceFieldInput[]): FormFieldTem
   });
 
 const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'constructionActivity', label: 'Construction Activity', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'constructionActivity',
+    label: 'Construction Activity',
+    type: 'select',
+    required: true,
+  },
   // --- SEEN-only fields (yellow) ---
   {
     name: 'metPerson',
@@ -2194,73 +6208,184 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
     name: 'buildingStatus',
     label: 'Building Status',
     type: 'select',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
-    requiredWhen: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
+    conditional: legacyCondition(
+      'constructionActivity',
+      'equals',
+      'CONSTRUCTION IS STOP',
+    ),
+    requiredWhen: legacyCondition(
+      'constructionActivity',
+      'equals',
+      'CONSTRUCTION IS STOP',
+    ),
   },
   {
     name: 'activityStopReason',
     label: 'Activity Stop Reason',
     type: 'text',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
-    requiredWhen: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
+    conditional: legacyCondition(
+      'constructionActivity',
+      'equals',
+      'CONSTRUCTION IS STOP',
+    ),
+    requiredWhen: legacyCondition(
+      'constructionActivity',
+      'equals',
+      'CONSTRUCTION IS STOP',
+    ),
   },
   {
     name: 'projectName',
     label: 'Project Name',
     type: 'text',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
+    conditional: legacyCondition(
+      'constructionActivity',
+      'equals',
+      'CONSTRUCTION IS STOP',
+    ),
   },
   {
     name: 'projectStartedDate',
     label: 'Project Started Date',
     type: 'date',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
+    conditional: legacyCondition(
+      'constructionActivity',
+      'equals',
+      'CONSTRUCTION IS STOP',
+    ),
   },
   {
     name: 'projectCompletionDate',
     label: 'Project Completion Date',
     type: 'date',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
+    conditional: legacyCondition(
+      'constructionActivity',
+      'equals',
+      'CONSTRUCTION IS STOP',
+    ),
   },
   {
     name: 'totalWing',
     label: 'Total Wing',
     type: 'text',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
+    conditional: legacyCondition(
+      'constructionActivity',
+      'equals',
+      'CONSTRUCTION IS STOP',
+    ),
   },
   {
     name: 'totalFlats',
     label: 'Total Flats',
     type: 'text',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
+    conditional: legacyCondition(
+      'constructionActivity',
+      'equals',
+      'CONSTRUCTION IS STOP',
+    ),
   },
   {
     name: 'projectCompletionPercent',
     label: 'Project Completion %',
     type: 'number',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
+    conditional: legacyCondition(
+      'constructionActivity',
+      'equals',
+      'CONSTRUCTION IS STOP',
+    ),
   },
   {
     name: 'staffStrength',
     label: 'Staff Strength',
     type: 'number',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
+    conditional: legacyCondition(
+      'constructionActivity',
+      'equals',
+      'CONSTRUCTION IS STOP',
+    ),
   },
   {
     name: 'staffSeen',
     label: 'Staff Seen',
     type: 'number',
-    conditional: legacyCondition('constructionActivity', 'equals', 'CONSTRUCTION IS STOP'),
+    conditional: legacyCondition(
+      'constructionActivity',
+      'equals',
+      'CONSTRUCTION IS STOP',
+    ),
   },
   // --- Common fields (shown for SEEN and STOP, hidden for VACANT) ---
-  { name: 'tpcMetPerson1', label: 'Third Party Confirmation 1', type: 'select', conditional: legacyCondition('constructionActivity', 'notEquals', 'PLOT IS VACANT') },
-  { name: 'nameOfTpc1', label: 'TPC Met Person 1', type: 'text', conditional: legacyCondition('constructionActivity', 'notEquals', 'PLOT IS VACANT') },
-  { name: 'tpcConfirmation1', label: 'TPC Confirmation 1', type: 'select', conditional: legacyCondition('constructionActivity', 'notEquals', 'PLOT IS VACANT') },
-  { name: 'tpcMetPerson2', label: 'Third Party Confirmation 2', type: 'select', conditional: legacyCondition('constructionActivity', 'notEquals', 'PLOT IS VACANT') },
-  { name: 'nameOfTpc2', label: 'TPC Met Person 2', type: 'text', conditional: legacyCondition('constructionActivity', 'notEquals', 'PLOT IS VACANT') },
-  { name: 'tpcConfirmation2', label: 'TPC Confirmation 2', type: 'select', conditional: legacyCondition('constructionActivity', 'notEquals', 'PLOT IS VACANT') },
+  {
+    name: 'tpcMetPerson1',
+    label: 'Third Party Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition(
+      'constructionActivity',
+      'notEquals',
+      'PLOT IS VACANT',
+    ),
+  },
+  {
+    name: 'nameOfTpc1',
+    label: 'TPC Met Person 1',
+    type: 'text',
+    conditional: legacyCondition(
+      'constructionActivity',
+      'notEquals',
+      'PLOT IS VACANT',
+    ),
+  },
+  {
+    name: 'tpcConfirmation1',
+    label: 'TPC Confirmation 1',
+    type: 'select',
+    conditional: legacyCondition(
+      'constructionActivity',
+      'notEquals',
+      'PLOT IS VACANT',
+    ),
+  },
+  {
+    name: 'tpcMetPerson2',
+    label: 'Third Party Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition(
+      'constructionActivity',
+      'notEquals',
+      'PLOT IS VACANT',
+    ),
+  },
+  {
+    name: 'nameOfTpc2',
+    label: 'TPC Met Person 2',
+    type: 'text',
+    conditional: legacyCondition(
+      'constructionActivity',
+      'notEquals',
+      'PLOT IS VACANT',
+    ),
+  },
+  {
+    name: 'tpcConfirmation2',
+    label: 'TPC Confirmation 2',
+    type: 'select',
+    conditional: legacyCondition(
+      'constructionActivity',
+      'notEquals',
+      'PLOT IS VACANT',
+    ),
+  },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'companyNameBoard', label: 'Company Name Board', type: 'select', conditional: legacyCondition('constructionActivity', 'notEquals', 'PLOT IS VACANT') },
+  {
+    name: 'companyNameBoard',
+    label: 'Company Name Board',
+    type: 'select',
+    conditional: legacyCondition(
+      'constructionActivity',
+      'notEquals',
+      'PLOT IS VACANT',
+    ),
+  },
   {
     name: 'nameOnBoard',
     label: 'Name on Board',
@@ -2270,11 +6395,36 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text' },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2285,8 +6435,18 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
 ]);
 
 const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'buildingStatus',
     label: 'Building Status',
@@ -2300,7 +6460,12 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
     options: toSelectOptions(legacyPropertyApfSelectOptions.metPersonErt),
     required: true,
   },
-  { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
+  {
+    name: 'nameOfMetPerson',
+    label: 'Name of Met Person',
+    type: 'text',
+    required: true,
+  },
   {
     name: 'metPersonConfirmation',
     label: 'Met Person Confirmation',
@@ -2313,21 +6478,61 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
   { name: 'tpcMetPerson2', label: 'TPC Met Person 2', type: 'select' },
   { name: 'nameOfTpc2', label: 'TPC Name 2', type: 'text' },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'societyNamePlateStatus', label: 'Company Name Board', type: 'select', required: true },
+  {
+    name: 'societyNamePlateStatus',
+    label: 'Company Name Board',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOnSocietyBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'),
-    requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text' },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
+  {
+    name: 'politicalConnection',
+    label: 'Political Connection',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'feedbackFromNeighbour',
+    label: 'Feedback from Neighbour',
+    type: 'select',
+    required: true,
+  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2345,9 +6550,30 @@ const legacyUntraceablePropertyApfFields = withLegacyPropertyApfOrder([
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
   { name: 'landmark3', label: 'Landmark 3', type: 'text', required: true },
   { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherObservation',
+    label: 'Other Observation',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2357,14 +6583,21 @@ const legacyUntraceablePropertyApfFields = withLegacyPropertyApfOrder([
   },
 ]);
 
-const normalizedPropertyApfOutcome = (rawOutcome: string): PropertyApfOutcome => {
+const normalizedPropertyApfOutcome = (
+  rawOutcome: string,
+): PropertyApfOutcome => {
   const value = rawOutcome.trim().toUpperCase();
-  if (value.includes('ENTRY') || value.includes('RESTRICT')) return 'ENTRY_RESTRICTED';
-  if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND')) return 'UNTRACEABLE';
+  if (value.includes('ENTRY') || value.includes('RESTRICT'))
+    return 'ENTRY_RESTRICTED';
+  if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND'))
+    return 'UNTRACEABLE';
   return 'POSITIVE';
 };
 
-const legacyPropertyApfFieldsByOutcome: Record<PropertyApfOutcome, FormFieldTemplate[]> = {
+const legacyPropertyApfFieldsByOutcome: Record<
+  PropertyApfOutcome,
+  FormFieldTemplate[]
+> = {
   POSITIVE: legacyPositivePropertyApfFields,
   ENTRY_RESTRICTED: legacyEntryRestrictedPropertyApfFields,
   UNTRACEABLE: legacyUntraceablePropertyApfFields,
@@ -2382,7 +6615,9 @@ const buildLegacyPropertyApfTemplate = (
     formType: verificationType,
     verificationType,
     outcome: normalizedOutcome,
-    name: `Property APF Verification - ${normalizedOutcome.split('_').join(' ')}`,
+    name: `Property APF Verification - ${normalizedOutcome
+      .split('_')
+      .join(' ')}`,
     description: 'Loaded from native legacy Property APF form definition',
     sections: [
       {
@@ -2421,14 +6656,17 @@ const legacyPropertyIndividualOptionAliases: Record<string, string> = {
   metPerson: 'metPersonErt',
 };
 
-const withLegacyPropertyIndividualOrder = (fields: ResidenceFieldInput[]): FormFieldTemplate[] =>
+const withLegacyPropertyIndividualOrder = (
+  fields: ResidenceFieldInput[],
+): FormFieldTemplate[] =>
   fields.map((field, index) => {
-    const optionKey = legacyPropertyIndividualOptionAliases[field.name] || field.name;
+    const optionKey =
+      legacyPropertyIndividualOptionAliases[field.name] || field.name;
     const options = field.options
       ? field.options
       : field.type === 'select'
-        ? toSelectOptions(legacyPropertyIndividualSelectOptions[optionKey] || [])
-        : undefined;
+      ? toSelectOptions(legacyPropertyIndividualSelectOptions[optionKey] || [])
+      : undefined;
     return {
       ...field,
       id: field.id || field.name,
@@ -2437,86 +6675,223 @@ const withLegacyPropertyIndividualOrder = (fields: ResidenceFieldInput[]): FormF
     };
   });
 
-const legacyPositivePropertyIndividualFields = withLegacyPropertyIndividualOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'buildingStatus', label: 'Building Status', type: 'select', required: true },
-  { name: 'flatStatus', label: 'Flat Status', type: 'select', required: true },
-  {
-    name: 'metPerson',
-    label: 'Met Person',
-    type: 'text',
-    conditional: legacyCondition('flatStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
-  },
-  {
-    name: 'relationship',
-    label: 'Relationship',
-    type: 'select',
-    conditional: legacyCondition('flatStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
-  },
-  {
-    name: 'propertyOwnerName',
-    label: 'Property Owner Name',
-    type: 'text',
-    conditional: legacyCondition('flatStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
-  },
-  {
-    name: 'approxArea',
-    label: 'Approx Area (Sq. Feet)',
-    type: 'number',
-    conditional: legacyCondition('flatStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
-  },
-  { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select', required: true },
-  { name: 'nameOfTpc1', label: 'Name of TPC 1', type: 'text', required: true },
-  { name: 'tpcConfirmation1', label: 'TPC Confirmation 1', type: 'select', required: true },
-  { name: 'tpcMetPerson2', label: 'TPC Met Person 2', type: 'select', required: true },
-  { name: 'nameOfTpc2', label: 'Name of TPC 2', type: 'text', required: true },
-  { name: 'tpcConfirmation2', label: 'TPC Confirmation 2', type: 'select', required: true },
-  { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressExistAt', label: 'Address Exist At', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
-  { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate', type: 'select', required: true },
-  {
-    name: 'nameOnDoorPlate',
-    label: 'Name on Door Plate',
-    type: 'text',
-    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
-    requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
-  },
-  { name: 'societyNamePlateStatus', label: 'Society Name Plate', type: 'select', required: true },
-  {
-    name: 'nameOnSocietyBoard',
-    label: 'Name on Society Board',
-    type: 'text',
-    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'),
-    requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'),
-  },
-  { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
-  { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'politicalConnection', label: 'Political Connection', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'feedbackFromNeighbour', label: 'Feedback from Neighbour', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Positive',value:'Positive'},{label:'Refer',value:'Refer'},{label:'Hold',value:'Hold'}] },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
-  },
-]);
+const legacyPositivePropertyIndividualFields =
+  withLegacyPropertyIndividualOrder([
+    {
+      name: 'addressLocatable',
+      label: 'Address Locatable',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'addressRating',
+      label: 'Address Rating',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'buildingStatus',
+      label: 'Building Status',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'flatStatus',
+      label: 'Flat Status',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'metPerson',
+      label: 'Met Person',
+      type: 'text',
+      conditional: legacyCondition('flatStatus', 'equals', 'Open'),
+      requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
+    },
+    {
+      name: 'relationship',
+      label: 'Relationship',
+      type: 'select',
+      conditional: legacyCondition('flatStatus', 'equals', 'Open'),
+      requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
+    },
+    {
+      name: 'propertyOwnerName',
+      label: 'Property Owner Name',
+      type: 'text',
+      conditional: legacyCondition('flatStatus', 'equals', 'Open'),
+      requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
+    },
+    {
+      name: 'approxArea',
+      label: 'Approx Area (Sq. Feet)',
+      type: 'number',
+      conditional: legacyCondition('flatStatus', 'equals', 'Open'),
+      requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
+    },
+    {
+      name: 'tpcMetPerson1',
+      label: 'TPC Met Person 1',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'nameOfTpc1',
+      label: 'Name of TPC 1',
+      type: 'text',
+      required: true,
+    },
+    {
+      name: 'tpcConfirmation1',
+      label: 'TPC Confirmation 1',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'tpcMetPerson2',
+      label: 'TPC Met Person 2',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'nameOfTpc2',
+      label: 'Name of TPC 2',
+      type: 'text',
+      required: true,
+    },
+    {
+      name: 'tpcConfirmation2',
+      label: 'TPC Confirmation 2',
+      type: 'select',
+      required: true,
+    },
+    { name: 'locality', label: 'Locality', type: 'select', required: true },
+    {
+      name: 'addressStructure',
+      label: 'Address Structure',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'addressExistAt',
+      label: 'Address Exist At',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'addressStructureColor',
+      label: 'Address Structure Color',
+      type: 'select',
+      required: true,
+    },
+    { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
+    {
+      name: 'doorNamePlateStatus',
+      label: 'Door Name Plate',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'nameOnDoorPlate',
+      label: 'Name on Door Plate',
+      type: 'text',
+      conditional: legacyCondition(
+        'doorNamePlateStatus',
+        'equals',
+        'SIGHTED AS',
+      ),
+      requiredWhen: legacyCondition(
+        'doorNamePlateStatus',
+        'equals',
+        'SIGHTED AS',
+      ),
+    },
+    {
+      name: 'societyNamePlateStatus',
+      label: 'Society Name Plate',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'nameOnSocietyBoard',
+      label: 'Name on Society Board',
+      type: 'text',
+      conditional: legacyCondition(
+        'societyNamePlateStatus',
+        'equals',
+        'SIGHTED AS',
+      ),
+      requiredWhen: legacyCondition(
+        'societyNamePlateStatus',
+        'equals',
+        'SIGHTED AS',
+      ),
+    },
+    { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
+    { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
+    {
+      name: 'politicalConnection',
+      label: 'Political Connection',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'dominatedArea',
+      label: 'Dominated Area',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'feedbackFromNeighbour',
+      label: 'Feedback from Neighbour',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'otherObservation',
+      label: 'Other Observation',
+      type: 'textarea',
+      required: true,
+    },
+    {
+      name: 'finalStatus',
+      label: 'Final Status',
+      type: 'select',
+      required: true,
+      options: [
+        { label: 'Positive', value: 'Positive' },
+        { label: 'Refer', value: 'Refer' },
+        { label: 'Hold', value: 'Hold' },
+      ],
+    },
+    {
+      name: 'holdReason',
+      label: 'Reason for Hold',
+      type: 'text',
+      conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+      requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+    },
+  ]);
 
 const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'buildingStatus', label: 'Building Status', type: 'select', required: true },
+  {
+    name: 'addressLocatable',
+    label: 'Address Locatable',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressRating',
+    label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'buildingStatus',
+    label: 'Building Status',
+    type: 'select',
+    required: true,
+  },
   { name: 'flatStatus', label: 'Flat Status', type: 'select', required: true },
   {
     name: 'metPerson',
@@ -2539,37 +6914,110 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
     conditional: legacyCondition('flatStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
   },
-  { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select', required: true },
+  {
+    name: 'tpcMetPerson1',
+    label: 'TPC Met Person 1',
+    type: 'select',
+    required: true,
+  },
   { name: 'nameOfTpc1', label: 'Name of TPC 1', type: 'text', required: true },
-  { name: 'tpcConfirmation1', label: 'TPC Confirmation 1', type: 'select', required: true },
-  { name: 'tpcMetPerson2', label: 'TPC Met Person 2', type: 'select', required: true },
+  {
+    name: 'tpcConfirmation1',
+    label: 'TPC Confirmation 1',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'tpcMetPerson2',
+    label: 'TPC Met Person 2',
+    type: 'select',
+    required: true,
+  },
   { name: 'nameOfTpc2', label: 'Name of TPC 2', type: 'text', required: true },
-  { name: 'tpcConfirmation2', label: 'TPC Confirmation 2', type: 'select', required: true },
+  {
+    name: 'tpcConfirmation2',
+    label: 'TPC Confirmation 2',
+    type: 'select',
+    required: true,
+  },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
+  {
+    name: 'addressStructure',
+    label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressStructureColor',
+    label: 'Address Structure Color',
+    type: 'select',
+    required: true,
+  },
   { name: 'doorColor', label: 'Door Color', type: 'select', required: true },
-  { name: 'doorNamePlateStatus', label: 'Door Name Plate', type: 'select', required: true },
+  {
+    name: 'doorNamePlateStatus',
+    label: 'Door Name Plate',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOnDoorPlate',
     label: 'Name on Door Plate',
     type: 'text',
     conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
-    requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
+    requiredWhen: legacyCondition(
+      'doorNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
   },
-  { name: 'societyNamePlateStatus', label: 'Society Name Plate', type: 'select', required: true },
+  {
+    name: 'societyNamePlateStatus',
+    label: 'Society Name Plate',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
     type: 'text',
-    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'),
-    requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'societyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
+  {
+    name: 'dominatedArea',
+    label: 'Dominated Area',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'otherObservation',
+    label: 'Other Observation',
+    type: 'textarea',
+    required: true,
+  },
+  {
+    name: 'finalStatus',
+    label: 'Final Status',
+    type: 'select',
+    required: true,
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
+      { label: 'Hold', value: 'Hold' },
+    ],
+  },
   {
     name: 'holdReason',
     label: 'Reason for Hold',
@@ -2579,75 +7027,194 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
   },
 ]);
 
-const legacyEntryRestrictedPropertyIndividualFields = withLegacyPropertyIndividualOrder([
-  { name: 'addressLocatable', label: 'Address Locatable', type: 'select', required: true },
-  { name: 'addressRating', label: 'Address Rating', type: 'select', required: true },
-  { name: 'flatStatus', label: 'Flat Status', type: 'select', required: true },
-  {
-    name: 'metPerson',
-    label: 'Met Person',
-    type: 'select',
-    options: toSelectOptions(legacyPropertyIndividualSelectOptions.metPersonErt),
-    required: true,
-  },
-  { name: 'nameOfMetPerson', label: 'Name of Met Person', type: 'text', required: true },
-  {
-    name: 'metPersonConfirmation',
-    label: 'Met Person Confirmation',
-    type: 'select',
-    options: toSelectOptions(legacyPropertyIndividualSelectOptions.tpcConfirmation),
-    required: true,
-  },
-  { name: 'propertyOwnerName', label: 'Property Owner Name', type: 'text', required: true },
-  { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'addressStructure', label: 'Address Structure', type: 'select', required: true },
-  { name: 'addressStructureColor', label: 'Address Structure Color', type: 'select', required: true },
-  { name: 'societyNamePlateStatus', label: 'Society Name Plate', type: 'select', required: true },
-  {
-    name: 'nameOnSocietyBoard',
-    label: 'Name on Society Board',
-    type: 'text',
-    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'),
-    requiredWhen: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED AS'),
-  },
-  { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
-  { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'buildingStatus', label: 'Building Status', type: 'select', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  { name: 'holdReason', label: 'Reason for Hold', type: 'text', conditional: legacyCondition('finalStatus', 'equals', 'Hold'), requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold') },
-]);
+const legacyEntryRestrictedPropertyIndividualFields =
+  withLegacyPropertyIndividualOrder([
+    {
+      name: 'addressLocatable',
+      label: 'Address Locatable',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'addressRating',
+      label: 'Address Rating',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'flatStatus',
+      label: 'Flat Status',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'metPerson',
+      label: 'Met Person',
+      type: 'select',
+      options: toSelectOptions(
+        legacyPropertyIndividualSelectOptions.metPersonErt,
+      ),
+      required: true,
+    },
+    {
+      name: 'nameOfMetPerson',
+      label: 'Name of Met Person',
+      type: 'text',
+      required: true,
+    },
+    {
+      name: 'metPersonConfirmation',
+      label: 'Met Person Confirmation',
+      type: 'select',
+      options: toSelectOptions(
+        legacyPropertyIndividualSelectOptions.tpcConfirmation,
+      ),
+      required: true,
+    },
+    {
+      name: 'propertyOwnerName',
+      label: 'Property Owner Name',
+      type: 'text',
+      required: true,
+    },
+    { name: 'locality', label: 'Locality', type: 'select', required: true },
+    {
+      name: 'addressStructure',
+      label: 'Address Structure',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'addressStructureColor',
+      label: 'Address Structure Color',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'societyNamePlateStatus',
+      label: 'Society Name Plate',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'nameOnSocietyBoard',
+      label: 'Name on Society Board',
+      type: 'text',
+      conditional: legacyCondition(
+        'societyNamePlateStatus',
+        'equals',
+        'SIGHTED AS',
+      ),
+      requiredWhen: legacyCondition(
+        'societyNamePlateStatus',
+        'equals',
+        'SIGHTED AS',
+      ),
+    },
+    { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
+    { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
+    {
+      name: 'buildingStatus',
+      label: 'Building Status',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'dominatedArea',
+      label: 'Dominated Area',
+      type: 'select',
+      required: true,
+    },
+    { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
+    {
+      name: 'finalStatus',
+      label: 'Final Status',
+      type: 'select',
+      required: true,
+      options: [
+        { label: 'Negative', value: 'Negative' },
+        { label: 'Refer', value: 'Refer' },
+        { label: 'Fraud', value: 'Fraud' },
+        { label: 'Hold', value: 'Hold' },
+      ],
+    },
+    {
+      name: 'holdReason',
+      label: 'Reason for Hold',
+      type: 'text',
+      conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+      requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+    },
+  ]);
 
-const legacyUntraceablePropertyIndividualFields = withLegacyPropertyIndividualOrder([
-  { name: 'metPerson', label: 'Met Person', type: 'text', required: true },
-  { name: 'callRemark', label: 'Call Remark', type: 'select', required: true },
-  { name: 'locality', label: 'Locality', type: 'select', required: true },
-  { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
-  { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
-  { name: 'landmark3', label: 'Landmark 3', type: 'text', required: true },
-  { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
-  { name: 'dominatedArea', label: 'Dominated Area', type: 'select', required: true },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea', required: true },
-  { name: 'finalStatus', label: 'Final Status', type: 'select', required: true, options: [{label:'Negative',value:'Negative'},{label:'Refer',value:'Refer'},{label:'Fraud',value:'Fraud'},{label:'Hold',value:'Hold'}] },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
-  },
-]);
+const legacyUntraceablePropertyIndividualFields =
+  withLegacyPropertyIndividualOrder([
+    { name: 'metPerson', label: 'Met Person', type: 'text', required: true },
+    {
+      name: 'callRemark',
+      label: 'Call Remark',
+      type: 'select',
+      required: true,
+    },
+    { name: 'locality', label: 'Locality', type: 'select', required: true },
+    { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
+    { name: 'landmark2', label: 'Landmark 2', type: 'text', required: true },
+    { name: 'landmark3', label: 'Landmark 3', type: 'text', required: true },
+    { name: 'landmark4', label: 'Landmark 4', type: 'text', required: true },
+    {
+      name: 'dominatedArea',
+      label: 'Dominated Area',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'otherObservation',
+      label: 'Other Observation',
+      type: 'textarea',
+      required: true,
+    },
+    {
+      name: 'finalStatus',
+      label: 'Final Status',
+      type: 'select',
+      required: true,
+      options: [
+        { label: 'Negative', value: 'Negative' },
+        { label: 'Refer', value: 'Refer' },
+        { label: 'Fraud', value: 'Fraud' },
+        { label: 'Hold', value: 'Hold' },
+      ],
+    },
+    {
+      name: 'holdReason',
+      label: 'Reason for Hold',
+      type: 'text',
+      conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
+      requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+    },
+  ]);
 
-const normalizedPropertyIndividualOutcome = (rawOutcome: string): PropertyIndividualOutcome => {
+const normalizedPropertyIndividualOutcome = (
+  rawOutcome: string,
+): PropertyIndividualOutcome => {
   const value = rawOutcome.trim().toUpperCase();
-  if (value.includes('ENTRY') || value.includes('RESTRICT')) return 'ENTRY_RESTRICTED';
-  if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND')) return 'UNTRACEABLE';
-  if (value.includes('NSP') || value.includes('PERSON NOT MET') || value.includes('SHIFTED')) return 'NSP';
+  if (value.includes('ENTRY') || value.includes('RESTRICT'))
+    return 'ENTRY_RESTRICTED';
+  if (value.includes('UNTRACEABLE') || value.includes('NOT FOUND'))
+    return 'UNTRACEABLE';
+  if (
+    value.includes('NSP') ||
+    value.includes('PERSON NOT MET') ||
+    value.includes('SHIFTED')
+  )
+    return 'NSP';
   return 'POSITIVE';
 };
 
-const legacyPropertyIndividualFieldsByOutcome: Record<PropertyIndividualOutcome, FormFieldTemplate[]> = {
+const legacyPropertyIndividualFieldsByOutcome: Record<
+  PropertyIndividualOutcome,
+  FormFieldTemplate[]
+> = {
   POSITIVE: legacyPositivePropertyIndividualFields,
   NSP: legacyNspPropertyIndividualFields,
   ENTRY_RESTRICTED: legacyEntryRestrictedPropertyIndividualFields,
@@ -2666,8 +7233,11 @@ const buildLegacyPropertyIndividualTemplate = (
     formType: verificationType,
     verificationType,
     outcome: normalizedOutcome,
-    name: `Property Individual Verification - ${normalizedOutcome.split('_').join(' ')}`,
-    description: 'Loaded from native legacy Property Individual form definition',
+    name: `Property Individual Verification - ${normalizedOutcome
+      .split('_')
+      .join(' ')}`,
+    description:
+      'Loaded from native legacy Property Individual form definition',
     sections: [
       {
         id: `property-individual-${normalizedOutcome.toLowerCase()}-main`,
@@ -2683,7 +7253,6 @@ const buildLegacyPropertyIndividualTemplate = (
     updatedAt: now,
   };
 };
-
 
 export type LegacyOutcome = AllOutcome;
 

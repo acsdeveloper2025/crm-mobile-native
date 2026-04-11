@@ -1,5 +1,12 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { RevokeReason } from '../../types/api';
 import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -12,11 +19,11 @@ interface TaskRevokeModalProps {
   isRevoking: boolean;
 }
 
-export const TaskRevokeModal: React.FC<TaskRevokeModalProps> = ({ 
-  visible, 
-  onClose, 
+export const TaskRevokeModal: React.FC<TaskRevokeModalProps> = ({
+  visible,
+  onClose,
   onRevoke,
-  isRevoking 
+  isRevoking,
 }) => {
   const { theme } = useTheme();
   // Provide a default value mapping to the first enum value
@@ -27,60 +34,112 @@ export const TaskRevokeModal: React.FC<TaskRevokeModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
       <View style={styles.overlay}>
-        <View style={[styles.modalContainer, { backgroundColor: theme.colors.surface }]}>
-          <View style={[styles.modalHeader, { borderBottomColor: theme.colors.border }]}>
-            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>Revoke Task</Text>
+        <View
+          style={[
+            styles.modalContainer,
+            { backgroundColor: theme.colors.surface },
+          ]}
+        >
+          <View
+            style={[
+              styles.modalHeader,
+              { borderBottomColor: theme.colors.border },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
+              Revoke Task
+            </Text>
             <TouchableOpacity onPress={onClose} disabled={isRevoking}>
               <Icon name="close" size={24} color={theme.colors.textMuted} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.modalBody}>
-            <Text style={[styles.label, { color: theme.colors.text }]}>Reason for Revocation</Text>
-            
-            <View style={[styles.pickerContainer, { 
-              borderColor: theme.colors.border,
-              backgroundColor: theme.colors.background 
-            }]}>
+            <Text style={[styles.label, { color: theme.colors.text }]}>
+              Reason for Revocation
+            </Text>
+
+            <View
+              style={[
+                styles.pickerContainer,
+                {
+                  borderColor: theme.colors.border,
+                  backgroundColor: theme.colors.background,
+                },
+              ]}
+            >
               <Picker
                 selectedValue={reason}
-                onValueChange={(itemValue: unknown) => setReason(itemValue as RevokeReason)}
+                onValueChange={(itemValue: unknown) =>
+                  setReason(itemValue as RevokeReason)
+                }
                 enabled={!isRevoking}
                 dropdownIconColor={theme.colors.text}
-                style={{ color: theme.colors.text }}>
-                {Object.values(RevokeReason).map((r) => (
+                style={{ color: theme.colors.text }}
+              >
+                {Object.values(RevokeReason).map(r => (
                   <Picker.Item key={r} label={r} value={r} />
                 ))}
               </Picker>
             </View>
 
-            <Text style={[styles.warningText, { color: theme.colors.textSecondary }]}>
-              This will revoke the verification task and notify backend users. This action cannot be undone.
+            <Text
+              style={[
+                styles.warningText,
+                { color: theme.colors.textSecondary },
+              ]}
+            >
+              This will revoke the verification task and notify backend users.
+              This action cannot be undone.
             </Text>
           </View>
 
-          <View style={[styles.modalFooter, { borderTopColor: theme.colors.border }]}>
+          <View
+            style={[
+              styles.modalFooter,
+              { borderTopColor: theme.colors.border },
+            ]}
+          >
             <TouchableOpacity
-              style={[styles.cancelButton, { backgroundColor: theme.colors.background }]}
+              style={[
+                styles.cancelButton,
+                { backgroundColor: theme.colors.background },
+              ]}
               onPress={onClose}
-              disabled={isRevoking}>
-              <Text style={[styles.cancelButtonText, { color: theme.colors.text }]}>Cancel</Text>
+              disabled={isRevoking}
+            >
+              <Text
+                style={[styles.cancelButtonText, { color: theme.colors.text }]}
+              >
+                Cancel
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
               style={[
-                styles.confirmButton, 
+                styles.confirmButton,
                 { backgroundColor: theme.colors.danger },
-                isRevoking && styles.disabledConfirmButton
+                isRevoking && styles.disabledConfirmButton,
               ]}
               onPress={handleConfirm}
-              disabled={isRevoking}>
+              disabled={isRevoking}
+            >
               {isRevoking ? (
                 <ActivityIndicator color={theme.colors.surface} />
               ) : (
-                <Text style={[styles.confirmButtonText, { color: theme.colors.surface }]}>
+                <Text
+                  style={[
+                    styles.confirmButtonText,
+                    { color: theme.colors.surface },
+                  ]}
+                >
                   Confirm Revoke
                 </Text>
               )}

@@ -15,15 +15,31 @@ interface ModalProps {
   children: React.ReactNode;
 }
 
-const Modal: React.FC<ModalProps> = ({ isVisible, onClose, title, children }) => {
+const Modal: React.FC<ModalProps> = ({
+  isVisible,
+  onClose,
+  title,
+  children,
+}) => {
   const { theme } = useTheme();
 
   return (
-    <RNModal visible={isVisible} transparent animationType="fade" onRequestClose={onClose}>
+    <RNModal
+      visible={isVisible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <View style={styles.backdrop}>
         <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.header}>
-            {title ? <Text style={[styles.title, { color: theme.colors.text }]}>{title}</Text> : <View />}
+            {title ? (
+              <Text style={[styles.title, { color: theme.colors.text }]}>
+                {title}
+              </Text>
+            ) : (
+              <View />
+            )}
             <TouchableOpacity onPress={onClose}>
               <Text style={{ color: theme.colors.textSecondary }}>Close</Text>
             </TouchableOpacity>

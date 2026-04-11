@@ -77,8 +77,7 @@ class CameraServiceClass {
           PermissionsAndroid.PERMISSIONS.CAMERA,
           {
             title: 'Camera Permission',
-            message:
-              'This app needs camera access for verification photos.',
+            message: 'This app needs camera access for verification photos.',
             buttonPositive: 'Allow',
             buttonNegative: 'Deny',
           },
@@ -115,8 +114,13 @@ class CameraServiceClass {
       const { config } = await import('../config');
       const existingCount = await AttachmentRepository.countByTaskId(taskId);
       if (existingCount >= config.maxFilesPerTask) {
-        Logger.warn(TAG, `Photo limit reached for task ${taskId}: ${existingCount}/${config.maxFilesPerTask}`);
-        throw new Error(`Maximum ${config.maxFilesPerTask} photos per task reached`);
+        Logger.warn(
+          TAG,
+          `Photo limit reached for task ${taskId}: ${existingCount}/${config.maxFilesPerTask}`,
+        );
+        throw new Error(
+          `Maximum ${config.maxFilesPerTask} photos per task reached`,
+        );
       }
 
       const id = uuidv4();
@@ -134,7 +138,9 @@ class CameraServiceClass {
 
       const override = options?.locationOverride || null;
       const resolvedLocation =
-        override && typeof override.latitude === 'number' && typeof override.longitude === 'number'
+        override &&
+        typeof override.latitude === 'number' &&
+        typeof override.longitude === 'number'
           ? {
               latitude: override.latitude,
               longitude: override.longitude,
@@ -149,7 +155,9 @@ class CameraServiceClass {
         verificationTypeName: taskMeta?.verificationTypeName || null,
         verificationType: taskMeta?.verificationType || null,
       });
-      const verificationType = formTypeKey ? toBackendFormType(formTypeKey) : null;
+      const verificationType = formTypeKey
+        ? toBackendFormType(formTypeKey)
+        : null;
       const backendTaskId = taskMeta?.verificationTaskId || taskId;
 
       const photo: CapturedPhoto = {
@@ -247,7 +255,8 @@ class CameraServiceClass {
         },
       );
 
-      const thumbnailExtension = thumbnail.name?.split('.').pop() || extension || 'jpg';
+      const thumbnailExtension =
+        thumbnail.name?.split('.').pop() || extension || 'jpg';
       const finalPath = `${THUMBNAILS_DIR}/thumb_${photoId}.${thumbnailExtension}`;
 
       if (thumbnail.path !== finalPath) {
@@ -259,7 +268,11 @@ class CameraServiceClass {
 
       return finalPath;
     } catch (error) {
-      Logger.warn(TAG, 'Failed to create thumbnail, falling back to full image', error);
+      Logger.warn(
+        TAG,
+        'Failed to create thumbnail, falling back to full image',
+        error,
+      );
       return null;
     }
   }

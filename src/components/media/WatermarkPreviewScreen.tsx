@@ -36,7 +36,11 @@ type TaskMeta = {
   verificationType?: string;
 };
 
-const resolveLocation = (highAccuracy: boolean, timeout: number, maxAge: number): Promise<PreviewLocation | null> =>
+const resolveLocation = (
+  highAccuracy: boolean,
+  timeout: number,
+  maxAge: number,
+): Promise<PreviewLocation | null> =>
   new Promise(resolve => {
     Geolocation.getCurrentPosition(
       pos => {
@@ -61,7 +65,7 @@ const formatDMS = (decimal: number, isLat: boolean): string => {
   const minFull = (abs - deg) * 60;
   const min = Math.floor(minFull);
   const sec = ((minFull - min) * 60).toFixed(1);
-  const dir = isLat ? (decimal >= 0 ? 'N' : 'S') : (decimal >= 0 ? 'E' : 'W');
+  const dir = isLat ? (decimal >= 0 ? 'N' : 'S') : decimal >= 0 ? 'E' : 'W';
   return `${deg}\u00B0${min}'${sec}"${dir}`;
 };
 
@@ -136,7 +140,10 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
             }
           })
           .catch(() => {
-            if (active) { setIsAddressLoading(false); addressReadyRef.current = true; }
+            if (active) {
+              setIsAddressLoading(false);
+              addressReadyRef.current = true;
+            }
           });
       } else {
         // Precise GPS failed — no address, just coordinates
@@ -163,25 +170,35 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
       });
 
       const cleanPath = uri.replace('file://', '');
-      const savedPhoto = await CameraService.savePhoto(cleanPath, taskId, componentType, {
-        locationOverride: location
-          ? {
-              latitude: location.lat,
-              longitude: location.lng,
-              accuracy: location.accuracy,
-              timestamp: location.timestamp,
-            }
-          : null,
-      });
+      const savedPhoto = await CameraService.savePhoto(
+        cleanPath,
+        taskId,
+        componentType,
+        {
+          locationOverride: location
+            ? {
+                latitude: location.lat,
+                longitude: location.lng,
+                accuracy: location.accuracy,
+                timestamp: location.timestamp,
+              }
+            : null,
+        },
+      );
 
       if (savedPhoto) {
         // If address hasn't loaded yet, queue a background re-stamp
         // The WatermarkReStamper (in App.tsx) will fetch address, re-render watermark, and overwrite the file
         if (!addressReadyRef.current && location) {
-          console.warn('[RESTAMP_QUEUE] Enqueueing re-stamp:', { attachmentId: savedPhoto.id, rawPhotoPath: photoPath, savedPhotoPath: savedPhoto.localPath, addressReady: addressReadyRef.current });
+          console.warn('[RESTAMP_QUEUE] Enqueueing re-stamp:', {
+            attachmentId: savedPhoto.id,
+            rawPhotoPath: photoPath,
+            savedPhotoPath: savedPhoto.localPath,
+            addressReady: addressReadyRef.current,
+          });
           WatermarkReStampQueue.enqueue({
             attachmentId: savedPhoto.id,
-            rawPhotoPath: photoPath,  // Keep original camera photo for re-stamping
+            rawPhotoPath: photoPath, // Keep original camera photo for re-stamping
             savedPhotoPath: savedPhoto.localPath,
             taskId,
             componentType,
@@ -202,7 +219,7 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
           // Don't delete raw photo — needed for re-stamp
         } else {
           // Address already on watermark — safe to delete raw photo
-          if (photoPath !== cleanPath && await RNFS.exists(photoPath)) {
+          if (photoPath !== cleanPath && (await RNFS.exists(photoPath))) {
             await RNFS.unlink(photoPath);
           }
         }
@@ -212,15 +229,27 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
         throw new Error('Database insertion failed.');
       }
     } catch (e: unknown) {
-      Alert.alert('Save Error', (e instanceof Error ? e.message : String(e)) || 'Failed to capture watermark');
+      Alert.alert(
+        'Save Error',
+        (e instanceof Error ? e.message : String(e)) ||
+          'Failed to capture watermark',
+      );
       setIsSaving(false);
     }
   };
 
   return (
     <View style={styles.container}>
-      <ViewShot ref={viewShotRef} style={styles.viewShotContainer} options={{ format: 'jpg', quality: 0.85 }}>
-        <Image source={{ uri: `file://${photoPath}` }} style={StyleSheet.absoluteFillObject} resizeMode="cover" />
+      <ViewShot
+        ref={viewShotRef}
+        style={styles.viewShotContainer}
+        options={{ format: 'jpg', quality: 0.85 }}
+      >
+        <Image
+          source={{ uri: `file://${photoPath}` }}
+          style={StyleSheet.absoluteFillObject}
+          resizeMode="cover"
+        />
 
         {/* ── Bottom Watermark Strip ── */}
         <View style={styles.watermarkStrip}>
@@ -232,13 +261,19 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
             </View>
             {location ? (
               <>
-                <Text style={styles.gpsCoordDMS}>{formatDMS(location.lat, true)}</Text>
-                <Text style={styles.gpsCoordDMS}>{formatDMS(location.lng, false)}</Text>
+                <Text style={styles.gpsCoordDMS}>
+                  {formatDMS(location.lat, true)}
+                </Text>
+                <Text style={styles.gpsCoordDMS}>
+                  {formatDMS(location.lng, false)}
+                </Text>
                 <Text style={styles.gpsDecimal}>
                   {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
                 </Text>
                 {location.accuracy != null && (
-                  <Text style={styles.gpsAccuracy}>{`\u00B1${location.accuracy.toFixed(0)}m`}</Text>
+                  <Text
+                    style={styles.gpsAccuracy}
+                  >{`\u00B1${location.accuracy.toFixed(0)}m`}</Text>
                 )}
               </>
             ) : (
@@ -254,7 +289,12 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
             <View style={styles.dataRow}>
               <Icon name="calendar-outline" size={11} color="#94a3b8" />
               <Text style={styles.dataLabel}>{dateStr}</Text>
-              <Icon name="time-outline" size={11} color="#94a3b8" style={{ marginLeft: 8 }} />
+              <Icon
+                name="time-outline"
+                size={11}
+                color="#94a3b8"
+                style={styles.iconSpacer}
+              />
               <Text style={styles.dataLabel}>{timeStr}</Text>
             </View>
 
@@ -262,7 +302,10 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
             <View style={styles.dataRow}>
               <Icon name="location-outline" size={11} color="#f59e0b" />
               <Text style={styles.addressText} numberOfLines={2}>
-                {address || (isAddressLoading ? 'Fetching address...' : 'Address unavailable')}
+                {address ||
+                  (isAddressLoading
+                    ? 'Fetching address...'
+                    : 'Address unavailable')}
               </Text>
             </View>
 
@@ -274,8 +317,12 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
                 <Icon name="trending-up-outline" size={11} color="#94a3b8" />
                 <Text style={styles.dataLabel}>
                   {`Alt: ${location.alt.toFixed(0)}m`}
-                  {location.spd > 0 ? `  Spd: ${(location.spd * 3.6).toFixed(0)}km/h` : ''}
-                  {location.heading != null ? `  ${getCompassDirection(location.heading)}` : ''}
+                  {location.spd > 0
+                    ? `  Spd: ${(location.spd * 3.6).toFixed(0)}km/h`
+                    : ''}
+                  {location.heading != null
+                    ? `  ${getCompassDirection(location.heading)}`
+                    : ''}
                 </Text>
               </View>
             )}
@@ -292,12 +339,19 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
 
       {/* ── Action Buttons ── */}
       <View style={[styles.actionOverlay, dynamicStyles.actionOverlay]}>
-        <TouchableOpacity style={styles.cancelBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.cancelBtn}
+          onPress={() => navigation.goBack()}
+        >
           <Icon name="close" size={22} color="white" />
           <Text style={styles.btnText}>Retake</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isSaving}>
+        <TouchableOpacity
+          style={styles.saveBtn}
+          onPress={handleSave}
+          disabled={isSaving}
+        >
           {isSaving ? (
             <ActivityIndicator color="white" />
           ) : (
@@ -309,13 +363,15 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.bottomHintWrap, { bottom: Math.max(insets.bottom, 12) }]}>
+      <View
+        style={[styles.bottomHintWrap, { bottom: Math.max(insets.bottom, 12) }]}
+      >
         <Text style={styles.bottomHintText}>
           {isSaving
             ? 'Saving photo and returning...'
             : isLocating
-              ? 'Preview ready. GPS is being fetched in background.'
-              : 'Review and save to continue.'}
+            ? 'Preview ready. GPS is being fetched in background.'
+            : 'Review and save to continue.'}
         </Text>
       </View>
     </View>
@@ -400,6 +456,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 2,
+  },
+  iconSpacer: {
+    marginLeft: 8,
   },
   dataLabel: {
     color: '#cbd5e1',

@@ -1,7 +1,25 @@
-import React, { useState, useCallback, useEffect, useMemo, useDeferredValue } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ScrollView, TextInput, Alert } from 'react-native';
+import React, {
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  useDeferredValue,
+} from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ScrollView,
+  TextInput,
+  Alert,
+} from 'react-native';
 import { useRoute, useFocusEffect } from '@react-navigation/native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useTasks } from '../../hooks/useTasks';
 import { Logger } from '../../utils/logger';
 import { TaskCard } from '../../components/tasks/TaskCard';
@@ -10,11 +28,17 @@ import { LocalTask } from '../../types/mobile';
 import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTaskManager } from '../../context/TaskContext';
-import { TaskRepository, type TaskListCounts } from '../../repositories/TaskRepository';
+import {
+  TaskRepository,
+  type TaskListCounts,
+} from '../../repositories/TaskRepository';
 import { TaskInfoModal } from '../../components/tasks/TaskInfoModal';
 import { TaskRevokeModal } from '../../components/tasks/TaskRevokeModal';
 import { RevokeReason } from '../../types/api';
-import { selectTaskById, getTaskSnapshot } from '../../store/selectors/taskSelectors';
+import {
+  selectTaskById,
+  getTaskSnapshot,
+} from '../../store/selectors/taskSelectors';
 import { useSelector } from '../../store/useSelector';
 
 // Updated tab bar filters for tasks to include Saved and Revoked
@@ -26,52 +50,54 @@ const FILTER_TABS = [
   { id: 'SAVED', label: 'Saved', value: 'SAVED' },
 ];
 
-const TaskListRow = React.memo(({
-  taskId,
-  canMoveDown,
-  canMoveUp,
-  canReorder,
-  handleAttachmentsPress,
-  handleInfoPress,
-  handleMoveTask,
-  handleRevokePress,
-  handleTaskPress,
-  refetch,
-  reorderMode,
-}: {
-  taskId: string;
-  canMoveDown: boolean;
-  canMoveUp: boolean;
-  canReorder: boolean;
-  handleAttachmentsPress: (task: LocalTask) => void;
-  handleInfoPress: (task: LocalTask) => void;
-  handleMoveTask: (taskId: string, direction: 'up' | 'down') => Promise<void>;
-  handleRevokePress: (task: LocalTask) => void;
-  handleTaskPress: (task: LocalTask) => void;
-  refetch: () => Promise<void>;
-  reorderMode: boolean;
-}) => {
-  const task = useSelector(selectTaskById(taskId));
+const TaskListRow = React.memo(
+  ({
+    taskId,
+    canMoveDown,
+    canMoveUp,
+    canReorder,
+    handleAttachmentsPress,
+    handleInfoPress,
+    handleMoveTask,
+    handleRevokePress,
+    handleTaskPress,
+    refetch,
+    reorderMode,
+  }: {
+    taskId: string;
+    canMoveDown: boolean;
+    canMoveUp: boolean;
+    canReorder: boolean;
+    handleAttachmentsPress: (task: LocalTask) => void;
+    handleInfoPress: (task: LocalTask) => void;
+    handleMoveTask: (taskId: string, direction: 'up' | 'down') => Promise<void>;
+    handleRevokePress: (task: LocalTask) => void;
+    handleTaskPress: (task: LocalTask) => void;
+    refetch: () => Promise<void>;
+    reorderMode: boolean;
+  }) => {
+    const task = useSelector(selectTaskById(taskId));
 
-  if (!task) {
-    return null;
-  }
+    if (!task) {
+      return null;
+    }
 
-  return (
-    <TaskCard
-      task={task}
-      onPress={handleTaskPress}
-      onStatusChange={refetch}
-      onAttachmentsPress={handleAttachmentsPress}
-      onInfoPress={handleInfoPress}
-      onRevokePress={handleRevokePress}
-      isReorderEnabled={reorderMode && canReorder}
-      canMoveUp={canMoveUp}
-      canMoveDown={canMoveDown}
-      onMoveTask={handleMoveTask}
-    />
-  );
-});
+    return (
+      <TaskCard
+        task={task}
+        onPress={handleTaskPress}
+        onStatusChange={refetch}
+        onAttachmentsPress={handleAttachmentsPress}
+        onInfoPress={handleInfoPress}
+        onRevokePress={handleRevokePress}
+        isReorderEnabled={reorderMode && canReorder}
+        canMoveUp={canMoveUp}
+        canMoveDown={canMoveDown}
+        onMoveTask={handleMoveTask}
+      />
+    );
+  },
+);
 
 export const TaskListScreen = ({
   navigation,
@@ -82,18 +108,24 @@ export const TaskListScreen = ({
   const { theme } = useTheme();
   const route = useRoute<any>();
   const initialFilter = route.params?.filter ?? defaultFilter;
-  const initialTab = FILTER_TABS.find(tab => tab.value === initialFilter) || FILTER_TABS[0];
-  const lockedFilter = Boolean(route.params?.lockedFilter ?? defaultLockedFilter);
+  const initialTab =
+    FILTER_TABS.find(tab => tab.value === initialFilter) || FILTER_TABS[0];
+  const lockedFilter = Boolean(
+    route.params?.lockedFilter ?? defaultLockedFilter,
+  );
   const [sortMode, setSortMode] = useState<'order' | 'priority'>('order');
   const [reorderMode, setReorderMode] = useState(false);
   const [reorderIds, setReorderIds] = useState<string[]>([]);
   const [isSavingOrder, setIsSavingOrder] = useState(false);
-  
+
   const [activeTab, setActiveTab] = useState(initialTab);
   const [searchQuery, setSearchQuery] = useState('');
   const deferredSearchQuery = useDeferredValue(searchQuery);
-  const [selectedInfoTask, setSelectedInfoTask] = useState<LocalTask | null>(null);
-  const [selectedRevokeTask, setSelectedRevokeTask] = useState<LocalTask | null>(null);
+  const [selectedInfoTask, setSelectedInfoTask] = useState<LocalTask | null>(
+    null,
+  );
+  const [selectedRevokeTask, setSelectedRevokeTask] =
+    useState<LocalTask | null>(null);
   const [isRevokingTask, setIsRevokingTask] = useState(false);
   const [counts, setCounts] = useState<TaskListCounts>({
     ALL: 0,
@@ -104,10 +136,15 @@ export const TaskListScreen = ({
   });
   const insets = useSafeAreaInsets();
   const { setTaskPriority, revokeTask } = useTaskManager();
-  
+
   const statusFilter = lockedFilter ? initialFilter : activeTab.value;
-  const { taskIds, isLoading, error, refetch } = useTasks(statusFilter, deferredSearchQuery);
-  const canReorder = lockedFilter && (initialFilter === 'ASSIGNED' || initialFilter === 'IN_PROGRESS');
+  const { taskIds, isLoading, error, refetch } = useTasks(
+    statusFilter,
+    deferredSearchQuery,
+  );
+  const canReorder =
+    lockedFilter &&
+    (initialFilter === 'ASSIGNED' || initialFilter === 'IN_PROGRESS');
 
   useEffect(() => {
     if (route.params?.filter) {
@@ -129,20 +166,23 @@ export const TaskListScreen = ({
       return {
         title: 'Assigned Tasks',
         emptyMessage: 'No assigned cases at the moment.',
-        searchPlaceholder: defaultSearchPlaceholder || 'Search assigned tasks...',
+        searchPlaceholder:
+          defaultSearchPlaceholder || 'Search assigned tasks...',
       };
     }
     if (initialFilter === 'IN_PROGRESS') {
       return {
         title: 'In Progress Tasks',
         emptyMessage: 'No cases are currently in progress.',
-        searchPlaceholder: defaultSearchPlaceholder || 'Search in progress tasks...',
+        searchPlaceholder:
+          defaultSearchPlaceholder || 'Search in progress tasks...',
       };
     }
     if (initialFilter === 'SAVED') {
       return {
         title: 'Saved for Offline',
-        emptyMessage: "Use the Save button on a case in the In Progress tab to save it for offline use.",
+        emptyMessage:
+          'Use the Save button on a case in the In Progress tab to save it for offline use.',
         searchPlaceholder: defaultSearchPlaceholder || 'Search saved tasks...',
       };
     }
@@ -150,7 +190,8 @@ export const TaskListScreen = ({
       return {
         title: 'Completed Tasks',
         emptyMessage: 'You have not completed any cases yet.',
-        searchPlaceholder: defaultSearchPlaceholder || 'Search completed tasks...',
+        searchPlaceholder:
+          defaultSearchPlaceholder || 'Search completed tasks...',
       };
     }
     return {
@@ -161,7 +202,11 @@ export const TaskListScreen = ({
   }, [defaultSearchPlaceholder, initialFilter, lockedFilter]);
 
   const renderedTasks = useMemo(() => {
-    if (initialFilter !== 'IN_PROGRESS' || !lockedFilter || sortMode === 'order') {
+    if (
+      initialFilter !== 'IN_PROGRESS' ||
+      !lockedFilter ||
+      sortMode === 'order'
+    ) {
       return taskIds;
     }
 
@@ -216,7 +261,9 @@ export const TaskListScreen = ({
 
     const renderedTaskIds = new Set(renderedTasks);
     const ordered = reorderIds.filter((id: string) => renderedTaskIds.has(id));
-    const remaining = renderedTasks.filter((id: string) => !reorderIds.includes(id));
+    const remaining = renderedTasks.filter(
+      (id: string) => !reorderIds.includes(id),
+    );
     return [...ordered, ...remaining];
   }, [reorderIds, renderedTasks, reorderMode]);
 
@@ -226,39 +273,45 @@ export const TaskListScreen = ({
         try {
           setCounts(await TaskRepository.getTaskListCounts());
         } catch (err) {
-           Logger.error('TaskListScreen', 'Error fetching tab counts', err);
+          Logger.error('TaskListScreen', 'Error fetching tab counts', err);
         }
       };
-      
+
       fetchCounts();
-    }, [])
+    }, []),
   );
 
-  const handleTaskPress = useCallback((task: LocalTask) => {
-    if (task.status === 'IN_PROGRESS' || task.status === 'REVISIT') {
-      navigation.navigate('VerificationForm', { taskId: task.id });
-      return;
-    }
-    if (task.status === 'COMPLETED') {
+  const handleTaskPress = useCallback(
+    (task: LocalTask) => {
+      if (task.status === 'IN_PROGRESS' || task.status === 'REVISIT') {
+        navigation.navigate('VerificationForm', { taskId: task.id });
+        return;
+      }
+      if (task.status === 'COMPLETED') {
+        navigation.navigate('TaskDetail', { taskId: task.id });
+        return;
+      }
+      if (task.status === 'ASSIGNED' || task.status === 'REVOKED') {
+        return;
+      }
+      if (task.isSaved === 1) {
+        navigation.navigate('VerificationForm', { taskId: task.id });
+        return;
+      }
       navigation.navigate('TaskDetail', { taskId: task.id });
-      return;
-    }
-    if (task.status === 'ASSIGNED' || task.status === 'REVOKED') {
-      return;
-    }
-    if (task.isSaved === 1) {
-      navigation.navigate('VerificationForm', { taskId: task.id });
-      return;
-    }
-    navigation.navigate('TaskDetail', { taskId: task.id });
-  }, [navigation]);
+    },
+    [navigation],
+  );
 
-  const handleAttachmentsPress = useCallback((task: LocalTask) => {
-    navigation.navigate('TaskAttachments', {
-      taskId: task.id,
-      taskNumber: task.verificationTaskNumber || `#${task.caseId}`,
-    });
-  }, [navigation]);
+  const handleAttachmentsPress = useCallback(
+    (task: LocalTask) => {
+      navigation.navigate('TaskAttachments', {
+        taskId: task.id,
+        taskNumber: task.verificationTaskNumber || `#${task.caseId}`,
+      });
+    },
+    [navigation],
+  );
 
   const handleInfoPress = useCallback((task: LocalTask) => {
     setSelectedInfoTask(task);
@@ -268,51 +321,74 @@ export const TaskListScreen = ({
     setSelectedRevokeTask(task);
   }, []);
 
-  const handleRevokeConfirm = useCallback(async (reason: RevokeReason) => {
-    if (!selectedRevokeTask) {
-      return;
-    }
-    try {
-      setIsRevokingTask(true);
-      await revokeTask(selectedRevokeTask.id, reason);
-      setSelectedRevokeTask(null);
-      await refetch();
-    } catch (revokeError: unknown) {
-      Alert.alert('Error', 'Failed to revoke task: ' + (revokeError instanceof Error ? revokeError.message : String(revokeError) || 'Unknown error'));
-    } finally {
-      setIsRevokingTask(false);
-    }
-  }, [refetch, revokeTask, selectedRevokeTask]);
+  const handleRevokeConfirm = useCallback(
+    async (reason: RevokeReason) => {
+      if (!selectedRevokeTask) {
+        return;
+      }
+      try {
+        setIsRevokingTask(true);
+        await revokeTask(selectedRevokeTask.id, reason);
+        setSelectedRevokeTask(null);
+        await refetch();
+      } catch (revokeError: unknown) {
+        Alert.alert(
+          'Error',
+          'Failed to revoke task: ' +
+            (revokeError instanceof Error
+              ? revokeError.message
+              : String(revokeError) || 'Unknown error'),
+        );
+      } finally {
+        setIsRevokingTask(false);
+      }
+    },
+    [refetch, revokeTask, selectedRevokeTask],
+  );
 
-  const handleMoveTask = useCallback(async (taskId: string, direction: 'up' | 'down') => {
-    if (!reorderMode || isSavingOrder) {
-      return;
-    }
+  const handleMoveTask = useCallback(
+    async (taskId: string, direction: 'up' | 'down') => {
+      if (!reorderMode || isSavingOrder) {
+        return;
+      }
 
-    const currentIndex = reorderIds.indexOf(taskId);
-    if (currentIndex < 0) {
-      return;
-    }
-    const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
-    if (targetIndex < 0 || targetIndex >= reorderIds.length) {
-      return;
-    }
+      const currentIndex = reorderIds.indexOf(taskId);
+      if (currentIndex < 0) {
+        return;
+      }
+      const targetIndex =
+        direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= reorderIds.length) {
+        return;
+      }
 
-    const nextIds = [...reorderIds];
-    [nextIds[currentIndex], nextIds[targetIndex]] = [nextIds[targetIndex], nextIds[currentIndex]];
-    setReorderIds(nextIds);
+      const nextIds = [...reorderIds];
+      [nextIds[currentIndex], nextIds[targetIndex]] = [
+        nextIds[targetIndex],
+        nextIds[currentIndex],
+      ];
+      setReorderIds(nextIds);
 
-    try {
-      setIsSavingOrder(true);
-      await Promise.all(nextIds.map((id, index) => setTaskPriority(id, index + 1)));
-      await refetch();
-    } catch (moveError: unknown) {
-      Alert.alert('Reorder Error', moveError instanceof Error ? moveError.message : String(moveError) || 'Failed to update task order.');
-      setReorderIds(reorderIds);
-    } finally {
-      setIsSavingOrder(false);
-    }
-  }, [isSavingOrder, refetch, reorderIds, reorderMode, setTaskPriority]);
+      try {
+        setIsSavingOrder(true);
+        await Promise.all(
+          nextIds.map((id, index) => setTaskPriority(id, index + 1)),
+        );
+        await refetch();
+      } catch (moveError: unknown) {
+        Alert.alert(
+          'Reorder Error',
+          moveError instanceof Error
+            ? moveError.message
+            : String(moveError) || 'Failed to update task order.',
+        );
+        setReorderIds(reorderIds);
+      } finally {
+        setIsSavingOrder(false);
+      }
+    },
+    [isSavingOrder, refetch, reorderIds, reorderMode, setTaskPriority],
+  );
 
   const keyExtractor = useCallback((item: string) => item, []);
 
@@ -346,24 +422,43 @@ export const TaskListScreen = ({
   );
 
   const renderFilterTabs = () => (
-    <View style={[styles.filterContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
+    <View
+      style={[
+        styles.filterContainer,
+        {
+          backgroundColor: theme.colors.surface,
+          borderBottomColor: theme.colors.border,
+        },
+      ]}
+    >
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-        {FILTER_TABS.map((tab) => (
+        {FILTER_TABS.map(tab => (
           <TouchableOpacity
             key={tab.id}
             style={[
               styles.filterTab,
               { backgroundColor: theme.colors.surfaceAlt },
-              activeTab.id === tab.id && [styles.activeFilterTab, { backgroundColor: theme.colors.primary }]
+              activeTab.id === tab.id && [
+                styles.activeFilterTab,
+                { backgroundColor: theme.colors.primary },
+              ],
             ]}
-            onPress={() => setActiveTab(tab)}>
+            onPress={() => setActiveTab(tab)}
+          >
             <Text
               style={[
                 styles.filterText,
                 { color: theme.colors.textSecondary },
-                activeTab.id === tab.id && [styles.activeFilterText, { color: theme.colors.surface }]
-              ]}>
-              {tab.label} {counts[tab.id as keyof TaskListCounts] !== undefined ? `(${counts[tab.id as keyof TaskListCounts]})` : ''}
+                activeTab.id === tab.id && [
+                  styles.activeFilterText,
+                  { color: theme.colors.surface },
+                ],
+              ]}
+            >
+              {tab.label}{' '}
+              {counts[tab.id as keyof TaskListCounts] !== undefined
+                ? `(${counts[tab.id as keyof TaskListCounts]})`
+                : ''}
             </Text>
           </TouchableOpacity>
         ))}
@@ -372,7 +467,10 @@ export const TaskListScreen = ({
   );
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
+    <SafeAreaView
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+      edges={['bottom']}
+    >
       {lockedFilter && (
         <View
           style={[
@@ -382,54 +480,148 @@ export const TaskListScreen = ({
               borderBottomColor: theme.colors.border,
               paddingTop: Math.max(insets.top, 16) + 4,
             },
-          ]}>
-          <Text style={[styles.title, { color: theme.colors.text }]}>{metadata.title}</Text>
+          ]}
+        >
+          <Text style={[styles.title, { color: theme.colors.text }]}>
+            {metadata.title}
+          </Text>
         </View>
       )}
 
       {lockedFilter && initialFilter === 'IN_PROGRESS' && (
-        <View style={[styles.sortContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
-          <Text style={[styles.sortLabel, { color: theme.colors.textSecondary }]}>Sort by:</Text>
+        <View
+          style={[
+            styles.sortContainer,
+            {
+              backgroundColor: theme.colors.surface,
+              borderBottomColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.sortLabel, { color: theme.colors.textSecondary }]}
+          >
+            Sort by:
+          </Text>
           <TouchableOpacity
-            style={[styles.sortButton, { backgroundColor: sortMode === 'order' ? theme.colors.primary : theme.colors.surfaceAlt }]}
-            onPress={() => setSortMode('order')}>
-            <Text style={[styles.sortButtonText, { color: sortMode === 'order' ? theme.colors.surface : theme.colors.textSecondary }]}>Order</Text>
+            style={[
+              styles.sortButton,
+              {
+                backgroundColor:
+                  sortMode === 'order'
+                    ? theme.colors.primary
+                    : theme.colors.surfaceAlt,
+              },
+            ]}
+            onPress={() => setSortMode('order')}
+          >
+            <Text
+              style={[
+                styles.sortButtonText,
+                {
+                  color:
+                    sortMode === 'order'
+                      ? theme.colors.surface
+                      : theme.colors.textSecondary,
+                },
+              ]}
+            >
+              Order
+            </Text>
           </TouchableOpacity>
           <TouchableOpacity
-            style={[styles.sortButton, { backgroundColor: sortMode === 'priority' ? theme.colors.primary : theme.colors.surfaceAlt }]}
-            onPress={() => setSortMode('priority')}>
-            <Text style={[styles.sortButtonText, { color: sortMode === 'priority' ? theme.colors.surface : theme.colors.textSecondary }]}>Priority</Text>
+            style={[
+              styles.sortButton,
+              {
+                backgroundColor:
+                  sortMode === 'priority'
+                    ? theme.colors.primary
+                    : theme.colors.surfaceAlt,
+              },
+            ]}
+            onPress={() => setSortMode('priority')}
+          >
+            <Text
+              style={[
+                styles.sortButtonText,
+                {
+                  color:
+                    sortMode === 'priority'
+                      ? theme.colors.surface
+                      : theme.colors.textSecondary,
+                },
+              ]}
+            >
+              Priority
+            </Text>
           </TouchableOpacity>
         </View>
       )}
 
       {canReorder && (
-        <View style={[styles.reorderContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
-          <Text style={[styles.reorderLabel, { color: theme.colors.textSecondary }]}>
+        <View
+          style={[
+            styles.reorderContainer,
+            {
+              backgroundColor: theme.colors.surface,
+              borderBottomColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.reorderLabel, { color: theme.colors.textSecondary }]}
+          >
             Card Reorder:
           </Text>
           <TouchableOpacity
             style={[
               styles.reorderToggleBtn,
-              { backgroundColor: reorderMode ? theme.colors.primary : theme.colors.surfaceAlt },
+              {
+                backgroundColor: reorderMode
+                  ? theme.colors.primary
+                  : theme.colors.surfaceAlt,
+              },
               isSavingOrder && styles.reorderToggleBtnDisabled,
             ]}
             onPress={() => setReorderMode(prev => !prev)}
-            disabled={isSavingOrder}>
+            disabled={isSavingOrder}
+          >
             <Text
               style={[
                 styles.reorderToggleText,
-                { color: reorderMode ? theme.colors.surface : theme.colors.textSecondary },
-              ]}>
+                {
+                  color: reorderMode
+                    ? theme.colors.surface
+                    : theme.colors.textSecondary,
+                },
+              ]}
+            >
               {reorderMode ? 'Done' : 'Select & Move'}
             </Text>
           </TouchableOpacity>
         </View>
       )}
 
-      <View style={[styles.searchContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
-        <View style={[styles.searchInputWrapper, { backgroundColor: theme.colors.background }]}>
-          <Icon name="search-outline" size={20} color={theme.colors.textMuted} />
+      <View
+        style={[
+          styles.searchContainer,
+          {
+            backgroundColor: theme.colors.surface,
+            borderBottomColor: theme.colors.border,
+          },
+        ]}
+      >
+        <View
+          style={[
+            styles.searchInputWrapper,
+            { backgroundColor: theme.colors.background },
+          ]}
+        >
+          <Icon
+            name="search-outline"
+            size={20}
+            color={theme.colors.textMuted}
+          />
           <TextInput
             style={[styles.searchInput, { color: theme.colors.text }]}
             placeholder={metadata.searchPlaceholder}
@@ -437,39 +629,67 @@ export const TaskListScreen = ({
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-          {searchQuery.length> 0 && (
+          {searchQuery.length > 0 && (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <Icon name="close-circle" size={20} color={theme.colors.textMuted} />
+              <Icon
+                name="close-circle"
+                size={20}
+                color={theme.colors.textMuted}
+              />
             </TouchableOpacity>
           )}
         </View>
       </View>
-      
+
       {!lockedFilter && renderFilterTabs()}
-      
+
       {isLoading ? (
         <ScrollView style={styles.listContainer}>
           <TaskCardSkeleton />
           <TaskCardSkeleton />
           <TaskCardSkeleton />
-          <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>Loading tasks...</Text>
+          <Text
+            style={[styles.loadingText, { color: theme.colors.textSecondary }]}
+          >
+            Loading tasks...
+          </Text>
         </ScrollView>
       ) : error ? (
         <View style={styles.centerContainer}>
-          <Icon name="alert-circle-outline" size={48} color={theme.colors.danger} />
-          <Text style={[styles.errorText, { color: theme.colors.danger }]}>{error}</Text>
-          <TouchableOpacity 
-            style={[styles.retryButton, { backgroundColor: theme.colors.primary }]} 
+          <Icon
+            name="alert-circle-outline"
+            size={48}
+            color={theme.colors.danger}
+          />
+          <Text style={[styles.errorText, { color: theme.colors.danger }]}>
+            {error}
+          </Text>
+          <TouchableOpacity
+            style={[
+              styles.retryButton,
+              { backgroundColor: theme.colors.primary },
+            ]}
             onPress={refetch}
-            activeOpacity={0.85}>
-            <Text style={[styles.retryText, { color: theme.colors.surface }]}>Retry</Text>
+            activeOpacity={0.85}
+          >
+            <Text style={[styles.retryText, { color: theme.colors.surface }]}>
+              Retry
+            </Text>
           </TouchableOpacity>
         </View>
       ) : visibleTasks.length === 0 ? (
         <View style={styles.centerContainer}>
-          <Icon name="document-text-outline" size={48} color={theme.colors.textMuted} />
-          <Text style={[styles.emptyText, { color: theme.colors.textSecondary }]}>
-            {searchQuery ? `No cases found matching "${searchQuery}"` : metadata.emptyMessage}
+          <Icon
+            name="document-text-outline"
+            size={48}
+            color={theme.colors.textMuted}
+          />
+          <Text
+            style={[styles.emptyText, { color: theme.colors.textSecondary }]}
+          >
+            {searchQuery
+              ? `No cases found matching "${searchQuery}"`
+              : metadata.emptyMessage}
           </Text>
         </View>
       ) : (
@@ -482,7 +702,10 @@ export const TaskListScreen = ({
           updateCellsBatchingPeriod={50}
           windowSize={8}
           removeClippedSubviews
-          contentContainerStyle={[styles.listContainer, { paddingBottom: Math.max(insets.bottom, 16) + 80 }]}
+          contentContainerStyle={[
+            styles.listContainer,
+            { paddingBottom: Math.max(insets.bottom, 16) + 80 },
+          ]}
           refreshing={isLoading}
           onRefresh={refetch}
         />
@@ -641,5 +864,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 16,
     fontWeight: '500',
-  }
+  },
 });

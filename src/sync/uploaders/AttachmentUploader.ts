@@ -15,7 +15,7 @@ class AttachmentUploaderClass {
     const taskId = String(payload.visitId || payload.taskId || '');
     const localPath = String(payload.localPath || '');
 
-    if (!await RNFS.exists(localPath)) {
+    if (!(await RNFS.exists(localPath))) {
       // File was deleted from disk (cache cleared, storage reclaimed).
       // Mark as SKIPPED rather than FAILURE to avoid wasting retry attempts
       // on an unrecoverable condition — the file can't be re-created.
@@ -40,7 +40,10 @@ class AttachmentUploaderClass {
       }
 
       // Return SUCCESS so the queue item is completed (not retried forever)
-      return { outcome: 'SUCCESS', error: `Photo file missing (skipped): ${localPath}` };
+      return {
+        outcome: 'SUCCESS',
+        error: `Photo file missing (skipped): ${localPath}`,
+      };
     }
 
     const formData = new FormData();
@@ -51,7 +54,10 @@ class AttachmentUploaderClass {
     } as any);
     formData.append(
       'photoType',
-      String(payload.photoType || (payload.componentType === 'selfie' ? 'selfie' : 'verification')),
+      String(
+        payload.photoType ||
+          (payload.componentType === 'selfie' ? 'selfie' : 'verification'),
+      ),
     );
     formData.append('operationId', operation.operationId);
 
@@ -96,7 +102,12 @@ class AttachmentUploaderClass {
            remote_path = COALESCE(?, remote_path),
            last_sync_attempt_at = ?
        WHERE id = ?`,
-      [uploadedAttachment?.id || null, uploadedAttachment?.url || null, new Date().toISOString(), String(payload.id)],
+      [
+        uploadedAttachment?.id || null,
+        uploadedAttachment?.url || null,
+        new Date().toISOString(),
+        String(payload.id),
+      ],
     );
     return { outcome: 'SUCCESS' };
   }

@@ -8,7 +8,9 @@ export const DataCleanupScreen = () => {
   const { theme } = useTheme();
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <ScreenHeader title="Data Cleanup Manager" />
       <DataCleanupManager />
     </View>

@@ -17,47 +17,54 @@ export const useTask = (taskId: string) => {
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef(0);
 
-  const fetchTaskDetails = useCallback(async (options?: { silent?: boolean }) => {
-    if (!taskId) {
-      setLocations([]);
-      setError('Task not found');
-      setIsLoading(false);
-      return;
-    }
-
-    const requestId = ++requestIdRef.current;
-
-    try {
-      if (!options?.silent) {
-        setIsLoading(true);
-      }
-      setError(null);
-
-      const [, locationResult] = await Promise.all([
-        ProjectionStore.ensureSelector(selector, { force: true }),
-        LocationRepository.listForTask(taskId),
-      ]);
-
-      if (requestId !== requestIdRef.current) {
+  const fetchTaskDetails = useCallback(
+    async (options?: { silent?: boolean }) => {
+      if (!taskId) {
+        setLocations([]);
+        setError('Task not found');
+        setIsLoading(false);
         return;
       }
 
-      setLocations(locationResult || []);
-      if (!ProjectionStore.getTaskSnapshot(taskId)) {
-        setError('Task not found');
+      const requestId = ++requestIdRef.current;
+
+      try {
+        if (!options?.silent) {
+          setIsLoading(true);
+        }
+        setError(null);
+
+        const [, locationResult] = await Promise.all([
+          ProjectionStore.ensureSelector(selector, { force: true }),
+          LocationRepository.listForTask(taskId),
+        ]);
+
+        if (requestId !== requestIdRef.current) {
+          return;
+        }
+
+        setLocations(locationResult || []);
+        if (!ProjectionStore.getTaskSnapshot(taskId)) {
+          setError('Task not found');
+        }
+      } catch (err: unknown) {
+        Logger.error(TAG, `Failed to fetch task ${taskId}`, err);
+        if (requestId === requestIdRef.current) {
+          setLocations([]);
+          setError(
+            err instanceof Error
+              ? err.message
+              : String(err) || 'An error occurred fetching the task',
+          );
+        }
+      } finally {
+        if (requestId === requestIdRef.current) {
+          setIsLoading(false);
+        }
       }
-    } catch (err: unknown) {
-      Logger.error(TAG, `Failed to fetch task ${taskId}`, err);
-      if (requestId === requestIdRef.current) {
-        setLocations([]);
-        setError(err instanceof Error ? err.message : String(err) || 'An error occurred fetching the task');
-      }
-    } finally {
-      if (requestId === requestIdRef.current) {
-        setIsLoading(false);
-      }
-    }
-  }, [selector, taskId]);
+    },
+    [selector, taskId],
+  );
 
   useFocusEffect(
     useCallback(() => {

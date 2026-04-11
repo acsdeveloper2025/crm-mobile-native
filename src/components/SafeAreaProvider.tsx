@@ -1,6 +1,17 @@
 import React, { createContext, useContext } from 'react';
-import { View, StyleSheet, Platform, StatusBar as RNStatusBar, StatusBarStyle } from 'react-native';
-import { SafeAreaProvider as RNSafeAreaProvider, SafeAreaView as RNSafeAreaView, useSafeAreaInsets, Edge } from 'react-native-safe-area-context';
+import {
+  View,
+  StyleSheet,
+  Platform,
+  StatusBar as RNStatusBar,
+  StatusBarStyle,
+} from 'react-native';
+import {
+  SafeAreaProvider as RNSafeAreaProvider,
+  SafeAreaView as RNSafeAreaView,
+  useSafeAreaInsets,
+  Edge,
+} from 'react-native-safe-area-context';
 import { useTheme } from '../context/ThemeContext';
 
 interface DeviceInfo {
@@ -22,32 +33,36 @@ const SafeAreaContext = createContext<SafeAreaContextType>({
 });
 
 export const useSafeArea = () => {
-    const insets = useSafeAreaInsets();
-    const context = useContext(SafeAreaContext);
-    return { ...context, insets };
+  const insets = useSafeAreaInsets();
+  const context = useContext(SafeAreaContext);
+  return { ...context, insets };
 };
 
 interface SafeAreaProviderProps {
   children: React.ReactNode;
 }
 
-export const SafeAreaProvider: React.FC<SafeAreaProviderProps> = ({ children }) => {
+export const SafeAreaProvider: React.FC<SafeAreaProviderProps> = ({
+  children,
+}) => {
   const { isDark } = useTheme();
 
   return (
     <RNSafeAreaProvider>
-      <RNStatusBar 
-        barStyle={isDark ? 'light-content' : 'dark-content' as StatusBarStyle} 
-        backgroundColor="transparent" 
-        translucent 
+      <RNStatusBar
+        barStyle={isDark ? 'light-content' : ('dark-content' as StatusBarStyle)}
+        backgroundColor="transparent"
+        translucent
       />
-      <SafeAreaContext.Provider value={{ 
-        deviceInfo: { 
-            platform: Platform.OS, 
-            hasHomeIndicator: Platform.OS === 'ios' 
-        }, 
-        isNative: true 
-      }}>
+      <SafeAreaContext.Provider
+        value={{
+          deviceInfo: {
+            platform: Platform.OS,
+            hasHomeIndicator: Platform.OS === 'ios',
+          },
+          isNative: true,
+        }}
+      >
         {children}
       </SafeAreaContext.Provider>
     </RNSafeAreaProvider>
@@ -79,7 +94,7 @@ interface MobileContainerProps {
 
 export const MobileContainer: React.FC<MobileContainerProps> = ({
   children,
-  style = {}
+  style = {},
 }) => {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
@@ -95,8 +110,9 @@ export const MobileContainer: React.FC<MobileContainerProps> = ({
           paddingRight: insets.right,
           paddingBottom: insets.bottom,
         },
-        style
-      ]}>
+        style,
+      ]}
+    >
       {children}
     </View>
   );

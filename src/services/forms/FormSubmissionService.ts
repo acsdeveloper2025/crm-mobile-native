@@ -30,10 +30,15 @@ class FormSubmissionServiceClass {
     // Pre-submit validation: check all required fields against template
     // before queuing to avoid wasting sync bandwidth on invalid forms.
     if (template) {
-      const { isValid, missingFields } = validateTemplateRequiredFields(template, formValues);
+      const { isValid, missingFields } = validateTemplateRequiredFields(
+        template,
+        formValues,
+      );
       if (!isValid) {
         throw new Error(
-          `Please fill in all required fields before submitting:\n${missingFields.join(', ')}`,
+          `Please fill in all required fields before submitting:\n${missingFields.join(
+            ', ',
+          )}`,
         );
       }
     }
@@ -42,7 +47,9 @@ class FormSubmissionServiceClass {
     let photoCount = 0;
     let selfieCount = 0;
     attachments.forEach(row => {
-      const ct = (row as unknown as Record<string, unknown>).componentType ?? row.componentType;
+      const ct =
+        (row as unknown as Record<string, unknown>).componentType ??
+        row.componentType;
       if (ct === 'photo') photoCount += 1;
       if (ct === 'selfie') selfieCount += 1;
     });

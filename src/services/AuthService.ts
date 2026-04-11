@@ -5,15 +5,16 @@ import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import { config } from '../config';
 import { Logger } from '../utils/logger';
-import { CURRENT_PLATFORM, getOSVersion, getDeviceModel } from '../utils/platform';
+import {
+  CURRENT_PLATFORM,
+  getOSVersion,
+  getDeviceModel,
+} from '../utils/platform';
 import { PushTokenService } from './PushTokenService';
 import { SessionStore } from './SessionStore';
 import { KeyValueRepository } from '../repositories/KeyValueRepository';
 import { UserSessionRepository } from '../repositories/UserSessionRepository';
-import type {
-  MobileDeviceInfo,
-  UserProfile,
-} from '../types/api';
+import type { MobileDeviceInfo, UserProfile } from '../types/api';
 
 const TAG = 'AuthService';
 const TOKEN_KEY = 'auth_access_token';
@@ -84,7 +85,10 @@ class AuthServiceClass {
     let legacyAccessToken = await this.kvGet(TOKEN_KEY);
     let legacyRefreshToken = await this.kvGet(REFRESH_TOKEN_KEY);
 
-    if ((!legacyAccessToken || !legacyRefreshToken) && await this.hasUserSessionTokenColumns()) {
+    if (
+      (!legacyAccessToken || !legacyRefreshToken) &&
+      (await this.hasUserSessionTokenColumns())
+    ) {
       const legacyTokens = await UserSessionRepository.getLegacyTokens();
       legacyAccessToken = legacyAccessToken || legacyTokens.accessToken;
       legacyRefreshToken = legacyRefreshToken || legacyTokens.refreshToken;
@@ -178,9 +182,20 @@ class AuthServiceClass {
       // Provide specific error messages so the LoginScreen can show the right feedback
       const errorName = error instanceof Error ? error.name : '';
       if (errorName.includes('Keychain') || errorName.includes('keychain')) {
-        return { success: false, message: 'SESSION_STORAGE_FAILED: Unable to save login session securely. Please restart the app and try again.' };
+        return {
+          success: false,
+          message:
+            'SESSION_STORAGE_FAILED: Unable to save login session securely. Please restart the app and try again.',
+        };
       }
-      return { success: false, message: `SESSION_STORAGE_FAILED: ${error instanceof Error ? error.message : 'Failed to save session data. Please restart the app.'}` };
+      return {
+        success: false,
+        message: `SESSION_STORAGE_FAILED: ${
+          error instanceof Error
+            ? error.message
+            : 'Failed to save session data. Please restart the app.'
+        }`,
+      };
     }
   }
 
@@ -196,7 +211,11 @@ class AuthServiceClass {
 
       const response = await ApiClient.post<{
         success: boolean;
-        data?: { accessToken: string; refreshToken?: string; expiresIn: number };
+        data?: {
+          accessToken: string;
+          refreshToken?: string;
+          expiresIn: number;
+        };
       }>(ENDPOINTS.AUTH.REFRESH, {
         refreshToken: this.refreshToken,
       });
@@ -311,7 +330,9 @@ class AuthServiceClass {
   /**
    * Update profile photo URL for current user and persist to SQLite.
    */
-  async updateProfilePhoto(profilePhotoUrl: string): Promise<UserProfile | null> {
+  async updateProfilePhoto(
+    profilePhotoUrl: string,
+  ): Promise<UserProfile | null> {
     if (!this.currentUser) {
       return null;
     }
@@ -364,7 +385,11 @@ class AuthServiceClass {
     try {
       pushToken = (await PushTokenService.getCachedPushToken()) || undefined;
     } catch (err) {
-      Logger.warn(TAG, 'Failed to get push token for device info — continuing without it', err);
+      Logger.warn(
+        TAG,
+        'Failed to get push token for device info — continuing without it',
+        err,
+      );
     }
     return {
       deviceId: await this.getDeviceId(),

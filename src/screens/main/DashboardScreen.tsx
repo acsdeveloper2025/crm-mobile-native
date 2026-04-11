@@ -1,6 +1,19 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, ScrollView, RefreshControl, StatusBar } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  ScrollView,
+  RefreshControl,
+  StatusBar,
+} from 'react-native';
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme, ThemePreference } from '../../context/ThemeContext';
 import { NotificationCenter } from '../../components/ui/NotificationCenter';
@@ -23,9 +36,12 @@ export const DashboardScreen = () => {
   const [inProgressTasks, setInProgressTasks] = useState(0);
   const [completedTasks, setCompletedTasks] = useState(0);
   const [savedTasks, setSavedTasks] = useState(0);
-  const [isNotificationCenterVisible, setIsNotificationCenterVisible] = useState(false);
+  const [isNotificationCenterVisible, setIsNotificationCenterVisible] =
+    useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [recentActivity, setRecentActivity] = useState<Array<{ id: string; text: string }>>([]);
+  const [recentActivity, setRecentActivity] = useState<
+    Array<{ id: string; text: string }>
+  >([]);
   const [lastSyncLabel, setLastSyncLabel] = useState('Not synced yet');
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -60,10 +76,15 @@ export const DashboardScreen = () => {
 
       for (const row of taskRows) {
         const taskLabel = row.verificationTaskNumber || row.id.slice(0, 8);
-        const when = row.updatedAt ? ` (${new Date(row.updatedAt).toLocaleString()})` : '';
+        const when = row.updatedAt
+          ? ` (${new Date(row.updatedAt).toLocaleString()})`
+          : '';
         items.push({
           id: row.id,
-          text: `${taskLabel} - ${row.customerName} - ${row.status.replace('_', ' ')}${when}`,
+          text: `${taskLabel} - ${row.customerName} - ${row.status.replace(
+            '_',
+            ' ',
+          )}${when}`,
         });
       }
 
@@ -76,7 +97,9 @@ export const DashboardScreen = () => {
 
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
-    await Promise.all([loadStats(), loadRecentActivity()]).catch(() => undefined);
+    await Promise.all([loadStats(), loadRecentActivity()]).catch(
+      () => undefined,
+    );
     setIsRefreshing(false);
   }, [loadStats, loadRecentActivity]);
 
@@ -85,9 +108,8 @@ export const DashboardScreen = () => {
       notificationService.refreshFromBackend().catch(error => {
         Logger.warn(TAG, 'Failed to refresh notifications on focus', error);
       });
-      Promise.all([loadStats(), loadRecentActivity()])
-        .catch(() => undefined);
-    }, [loadStats, loadRecentActivity])
+      Promise.all([loadStats(), loadRecentActivity()]).catch(() => undefined);
+    }, [loadStats, loadRecentActivity]),
   );
 
   const getActiveTaskCount = useCallback(async (): Promise<number> => {
@@ -99,17 +121,23 @@ export const DashboardScreen = () => {
       setIsSyncing(true);
       const { result } = await SyncTasksUseCase.execute();
       const activeTasks = await getActiveTaskCount();
-      
+
       if (result.success) {
         Alert.alert(
           'Sync Complete',
-          `Task Status Uploaded: ${result.uploadedStatusItems}\nPending Data Uploaded: ${result.uploadedItems}\nDownloaded Updates: ${result.downloadedTasks}\nAvailable Tasks: ${activeTasks}`
+          `Task Status Uploaded: ${result.uploadedStatusItems}\nPending Data Uploaded: ${result.uploadedItems}\nDownloaded Updates: ${result.downloadedTasks}\nAvailable Tasks: ${activeTasks}`,
         );
       } else {
-        Alert.alert('Sync Failed', result.errors.join('\n') || 'Unknown error occurred.');
+        Alert.alert(
+          'Sync Failed',
+          result.errors.join('\n') || 'Unknown error occurred.',
+        );
       }
     } catch (err: unknown) {
-      Alert.alert('Sync Error', err instanceof Error ? err.message : String(err));
+      Alert.alert(
+        'Sync Error',
+        err instanceof Error ? err.message : String(err),
+      );
     } finally {
       setIsSyncing(false);
       await notificationService.refreshFromBackend().catch(error => {
@@ -161,7 +189,7 @@ export const DashboardScreen = () => {
   };
 
   useEffect(() => {
-    const unsubscribe = notificationService.subscribe((notifications) => {
+    const unsubscribe = notificationService.subscribe(notifications => {
       setUnreadNotifications(notifications.filter(n => !n.isRead).length);
     });
     notificationService.ensureLoaded().catch(error => {
@@ -172,128 +200,322 @@ export const DashboardScreen = () => {
 
   return (
     <>
-      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={theme.colors.background} />
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['bottom']}>
-      <ScrollView
-        style={[styles.container, { backgroundColor: theme.colors.background }]}
-        contentContainerStyle={[styles.contentContainer, { paddingTop: Math.max(insets.top, 16) + 8 }]}
-        refreshControl={
-          <RefreshControl
-            refreshing={isRefreshing}
-            onRefresh={handleRefresh}
-            tintColor={theme.colors.primary}
-            colors={[theme.colors.primary]}
-          />
-        }
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.colors.background}
+      />
+      <SafeAreaView
+        style={[styles.safeArea, { backgroundColor: theme.colors.background }]}
+        edges={['bottom']}
       >
-        <View style={styles.header}>
-        <View style={styles.headerLeft}>
-            <Text style={[styles.userName, { color: theme.colors.text }]} numberOfLines={1} ellipsizeMode="tail">
-              Welcome, {user?.name || 'Agent'}!
-            </Text>
-            <Text style={[styles.greeting, { color: theme.colors.textMuted }]} numberOfLines={1} ellipsizeMode="tail">
-              Here is your daily summary.
-            </Text>
+        <ScrollView
+          style={[
+            styles.container,
+            { backgroundColor: theme.colors.background },
+          ]}
+          contentContainerStyle={[
+            styles.contentContainer,
+            { paddingTop: Math.max(insets.top, 16) + 8 },
+          ]}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              tintColor={theme.colors.primary}
+              colors={[theme.colors.primary]}
+            />
+          }
+        >
+          <View style={styles.header}>
+            <View style={styles.headerLeft}>
+              <Text
+                style={[styles.userName, { color: theme.colors.text }]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                Welcome, {user?.name || 'Agent'}!
+              </Text>
+              <Text
+                style={[styles.greeting, { color: theme.colors.textMuted }]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                Here is your daily summary.
+              </Text>
+            </View>
+            <View style={styles.headerActions}>
+              <TouchableOpacity
+                style={[
+                  styles.bellIcon,
+                  { backgroundColor: theme.colors.surface },
+                ]}
+                onPress={cycleThemePreference}
+              >
+                <Icon
+                  name={getThemeIcon()}
+                  size={20}
+                  color={theme.colors.text}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.bellIcon,
+                  { backgroundColor: theme.colors.surface },
+                ]}
+                onPress={() => setIsNotificationCenterVisible(true)}
+              >
+                <Icon
+                  name="notifications-outline"
+                  size={24}
+                  color={theme.colors.text}
+                />
+                {unreadNotifications > 0 && (
+                  <View
+                    style={[
+                      styles.unreadBadge,
+                      { backgroundColor: theme.colors.danger },
+                    ]}
+                  >
+                    <Text style={styles.unreadBadgeText}>
+                      {unreadNotifications}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.bellIcon,
+                  { backgroundColor: theme.colors.surface },
+                ]}
+                onPress={() => navigation.navigate('Profile')}
+              >
+                <Icon
+                  name="person-outline"
+                  size={22}
+                  color={theme.colors.text}
+                />
+              </TouchableOpacity>
+            </View>
           </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity style={[styles.bellIcon, { backgroundColor: theme.colors.surface }]} onPress={cycleThemePreference}>
-              <Icon name={getThemeIcon()} size={20} color={theme.colors.text} />
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.bellIcon, { backgroundColor: theme.colors.surface }]} onPress={() => setIsNotificationCenterVisible(true)}>
-              <Icon name="notifications-outline" size={24} color={theme.colors.text} />
-              {unreadNotifications > 0 && (
-                <View style={[styles.unreadBadge, { backgroundColor: theme.colors.danger }]}>
-                  <Text style={styles.unreadBadgeText}>{unreadNotifications}</Text>
-                </View>
+
+          <View
+            style={[
+              styles.syncSection,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
+          >
+            <View style={styles.syncSectionHeader}>
+              <Text style={[styles.syncTitle, { color: theme.colors.text }]}>
+                Sync Center
+              </Text>
+              <Text
+                style={[styles.syncMeta, { color: theme.colors.textMuted }]}
+              >
+                Last sync: {lastSyncLabel}
+              </Text>
+            </View>
+            <TouchableOpacity
+              style={[
+                styles.syncButtonLegacy,
+                { backgroundColor: theme.colors.primary },
+                isSyncing && styles.syncButtonDisabled,
+              ]}
+              onPress={handleForceSync}
+              disabled={isSyncing}
+            >
+              {isSyncing ? (
+                <ActivityIndicator color={theme.colors.surface} />
+              ) : (
+                <>
+                  <Icon
+                    name="sync-outline"
+                    size={20}
+                    color={theme.colors.surface}
+                  />
+                  <Text
+                    style={[
+                      styles.syncButtonText,
+                      { color: theme.colors.surface },
+                    ]}
+                  >
+                    Sync with Server
+                  </Text>
+                </>
               )}
             </TouchableOpacity>
-            <TouchableOpacity style={[styles.bellIcon, { backgroundColor: theme.colors.surface }]} onPress={() => navigation.navigate('Profile')}>
-              <Icon name="person-outline" size={22} color={theme.colors.text} />
+          </View>
+
+          <View style={styles.statsContainer}>
+            <TouchableOpacity
+              style={[
+                styles.statItem,
+                styles.statItemAssigned,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderTopColor: theme.colors.assigned,
+                },
+              ]}
+              onPress={() => navigateToTasks('ASSIGNED')}
+            >
+              <View style={styles.statHeader}>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                >
+                  Assigned
+                </Text>
+                <Icon
+                  name="clipboard-outline"
+                  size={16}
+                  color={theme.colors.assigned}
+                />
+              </View>
+              <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                {assignedTasks}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.statItem,
+                styles.statItemInProgress,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderTopColor: theme.colors.warning,
+                },
+              ]}
+              onPress={() => navigateToTasks('IN_PROGRESS')}
+            >
+              <View style={styles.statHeader}>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                >
+                  In Progress
+                </Text>
+                <Icon
+                  name="time-outline"
+                  size={16}
+                  color={theme.colors.warning}
+                />
+              </View>
+              <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                {inProgressTasks}
+              </Text>
             </TouchableOpacity>
           </View>
-        </View>
 
-        <View style={[styles.syncSection, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <View style={styles.syncSectionHeader}>
-            <Text style={[styles.syncTitle, { color: theme.colors.text }]}>Sync Center</Text>
-            <Text style={[styles.syncMeta, { color: theme.colors.textMuted }]}>Last sync: {lastSyncLabel}</Text>
+          <View style={styles.statsContainer}>
+            <TouchableOpacity
+              style={[
+                styles.statItem,
+                styles.statItemCompleted,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderTopColor: theme.colors.completed,
+                },
+              ]}
+              onPress={() => navigateToTasks('COMPLETED')}
+            >
+              <View style={styles.statHeader}>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                >
+                  Completed
+                </Text>
+                <Icon
+                  name="checkmark-done-outline"
+                  size={16}
+                  color={theme.colors.completed}
+                />
+              </View>
+              <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                {completedTasks}
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.statItem,
+                styles.statItemSaved,
+                {
+                  backgroundColor: theme.colors.surface,
+                  borderTopColor: theme.colors.saved,
+                },
+              ]}
+              onPress={() => navigateToTasks('SAVED')}
+            >
+              <View style={styles.statHeader}>
+                <Text
+                  style={[
+                    styles.statLabel,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                >
+                  Saved
+                </Text>
+                <Icon
+                  name="bookmark-outline"
+                  size={16}
+                  color={theme.colors.saved}
+                />
+              </View>
+              <Text style={[styles.statValue, { color: theme.colors.text }]}>
+                {savedTasks}
+              </Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
+
+          <View
             style={[
-              styles.syncButtonLegacy,
-              { backgroundColor: theme.colors.primary },
-              isSyncing && styles.syncButtonDisabled
+              styles.recentSection,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
             ]}
-            onPress={handleForceSync}
-            disabled={isSyncing}>
-            {isSyncing ? (
-              <ActivityIndicator color={theme.colors.surface} />
-            ) : (
-              <>
-                <Icon name="sync-outline" size={20} color={theme.colors.surface} />
-                <Text style={[styles.syncButtonText, { color: theme.colors.surface }]}>
-                  Sync with Server
-                </Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.statsContainer}>
-          <TouchableOpacity style={[styles.statItem, styles.statItemAssigned, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.assigned }]} onPress={() => navigateToTasks('ASSIGNED')}>
-            <View style={styles.statHeader}>
-              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Assigned</Text>
-              <Icon name="clipboard-outline" size={16} color={theme.colors.assigned} />
-            </View>
-            <Text style={[styles.statValue, { color: theme.colors.text }]}>{assignedTasks}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.statItem, styles.statItemInProgress, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.warning }]} onPress={() => navigateToTasks('IN_PROGRESS')}>
-            <View style={styles.statHeader}>
-              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>In Progress</Text>
-              <Icon name="time-outline" size={16} color={theme.colors.warning} />
-            </View>
-            <Text style={[styles.statValue, { color: theme.colors.text }]}>{inProgressTasks}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.statsContainer}>
-          <TouchableOpacity style={[styles.statItem, styles.statItemCompleted, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.completed }]} onPress={() => navigateToTasks('COMPLETED')}>
-            <View style={styles.statHeader}>
-              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Completed</Text>
-              <Icon name="checkmark-done-outline" size={16} color={theme.colors.completed} />
-            </View>
-            <Text style={[styles.statValue, { color: theme.colors.text }]}>{completedTasks}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={[styles.statItem, styles.statItemSaved, { backgroundColor: theme.colors.surface, borderTopColor: theme.colors.saved }]} onPress={() => navigateToTasks('SAVED')}>
-            <View style={styles.statHeader}>
-              <Text style={[styles.statLabel, { color: theme.colors.textSecondary }]}>Saved</Text>
-              <Icon name="bookmark-outline" size={16} color={theme.colors.saved} />
-            </View>
-            <Text style={[styles.statValue, { color: theme.colors.text }]}>{savedTasks}</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={[styles.recentSection, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.recentTitle, { color: theme.colors.text }]}>Recent Activity</Text>
-          {recentActivity.length === 0 ? (
-            <Text style={[styles.recentSubtitle, { color: theme.colors.textSecondary }]}>
-              Sync to get the latest updates from the server.
+          >
+            <Text style={[styles.recentTitle, { color: theme.colors.text }]}>
+              Recent Activity
             </Text>
-          ) : (
-            <View style={styles.recentList}>
-              {recentActivity.map(item => (
-                <Text key={item.id} style={[styles.recentItem, { color: theme.colors.textSecondary }]}>
-                  {`• ${item.text}`}
-                </Text>
-              ))}
-            </View>
-          )}
-        </View>
+            {recentActivity.length === 0 ? (
+              <Text
+                style={[
+                  styles.recentSubtitle,
+                  { color: theme.colors.textSecondary },
+                ]}
+              >
+                Sync to get the latest updates from the server.
+              </Text>
+            ) : (
+              <View style={styles.recentList}>
+                {recentActivity.map(item => (
+                  <Text
+                    key={item.id}
+                    style={[
+                      styles.recentItem,
+                      { color: theme.colors.textSecondary },
+                    ]}
+                  >
+                    {`• ${item.text}`}
+                  </Text>
+                ))}
+              </View>
+            )}
+          </View>
 
-        <View style={styles.spacer} />
-      </ScrollView>
+          <View style={styles.spacer} />
+        </ScrollView>
       </SafeAreaView>
 
       <NotificationCenter
@@ -340,7 +562,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: 'rgba(0,0,0,0.1)',
-    position: 'relative'
+    position: 'relative',
   },
   unreadBadge: {
     position: 'absolute',

@@ -33,7 +33,10 @@ class SyncProcessorClass {
     this.taskLocks.delete(taskKey);
   }
 
-  async processPending(limit: number, options: SyncProcessorOptions = {}): Promise<SyncProcessorResult> {
+  async processPending(
+    limit: number,
+    options: SyncProcessorOptions = {},
+  ): Promise<SyncProcessorResult> {
     const errors: string[] = [];
     let uploaded = 0;
     let retriesSeen = 0;
@@ -41,7 +44,9 @@ class SyncProcessorClass {
     const pendingItems = await SyncQueue.getPendingItems(limit);
     for (const item of pendingItems) {
       if (options.shouldAbort?.()) {
-        errors.push('Sync watchdog interrupted processing due to stalled progress');
+        errors.push(
+          'Sync watchdog interrupted processing due to stalled progress',
+        );
         break;
       }
 
@@ -55,7 +60,10 @@ class SyncProcessorClass {
       }
 
       if (!this.acquireTaskLock(operation.taskKey)) {
-        Logger.info(TAG, `Skipping locked task operation ${operation.operationId} for ${operation.taskKey}`);
+        Logger.info(
+          TAG,
+          `Skipping locked task operation ${operation.operationId} for ${operation.taskKey}`,
+        );
         continue;
       }
 
@@ -71,7 +79,10 @@ class SyncProcessorClass {
         }
 
         if (result.outcome === 'DEFER') {
-          await SyncQueue.markPending(item.id, result.error || 'Deferred by ordering policy');
+          await SyncQueue.markPending(
+            item.id,
+            result.error || 'Deferred by ordering policy',
+          );
           options.onProgress?.();
           continue;
         }
@@ -83,11 +94,18 @@ class SyncProcessorClass {
           operation.entityId,
           result.error || 'Operation failed',
         );
-        errors.push(`${operation.type}/${operation.entityId}: ${result.error || 'Operation failed'}`);
+        errors.push(
+          `${operation.type}/${operation.entityId}: ${
+            result.error || 'Operation failed'
+          }`,
+        );
         options.onProgress?.();
       } catch (error: unknown) {
         // Classify errors: network errors are retryable, others may not be
-        const errorMsg = error instanceof Error ? error.message : String(error) || 'Operation crashed';
+        const errorMsg =
+          error instanceof Error
+            ? error.message
+            : String(error) || 'Operation crashed';
         const errorCode = (error as { code?: string })?.code;
         const isNetworkError =
           errorCode === 'ECONNABORTED' ||
@@ -109,7 +127,10 @@ class SyncProcessorClass {
         );
 
         if (!isNetworkError) {
-          Logger.error(TAG, `Non-retryable sync failure for ${operation.operationId}: ${errorMsg}`);
+          Logger.error(
+            TAG,
+            `Non-retryable sync failure for ${operation.operationId}: ${errorMsg}`,
+          );
         }
 
         errors.push(`${operation.type}/${operation.entityId}: ${failReason}`);

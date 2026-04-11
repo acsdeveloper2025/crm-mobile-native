@@ -2,9 +2,14 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { useTheme } from '../../context/ThemeContext';
-import type { FormTemplate, FormSectionTemplate, FormFieldTemplate } from '../../types/api';
+import type {
+  FormTemplate,
+  FormSectionTemplate,
+  FormFieldTemplate,
+} from '../../types/api';
 
-const toArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : [value]);
+const toArray = (value: unknown): unknown[] =>
+  Array.isArray(value) ? value : [value];
 
 const isEmptyFieldValue = (value: unknown): boolean => {
   if (value === null || value === undefined) return true;
@@ -13,7 +18,10 @@ const isEmptyFieldValue = (value: unknown): boolean => {
   return false;
 };
 
-const evaluateCondition = (condition: any, values: Record<string, unknown>): boolean => {
+const evaluateCondition = (
+  condition: any,
+  values: Record<string, unknown>,
+): boolean => {
   const actualValue = values[condition.field];
   const expectedValue = condition.value;
 
@@ -23,10 +31,12 @@ const evaluateCondition = (condition: any, values: Record<string, unknown>): boo
     case 'notEquals':
       return actualValue !== expectedValue;
     case 'contains':
-      if (Array.isArray(actualValue)) return actualValue.includes(expectedValue);
+      if (Array.isArray(actualValue))
+        return actualValue.includes(expectedValue);
       return String(actualValue ?? '').includes(String(expectedValue ?? ''));
     case 'notContains':
-      if (Array.isArray(actualValue)) return !actualValue.includes(expectedValue);
+      if (Array.isArray(actualValue))
+        return !actualValue.includes(expectedValue);
       return !String(actualValue ?? '').includes(String(expectedValue ?? ''));
     case 'greaterThan':
       return Number(actualValue) > Number(expectedValue);
@@ -68,8 +78,12 @@ const isFieldRequired = (
   const alwaysRequired = Boolean(field.required);
   if (!field.requiredWhen) return alwaysRequired;
 
-  const conditions = Array.isArray(field.requiredWhen) ? field.requiredWhen : [field.requiredWhen];
-  const requiredByCondition = conditions.every(condition => evaluateCondition(condition, values));
+  const conditions = Array.isArray(field.requiredWhen)
+    ? field.requiredWhen
+    : [field.requiredWhen];
+  const requiredByCondition = conditions.every(condition =>
+    evaluateCondition(condition, values),
+  );
   return alwaysRequired || requiredByCondition;
 };
 
@@ -84,7 +98,7 @@ export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
   template,
   formValues,
   onFieldChange,
-  validationErrors = {}
+  validationErrors = {},
 }) => {
   const { theme } = useTheme();
 
@@ -94,19 +108,30 @@ export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
     }
 
     return (Array.isArray(template.sections) ? template.sections : [])
-      .filter((section: FormSectionTemplate) => isSectionVisible(section, formValues))
+      .filter((section: FormSectionTemplate) =>
+        isSectionVisible(section, formValues),
+      )
       .map((section: FormSectionTemplate, index: number) => {
-        const sectionKey = section.id || `${section.title || 'section'}_${index}`;
-        const visibleFields = (Array.isArray(section.fields) ? section.fields : [])
+        const sectionKey =
+          section.id || `${section.title || 'section'}_${index}`;
+        const visibleFields = (
+          Array.isArray(section.fields) ? section.fields : []
+        )
           .filter(field => isFieldVisible(field, formValues))
           .map(field => {
             // Use field.name as the canonical key for form values. Fall back to
             // field.id only if name is absent. This ensures consistent mapping
             // between mobile form values and backend field expectations.
-            const valueKey = field.name && field.name.trim() !== '' ? field.name : field.id;
+            const valueKey =
+              field.name && field.name.trim() !== '' ? field.name : field.id;
             return {
               key: valueKey,
-              field: { ...field, id: valueKey, name: valueKey, required: isFieldRequired(field, formValues) },
+              field: {
+                ...field,
+                id: valueKey,
+                name: valueKey,
+                required: isFieldRequired(field, formValues),
+              },
             };
           });
 
@@ -123,28 +148,77 @@ export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
   if (!template) {
     return (
       <View style={styles.emptyContainer}>
-        <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>Loading form template...</Text>
+        <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
+          Loading form template...
+        </Text>
       </View>
     );
   }
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.formTitle, { color: theme.colors.text }]}>{template.name}</Text>
+      <Text style={[styles.formTitle, { color: theme.colors.text }]}>
+        {template.name}
+      </Text>
       {template.description ? (
-        <Text style={[styles.formDescription, { color: theme.colors.textSecondary }]}>{template.description}</Text>
+        <Text
+          style={[
+            styles.formDescription,
+            { color: theme.colors.textSecondary },
+          ]}
+        >
+          {template.description}
+        </Text>
       ) : null}
 
       {visibleSections.map(({ index, section, sectionKey, visibleFields }) => (
-        <View key={sectionKey} style={[styles.sectionContainer, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.border }]}>
-          <View style={[styles.sectionHeader, { backgroundColor: theme.colors.surfaceAlt, borderBottomColor: theme.colors.border }]}>
-            <View style={[styles.sectionBadge, { backgroundColor: theme.colors.primary }]}>
-              <Text style={[styles.sectionBadgeText, { color: theme.colors.surface }]}>{index + 1}</Text>
+        <View
+          key={sectionKey}
+          style={[
+            styles.sectionContainer,
+            {
+              backgroundColor: theme.colors.surfaceAlt,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <View
+            style={[
+              styles.sectionHeader,
+              {
+                backgroundColor: theme.colors.surfaceAlt,
+                borderBottomColor: theme.colors.border,
+              },
+            ]}
+          >
+            <View
+              style={[
+                styles.sectionBadge,
+                { backgroundColor: theme.colors.primary },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.sectionBadgeText,
+                  { color: theme.colors.surface },
+                ]}
+              >
+                {index + 1}
+              </Text>
             </View>
             <View style={styles.sectionTextWrap}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>{section.title}</Text>
+              <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
+                {section.title}
+              </Text>
               {section.description ? (
-                <Text style={[styles.sectionDesc, { color: theme.colors.textSecondary }]}>{section.description}</Text>
+                <Text
+                  style={[
+                    styles.sectionDesc,
+                    { color: theme.colors.textSecondary },
+                  ]}
+                >
+                  {section.description}
+                </Text>
               ) : null}
             </View>
           </View>
@@ -236,5 +310,5 @@ const styles = StyleSheet.create({
   fieldsContainer: {
     paddingHorizontal: 14,
     paddingVertical: 12,
-  }
+  },
 });

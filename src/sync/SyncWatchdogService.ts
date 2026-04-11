@@ -27,7 +27,11 @@ class SyncWatchdogServiceClass {
 
   async start(): Promise<void> {
     const now = new Date().toISOString();
-    await this.writeState({ running: true, startedAt: now, lastProgressAt: now });
+    await this.writeState({
+      running: true,
+      startedAt: now,
+      lastProgressAt: now,
+    });
   }
 
   async heartbeat(): Promise<void> {
@@ -61,7 +65,8 @@ class SyncWatchdogServiceClass {
       return false;
     }
     const lastProgress = new Date(state.lastProgressAt).getTime();
-    const stalled = Number.isFinite(lastProgress) && Date.now() - lastProgress > timeoutMs;
+    const stalled =
+      Number.isFinite(lastProgress) && Date.now() - lastProgress > timeoutMs;
     if (stalled) {
       await this.stop();
     }

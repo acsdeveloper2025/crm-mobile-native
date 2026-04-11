@@ -115,7 +115,9 @@ class MobileTelemetryServiceClass {
 
     const message = `[${event.category}] ${event.name}`;
     if (event.severity === 'error') {
-      this.sentry.captureException?.(new Error(message), { extra: event.payload });
+      this.sentry.captureException?.(new Error(message), {
+        extra: event.payload,
+      });
       return;
     }
     this.sentry.captureMessage?.(message, event.severity);
@@ -212,7 +214,12 @@ class MobileTelemetryServiceClass {
     });
   }
 
-  trackUploadFailure(operationType: string, entityType: string, entityId: string, reason: string): void {
+  trackUploadFailure(
+    operationType: string,
+    entityType: string,
+    entityId: string,
+    reason: string,
+  ): void {
     this.enqueue({
       category: 'upload',
       name: 'upload_failure',
@@ -221,7 +228,11 @@ class MobileTelemetryServiceClass {
     });
   }
 
-  trackBackgroundSyncStat(name: string, payload: Record<string, unknown>, severity: Severity = 'info'): void {
+  trackBackgroundSyncStat(
+    name: string,
+    payload: Record<string, unknown>,
+    severity: Severity = 'info',
+  ): void {
     this.enqueue({
       category: 'background',
       name,

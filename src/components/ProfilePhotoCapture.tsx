@@ -7,7 +7,10 @@ interface ProfilePhotoCaptureProps {
   onCancel: () => void;
 }
 
-const ProfilePhotoCapture: React.FC<ProfilePhotoCaptureProps> = ({ onSave, onCancel }) => {
+const ProfilePhotoCapture: React.FC<ProfilePhotoCaptureProps> = ({
+  onSave,
+  onCancel,
+}) => {
   const { theme } = useTheme();
 
   return (

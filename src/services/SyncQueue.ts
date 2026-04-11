@@ -5,7 +5,10 @@ import { v4 as uuidv4 } from 'uuid';
 import { SyncQueueRepository } from '../repositories/SyncQueueRepository';
 import { SyncEngineRepository } from '../repositories/SyncEngineRepository';
 import { syncRetryPolicy } from '../sync/SyncRetryPolicy';
-import { inferOperationType, priorityForOperationType } from '../sync/SyncOperationLog';
+import {
+  inferOperationType,
+  priorityForOperationType,
+} from '../sync/SyncOperationLog';
 import { StorageService } from './StorageService';
 import { Logger } from '../utils/logger';
 import type { SyncQueueItem } from '../types/mobile';
@@ -66,13 +69,17 @@ class SyncQueueClass {
     const hasSpace = await StorageService.hasEnoughSpace(50); // 50MB minimum
     if (!hasSpace) {
       // Run emergency cleanup of synced data to free space
-      Logger.warn(TAG, 'Low storage detected — running emergency cleanup before enqueue');
+      Logger.warn(
+        TAG,
+        'Low storage detected — running emergency cleanup before enqueue',
+      );
       await StorageService.cleanupSyncedData(1); // Clean data synced 1+ day ago
 
       // Re-check after cleanup
       const hasSpaceAfterCleanup = await StorageService.hasEnoughSpace(10); // 10MB absolute minimum
       if (!hasSpaceAfterCleanup) {
-        const errorMsg = 'Device storage critically low — cannot queue operation. Please free storage and try again.';
+        const errorMsg =
+          'Device storage critically low — cannot queue operation. Please free storage and try again.';
         Logger.error(TAG, errorMsg);
         throw new Error(errorMsg);
       }
@@ -90,12 +97,12 @@ class SyncQueueClass {
     const payloadWithOperation = {
       ...payload,
       _operation: {
-        operation_id: id,
+        operationId: id,
         type: operationType,
-        entity_type: entityType,
-        entity_id: entityId,
-        created_at: now,
-        retry_count: 0,
+        entityType: entityType,
+        entityId: entityId,
+        createdAt: now,
+        retryCount: 0,
         priority: operationPriority,
       },
     };
@@ -110,7 +117,10 @@ class SyncQueueClass {
       now,
     );
 
-    Logger.debug(TAG, `Enqueued: ${actionType} ${entityType} ${entityId} (priority: ${priority})`);
+    Logger.debug(
+      TAG,
+      `Enqueued: ${actionType} ${entityType} ${entityId} (priority: ${priority})`,
+    );
     return id;
   }
 
@@ -130,7 +140,8 @@ class SyncQueueClass {
   calculateLeaseTimeout(payload: Record<string, unknown>): number {
     const sizeBytes = typeof payload.size === 'number' ? payload.size : 0;
     const sizeMb = sizeBytes / (1024 * 1024);
-    const dynamicTimeout = DEFAULT_LEASE_TIMEOUT_MS + Math.ceil(sizeMb) * LEASE_PER_MB_MS;
+    const dynamicTimeout =
+      DEFAULT_LEASE_TIMEOUT_MS + Math.ceil(sizeMb) * LEASE_PER_MB_MS;
     return Math.min(dynamicTimeout, MAX_LEASE_TIMEOUT_MS);
   }
 
@@ -142,7 +153,11 @@ class SyncQueueClass {
     leaseTimeoutMs: number = DEFAULT_LEASE_TIMEOUT_MS,
   ): Promise<void> {
     const now = new Date().toISOString();
-    await SyncQueueRepository.markInProgress(id, now, this.getLeaseExpiry(leaseTimeoutMs));
+    await SyncQueueRepository.markInProgress(
+      id,
+      now,
+      this.getLeaseExpiry(leaseTimeoutMs),
+    );
   }
 
   /**
@@ -166,7 +181,7 @@ class SyncQueueClass {
    */
   async markFailed(id: string, error: string): Promise<void> {
     // Get current attempts for backoff calculation
-    const attempts = await SyncQueueRepository.getAttempts(id) || 1;
+    const attempts = (await SyncQueueRepository.getAttempts(id)) || 1;
     const { nextRetryAt } = syncRetryPolicy.getRetryWindow(attempts);
 
     await SyncQueueRepository.markFailed(id, error, nextRetryAt);
@@ -194,10 +209,18 @@ class SyncQueueClass {
     const counts = { pending: 0, inProgress: 0, completed: 0, failed: 0 };
     for (const [status, count] of Object.entries(rows)) {
       switch (status) {
-        case 'PENDING': counts.pending = count; break;
-        case 'IN_PROGRESS': counts.inProgress = count; break;
-        case 'COMPLETED': counts.completed = count; break;
-        case 'FAILED': counts.failed = count; break;
+        case 'PENDING':
+          counts.pending = count;
+          break;
+        case 'IN_PROGRESS':
+          counts.inProgress = count;
+          break;
+        case 'COMPLETED':
+          counts.completed = count;
+          break;
+        case 'FAILED':
+          counts.failed = count;
+          break;
       }
     }
 
@@ -224,7 +247,10 @@ class SyncQueueClass {
   /**
    * Check if there's a pending item for a specific entity
    */
-  async hasPendingItem(entityType: EntityType, entityId: string): Promise<boolean> {
+  async hasPendingItem(
+    entityType: EntityType,
+    entityId: string,
+  ): Promise<boolean> {
     const rows = await SyncEngineRepository.query<{ c: number }>(
       `SELECT 1 as c FROM sync_queue WHERE entity_type = ? AND entity_id = ? AND (status = 'PENDING' OR status = 'IN_PROGRESS') LIMIT 1`,
       [entityType, entityId],

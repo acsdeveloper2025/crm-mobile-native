@@ -2,17 +2,17 @@ import { DatabaseService } from '../database/DatabaseService';
 import type { UserProfile } from '../types/api';
 
 type SessionRow = {
-  user_id: string;
-  user_name: string;
+  userId: string;
+  userName: string;
   username: string;
   email: string;
   role: string;
-  employee_id: string;
+  employeeId: string;
   designation: string;
   department: string;
-  profile_photo_url: string | null;
-  assigned_pincodes_json: string | null;
-  assigned_areas_json: string | null;
+  profilePhotoUrl: string | null;
+  assignedPincodesJson: string | null;
+  assignedAreasJson: string | null;
 };
 
 class UserSessionRepositoryClass {
@@ -28,15 +28,18 @@ class UserSessionRepositoryClass {
     return names.has('access_token') && names.has('refresh_token');
   }
 
-  async getLegacyTokens(): Promise<{ accessToken: string | null; refreshToken: string | null }> {
+  async getLegacyTokens(): Promise<{
+    accessToken: string | null;
+    refreshToken: string | null;
+  }> {
     const rows = await DatabaseService.query<{
-      access_token?: string | null;
-      refresh_token?: string | null;
+      accessToken?: string | null;
+      refreshToken?: string | null;
     }>('SELECT access_token, refresh_token FROM user_session WHERE id = 1');
 
     return {
-      accessToken: rows[0]?.access_token || null,
-      refreshToken: rows[0]?.refresh_token || null,
+      accessToken: rows[0]?.accessToken || null,
+      refreshToken: rows[0]?.refreshToken || null,
     };
   }
 
@@ -96,20 +99,20 @@ class UserSessionRepositoryClass {
       return null;
     }
     return {
-      id: row.user_id,
-      name: row.user_name,
+      id: row.userId,
+      name: row.userName,
       username: row.username,
       email: row.email,
       role: row.role,
-      employeeId: row.employee_id,
+      employeeId: row.employeeId,
       designation: row.designation,
       department: row.department,
-      profilePhotoUrl: row.profile_photo_url || undefined,
-      assignedPincodes: row.assigned_pincodes_json
-        ? JSON.parse(row.assigned_pincodes_json)
+      profilePhotoUrl: row.profilePhotoUrl || undefined,
+      assignedPincodes: row.assignedPincodesJson
+        ? JSON.parse(row.assignedPincodesJson)
         : [],
-      assignedAreas: row.assigned_areas_json
-        ? JSON.parse(row.assigned_areas_json)
+      assignedAreas: row.assignedAreasJson
+        ? JSON.parse(row.assignedAreasJson)
         : [],
     };
   }

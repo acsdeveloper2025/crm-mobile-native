@@ -321,34 +321,34 @@ export enum OfficeType {
 }
 
 export enum ApplicantWorkingPremisesOffice {
-    SameLocation = 'Same Location',
-    DifferentLocation = 'Different Location',
+  SameLocation = 'Same Location',
+  DifferentLocation = 'Different Location',
 }
 
 export enum DesignationShiftedOffice {
-    ApplicantSelf = 'Applicant Self',
-    Reception = 'Reception',
-    ReceptionSecurity = 'Reception Security',
-    CompanySecurity = 'Company Security',
-    ManagerHR = 'Manager / H.R.',
-    SrOfficer = 'SR. Officer',
-    Accountant = 'Accountant',
-    Admin = 'Admin',
-    OfficeStaff = 'Office Staff',
-    Clerk = 'Clark',
-    Principal = 'Principal',
-    Other = 'Other',
+  ApplicantSelf = 'Applicant Self',
+  Reception = 'Reception',
+  ReceptionSecurity = 'Reception Security',
+  CompanySecurity = 'Company Security',
+  ManagerHR = 'Manager / H.R.',
+  SrOfficer = 'SR. Officer',
+  Accountant = 'Accountant',
+  Admin = 'Admin',
+  OfficeStaff = 'Office Staff',
+  Clerk = 'Clark',
+  Principal = 'Principal',
+  Other = 'Other',
 }
 
 export enum OfficeExistence {
-    Exist = 'Exist',
-    DoesNotExist = 'Does Not Exist',
+  Exist = 'Exist',
+  DoesNotExist = 'Does Not Exist',
 }
 
 export enum OfficeStatusErtOffice {
-    OfficeExistAt = 'Office Exist At',
-    OfficeDoesNotExistAt = 'Office Does Not Exist At',
-    OfficeShiftedFrom = 'Office Shifted From',
+  OfficeExistAt = 'Office Exist At',
+  OfficeDoesNotExistAt = 'Office Does Not Exist At',
+  OfficeShiftedFrom = 'Office Shifted From',
 }
 
 // Business enums
@@ -367,32 +367,32 @@ export enum OwnershipTypeBusiness {
 }
 
 export enum AddressStatusBusiness {
-    SelfOwned = 'On a Self Owned Basis',
-    Rental = 'On a Rental Basis',
-    Pagadi = 'On a Pagadi System',
-    SharedWorkplace = 'In Share Work Place',
+  SelfOwned = 'On a Self Owned Basis',
+  Rental = 'On a Rental Basis',
+  Pagadi = 'On a Pagadi System',
+  SharedWorkplace = 'In Share Work Place',
 }
 
 export enum PremisesStatusBusiness {
-    Vacant = 'Vacant',
-    RentedTo = 'Rented To',
-    OwnedBy = 'Owned By',
+  Vacant = 'Vacant',
+  RentedTo = 'Rented To',
+  OwnedBy = 'Owned By',
 }
 
 export enum BusinessExistence {
-    Exist = 'Exist',
-    DoesNotExist = 'Does Not Exist',
+  Exist = 'Exist',
+  DoesNotExist = 'Does Not Exist',
 }
 
 export enum ApplicantExistence {
-    Exist = 'Exist',
-    DoesNotExist = 'Does Not Exist',
+  Exist = 'Exist',
+  DoesNotExist = 'Does Not Exist',
 }
 
 export enum OfficeStatusErtBusiness {
-    Exist = 'Business Exist At',
-    DoesNotExist = 'Business Does Not Exist At',
-    Shifted = 'Business Shifted From',
+  Exist = 'Business Exist At',
+  DoesNotExist = 'Business Does Not Exist At',
+  Shifted = 'Business Shifted From',
 }
 
 // NOC enums
@@ -409,15 +409,15 @@ export enum DesignationNoc {
 }
 
 export enum OfficeStatusErtNoc {
-    Exist = 'Office Exist At',
-    DoesNotExist = 'Office Does Not Exist At',
-    Shifted = 'Office Shifted From',
+  Exist = 'Office Exist At',
+  DoesNotExist = 'Office Does Not Exist At',
+  Shifted = 'Office Shifted From',
 }
 
 export enum OfficeStatusErtDsa {
-    Exist = 'Business Exist At',
-    DoesNotExist = 'Business Does Not Exist At',
-    Shifted = 'Business Shifted From',
+  Exist = 'Business Exist At',
+  DoesNotExist = 'Business Does Not Exist At',
+  Shifted = 'Business Shifted From',
 }
 
 // Property APF enums
@@ -434,30 +434,30 @@ export enum FlatStatusApf {
 }
 
 export enum RelationshipApf {
-    Self = 'Self',
-    Mother = 'Mother',
-    Father = 'Father',
-    Wife = 'Wife',
-    Son = 'Son',
-    Daughter = 'Daughter',
-    Sister = 'Sister',
-    Brother = 'Brother',
-    Aunty = 'Aunty',
-    Uncle = 'Uncle',
-    MotherInLaw = 'Mother in Law',
-    FatherInLaw = 'Father in Law',
-    DaughterInLaw = 'Daughter in Law',
-    SisterInLaw = 'Sister in Law',
-    BrotherInLaw = 'Brother in Law',
-    Other = 'Other',
+  Self = 'Self',
+  Mother = 'Mother',
+  Father = 'Father',
+  Wife = 'Wife',
+  Son = 'Son',
+  Daughter = 'Daughter',
+  Sister = 'Sister',
+  Brother = 'Brother',
+  Aunty = 'Aunty',
+  Uncle = 'Uncle',
+  MotherInLaw = 'Mother in Law',
+  FatherInLaw = 'Father in Law',
+  DaughterInLaw = 'Daughter in Law',
+  SisterInLaw = 'Sister in Law',
+  BrotherInLaw = 'Brother in Law',
+  Other = 'Other',
 }
 
 export enum ConnectorStatus {
-    Positive = 'Positive',
-    NSP = 'NSP',
-    Shifted = 'Shifted',
-    Untraceable = 'Untraceable',
-    EntryRestricted = 'Entry Restricted',
+  Positive = 'Positive',
+  NSP = 'NSP',
+  Shifted = 'Shifted',
+  Untraceable = 'Untraceable',
+  EntryRestricted = 'Entry Restricted',
 }
 export enum RevokeReason {
   NotMyArea = 'Not my area',

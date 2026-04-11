@@ -1,6 +1,7 @@
 import type { FormFieldCondition, FormTemplate } from '../../types/api';
 
-const toArray = (value: unknown): unknown[] => (Array.isArray(value) ? value : [value]);
+const toArray = (value: unknown): unknown[] =>
+  Array.isArray(value) ? value : [value];
 
 export const isEmptyFieldValue = (value: unknown): boolean => {
   if (value === null || value === undefined) return true;
@@ -17,21 +18,30 @@ export const evaluateFieldCondition = (
   const expected = condition.value;
 
   switch (condition.operator) {
-    case 'equals': return actual === expected;
-    case 'notEquals': return actual !== expected;
+    case 'equals':
+      return actual === expected;
+    case 'notEquals':
+      return actual !== expected;
     case 'contains':
       if (Array.isArray(actual)) return actual.includes(expected);
       return String(actual ?? '').includes(String(expected ?? ''));
     case 'notContains':
       if (Array.isArray(actual)) return !actual.includes(expected);
       return !String(actual ?? '').includes(String(expected ?? ''));
-    case 'greaterThan': return Number(actual) > Number(expected);
-    case 'lessThan': return Number(actual) < Number(expected);
-    case 'in': return toArray(expected).includes(actual);
-    case 'notIn': return !toArray(expected).includes(actual);
-    case 'isTruthy': return !isEmptyFieldValue(actual) && !!actual;
-    case 'isFalsy': return isEmptyFieldValue(actual) || !actual;
-    default: return true;
+    case 'greaterThan':
+      return Number(actual) > Number(expected);
+    case 'lessThan':
+      return Number(actual) < Number(expected);
+    case 'in':
+      return toArray(expected).includes(actual);
+    case 'notIn':
+      return !toArray(expected).includes(actual);
+    case 'isTruthy':
+      return !isEmptyFieldValue(actual) && !!actual;
+    case 'isFalsy':
+      return isEmptyFieldValue(actual) || !actual;
+    default:
+      return true;
   }
 };
 
@@ -41,24 +51,34 @@ export const validateTemplateRequiredFields = (
 ): { isValid: boolean; missingFields: string[] } => {
   const missingFields: string[] = [];
   const isEnumField = (fieldType: string): boolean =>
-    fieldType === 'select' || fieldType === 'radio' || fieldType === 'multiselect';
+    fieldType === 'select' ||
+    fieldType === 'radio' ||
+    fieldType === 'multiselect';
 
   for (const section of currentTemplate.sections) {
-    if (section.conditional && !evaluateFieldCondition(section.conditional, values)) {
+    if (
+      section.conditional &&
+      !evaluateFieldCondition(section.conditional, values)
+    ) {
       continue;
     }
 
     for (const field of section.fields) {
-      if (field.conditional && !evaluateFieldCondition(field.conditional, values)) {
+      if (
+        field.conditional &&
+        !evaluateFieldCondition(field.conditional, values)
+      ) {
         continue;
       }
 
       const requiredByDefault = Boolean(field.required);
       const requiredWhen = Array.isArray(field.requiredWhen)
-        ? field.requiredWhen.every(condition => evaluateFieldCondition(condition, values))
+        ? field.requiredWhen.every(condition =>
+            evaluateFieldCondition(condition, values),
+          )
         : field.requiredWhen
-          ? evaluateFieldCondition(field.requiredWhen, values)
-          : false;
+        ? evaluateFieldCondition(field.requiredWhen, values)
+        : false;
 
       const valueKey = field.name || field.id;
       const value = values[valueKey];
@@ -67,8 +87,14 @@ export const validateTemplateRequiredFields = (
         continue;
       }
 
-      if (isEnumField(field.type) && Array.isArray(field.options) && field.options.length > 0) {
-        const allowed = new Set(field.options.map(option => String(option.value)));
+      if (
+        isEnumField(field.type) &&
+        Array.isArray(field.options) &&
+        field.options.length > 0
+      ) {
+        const allowed = new Set(
+          field.options.map(option => String(option.value)),
+        );
         if (field.type === 'multiselect') {
           const arr = Array.isArray(value) ? value : [];
           const hasInvalidValue = arr.some(item => !allowed.has(String(item)));

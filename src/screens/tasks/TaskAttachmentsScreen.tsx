@@ -24,18 +24,27 @@ import {
 export const TaskAttachmentsScreen = ({ route }: any) => {
   const { theme } = useTheme();
   const { taskId, taskNumber } = route.params || {};
-  const [remoteAttachments, setRemoteAttachments] = useState<RemoteTaskAttachment[]>([]);
+  const [remoteAttachments, setRemoteAttachments] = useState<
+    RemoteTaskAttachment[]
+  >([]);
   const [isRemoteLoading, setIsRemoteLoading] = useState(true);
-  const [openingAttachmentId, setOpeningAttachmentId] = useState<string | null>(null);
-  const [previewAttachment, setPreviewAttachment] = useState<RemoteTaskAttachment | null>(null);
+  const [openingAttachmentId, setOpeningAttachmentId] = useState<string | null>(
+    null,
+  );
+  const [previewAttachment, setPreviewAttachment] =
+    useState<RemoteTaskAttachment | null>(null);
   const [previewUri, setPreviewUri] = useState('');
-  const [previewMode, setPreviewMode] = useState<'image' | 'text' | 'unsupported'>('unsupported');
+  const [previewMode, setPreviewMode] = useState<
+    'image' | 'text' | 'unsupported'
+  >('unsupported');
   const [previewText, setPreviewText] = useState('');
 
   const loadRemoteAttachments = useCallback(async () => {
     setIsRemoteLoading(true);
     try {
-      const attachments = await attachmentService.getRemoteTaskAttachments(taskId);
+      const attachments = await attachmentService.getRemoteTaskAttachments(
+        taskId,
+      );
       setRemoteAttachments(attachments);
     } finally {
       setIsRemoteLoading(false);
@@ -61,12 +70,19 @@ export const TaskAttachmentsScreen = ({ route }: any) => {
     return `${(size / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const resolveAttachmentKind = (attachment: RemoteTaskAttachment): 'image' | 'text' | 'pdf' | 'word' | 'excel' | 'unsupported' => {
+  const resolveAttachmentKind = (
+    attachment: RemoteTaskAttachment,
+  ): 'image' | 'text' | 'pdf' | 'word' | 'excel' | 'unsupported' => {
     const mime = (attachment.mimeType || '').toLowerCase();
     const filename = (attachment.name || '').toLowerCase();
-    const extension = filename.includes('.') ? filename.split('.').pop() || '' : '';
+    const extension = filename.includes('.')
+      ? filename.split('.').pop() || ''
+      : '';
 
-    if (mime.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)) {
+    if (
+      mime.startsWith('image/') ||
+      ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(extension)
+    ) {
       return 'image';
     }
     if (mime === 'application/pdf' || extension === 'pdf') {
@@ -97,18 +113,21 @@ export const TaskAttachmentsScreen = ({ route }: any) => {
     return 'unsupported';
   };
 
-  const openWithNativeViewer = useCallback(async (uri: string, attachment: RemoteTaskAttachment) => {
-    const canOpen = await Linking.canOpenURL(uri);
-    if (!canOpen) {
-      Alert.alert(
-        'Preview Unavailable',
-        `${attachment.name} cannot be previewed inside the app. No compatible viewer was found on this device.`,
-      );
-      return;
-    }
+  const openWithNativeViewer = useCallback(
+    async (uri: string, attachment: RemoteTaskAttachment) => {
+      const canOpen = await Linking.canOpenURL(uri);
+      if (!canOpen) {
+        Alert.alert(
+          'Preview Unavailable',
+          `${attachment.name} cannot be previewed inside the app. No compatible viewer was found on this device.`,
+        );
+        return;
+      }
 
-    await Linking.openURL(uri);
-  }, []);
+      await Linking.openURL(uri);
+    },
+    [],
+  );
 
   const handleOpenAttachment = async (attachment: RemoteTaskAttachment) => {
     try {
@@ -136,9 +155,15 @@ export const TaskAttachmentsScreen = ({ route }: any) => {
       if (kind === 'text') {
         // Limit text preview to 500KB to prevent UI freeze on large files
         const stat = await RNFS.stat(filePath);
-        const fileSize = typeof stat.size === 'number' ? stat.size : parseInt(String(stat.size), 10);
+        const fileSize =
+          typeof stat.size === 'number'
+            ? stat.size
+            : parseInt(String(stat.size), 10);
         if (fileSize > 512 * 1024) {
-          Alert.alert('File Too Large', 'This text file is too large to preview. Opening with system viewer instead.');
+          Alert.alert(
+            'File Too Large',
+            'This text file is too large to preview. Opening with system viewer instead.',
+          );
           await openWithNativeViewer(normalizedUri, attachment);
           return;
         }
@@ -161,7 +186,9 @@ export const TaskAttachmentsScreen = ({ route }: any) => {
     } catch (error: unknown) {
       Alert.alert(
         'Attachment Error',
-        error instanceof Error ? error.message : String(error) || 'Failed to open attachment.',
+        error instanceof Error
+          ? error.message
+          : String(error) || 'Failed to open attachment.',
       );
     } finally {
       setOpeningAttachmentId(null);
@@ -174,27 +201,68 @@ export const TaskAttachmentsScreen = ({ route }: any) => {
   const watermarkRowCount = previewMode === 'text' ? 6 : 8;
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <ScreenHeader title="Attachments" />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}>
-        <View style={[styles.headerCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.title, { color: theme.colors.text }]}>Task Attachments</Text>
-          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>VT ID: {taskNumber || 'N/A'}</Text>
+        showsVerticalScrollIndicator={false}
+      >
+        <View
+          style={[
+            styles.headerCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text style={[styles.title, { color: theme.colors.text }]}>
+            Task Attachments
+          </Text>
+          <Text style={[styles.subtitle, { color: theme.colors.textMuted }]}>
+            VT ID: {taskNumber || 'N/A'}
+          </Text>
         </View>
 
-        <View style={[styles.sectionCard, { backgroundColor: theme.colors.surface, borderColor: theme.colors.border }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}>Shared Attachments</Text>
+        <View
+          style={[
+            styles.sectionCard,
+            {
+              backgroundColor: theme.colors.surface,
+              borderColor: theme.colors.border,
+            },
+          ]}
+        >
+          <Text
+            style={[styles.sectionTitle, { color: theme.colors.textSecondary }]}
+          >
+            Shared Attachments
+          </Text>
           {isRemoteLoading ? (
             <View style={styles.loaderWrap}>
               <ActivityIndicator size="small" color={theme.colors.primary} />
             </View>
           ) : remoteAttachments.length === 0 ? (
-            <View style={[styles.emptyWrap, { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt }]}>
-              <Icon name="attach-outline" size={22} color={theme.colors.textMuted} />
-              <Text style={[styles.emptyText, { color: theme.colors.textMuted }]}>
+            <View
+              style={[
+                styles.emptyWrap,
+                {
+                  borderColor: theme.colors.border,
+                  backgroundColor: theme.colors.surfaceAlt,
+                },
+              ]}
+            >
+              <Icon
+                name="attach-outline"
+                size={22}
+                color={theme.colors.textMuted}
+              />
+              <Text
+                style={[styles.emptyText, { color: theme.colors.textMuted }]}
+              >
                 No shared attachments found for this task.
               </Text>
             </View>
@@ -202,34 +270,63 @@ export const TaskAttachmentsScreen = ({ route }: any) => {
             remoteAttachments.map(attachment => (
               <TouchableOpacity
                 key={attachment.id}
-                style={[styles.attachmentRow, { borderColor: theme.colors.border, backgroundColor: theme.colors.surfaceAlt }]}
+                style={[
+                  styles.attachmentRow,
+                  {
+                    borderColor: theme.colors.border,
+                    backgroundColor: theme.colors.surfaceAlt,
+                  },
+                ]}
                 onPress={() => handleOpenAttachment(attachment)}
-                activeOpacity={0.75}>
+                activeOpacity={0.75}
+              >
                 <View style={styles.attachmentIconWrap}>
                   <Icon
-                    name={attachment.type === 'image' ? 'image-outline' : 'document-text-outline'}
+                    name={
+                      attachment.type === 'image'
+                        ? 'image-outline'
+                        : 'document-text-outline'
+                    }
                     size={22}
                     color={theme.colors.primary}
                   />
                 </View>
                 <View style={styles.attachmentMeta}>
-                  <Text numberOfLines={1} style={[styles.attachmentName, { color: theme.colors.text }]}>
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.attachmentName,
+                      { color: theme.colors.text },
+                    ]}
+                  >
                     {attachment.name}
                   </Text>
-                  <Text style={[styles.attachmentInfo, { color: theme.colors.textMuted }]}>
-                    {formatFileSize(attachment.size)} • {new Date(attachment.uploadedAt).toLocaleString()}
+                  <Text
+                    style={[
+                      styles.attachmentInfo,
+                      { color: theme.colors.textMuted },
+                    ]}
+                  >
+                    {formatFileSize(attachment.size)} •{' '}
+                    {new Date(attachment.uploadedAt).toLocaleString()}
                   </Text>
                 </View>
                 {openingAttachmentId === attachment.id ? (
-                  <ActivityIndicator size="small" color={theme.colors.primary} />
+                  <ActivityIndicator
+                    size="small"
+                    color={theme.colors.primary}
+                  />
                 ) : (
-                  <Icon name="open-outline" size={20} color={theme.colors.textSecondary} />
+                  <Icon
+                    name="open-outline"
+                    size={20}
+                    color={theme.colors.textSecondary}
+                  />
                 )}
               </TouchableOpacity>
             ))
           )}
         </View>
-
       </ScrollView>
 
       <Modal
@@ -239,11 +336,25 @@ export const TaskAttachmentsScreen = ({ route }: any) => {
         onRequestClose={() => {
           setPreviewAttachment(null);
           setPreviewUri('');
-        }}>
+        }}
+      >
         <View style={styles.previewOverlay}>
-          <View style={[styles.previewCard, { backgroundColor: theme.colors.surface }]}>
-            <View style={[styles.previewHeader, { borderBottomColor: theme.colors.border }]}>
-              <Text numberOfLines={1} style={[styles.previewTitle, { color: theme.colors.text }]}>
+          <View
+            style={[
+              styles.previewCard,
+              { backgroundColor: theme.colors.surface },
+            ]}
+          >
+            <View
+              style={[
+                styles.previewHeader,
+                { borderBottomColor: theme.colors.border },
+              ]}
+            >
+              <Text
+                numberOfLines={1}
+                style={[styles.previewTitle, { color: theme.colors.text }]}
+              >
                 {previewAttachment?.name || 'Attachment'}
               </Text>
               <TouchableOpacity
@@ -252,27 +363,51 @@ export const TaskAttachmentsScreen = ({ route }: any) => {
                   setPreviewUri('');
                   setPreviewText('');
                   setPreviewMode('unsupported');
-                }}>
+                }}
+              >
                 <Icon name="close" size={22} color={theme.colors.textMuted} />
               </TouchableOpacity>
             </View>
 
             <View style={styles.previewBodyContainer}>
               {previewMode === 'image' && previewUri ? (
-                <Image source={{ uri: previewUri }} style={styles.previewImage} resizeMode="contain" />
+                <Image
+                  source={{ uri: previewUri }}
+                  style={styles.previewImage}
+                  resizeMode="contain"
+                />
               ) : previewMode === 'text' ? (
-                <ScrollView style={styles.previewTextWrap} contentContainerStyle={styles.previewTextContent}>
-                  <Text style={[styles.previewText, { color: theme.colors.text }]}>
+                <ScrollView
+                  style={styles.previewTextWrap}
+                  contentContainerStyle={styles.previewTextContent}
+                >
+                  <Text
+                    style={[styles.previewText, { color: theme.colors.text }]}
+                  >
                     {previewText || 'No text content available.'}
                   </Text>
                 </ScrollView>
               ) : (
                 <View style={styles.previewPlaceholder}>
-                  <Icon name="document-text-outline" size={44} color={theme.colors.textMuted} />
-                  <Text style={[styles.previewPlaceholderText, { color: theme.colors.textSecondary }]}>
+                  <Icon
+                    name="document-text-outline"
+                    size={44}
+                    color={theme.colors.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.previewPlaceholderText,
+                      { color: theme.colors.textSecondary },
+                    ]}
+                  >
                     Preview unavailable for this file type.
                   </Text>
-                  <Text style={[styles.previewPlaceholderSubText, { color: theme.colors.textMuted }]}>
+                  <Text
+                    style={[
+                      styles.previewPlaceholderSubText,
+                      { color: theme.colors.textMuted },
+                    ]}
+                  >
                     Upload as image if in-app preview is required.
                   </Text>
                 </View>
@@ -280,7 +415,10 @@ export const TaskAttachmentsScreen = ({ route }: any) => {
 
               <View pointerEvents="none" style={styles.watermarkOverlay}>
                 {Array.from({ length: watermarkRowCount }).map((_, index) => (
-                  <Text key={`${index}-${watermarkText}`} style={styles.watermarkText}>
+                  <Text
+                    key={`${index}-${watermarkText}`}
+                    style={styles.watermarkText}
+                  >
                     {watermarkText}
                   </Text>
                 ))}

@@ -366,7 +366,8 @@ export const MIGRATIONS: Migration[] = [
   },
   {
     version: 6,
-    description: 'Add performance indexes for task lists, attachments, and sync queue',
+    description:
+      'Add performance indexes for task lists, attachments, and sync queue',
     sql: `
       CREATE INDEX IF NOT EXISTS idx_tasks_active_status_saved ON tasks(is_revoked, status, is_saved, assigned_at);
       CREATE INDEX IF NOT EXISTS idx_tasks_updated_at ON tasks(updated_at);
@@ -384,7 +385,8 @@ export const MIGRATIONS: Migration[] = [
   },
   {
     version: 8,
-    description: 'Add projection tables for list/detail/dashboard read optimization',
+    description:
+      'Add projection tables for list/detail/dashboard read optimization',
     sql: `
       CREATE TABLE IF NOT EXISTS task_list_projection (
         id TEXT PRIMARY KEY,

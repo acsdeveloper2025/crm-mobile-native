@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  ReactNode,
+} from 'react';
 import { useColorScheme } from 'react-native';
 import { lightTheme, darkTheme, Theme } from '../theme/Theme';
 import { Logger } from '../utils/logger';
@@ -17,7 +23,8 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const systemColorScheme = useColorScheme(); // 'light' or 'dark' from OS
-  const [themePreference, setThemePreferenceState] = useState<ThemePreference>('system');
+  const [themePreference, setThemePreferenceState] =
+    useState<ThemePreference>('system');
 
   useEffect(() => {
     const loadThemePref = async () => {
@@ -27,14 +34,17 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
           setThemePreferenceState(value as ThemePreference);
         }
       } catch {
-        Logger.warn('ThemeContext', 'Failed to load theme preference from SQLite');
+        Logger.warn(
+          'ThemeContext',
+          'Failed to load theme preference from SQLite',
+        );
       }
     };
     loadThemePref();
   }, []);
 
-  const isDark = 
-    themePreference === 'dark' || 
+  const isDark =
+    themePreference === 'dark' ||
     (themePreference === 'system' && systemColorScheme === 'dark');
 
   const theme = isDark ? darkTheme : lightTheme;
@@ -49,7 +59,9 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, themePreference, isDark, setThemePreference }}>
+    <ThemeContext.Provider
+      value={{ theme, themePreference, isDark, setThemePreference }}
+    >
       {children}
     </ThemeContext.Provider>
   );

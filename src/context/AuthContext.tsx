@@ -1,4 +1,10 @@
-import React, { createContext, useState, useEffect, ReactNode, useContext } from 'react';
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  ReactNode,
+  useContext,
+} from 'react';
 import { AuthService } from '../services/AuthService';
 import type { UserProfile } from '../types/api';
 import { Logger } from '../utils/logger';
@@ -56,7 +62,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       try {
         await SyncService.performSync();
       } catch (error) {
-        Logger.warn(TAG, 'Immediate sync after assignment notification failed', error);
+        Logger.warn(
+          TAG,
+          'Immediate sync after assignment notification failed',
+          error,
+        );
       }
     });
 
@@ -83,7 +93,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
 
         notificationService.registerCurrentDevice().catch(error => {
-          Logger.warn(TAG, 'Notification device registration after auth restore failed', error);
+          Logger.warn(
+            TAG,
+            'Notification device registration after auth restore failed',
+            error,
+          );
         });
         SyncService.performSync().catch(syncError => {
           Logger.warn(TAG, 'Initial sync after auth restore failed', syncError);
@@ -110,7 +124,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     expiresIn?: number,
   ) => {
     try {
-      const result = await AuthService.login(token, profile, refreshToken, expiresIn);
+      const result = await AuthService.login(
+        token,
+        profile,
+        refreshToken,
+        expiresIn,
+      );
       if (!result.success) {
         throw new Error(result.message);
       }
@@ -121,7 +140,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         Logger.warn(TAG, 'Auto-cleanup initialization failed', error);
       });
       notificationService.registerCurrentDevice().catch(error => {
-        Logger.warn(TAG, 'Notification device registration after login failed', error);
+        Logger.warn(
+          TAG,
+          'Notification device registration after login failed',
+          error,
+        );
       });
       SyncService.performSync().catch(syncError => {
         Logger.warn(TAG, 'Initial sync after login failed', syncError);
@@ -155,7 +178,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, isLoading, user, login, logout, updateProfilePhoto }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        isLoading,
+        user,
+        login,
+        logout,
+        updateProfilePhoto,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

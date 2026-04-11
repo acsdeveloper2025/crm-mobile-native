@@ -1,5 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
@@ -36,11 +45,17 @@ export const SyncLogsScreen = () => {
     try {
       // Re-queue all failed items
       await SyncQueueRepository.retryAllFailed();
-      Alert.alert('Success', 'All failed sync items have been reset to PENDING.', [
-        { text: 'OK', onPress: loadLogs }
-      ]);
+      Alert.alert(
+        'Success',
+        'All failed sync items have been reset to PENDING.',
+        [{ text: 'OK', onPress: loadLogs }],
+      );
     } catch (e: unknown) {
-      Alert.alert('Error', (e instanceof Error ? e.message : String(e)) || 'Failed to retry sync queue.');
+      Alert.alert(
+        'Error',
+        (e instanceof Error ? e.message : String(e)) ||
+          'Failed to retry sync queue.',
+      );
     }
   };
 
@@ -54,8 +69,8 @@ export const SyncLogsScreen = () => {
       'Delete completed sync history only? Unsynced queue items will be preserved.',
       [
         { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Clear Completed', 
+        {
+          text: 'Clear Completed',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -64,44 +79,86 @@ export const SyncLogsScreen = () => {
             } catch (e: unknown) {
               Alert.alert('Error', e instanceof Error ? e.message : String(e));
             }
-          }
-        }
-      ]
+          },
+        },
+      ],
     );
   };
 
   const renderItem = ({ item }: { item: SyncQueueItem }) => {
     const isError = item.status === 'FAILED';
-    
+
     return (
-      <View style={[
-        styles.logCard, 
-        { backgroundColor: theme.colors.surface, borderColor: theme.colors.border },
-        isError && [styles.logCardError, { borderColor: theme.colors.danger }]
-      ]}>
+      <View
+        style={[
+          styles.logCard,
+          {
+            backgroundColor: theme.colors.surface,
+            borderColor: theme.colors.border,
+          },
+          isError && [
+            styles.logCardError,
+            { borderColor: theme.colors.danger },
+          ],
+        ]}
+      >
         <View style={styles.logHeader}>
-          <Text style={[styles.logType, { color: theme.colors.text }]}>{item.actionType} {item.entityType}</Text>
-          <View style={[
-            styles.badge, 
-            { backgroundColor: theme.colors.surfaceAlt },
-            isError ? [styles.badgeError, { backgroundColor: theme.colors.danger + '20' }] : styles.badgeDefault
-          ]}>
-            <Text style={[
-              styles.badgeText, 
-              { color: theme.colors.textMuted },
-              isError && [styles.badgeTextError, { color: theme.colors.danger }]
-            ]}>{item.status}</Text>
+          <Text style={[styles.logType, { color: theme.colors.text }]}>
+            {item.actionType} {item.entityType}
+          </Text>
+          <View
+            style={[
+              styles.badge,
+              { backgroundColor: theme.colors.surfaceAlt },
+              isError
+                ? [
+                    styles.badgeError,
+                    { backgroundColor: theme.colors.danger + '20' },
+                  ]
+                : styles.badgeDefault,
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                { color: theme.colors.textMuted },
+                isError && [
+                  styles.badgeTextError,
+                  { color: theme.colors.danger },
+                ],
+              ]}
+            >
+              {item.status}
+            </Text>
           </View>
         </View>
-        
-        <Text style={[styles.logMeta, { color: theme.colors.textSecondary }]}>ID: {item.entityId}</Text>
-        <Text style={[styles.logMeta, { color: theme.colors.textSecondary }]}>Attempts: {item.attempts}</Text>
-        <Text style={[styles.logDate, { color: theme.colors.textMuted }]}>{new Date(item.createdAt).toLocaleString()}</Text>
+
+        <Text style={[styles.logMeta, { color: theme.colors.textSecondary }]}>
+          ID: {item.entityId}
+        </Text>
+        <Text style={[styles.logMeta, { color: theme.colors.textSecondary }]}>
+          Attempts: {item.attempts}
+        </Text>
+        <Text style={[styles.logDate, { color: theme.colors.textMuted }]}>
+          {new Date(item.createdAt).toLocaleString()}
+        </Text>
 
         {isError && item.lastError && (
-          <View style={[styles.errorContainer, { backgroundColor: theme.colors.danger + '10', borderLeftColor: theme.colors.danger }]}>
-            <Text style={[styles.errorTitle, { color: theme.colors.danger }]}>Error Message:</Text>
-            <Text style={[styles.errorText, { color: theme.colors.text }]}>{item.lastError}</Text>
+          <View
+            style={[
+              styles.errorContainer,
+              {
+                backgroundColor: theme.colors.danger + '10',
+                borderLeftColor: theme.colors.danger,
+              },
+            ]}
+          >
+            <Text style={[styles.errorTitle, { color: theme.colors.danger }]}>
+              Error Message:
+            </Text>
+            <Text style={[styles.errorText, { color: theme.colors.text }]}>
+              {item.lastError}
+            </Text>
           </View>
         )}
       </View>
@@ -109,35 +166,63 @@ export const SyncLogsScreen = () => {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+    <View
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
+    >
       <ScreenHeader title="Sync Diagnostics" />
       {/* Header Tabs */}
-      <View style={[styles.tabContainer, { backgroundColor: theme.colors.surface, borderBottomColor: theme.colors.border }]}>
-        <TouchableOpacity 
+      <View
+        style={[
+          styles.tabContainer,
+          {
+            backgroundColor: theme.colors.surface,
+            borderBottomColor: theme.colors.border,
+          },
+        ]}
+      >
+        <TouchableOpacity
           style={[
-            styles.tab, 
-            filter === 'FAILED' && [styles.tabActive, { backgroundColor: theme.colors.danger + '10' }]
+            styles.tab,
+            filter === 'FAILED' && [
+              styles.tabActive,
+              { backgroundColor: theme.colors.danger + '10' },
+            ],
           ]}
-          onPress={() => setFilter('FAILED')}>
-          <Text style={[
-            styles.tabText, 
-            { color: theme.colors.textMuted },
-            filter === 'FAILED' && [styles.tabTextActive, { color: theme.colors.danger }]
-          ]}>
+          onPress={() => setFilter('FAILED')}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              { color: theme.colors.textMuted },
+              filter === 'FAILED' && [
+                styles.tabTextActive,
+                { color: theme.colors.danger },
+              ],
+            ]}
+          >
             Failed Only
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={[
-            styles.tab, 
-            filter === 'ALL' && [styles.tabActive, { backgroundColor: theme.colors.primary + '10' }]
+            styles.tab,
+            filter === 'ALL' && [
+              styles.tabActive,
+              { backgroundColor: theme.colors.primary + '10' },
+            ],
           ]}
-          onPress={() => setFilter('ALL')}>
-          <Text style={[
-            styles.tabText, 
-            { color: theme.colors.textMuted },
-            filter === 'ALL' && [styles.tabTextActive, { color: theme.colors.primary }]
-          ]}>
+          onPress={() => setFilter('ALL')}
+        >
+          <Text
+            style={[
+              styles.tabText,
+              { color: theme.colors.textMuted },
+              filter === 'ALL' && [
+                styles.tabTextActive,
+                { color: theme.colors.primary },
+              ],
+            ]}
+          >
             All Traffic
           </Text>
         </TouchableOpacity>
@@ -147,20 +232,44 @@ export const SyncLogsScreen = () => {
         data={logs}
         keyExtractor={item => item.id}
         renderItem={renderItem}
-        refreshControl={<RefreshControl refreshing={loading} onRefresh={loadLogs} tintColor={theme.colors.primary} />}
-        contentContainerStyle={[styles.listContent, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={loading}
+            onRefresh={loadLogs}
+            tintColor={theme.colors.primary}
+          />
+        }
+        contentContainerStyle={[
+          styles.listContent,
+          { paddingBottom: Math.max(insets.bottom, 16) + 16 },
+        ]}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             {loading ? (
               <>
                 <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={[styles.emptyText, { color: theme.colors.text }]}>Loading sync logs...</Text>
+                <Text style={[styles.emptyText, { color: theme.colors.text }]}>
+                  Loading sync logs...
+                </Text>
               </>
             ) : (
               <>
-                <Icon name="checkmark-circle-outline" size={64} color={theme.colors.success} />
-                <Text style={[styles.emptyText, { color: theme.colors.text }]}>Sync queue is healthy.</Text>
-                <Text style={[styles.emptySubText, { color: theme.colors.textMuted }]}>No {filter.toLowerCase()} logs found.</Text>
+                <Icon
+                  name="checkmark-circle-outline"
+                  size={64}
+                  color={theme.colors.success}
+                />
+                <Text style={[styles.emptyText, { color: theme.colors.text }]}>
+                  Sync queue is healthy.
+                </Text>
+                <Text
+                  style={[
+                    styles.emptySubText,
+                    { color: theme.colors.textMuted },
+                  ]}
+                >
+                  No {filter.toLowerCase()} logs found.
+                </Text>
               </>
             )}
           </View>
@@ -175,26 +284,46 @@ export const SyncLogsScreen = () => {
             borderTopColor: theme.colors.border,
             paddingBottom: Math.max(insets.bottom, 12),
           },
-        ]}>
-        <TouchableOpacity 
+        ]}
+      >
+        <TouchableOpacity
           style={[
             styles.actionButton,
             { backgroundColor: theme.colors.primary },
             failedCount === 0 && styles.actionButtonDisabled,
-          ]} 
+          ]}
           onPress={handleRetryAll}
-          disabled={failedCount === 0}>
+          disabled={failedCount === 0}
+        >
           <Icon name="refresh" size={20} color={theme.colors.surface} />
-          <Text style={[styles.actionButtonText, { color: theme.colors.surface }]}>
+          <Text
+            style={[styles.actionButtonText, { color: theme.colors.surface }]}
+          >
             Retry Failed {failedCount > 0 ? `(${failedCount})` : ''}
           </Text>
         </TouchableOpacity>
         {__DEV__ ? (
-          <TouchableOpacity 
-            style={[styles.actionButton, styles.dangerButton, { backgroundColor: theme.colors.surfaceAlt, borderColor: theme.colors.danger }]} 
-            onPress={handleClearLogs}>
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              styles.dangerButton,
+              {
+                backgroundColor: theme.colors.surfaceAlt,
+                borderColor: theme.colors.danger,
+              },
+            ]}
+            onPress={handleClearLogs}
+          >
             <Icon name="trash-outline" size={20} color={theme.colors.danger} />
-            <Text style={[styles.actionButtonText, styles.dangerText, { color: theme.colors.danger }]}>Clear Completed</Text>
+            <Text
+              style={[
+                styles.actionButtonText,
+                styles.dangerText,
+                { color: theme.colors.danger },
+              ]}
+            >
+              Clear Completed
+            </Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -345,5 +474,5 @@ const styles = StyleSheet.create({
   dangerButton: {
     borderWidth: 1,
   },
-  dangerText: {}
+  dangerText: {},
 });

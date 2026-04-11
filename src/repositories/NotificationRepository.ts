@@ -19,10 +19,10 @@ type DbNotification = {
   title: string;
   message: string;
   priority: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
-  is_read: number;
-  task_id: string | null;
-  case_number: string | null;
-  action_url: string | null;
+  isRead: number;
+  taskId: string | null;
+  caseNumber: string | null;
+  actionUrl: string | null;
   timestamp: string;
 };
 
@@ -37,10 +37,10 @@ class NotificationRepositoryClass {
       title: row.title,
       message: row.message,
       priority: row.priority,
-      isRead: Boolean(row.is_read),
-      taskId: row.task_id || undefined,
-      caseNumber: row.case_number || undefined,
-      actionUrl: row.action_url || undefined,
+      isRead: Boolean(row.isRead),
+      taskId: row.taskId || undefined,
+      caseNumber: row.caseNumber || undefined,
+      actionUrl: row.actionUrl || undefined,
       timestamp: row.timestamp,
     }));
   }
@@ -53,19 +53,21 @@ class NotificationRepositoryClass {
     return rows.length > 0;
   }
 
-  async upsertBatch(notifications: Array<{
-    id: string;
-    type: string;
-    title: string;
-    message: string;
-    priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
-    isRead?: boolean;
-    taskId?: string | null;
-    caseNumber?: string | null;
-    actionUrl?: string | null;
-    createdAt?: string;
-    updatedAt?: string;
-  }>): Promise<void> {
+  async upsertBatch(
+    notifications: Array<{
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
+      isRead?: boolean;
+      taskId?: string | null;
+      caseNumber?: string | null;
+      actionUrl?: string | null;
+      createdAt?: string;
+      updatedAt?: string;
+    }>,
+  ): Promise<void> {
     await DatabaseService.transaction(async tx => {
       for (const notification of notifications || []) {
         await tx.executeSql(
@@ -82,14 +84,19 @@ class NotificationRepositoryClass {
             notification.taskId || null,
             notification.caseNumber || null,
             notification.actionUrl || null,
-            notification.updatedAt || notification.createdAt || new Date().toISOString(),
+            notification.updatedAt ||
+              notification.createdAt ||
+              new Date().toISOString(),
           ],
         );
       }
     });
   }
 
-  async insert(notification: Omit<NotificationRecord, 'id' | 'isRead'>, id: string): Promise<void> {
+  async insert(
+    notification: Omit<NotificationRecord, 'id' | 'isRead'>,
+    id: string,
+  ): Promise<void> {
     await DatabaseService.execute(
       `INSERT INTO notifications
       (id, type, title, message, priority, is_read, task_id, case_number, action_url, timestamp)
@@ -109,11 +116,16 @@ class NotificationRepositoryClass {
   }
 
   async markAsRead(id: string): Promise<void> {
-    await DatabaseService.execute('UPDATE notifications SET is_read = 1 WHERE id = ?', [id]);
+    await DatabaseService.execute(
+      'UPDATE notifications SET is_read = 1 WHERE id = ?',
+      [id],
+    );
   }
 
   async markAllAsRead(): Promise<void> {
-    await DatabaseService.execute('UPDATE notifications SET is_read = 1 WHERE is_read = 0');
+    await DatabaseService.execute(
+      'UPDATE notifications SET is_read = 1 WHERE is_read = 0',
+    );
   }
 
   async clearAll(): Promise<void> {

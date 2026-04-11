@@ -33,7 +33,11 @@ export interface AppConfig {
   dbEncryptionKey: string | null;
 }
 
-const nativeAppInfo = (NativeModules as { AppInfo?: { versionName?: string; versionCode?: number | string } }).AppInfo;
+const nativeAppInfo = (
+  NativeModules as {
+    AppInfo?: { versionName?: string; versionCode?: number | string };
+  }
+).AppInfo;
 const resolvedAppVersion = nativeAppInfo?.versionName || '1.0.0';
 const resolvedBuildNumber = nativeAppInfo?.versionCode?.toString() || '84';
 

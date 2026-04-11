@@ -150,7 +150,13 @@ export interface LocalFormSubmission {
 export interface SyncQueueItem {
   id: string; // UUID
   actionType: 'CREATE' | 'UPDATE' | 'DELETE';
-  entityType: 'TASK' | 'TASK_STATUS' | 'ATTACHMENT' | 'VISIT_PHOTO' | 'LOCATION' | 'FORM_SUBMISSION';
+  entityType:
+    | 'TASK'
+    | 'TASK_STATUS'
+    | 'ATTACHMENT'
+    | 'VISIT_PHOTO'
+    | 'LOCATION'
+    | 'FORM_SUBMISSION';
   entityId: string;
   payloadJson: string; // JSON blob of the data to sync
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';

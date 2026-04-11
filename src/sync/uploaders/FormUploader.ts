@@ -21,12 +21,11 @@ class FormUploaderClass {
       return;
     }
 
-    const rows = await SyncEngineRepository.query<{ form_data_json: string | null }>(
-      'SELECT form_data_json FROM tasks WHERE id = ?',
-      [taskId],
-    );
+    const rows = await SyncEngineRepository.query<{
+      formDataJson: string | null;
+    }>('SELECT form_data_json FROM tasks WHERE id = ?', [taskId]);
 
-    const existing = rows[0]?.form_data_json;
+    const existing = rows[0]?.formDataJson;
     let formData: Record<string, unknown> = {};
     if (existing) {
       try {
@@ -77,7 +76,9 @@ class FormUploaderClass {
       return fallbackIds;
     }
 
-    const rows = await SyncEngineRepository.query<{ backend_attachment_id: string | null }>(
+    const rows = await SyncEngineRepository.query<{
+      backendAttachmentId: string | null;
+    }>(
       `SELECT backend_attachment_id
        FROM attachments
        WHERE task_id = ?
@@ -87,7 +88,7 @@ class FormUploaderClass {
     );
 
     const ids = rows
-      .map(row => row.backend_attachment_id)
+      .map(row => row.backendAttachmentId)
       .filter((value): value is string => Boolean(value));
 
     return ids.length > 0 ? ids : fallbackIds;
@@ -99,8 +100,8 @@ class FormUploaderClass {
     // PhotoGallery can still show them via remote URLs if needed.
     const photos = await SyncEngineRepository.query<{
       id: string;
-      local_path: string;
-      thumbnail_path: string | null;
+      localPath: string;
+      thumbnailPath: string | null;
     }>(
       "SELECT id, local_path, thumbnail_path FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED' AND backend_attachment_id IS NOT NULL",
       [taskId],
@@ -108,11 +109,11 @@ class FormUploaderClass {
 
     for (const photo of photos) {
       try {
-        if (await RNFS.exists(photo.local_path)) {
-          await RNFS.unlink(photo.local_path);
+        if (await RNFS.exists(photo.localPath)) {
+          await RNFS.unlink(photo.localPath);
         }
-        if (photo.thumbnail_path && await RNFS.exists(photo.thumbnail_path)) {
-          await RNFS.unlink(photo.thumbnail_path);
+        if (photo.thumbnailPath && (await RNFS.exists(photo.thumbnailPath))) {
+          await RNFS.unlink(photo.thumbnailPath);
         }
         // Clear local paths but keep record for history — user can still see via remote URL
         await SyncEngineRepository.execute(
@@ -128,11 +129,13 @@ class FormUploaderClass {
   async upload(operation: SyncOperation): Promise<SyncUploadResult> {
     const payload = { ...operation.payload };
     const taskId = String(payload.taskId || payload.visitId || '');
-    const localTaskId = typeof payload.localTaskId === 'string' ? payload.localTaskId : null;
+    const localTaskId =
+      typeof payload.localTaskId === 'string' ? payload.localTaskId : null;
 
     if (localTaskId) {
       // Track defer count to prevent infinite blocking when photos permanently fail
-      const deferCount = typeof payload._deferCount === 'number' ? payload._deferCount : 0;
+      const deferCount =
+        typeof payload._deferCount === 'number' ? payload._deferCount : 0;
       const MAX_DEFERS = 15; // After 15 defers (~75 min at 5-min sync), upload with available photos
 
       // Location sync removed — GPS is in photo watermarks only.
@@ -143,23 +146,37 @@ class FormUploaderClass {
         [taskId, taskId],
       );
       if (pendingPhotosCount > 0 && deferCount < MAX_DEFERS) {
-        const error = `Blocking form upload for ${taskId}: ${pendingPhotosCount} photos pending (defer ${deferCount + 1}/${MAX_DEFERS})`;
+        const error = `Blocking form upload for ${taskId}: ${pendingPhotosCount} photos pending (defer ${
+          deferCount + 1
+        }/${MAX_DEFERS})`;
         payload._deferCount = deferCount + 1;
         await this.updateLocalSubmissionState(localTaskId, 'pending');
         return { outcome: 'DEFER', error };
       }
 
       if (deferCount >= MAX_DEFERS) {
-        Logger.warn(TAG, `Form for ${taskId} exceeded max defers (${MAX_DEFERS}). Uploading with available attachments.`);
+        Logger.warn(
+          TAG,
+          `Form for ${taskId} exceeded max defers (${MAX_DEFERS}). Uploading with available attachments.`,
+        );
       }
     }
 
     await this.updateLocalSubmissionState(localTaskId, 'submitting');
     const formType = resolveFormTypeKey({
       formType: typeof payload.formType === 'string' ? payload.formType : null,
-      verificationTypeCode: typeof payload.verificationTypeCode === 'string' ? payload.verificationTypeCode : null,
-      verificationTypeName: typeof payload.verificationTypeName === 'string' ? payload.verificationTypeName : null,
-      verificationType: typeof payload.verificationType === 'string' ? payload.verificationType : null,
+      verificationTypeCode:
+        typeof payload.verificationTypeCode === 'string'
+          ? payload.verificationTypeCode
+          : null,
+      verificationTypeName:
+        typeof payload.verificationTypeName === 'string'
+          ? payload.verificationTypeName
+          : null,
+      verificationType:
+        typeof payload.verificationType === 'string'
+          ? payload.verificationType
+          : null,
     });
 
     const endpointMap: Record<FormTypeKey, (id: string) => string> = {
@@ -180,7 +197,9 @@ class FormUploaderClass {
 
     payload.attachmentIds = await this.resolveBackendAttachmentIds(
       localTaskId,
-      Array.isArray(payload.attachmentIds) ? (payload.attachmentIds as string[]) : [],
+      Array.isArray(payload.attachmentIds)
+        ? (payload.attachmentIds as string[])
+        : [],
     );
     delete payload.images;
 
@@ -204,8 +223,16 @@ class FormUploaderClass {
 
       // 409: Form already submitted — treat as success (resubmission or duplicate)
       if (status === 409) {
-        Logger.info(TAG, `Form 409 for ${taskId}: already submitted, marking as success`);
-        await this.updateLocalSubmissionState(localTaskId, 'success', null, true);
+        Logger.info(
+          TAG,
+          `Form 409 for ${taskId}: already submitted, marking as success`,
+        );
+        await this.updateLocalSubmissionState(
+          localTaskId,
+          'success',
+          null,
+          true,
+        );
         return { outcome: 'SUCCESS' };
       }
 
@@ -213,7 +240,11 @@ class FormUploaderClass {
     }
 
     if (!response.success) {
-      await this.updateLocalSubmissionState(localTaskId, 'failed', 'Form upload returned failure');
+      await this.updateLocalSubmissionState(
+        localTaskId,
+        'failed',
+        'Form upload returned failure',
+      );
       return { outcome: 'FAILURE', error: 'Form upload returned failure' };
     }
 
@@ -221,7 +252,12 @@ class FormUploaderClass {
     // state if a crash occurs between marking synced and clearing autosave.
     await DatabaseService.transaction(async () => {
       if (localTaskId) {
-        await this.updateLocalSubmissionState(localTaskId, 'success', null, true);
+        await this.updateLocalSubmissionState(
+          localTaskId,
+          'success',
+          null,
+          true,
+        );
       }
 
       await SyncEngineRepository.execute(
