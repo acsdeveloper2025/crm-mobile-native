@@ -33,28 +33,19 @@
     </domain-config>
 
     <!--
-      Pin production API domain certificate.
+      Production API domain.
 
-      The pins below are PLACEHOLDERS. They are valid SHA-256
-      digests (the openssl example output), but they do NOT match
-      the production cert — a debug build with these pins will
-      fail every TLS handshake. That is intentional: any developer
-      who forgets to swap them before cutting a release candidate
-      will notice immediately.
-
-      Ops: replace both values before `./gradlew assembleRelease`.
-      See docs/ssl-pinning.md for the exact rotation procedure.
+      Pinning is temporarily disabled here because the shipped Android
+      pin-set caused release builds to fail closed with generic "Network Error"
+      responses even while the same endpoint loaded successfully in Chrome on
+      the emulator. Until the pin rollout is wired end-to-end and validated in
+      real release builds, we prefer standard platform TLS over a brittle
+      partial pinning setup that can block sign-in entirely.
     -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">crm.allcheckservices.com</domain>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
-        <pin-set expiration="2027-01-01">
-            <!-- PLACEHOLDER — replace with the current cert's SPKI SHA-256 -->
-            <pin digest="SHA-256">AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=</pin>
-            <!-- PLACEHOLDER — replace with the NEXT rotation cert's SPKI SHA-256 -->
-            <pin digest="SHA-256">BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=</pin>
-        </pin-set>
     </domain-config>
 </network-security-config>

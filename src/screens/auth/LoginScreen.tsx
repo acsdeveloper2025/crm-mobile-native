@@ -49,6 +49,7 @@ export const LoginScreen = () => {
   const extractErrorMessage = React.useCallback((e: unknown): string => {
     // Handle session storage errors (from AuthService.login catch block)
     const errMsg = e instanceof Error ? e.message : String(e);
+    const normalizedErrorText = errMsg.toLowerCase();
     if (errMsg.startsWith('SESSION_STORAGE_FAILED:')) {
       return errMsg.replace('SESSION_STORAGE_FAILED: ', '');
     }
@@ -96,6 +97,15 @@ export const LoginScreen = () => {
     }
     if (axiosErr?.code === 'EPROTO' || axiosErr?.code?.startsWith?.('CERT')) {
       return 'Secure connection failed. Please check your device date/time settings or try a different network.';
+    }
+    if (
+      normalizedErrorText.includes('handshake') ||
+      normalizedErrorText.includes('trust anchor') ||
+      normalizedErrorText.includes('certificate pin') ||
+      normalizedErrorText.includes('cert path') ||
+      normalizedErrorText.includes('ssl')
+    ) {
+      return 'Secure connection failed. The app could not verify the server certificate.';
     }
     if (!axiosErr?.response) {
       return 'Unable to reach server. Please check your internet connection and try again.';
