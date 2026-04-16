@@ -31,6 +31,8 @@ import ErrorBoundary from './src/components/ErrorBoundary';
 import { WatermarkReStamper } from './src/components/media/WatermarkReStamper';
 import { BackgroundSyncDaemon } from './src/sync/BackgroundSyncDaemon';
 import { MobileTelemetryService } from './src/telemetry/MobileTelemetryService';
+import { DatabaseKeyStore } from './src/services/DatabaseKeyStore';
+import { config } from './src/config';
 
 const TAG = 'App';
 const STARTUP_PERMISSIONS_KEY = 'startup_permissions_requested_v1';
@@ -158,6 +160,11 @@ function App(): React.JSX.Element {
     const initializeApp = async () => {
       try {
         Logger.info(TAG, 'Starting app initialization...');
+
+        if (!__DEV__) {
+          config.dbEncryptionKey = await DatabaseKeyStore.getOrCreateKey();
+          Logger.info(TAG, 'Database encryption key ready');
+        }
 
         // Phase C4: open the DB and create tables inline, but defer the
         // potentially slow data-migration pass. Login and session
