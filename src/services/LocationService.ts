@@ -11,8 +11,8 @@ import { LocationRepository } from '../repositories/LocationRepository';
 import { SyncGateway } from './SyncGateway';
 import { SYNC_PRIORITY } from './SyncQueue';
 import { Logger } from '../utils/logger';
+import { config } from '../config';
 import type { MobileLocationCaptureRequest } from '../types/api';
-import { GOOGLE_GEOCODING_API_KEY } from '../config/googleMaps';
 
 const TAG = 'LocationService';
 
@@ -361,101 +361,125 @@ class LocationServiceClass {
   }
 
   /**
-   * Reverse geocode coordinates to a full address using Google Geocoding API.
-   * Returns detailed address: street, locality, city, district, state, pincode, country.
+   * Reverse geocode coordinates to a full address using OpenStreetMap
+   * Nominatim. No API key required — OSM's terms ask only for a
+   * descriptive User-Agent identifying the app and a rate limit of
+   * ≤ 1 req/sec. The 100-entry LRU cache (key = lat/lon rounded to
+   * 3 decimals, ≈110 m precision) keeps calls well under that for
+   * typical field-agent usage.
+   *
+   * C8 (audit 2026-04-20): replaces the Google Geocoding API path
+   * that required a hardcoded API key in the mobile binary.
    */
   async getAddressFromCoordinates(lat: number, lon: number): Promise<string> {
+    const cacheKey = `${lat.toFixed(3)},${lon.toFixed(3)}`;
+    const cached = LocationServiceClass.geocodeCache.get(cacheKey);
+    if (cached) {
+      // Refresh LRU ordering: delete + re-insert moves the entry to
+      // the end (most-recently-used) in an insertion-ordered Map.
+      LocationServiceClass.geocodeCache.delete(cacheKey);
+      LocationServiceClass.geocodeCache.set(cacheKey, cached);
+      return cached;
+    }
+
+    const fallback = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
     try {
-      // M7: key lives in src/config/googleMaps.ts now. See the
-      // comment there for the rotation procedure and the TODO
-      // about proxying through the backend.
-      // No result_type filter — let Google return the best match at any level
-      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lon}&key=${GOOGLE_GEOCODING_API_KEY}&language=en`;
+      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1&accept-language=en`;
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-      const response = await fetch(url, { signal: controller.signal });
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          // Nominatim usage policy requires a descriptive User-Agent.
+          'User-Agent': `ACS-CRM-Mobile/${config.appVersion} (${config.platform})`,
+        },
+      });
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+        Logger.warn(TAG, `Nominatim returned HTTP ${response.status}`);
+        return fallback;
       }
 
-      const data = await response.json();
-
-      if (data.status !== 'OK' || !data.results || data.results.length === 0) {
-        Logger.warn(TAG, `Google Geocoding returned: ${data.status}`);
-        return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
-      }
-
-      // Google returns multiple results sorted by specificity — first is most detailed
-      const bestResult = data.results[0];
-      const components = bestResult.addressComponents || [];
-
-      // Extract structured parts
-      const extract = (type: string): string => {
-        const comp = components.find(
-          (c: { types: string[]; longName: string }) => c.types.includes(type),
-        );
-        return comp ? comp.longName : '';
+      const data = (await response.json()) as {
+        display_name?: string;
+        address?: Record<string, string | undefined>;
       };
+      const address = data.address || {};
 
       const parts: string[] = [];
 
-      // Street number + route
-      const streetNum = extract('street_number');
-      const route = extract('route');
-      if (streetNum && route) {
-        parts.push(`${streetNum}, ${route}`);
-      } else if (route) {
-        parts.push(route);
+      // Street: house number + road
+      const houseNumber = address.house_number || '';
+      const road = address.road || address.pedestrian || address.footway || '';
+      if (houseNumber && road) {
+        parts.push(`${houseNumber}, ${road}`);
+      } else if (road) {
+        parts.push(road);
       }
 
-      // Premise / building name
-      const premise = extract('premise') || extract('subpremise');
-      if (premise) parts.push(premise);
+      // Building / amenity (Nominatim equivalents of Google's premise)
+      const building =
+        address.building || address.amenity || address.shop || '';
+      if (building) parts.push(building);
 
-      // Sublocality levels (neighborhood, area)
+      // Neighbourhood / suburb / area
       const sublocality =
-        extract('sublocality_level_1') ||
-        extract('sublocality') ||
-        extract('neighborhood');
+        address.neighbourhood || address.suburb || address.quarter || '';
       if (sublocality) parts.push(sublocality);
 
-      // Locality (city/town)
+      // Locality (city/town/village)
       const locality =
-        extract('locality') || extract('administrative_area_level_3');
+        address.city || address.town || address.village || address.hamlet || '';
       if (locality) parts.push(locality);
 
       // District
-      const district = extract('administrative_area_level_2');
+      const district = address.state_district || address.county || '';
       if (district && district !== locality) parts.push(district);
 
       // State
-      const state = extract('administrative_area_level_1');
+      const state = address.state || '';
       if (state) parts.push(state);
 
       // Pincode
-      const pincode = extract('postal_code');
+      const pincode = address.postcode || '';
       if (pincode) parts.push(pincode);
 
       // Country
-      const country = extract('country');
+      const country = address.country || '';
       if (country) parts.push(country);
 
-      return parts.length > 0
-        ? parts.join(', ')
-        : bestResult.formattedAddress || `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+      const result =
+        parts.length > 0 ? parts.join(', ') : data.display_name || fallback;
+
+      // LRU insert with eviction
+      if (LocationServiceClass.geocodeCache.size >= GEOCODE_CACHE_CAPACITY) {
+        const oldestKey = LocationServiceClass.geocodeCache.keys().next().value;
+        if (oldestKey !== undefined) {
+          LocationServiceClass.geocodeCache.delete(oldestKey);
+        }
+      }
+      LocationServiceClass.geocodeCache.set(cacheKey, result);
+
+      return result;
     } catch (error) {
       Logger.warn(
         TAG,
-        'Google reverse geocoding failed, using coordinates',
+        'Nominatim reverse geocoding failed, using coordinates',
         error,
       );
-      return `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+      return fallback;
     }
   }
+
+  // LRU cache (see getAddressFromCoordinates). Static singleton to
+  // survive service-instance churn during hot reloads and to be
+  // trivially shared across getAddressFromCoordinates callers.
+  private static geocodeCache = new Map<string, string>();
 }
+
+const GEOCODE_CACHE_CAPACITY = 100;
 
 // Singleton
 export const LocationService = new LocationServiceClass();
