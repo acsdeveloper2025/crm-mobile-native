@@ -14,6 +14,7 @@ import { PushTokenService } from './PushTokenService';
 import { SessionStore } from './SessionStore';
 import { KeyValueRepository } from '../repositories/KeyValueRepository';
 import { UserSessionRepository } from '../repositories/UserSessionRepository';
+import { ProjectionStore } from '../store/ProjectionStore';
 import type { MobileDeviceInfo, UserProfile } from '../types/api';
 import { validateResponse } from '../api/schemas/runtime';
 import { MobileRefreshResponseSchema } from '../api/schemas/sync.schema';
@@ -283,6 +284,13 @@ class AuthServiceClass {
       if (UserSessionRepository.isReady()) {
         await UserSessionRepository.clearSession();
       }
+
+      // Clear the in-memory projection cache so a subsequent login on a
+      // shared device can't read the prior user's tasks/customer data via
+      // useTask/useTasks selectors. Local DB rows stay until next sync —
+      // that's fine because queries re-fetch user-scoped data; the leak
+      // was specifically in RAM.
+      ProjectionStore.clearAll();
 
       Logger.info(TAG, 'Logout completed');
 

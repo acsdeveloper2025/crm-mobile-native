@@ -88,6 +88,26 @@ class ProjectionStoreClass {
     return this.state.tasksById[taskId] || null;
   }
 
+  /**
+   * Reset the store to its initial empty state and drop every in-flight or
+   * pending projection fetch. Called from `AuthService.logout()` to make sure
+   * the next user on a shared device can't read prior user's cached tasks /
+   * customer data via the memory store. Safe to call repeatedly.
+   */
+  clearAll(): void {
+    if (this.flushTimer) {
+      clearTimeout(this.flushTimer);
+      this.flushTimer = null;
+    }
+    this.pendingAll = false;
+    this.pendingDashboard = false;
+    this.pendingTaskIds.clear();
+    this.dashboardPromise = null;
+    this.taskPromises.clear();
+    this.taskListPromises.clear();
+    this.setState(() => DEFAULT_STATE);
+  }
+
   select<T>(selector: ProjectionSelector<T>): T {
     return selector.select(this.state);
   }
