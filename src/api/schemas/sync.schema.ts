@@ -13,11 +13,21 @@
 
 import { z } from 'zod';
 
+// C18+C19 (audit 2026-04-20): `id` and `caseId` are the identity fields
+// the downstream uses to key rows and foreign-joins into the sync
+// pipeline — a null or renamed value here is a hard-break that must
+// be surfaced, not swallowed. Previously all five fields were
+// `.optional()` which let a null-id row pass validation silently and
+// also masked backend field renames. Identity fields are now required;
+// status/updatedAt stay optional because the downstream has safe
+// defaults for them. Running under non-strict `validateResponse`, so
+// drift triggers a `Logger.warn` into telemetry without breaking a
+// field agent mid-shift.
 export const MobileCaseSchema = z
   .object({
-    id: z.string().min(1).optional(),
+    id: z.string().min(1),
     verificationTaskId: z.string().optional(),
-    caseId: z.union([z.string(), z.number()]).optional(),
+    caseId: z.union([z.string(), z.number()]),
     status: z.string().optional(),
     updatedAt: z.string().optional(),
   })
