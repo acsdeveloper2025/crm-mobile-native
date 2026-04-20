@@ -7,6 +7,7 @@ import { config } from '../config';
 import { DatabaseService } from '../database/DatabaseService';
 import { ProjectionUpdater } from '../projections/ProjectionUpdater';
 import { SyncEngineRepository } from '../repositories/SyncEngineRepository';
+import { SyncQueueRepository } from '../repositories/SyncQueueRepository';
 import { notificationService } from '../services/NotificationService';
 import { Logger } from '../utils/logger';
 import { syncConflictResolver } from './SyncConflictResolver';
@@ -88,8 +89,11 @@ class SyncDownloadServiceClass {
         }
 
         for (const taskId of payload.revokedAssignmentIds || []) {
-          // Only delete SYNCED child records — preserve PENDING ones to prevent data loss.
-          // Unsynced attachments/forms represent work the user hasn't uploaded yet.
+          // C10 (audit 2026-04-20): preserve PENDING files/rows as
+          // before, but also (a) mark them sync_status='ABANDONED'
+          // so reconcileOrphanAttachments doesn't re-enqueue them,
+          // and (b) delete the sync_queue entries so the uploader
+          // stops retrying against a task the server has revoked.
           const taskRows = await SyncEngineRepository.query<{ id: string }>(
             'SELECT id FROM tasks WHERE verification_task_id = ?',
             [taskId],
@@ -102,6 +106,10 @@ class SyncDownloadServiceClass {
               [row.id],
             );
             await SyncEngineRepository.execute(
+              "UPDATE attachments SET sync_status = 'ABANDONED' WHERE task_id = ? AND sync_status = 'PENDING'",
+              [row.id],
+            );
+            await SyncEngineRepository.execute(
               'DELETE FROM locations WHERE task_id = ?',
               [row.id],
             );
@@ -109,6 +117,11 @@ class SyncDownloadServiceClass {
               "DELETE FROM form_submissions WHERE task_id = ? AND sync_status = 'SYNCED'",
               [row.id],
             );
+            await SyncEngineRepository.execute(
+              "UPDATE form_submissions SET sync_status = 'ABANDONED' WHERE task_id = ? AND sync_status = 'PENDING'",
+              [row.id],
+            );
+            await SyncQueueRepository.deleteQueueItemsForTask(row.id, taskId);
           }
           await SyncEngineRepository.execute(
             'DELETE FROM tasks WHERE verification_task_id = ?',
@@ -117,10 +130,14 @@ class SyncDownloadServiceClass {
           await ProjectionUpdater.rebuildTask(taskId);
         }
         for (const taskId of payload.deletedTaskIds || []) {
-          // Only delete SYNCED child records — preserve PENDING ones to prevent data loss
+          // C10 (audit 2026-04-20): see revokedAssignmentIds loop above.
           await this.unlinkSyncedAttachmentFiles(taskId);
           await SyncEngineRepository.execute(
             "DELETE FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'",
+            [taskId],
+          );
+          await SyncEngineRepository.execute(
+            "UPDATE attachments SET sync_status = 'ABANDONED' WHERE task_id = ? AND sync_status = 'PENDING'",
             [taskId],
           );
           await SyncEngineRepository.execute(
@@ -131,6 +148,11 @@ class SyncDownloadServiceClass {
             "DELETE FROM form_submissions WHERE task_id = ? AND sync_status = 'SYNCED'",
             [taskId],
           );
+          await SyncEngineRepository.execute(
+            "UPDATE form_submissions SET sync_status = 'ABANDONED' WHERE task_id = ? AND sync_status = 'PENDING'",
+            [taskId],
+          );
+          await SyncQueueRepository.deleteQueueItemsForTask(taskId, taskId);
           await SyncEngineRepository.execute(
             'DELETE FROM tasks WHERE id = ? OR verification_task_id = ?',
             [taskId, taskId],

@@ -395,6 +395,43 @@ class SyncQueueRepositoryClass {
     );
   }
 
+  /**
+   * Remove every sync_queue entry associated with a revoked or
+   * server-deleted task (C10, audit 2026-04-20). Covers TASK,
+   * TASK_STATUS (matched by entity_id) and ATTACHMENT, VISIT_PHOTO,
+   * LOCATION, FORM_SUBMISSION (matched by payload_json.taskId or
+   * localTaskId). Prevents the uploader from burning retries on a
+   * task the server no longer recognises.
+   */
+  async deleteQueueItemsForTask(
+    localTaskId: string,
+    backendTaskId: string,
+  ): Promise<number> {
+    const result = await DatabaseService.execute(
+      `DELETE FROM sync_queue
+        WHERE (
+          entity_type IN ('TASK', 'TASK_STATUS')
+          AND entity_id IN (?, ?)
+        )
+           OR (
+          entity_type IN ('ATTACHMENT', 'VISIT_PHOTO', 'LOCATION', 'FORM_SUBMISSION')
+          AND (
+            json_extract(payload_json, '$.taskId') IN (?, ?)
+            OR json_extract(payload_json, '$.localTaskId') IN (?, ?)
+          )
+        )`,
+      [
+        localTaskId,
+        backendTaskId,
+        localTaskId,
+        backendTaskId,
+        localTaskId,
+        backendTaskId,
+      ],
+    );
+    return result.rowsAffected;
+  }
+
   async countBlockingPhotos(taskId: string): Promise<number> {
     return DatabaseService.count(
       'sync_queue',
