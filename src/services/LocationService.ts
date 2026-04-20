@@ -370,6 +370,17 @@ class LocationServiceClass {
    *
    * C8 (audit 2026-04-20): replaces the Google Geocoding API path
    * that required a hardcoded API key in the mobile binary.
+   *
+   * Uses Nominatim's `display_name` directly as the address string.
+   * Testing across Mumbai / Delhi / Bangalore / Kolkata / Kota /
+   * Jodhpur (2026-04-20) showed that building the address from
+   * individual `address.*` fields drops verification-critical detail —
+   * Nominatim puts tehsil/sub-district data in `county`/`municipality`
+   * fields that don't map 1:1 to Google's old schema, and UTs (Delhi)
+   * leave `address.state` empty entirely. `display_name` is
+   * Nominatim's own canonical rendering and contains every level with
+   * correct ordering. A tiny dedupe pass removes the occasional
+   * duplicate token (e.g. "Kota, Kota" where city = state_district).
    */
   async getAddressFromCoordinates(lat: number, lon: number): Promise<string> {
     const cacheKey = `${lat.toFixed(3)},${lon.toFixed(3)}`;
@@ -404,54 +415,32 @@ class LocationServiceClass {
 
       const data = (await response.json()) as {
         display_name?: string;
-        address?: Record<string, string | undefined>;
       };
-      const address = data.address || {};
 
-      const parts: string[] = [];
-
-      // Street: house number + road
-      const houseNumber = address.house_number || '';
-      const road = address.road || address.pedestrian || address.footway || '';
-      if (houseNumber && road) {
-        parts.push(`${houseNumber}, ${road}`);
-      } else if (road) {
-        parts.push(road);
+      const displayName = data.display_name;
+      if (!displayName || typeof displayName !== 'string') {
+        return fallback;
       }
 
-      // Building / amenity (Nominatim equivalents of Google's premise)
-      const building =
-        address.building || address.amenity || address.shop || '';
-      if (building) parts.push(building);
-
-      // Neighbourhood / suburb / area
-      const sublocality =
-        address.neighbourhood || address.suburb || address.quarter || '';
-      if (sublocality) parts.push(sublocality);
-
-      // Locality (city/town/village)
-      const locality =
-        address.city || address.town || address.village || address.hamlet || '';
-      if (locality) parts.push(locality);
-
-      // District
-      const district = address.state_district || address.county || '';
-      if (district && district !== locality) parts.push(district);
-
-      // State
-      const state = address.state || '';
-      if (state) parts.push(state);
-
-      // Pincode
-      const pincode = address.postcode || '';
-      if (pincode) parts.push(pincode);
-
-      // Country
-      const country = address.country || '';
-      if (country) parts.push(country);
-
-      const result =
-        parts.length > 0 ? parts.join(', ') : data.display_name || fallback;
+      // Collapse duplicate tokens (keep first occurrence). Nominatim
+      // returns the same name at multiple admin levels when a city and
+      // its state_district / municipality share a name:
+      //   "Kota, Ladpura Tehsil, Kota, Rajasthan, …"
+      //   "Jodhpur, Jodhpur Tehsil, Jodhpur, Rajasthan, …"
+      //   "Kolkata, Kolkata Metropolitan Area, Kolkata, West Bengal, …"
+      // Strings that ARE legitimately different (e.g. "New Delhi" vs
+      // "Delhi") are preserved because they don't match character-for-
+      // character. This is safer than adjacent-only dedupe, which
+      // leaves the duplicates separated by a tehsil token intact.
+      const seen = new Set<string>();
+      const deduped: string[] = [];
+      for (const token of displayName.split(',').map(t => t.trim())) {
+        if (token && !seen.has(token)) {
+          seen.add(token);
+          deduped.push(token);
+        }
+      }
+      const result = deduped.join(', ') || fallback;
 
       // LRU insert with eviction
       if (LocationServiceClass.geocodeCache.size >= GEOCODE_CACHE_CAPACITY) {
