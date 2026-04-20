@@ -55,6 +55,89 @@ class SyncQueueClass {
   }
 
   /**
+   * Reconcile orphaned attachments: any attachment row with sync_status='PENDING'
+   * that has no corresponding active sync_queue entry. This closes the crash
+   * window in CameraService.saveCapturedPhoto where the DB insert (inside a
+   * transaction) and the enqueue call (outside) can be interrupted, leaving
+   * a PENDING attachment that would otherwise never upload.
+   */
+  async reconcileOrphanAttachments(): Promise<number> {
+    const rows = await SyncEngineRepository.query<{
+      id: string;
+      taskId: string;
+      backendTaskId: string | null;
+      filename: string;
+      localPath: string;
+      mimeType: string;
+      size: number;
+      componentType: string;
+      latitude: number | null;
+      longitude: number | null;
+      accuracy: number | null;
+      locationTimestamp: string | null;
+      verificationTypeCode: string | null;
+    }>(
+      `SELECT a.id, a.task_id, t.verification_task_id AS backend_task_id,
+              a.filename, a.local_path, a.mime_type, a.size, a.component_type,
+              a.latitude, a.longitude, a.accuracy, a.location_timestamp,
+              t.verification_type_code
+       FROM attachments a
+       LEFT JOIN tasks t ON t.id = a.task_id
+       WHERE a.sync_status = 'PENDING'
+         AND NOT EXISTS (
+           SELECT 1 FROM sync_queue q
+           WHERE q.entity_type = 'ATTACHMENT'
+             AND q.entity_id = a.id
+             AND q.status IN ('PENDING', 'IN_PROGRESS', 'FAILED')
+         )`,
+    );
+
+    if (rows.length === 0) {
+      return 0;
+    }
+
+    for (const row of rows) {
+      const payload: Record<string, unknown> = {
+        id: row.id,
+        taskId: row.backendTaskId || row.taskId,
+        localTaskId: row.taskId,
+        filename: row.filename,
+        localPath: row.localPath,
+        mimeType: row.mimeType,
+        size: row.size,
+        componentType: row.componentType,
+        photoType: row.componentType === 'selfie' ? 'selfie' : 'verification',
+        ...(row.verificationTypeCode
+          ? { verificationType: row.verificationTypeCode }
+          : {}),
+        geoLocation:
+          row.latitude !== null && row.longitude !== null
+            ? {
+                latitude: row.latitude,
+                longitude: row.longitude,
+                accuracy: row.accuracy ?? 0,
+                timestamp: row.locationTimestamp,
+              }
+            : null,
+      };
+      await this.enqueue(
+        'CREATE',
+        'ATTACHMENT',
+        row.id,
+        payload,
+        SYNC_PRIORITY.HIGH,
+      );
+    }
+
+    Logger.warn(
+      TAG,
+      `Reconciled ${rows.length} orphan PENDING attachment(s) — re-enqueued for sync`,
+    );
+
+    return rows.length;
+  }
+
+  /**
    * Enqueue a new operation for sync
    */
   async enqueue(

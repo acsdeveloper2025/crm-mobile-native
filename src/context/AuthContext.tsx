@@ -86,6 +86,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
         // Recover any expired leases from interrupted sync operations before starting
         await SyncQueue.recoverExpiredLeases();
+        // Re-enqueue any PENDING attachments whose enqueue was interrupted by
+        // a crash between the DB commit and the sync_queue insert.
+        await SyncQueue.reconcileOrphanAttachments();
 
         SyncService.startPeriodicSync();
         DataCleanupService.initializeAutoCleanup().catch(error => {

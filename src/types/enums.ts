@@ -167,7 +167,6 @@ export enum FinalStatus {
   Negative = 'Negative',
   Refer = 'Refer',
   Fraud = 'Fraud',
-  Hold = 'Hold',
 }
 
 export enum PropertyStatus {

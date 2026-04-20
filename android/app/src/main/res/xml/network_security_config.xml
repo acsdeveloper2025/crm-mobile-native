@@ -33,19 +33,40 @@
     </domain-config>
 
     <!--
-      Production API domain.
+      Production API domain — certificate pinning ACTIVE (2026-04-19).
 
-      Pinning is temporarily disabled here because the shipped Android
-      pin-set caused release builds to fail closed with generic "Network Error"
-      responses even while the same endpoint loaded successfully in Chrome on
-      the emulator. Until the pin rollout is wired end-to-end and validated in
-      real release builds, we prefer standard platform TLS over a brittle
-      partial pinning setup that can block sign-in entirely.
+      Pin set:
+        Primary: SPKI SHA-256 of the current leaf cert for
+                 crm.allcheckservices.com (Let's Encrypt leaf, rotates every
+                 ~60 days — refresh this pin when a new cert is issued).
+        Backup : SPKI SHA-256 of the Let's Encrypt R13 intermediate CA.
+                 Acts as a rotation safety net: Android matches any cert in
+                 the presented chain against the pin set, so even when the
+                 leaf rotates the intermediate keeps the app reachable until
+                 the next app release ships an updated leaf pin.
+
+      Expiration: 2026-12-31 — both pins MUST be reviewed and re-validated
+      before this date. Pin rotation procedure documented in
+      docs/ssl-pinning.md.
+
+      Verified against live server on 2026-04-19 using the curl
+      pinnedpubkey flag with sha256//+D94EBRU5pr3Lcn2SvqWT8E... returned
+      HTTP 200 from https://crm.allcheckservices.com/ .
+
+      Release pipeline guard: scripts/check-ssl-pins.sh fails the build if
+      the pin-set element is missing, placeholder values leak through, or
+      pin values are not 44-char base64 SHA-256 digests.
     -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">crm.allcheckservices.com</domain>
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
+        <pin-set expiration="2026-12-31">
+            <!-- Primary: crm.allcheckservices.com leaf cert (Let's Encrypt) -->
+            <pin digest="SHA-256">+D94EBRU5pr3Lcn2SvqWT8E+MSR6oDpQx952sp+iH2M=</pin>
+            <!-- Backup: Let's Encrypt R13 intermediate CA -->
+            <pin digest="SHA-256">AlSQhgtJirc8ahLyekmtX+Iw+v46yPYRLJt9Cq1GlB0=</pin>
+        </pin-set>
     </domain-config>
 </network-security-config>

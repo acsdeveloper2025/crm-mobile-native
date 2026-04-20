@@ -9,6 +9,7 @@ export const RecoverOfflineStateUseCase = {
       return;
     }
     await SyncQueue.recoverExpiredLeases();
+    await SyncQueue.reconcileOrphanAttachments();
     await TaskRepository.repairTaskIdentity();
     recovered = true;
   },

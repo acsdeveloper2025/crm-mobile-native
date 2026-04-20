@@ -1,3 +1,4 @@
+import RNFS from 'react-native-fs';
 import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import { validateResponse } from '../api/schemas/runtime';
@@ -94,6 +95,8 @@ class SyncDownloadServiceClass {
             [taskId],
           );
           for (const row of taskRows) {
+            // Unlink disk files BEFORE deleting rows so we still have the paths.
+            await this.unlinkSyncedAttachmentFiles(row.id);
             await SyncEngineRepository.execute(
               "DELETE FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'",
               [row.id],
@@ -115,6 +118,7 @@ class SyncDownloadServiceClass {
         }
         for (const taskId of payload.deletedTaskIds || []) {
           // Only delete SYNCED child records — preserve PENDING ones to prevent data loss
+          await this.unlinkSyncedAttachmentFiles(taskId);
           await SyncEngineRepository.execute(
             "DELETE FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'",
             [taskId],
@@ -175,6 +179,41 @@ class SyncDownloadServiceClass {
         );
       } catch (flagError) {
         Logger.error(TAG, 'Failed to clear sync_in_progress flag', flagError);
+      }
+    }
+  }
+
+  /**
+   * Unlink local photo files for SYNCED attachments of a given local task id
+   * before the DB rows are deleted. Without this, revoked or server-deleted
+   * tasks leak their photo files into DocumentDirectoryPath/photos forever.
+   * Failures to unlink are logged but not thrown — stale files are a storage
+   * cost, not a data-integrity problem.
+   */
+  private async unlinkSyncedAttachmentFiles(
+    localTaskId: string,
+  ): Promise<void> {
+    const photos = await SyncEngineRepository.query<{
+      localPath: string | null;
+      thumbnailPath: string | null;
+    }>(
+      "SELECT local_path, thumbnail_path FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'",
+      [localTaskId],
+    );
+    for (const photo of photos) {
+      try {
+        if (photo.localPath && (await RNFS.exists(photo.localPath))) {
+          await RNFS.unlink(photo.localPath);
+        }
+        if (photo.thumbnailPath && (await RNFS.exists(photo.thumbnailPath))) {
+          await RNFS.unlink(photo.thumbnailPath);
+        }
+      } catch (error) {
+        Logger.warn(
+          TAG,
+          `Failed to unlink attachment file for task ${localTaskId}`,
+          error,
+        );
       }
     }
   }

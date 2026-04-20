@@ -5,6 +5,7 @@ import { DatabaseService } from '../../database/DatabaseService';
 import { SyncEngineRepository } from '../../repositories/SyncEngineRepository';
 import { Logger } from '../../utils/logger';
 import { resolveFormTypeKey, type FormTypeKey } from '../../utils/formTypeKey';
+import { NetworkService } from '../../services/NetworkService';
 import type { SyncOperation } from '../SyncOperationLog';
 import { idempotencyHeaders, type SyncUploadResult } from '../SyncUploadTypes';
 
@@ -146,19 +147,34 @@ class FormUploaderClass {
         [taskId, taskId],
       );
       if (pendingPhotosCount > 0 && deferCount < MAX_DEFERS) {
-        const error = `Blocking form upload for ${taskId}: ${pendingPhotosCount} photos pending (defer ${
-          deferCount + 1
-        }/${MAX_DEFERS})`;
-        payload._deferCount = deferCount + 1;
+        // Go-live hardening: if we're offline right now, defer without
+        // incrementing. A truly offline device must not burn through the
+        // defer cap just by being disconnected — doing so used to trigger
+        // a partial-attachment upload after ~75 min.
+        const isOnline = NetworkService.getIsOnline();
+        const nextDeferCount = isOnline ? deferCount + 1 : deferCount;
+        const error = `Blocking form upload for ${taskId}: ${pendingPhotosCount} photos pending (defer ${nextDeferCount}/${MAX_DEFERS}${
+          isOnline ? '' : ', offline — not counted'
+        })`;
+        payload._deferCount = nextDeferCount;
         await this.updateLocalSubmissionState(localTaskId, 'pending');
         return { outcome: 'DEFER', error };
       }
 
       if (deferCount >= MAX_DEFERS) {
-        Logger.warn(
-          TAG,
-          `Form for ${taskId} exceeded max defers (${MAX_DEFERS}). Uploading with available attachments.`,
+        // Reached the cap while online with photos still pending. Rather
+        // than uploading an incomplete attachment set (which backend will
+        // reject as < 5 photos anyway) we fail loudly so the user sees a
+        // recoverable error and can retry once the photos sync.
+        await this.updateLocalSubmissionState(
+          localTaskId,
+          'failed',
+          'Photos could not be uploaded after repeated retries — please retry submission once all photos have uploaded',
         );
+        return {
+          outcome: 'FAILURE',
+          error: `Exceeded max defers (${MAX_DEFERS}) for ${taskId} with photos still pending`,
+        };
       }
     }
 
