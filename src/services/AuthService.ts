@@ -1,6 +1,7 @@
 // AuthService - Authentication, token management, session persistence
 // All storage uses SQLite - no AsyncStorage dependency
 
+import { v4 as uuidv4 } from 'uuid';
 import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import { config } from '../config';
@@ -215,6 +216,9 @@ class AuthServiceClass {
         return null;
       }
 
+      // C20 (audit 2026-04-20): per-refresh Idempotency-Key lets the
+      // backend dedupe duplicate rotations when our retry path (C16)
+      // or a network blip causes a second attempt in flight.
       const response = await ApiClient.post<{
         success: boolean;
         data?: {
@@ -222,9 +226,17 @@ class AuthServiceClass {
           refreshToken?: string;
           expiresIn: number;
         };
-      }>(ENDPOINTS.AUTH.REFRESH, {
-        refreshToken: this.refreshToken,
-      });
+      }>(
+        ENDPOINTS.AUTH.REFRESH,
+        {
+          refreshToken: this.refreshToken,
+        },
+        {
+          headers: {
+            'Idempotency-Key': uuidv4(),
+          },
+        },
+      );
 
       validateResponse(MobileRefreshResponseSchema, response, {
         service: 'auth',

@@ -10,6 +10,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
+import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '../../context/AuthContext';
 import { ApiClient } from '../../api/apiClient';
 import { ENDPOINTS } from '../../api/endpoints';
@@ -137,6 +138,9 @@ export const LoginScreen = () => {
       Logger.info(TAG, `Attempting login for ${parsed.username}`);
 
       const deviceInfo = await AuthService.getDeviceInfo();
+      // C20 (audit 2026-04-20): per-attempt Idempotency-Key lets the
+      // backend collapse duplicate sessions when the user impatiently
+      // re-taps login while a request is in flight.
       const response = await ApiClient.post<MobileLoginResponse>(
         ENDPOINTS.AUTH.LOGIN,
         {
@@ -144,6 +148,11 @@ export const LoginScreen = () => {
           password: parsed.password,
           deviceId: deviceInfo.deviceId,
           deviceInfo,
+        },
+        {
+          headers: {
+            'Idempotency-Key': uuidv4(),
+          },
         },
       );
 
