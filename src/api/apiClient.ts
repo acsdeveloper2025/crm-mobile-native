@@ -290,6 +290,55 @@ class ApiClientClass {
   }
 
   /**
+   * Run the registered refresh handler from outside the axios interceptor,
+   * respecting the same concurrency and timeout guards. Used by the
+   * non-axios attachment download path (C9 in the 2026-04-20 mobile
+   * audit) to participate in the refresh flow.
+   *
+   * - If a refresh is already in-flight, wait on the existing subscriber
+   *   queue so we don't kick off a duplicate.
+   * - Returns the new token on success, null if no refresh handler is
+   *   registered or the handler returned an empty token.
+   * - Throws on refresh error (caller decides whether to force logout).
+   */
+  async triggerRefresh(): Promise<string | null> {
+    if (!this.refreshHandler) {
+      return null;
+    }
+
+    if (this.isRefreshing) {
+      if (this.refreshSubscribers.length >= MAX_REFRESH_SUBSCRIBERS) {
+        throw new Error(
+          'REFRESH_QUEUE_FULL: too many requests waiting on token refresh',
+        );
+      }
+      return new Promise<string | null>((resolve, reject) => {
+        this.refreshSubscribers.push({
+          resolve: (token: string) => resolve(token),
+          reject,
+        });
+      });
+    }
+
+    this.isRefreshing = true;
+    try {
+      const newToken = await this.runRefreshWithTimeout(this.refreshHandler);
+      if (newToken) {
+        this.resolveRefreshSubscribers(newToken);
+        return newToken;
+      }
+      const refreshFailure = new Error('Token refresh returned no token');
+      this.rejectRefreshSubscribers(refreshFailure);
+      return null;
+    } catch (refreshError) {
+      this.rejectRefreshSubscribers(refreshError);
+      throw refreshError;
+    } finally {
+      this.isRefreshing = false;
+    }
+  }
+
+  /**
    * Race the refresh handler against a hard timeout. If the handler takes
    * longer than REFRESH_TIMEOUT_MS, reject with a clear error so queued
    * subscribers fail fast instead of leaking forever.

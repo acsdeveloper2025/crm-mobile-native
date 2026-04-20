@@ -127,23 +127,47 @@ class AttachmentServiceClass {
     if (exists)
       return Platform.OS === 'android' ? `file://${destPath}` : destPath;
 
-    const token = await SessionStore.getAccessToken();
-    const headers: Record<string, string> = {
-      'X-App-Version': config.appVersion,
-      'X-Platform': config.platform,
+    const buildHeaders = (token: string | null): Record<string, string> => {
+      const h: Record<string, string> = {
+        'X-App-Version': config.appVersion,
+        'X-Platform': config.platform,
+      };
+      if (token) {
+        h.Authorization = `Bearer ${token}`;
+      }
+      return h;
     };
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
+
+    let token = await SessionStore.getAccessToken();
+    // C9 (audit 2026-04-20): allow a single 401-triggered token refresh
+    // since RNFS.downloadFile bypasses the axios interceptor.
+    let refreshedOnce = false;
 
     const candidateUrls = this.buildAttachmentContentUrls(attachment);
     let lastFailureStatus = 0;
     for (const url of candidateUrls) {
-      const result = await RNFS.downloadFile({
+      let result = await RNFS.downloadFile({
         fromUrl: url,
         toFile: destPath,
-        headers,
+        headers: buildHeaders(token),
       }).promise;
+
+      if (result.statusCode === 401 && !refreshedOnce) {
+        refreshedOnce = true;
+        try {
+          const newToken = await ApiClient.triggerRefresh();
+          if (newToken) {
+            token = newToken;
+            result = await RNFS.downloadFile({
+              fromUrl: url,
+              toFile: destPath,
+              headers: buildHeaders(token),
+            }).promise;
+          }
+        } catch (err) {
+          Logger.warn(TAG, 'Token refresh during download failed', err);
+        }
+      }
 
       if (result.statusCode >= 200 && result.statusCode < 300) {
         return Platform.OS === 'android' ? `file://${destPath}` : destPath;
