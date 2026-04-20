@@ -6,15 +6,31 @@ class SyncQueueRepositoryClass {
     // Reset to PENDING and increment a dedicated crash_recovery_count.
     // We don't increment `attempts` (which tracks genuine server failures)
     // because lease expiry from an app crash is not a server rejection.
-    // However, we cap crash recoveries at 10 to prevent infinite loops
-    // where a poison-pill item keeps crashing the app.
+    // We cap crash recoveries at 10 to prevent infinite loops where a
+    // poison-pill item keeps crashing the app.
+    //
+    // C22b (audit 2026-04-20): the recovery + counter-bump used to be
+    // two separate UPDATEs. The second UPDATE's WHERE clause matched
+    // `status='PENDING' AND last_error LIKE '%Recovered...'` — which
+    // also matched items recovered in PREVIOUS cycles that were still
+    // waiting on retry. Their counter would bump every time any
+    // unrelated item recovered, so an item that crashed once could
+    // reach the permanent-fail cap purely from bystander increments.
+    // Merged into a single atomic UPDATE keyed on the current
+    // cycle's expiring-lease condition so only genuinely recovered
+    // rows get their counter touched.
     const recovered = await DatabaseService.execute(
       `UPDATE sync_queue
        SET status = 'PENDING',
            last_error = COALESCE(last_error, 'Recovered after interrupted processing — lease expired'),
            next_retry_at = NULL,
            started_at = NULL,
-           lease_expires_at = NULL
+           lease_expires_at = NULL,
+           payload_json = json_set(
+             payload_json,
+             '$._operation.crash_recovery_count',
+             COALESCE(CAST(json_extract(payload_json, '$._operation.crash_recovery_count') AS INTEGER), 0) + 1
+           )
        WHERE status = 'IN_PROGRESS'
          AND lease_expires_at IS NOT NULL
          AND lease_expires_at < ?
@@ -35,21 +51,6 @@ class SyncQueueRepositoryClass {
          AND COALESCE(CAST(json_extract(payload_json, '$._operation.crash_recovery_count') AS INTEGER), 0) >= 10`,
       [now],
     );
-
-    // Increment crash_recovery_count on recovered items
-    if (recovered.rowsAffected > 0) {
-      await DatabaseService.execute(
-        `UPDATE sync_queue
-         SET payload_json = json_set(
-           payload_json,
-           '$._operation.crash_recovery_count',
-           COALESCE(CAST(json_extract(payload_json, '$._operation.crash_recovery_count') AS INTEGER), 0) + 1
-         )
-         WHERE status = 'PENDING'
-           AND last_error LIKE '%Recovered after interrupted processing%'
-           AND started_at IS NULL`,
-      );
-    }
 
     return recovered.rowsAffected;
   }
