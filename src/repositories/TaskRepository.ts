@@ -43,41 +43,50 @@ class TaskRepositoryClass {
          AND id != verification_task_id`,
     );
 
+    // C14 (audit 2026-04-20): wrap each per-row repair in a single
+    // transaction so the 5-6 cross-table writes either all commit or
+    // all roll back. Previously an app crash or SQLite BUSY between
+    // the child-table UPDATEs and the tasks UPDATE left orphan FKs
+    // (child rows pointing at a task id that no longer existed).
     for (const row of brokenRows) {
       const currentId = row.id;
       const targetId = row.verificationTaskId;
-      const targetExists = await DatabaseService.query<{ id: string }>(
-        'SELECT id FROM tasks WHERE id = ? LIMIT 1',
-        [targetId],
-      );
 
-      await DatabaseService.execute(
-        'UPDATE attachments SET task_id = ? WHERE task_id = ?',
-        [targetId, currentId],
-      );
-      await DatabaseService.execute(
-        'UPDATE locations SET task_id = ? WHERE task_id = ?',
-        [targetId, currentId],
-      );
-      await DatabaseService.execute(
-        'UPDATE form_submissions SET task_id = ? WHERE task_id = ?',
-        [targetId, currentId],
-      );
-      await DatabaseService.execute(
-        "UPDATE sync_queue SET entity_id = ? WHERE entity_type IN ('TASK', 'TASK_STATUS') AND entity_id = ?",
-        [targetId, currentId],
-      );
-
-      if (targetExists.length > 0) {
-        await DatabaseService.execute('DELETE FROM tasks WHERE id = ?', [
-          currentId,
-        ]);
-      } else {
-        await DatabaseService.execute(
-          'UPDATE tasks SET id = ?, verification_task_id = ? WHERE id = ?',
-          [targetId, targetId, currentId],
+      await DatabaseService.transaction(async tx => {
+        await tx.executeSql(
+          'UPDATE attachments SET task_id = ? WHERE task_id = ?',
+          [targetId, currentId],
         );
-      }
+        await tx.executeSql(
+          'UPDATE locations SET task_id = ? WHERE task_id = ?',
+          [targetId, currentId],
+        );
+        await tx.executeSql(
+          'UPDATE form_submissions SET task_id = ? WHERE task_id = ?',
+          [targetId, currentId],
+        );
+        await tx.executeSql(
+          "UPDATE sync_queue SET entity_id = ? WHERE entity_type IN ('TASK', 'TASK_STATUS') AND entity_id = ?",
+          [targetId, currentId],
+        );
+
+        // Read the target-exists check inside the transaction so a
+        // concurrent writer cannot flip the answer between SELECT
+        // and the final write.
+        const [targetExistsResult] = await tx.executeSql(
+          'SELECT id FROM tasks WHERE id = ? LIMIT 1',
+          [targetId],
+        );
+
+        if (targetExistsResult.rows.length > 0) {
+          await tx.executeSql('DELETE FROM tasks WHERE id = ?', [currentId]);
+        } else {
+          await tx.executeSql(
+            'UPDATE tasks SET id = ?, verification_task_id = ? WHERE id = ?',
+            [targetId, targetId, currentId],
+          );
+        }
+      });
     }
     await ProjectionUpdater.scheduleAllRebuild();
   }
