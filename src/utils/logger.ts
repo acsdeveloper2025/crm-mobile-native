@@ -59,7 +59,7 @@ const MAX_BUFFER_SIZE = 500;
  * of how deep they are in the object.
  */
 const SENSITIVE_KEY_PATTERN =
-  /(access[_-]?token|refresh[_-]?token|id[_-]?token|auth(?:orization)?|password|passcode|pin(?![a-z])|secret|api[_-]?key|private[_-]?key|ssn|aadhaar|pan(?:[_-]?card)?|credit[_-]?card|cvv|otp|session[_-]?id|cookie|bearer)/i;
+  /(access[_-]?token|refresh[_-]?token|id[_-]?token|auth(?:orization)?|password|passcode|pin(?![a-z])|secret|api[_-]?key|private[_-]?key|ssn|aadhaar|pan(?:[_-]?card)?|credit[_-]?card|cvv|otp|session[_-]?id|cookie|bearer|\blat(?:itude)?\b|\blon(?:g|gitude)?\b|\blng\b|\bcoord(?:s|inate|inates)?\b|\bgps\b|\bgeo[_-]?location\b)/i;
 
 const REDACTED = '[REDACTED]';
 // Bound recursion on deeply nested or cyclic inputs.
