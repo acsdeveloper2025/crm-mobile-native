@@ -9,6 +9,21 @@ import type { SyncUploadResult } from '../SyncUploadTypes';
 
 const TAG = 'AttachmentUploader';
 
+// C28 (audit 2026-04-20): axios default timeout is 30 s — far too short
+// for 2–10 MB photos on 3G (100–500 Kbps). Scale the timeout with the
+// payload size, mirroring SyncQueue.calculateLeaseTimeout so the lease
+// always outlasts the upload by ≥ 4 minutes, guaranteeing that no other
+// processor can steal the row mid-upload.
+const UPLOAD_BASE_TIMEOUT_MS = 60 * 1000;
+const UPLOAD_PER_MB_MS = 30 * 1000;
+const UPLOAD_MAX_TIMEOUT_MS = 10 * 60 * 1000;
+
+function calculateUploadTimeout(sizeBytes: number): number {
+  const sizeMb = Math.max(0, sizeBytes) / (1024 * 1024);
+  const dynamic = UPLOAD_BASE_TIMEOUT_MS + Math.ceil(sizeMb) * UPLOAD_PER_MB_MS;
+  return Math.min(dynamic, UPLOAD_MAX_TIMEOUT_MS);
+}
+
 class AttachmentUploaderClass {
   async upload(operation: SyncOperation): Promise<SyncUploadResult> {
     const payload = { ...operation.payload };
@@ -80,6 +95,9 @@ class AttachmentUploaderClass {
       }),
     );
 
+    const sizeBytes = typeof payload.size === 'number' ? payload.size : 0;
+    const uploadTimeoutMs = calculateUploadTimeout(sizeBytes);
+
     const response = await ApiClient.post<{
       success: boolean;
       data?: { attachments?: Array<{ id: string; url?: string }> };
@@ -88,6 +106,7 @@ class AttachmentUploaderClass {
         'Content-Type': 'multipart/form-data',
         'Idempotency-Key': operation.operationId,
       },
+      timeout: uploadTimeoutMs,
     });
 
     if (!response.success) {
