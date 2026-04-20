@@ -1,7 +1,7 @@
 // SQLite Database Schema and Migrations
 // Offline-first schema for field verification data
 
-export const DB_VERSION = 8;
+export const DB_VERSION = 9;
 
 /**
  * All CREATE TABLE statements for the local SQLite database.
@@ -152,7 +152,7 @@ CREATE TABLE IF NOT EXISTS sync_queue (
   created_at TEXT NOT NULL,
   processed_at TEXT,
   attempts INTEGER NOT NULL DEFAULT 0,
-  max_attempts INTEGER NOT NULL DEFAULT 3,
+  max_attempts INTEGER NOT NULL DEFAULT 10,
   last_error TEXT,
   next_retry_at TEXT,
   started_at TEXT,
@@ -530,6 +530,14 @@ export const MIGRATIONS: Migration[] = [
         (SELECT last_download_sync_at FROM sync_metadata WHERE id = 1),
         CURRENT_TIMESTAMP
       FROM tasks;
+    `,
+  },
+  {
+    version: 9,
+    description:
+      'Raise sync_queue.max_attempts default from 3 to 10 (C11, data-loss safety)',
+    sql: `
+      UPDATE sync_queue SET max_attempts = 10 WHERE max_attempts = 3;
     `,
   },
 ];

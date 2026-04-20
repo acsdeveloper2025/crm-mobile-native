@@ -66,7 +66,7 @@ class SyncQueueRepositoryClass {
     await DatabaseService.execute(
       `INSERT INTO sync_queue
         (id, action_type, entity_type, entity_id, payload_json, status, priority, created_at, attempts, max_attempts, started_at, lease_expires_at)
-       VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, 0, 3, NULL, NULL)`,
+       VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, 0, 10, NULL, NULL)`,
       [id, actionType, entityType, entityId, payloadJson, priority, createdAt],
     );
   }
@@ -122,7 +122,7 @@ class SyncQueueRepositoryClass {
       await tx.executeSql(
         `INSERT INTO sync_queue
           (id, action_type, entity_type, entity_id, payload_json, status, priority, created_at, attempts, max_attempts, started_at, lease_expires_at)
-         VALUES (?, ?, 'TASK_STATUS', ?, ?, 'PENDING', ?, ?, 0, 3, NULL, NULL)`,
+         VALUES (?, ?, 'TASK_STATUS', ?, ?, 'PENDING', ?, ?, 0, 10, NULL, NULL)`,
         [id, actionType, entityId, payloadJson, priority, createdAt],
       );
     });
