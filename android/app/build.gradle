@@ -58,7 +58,6 @@ react {
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
 def enableProguardInReleaseBuilds = (project.findProperty("enableProguardInReleaseBuilds") ?: "true").toString().toBoolean()
-def googleMapsApiKey = project.findProperty("GOOGLE_MAPS_API_KEY") ?: ""
 def vectorIconsConfig = project.hasProperty("vectoricons") ? project.vectoricons : [:]
 def vectorIconFontsDir = vectorIconsConfig.iconFontsDir ?: "../../node_modules/react-native-vector-icons/Fonts"
 // The app imports Ionicons only, so avoid bundling the full icon-font set.
@@ -136,7 +135,6 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode releaseVersionCode
         versionName releaseVersionName
-        manifestPlaceholders = [GOOGLE_MAPS_API_KEY: googleMapsApiKey]
     }
     signingConfigs {
         debug {
