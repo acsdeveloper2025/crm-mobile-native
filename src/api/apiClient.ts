@@ -199,7 +199,15 @@ class ApiClientClass {
           } catch (refreshError) {
             Logger.error('ApiClient', 'Token refresh failed', refreshError);
             this.rejectRefreshSubscribers(refreshError);
-            if (this.unauthorizedHandler) {
+            // C16 (audit 2026-04-20): only force logout on definitive auth
+            // failures (refresh endpoint returns 401/403). Transient errors
+            // — network loss, REFRESH_TIMEOUT, 5xx — leave the session
+            // intact so the next user action can retry. Previously every
+            // refresh failure logged the user out on a single network blip.
+            if (
+              this.isDefinitiveAuthFailure(refreshError) &&
+              this.unauthorizedHandler
+            ) {
               await this.unauthorizedHandler();
             }
             return Promise.reject(refreshError);
@@ -263,6 +271,22 @@ class ApiClientClass {
   private rejectRefreshSubscribers(error: unknown): void {
     this.refreshSubscribers.forEach(subscriber => subscriber.reject(error));
     this.refreshSubscribers = [];
+  }
+
+  /**
+   * Is the refresh error a *definitive* auth failure (i.e. the refresh
+   * endpoint explicitly said the credentials can't be refreshed)? Only
+   * these should force a logout — see C16 in the 2026-04-20 mobile audit.
+   *
+   * Transient failures (network loss, REFRESH_TIMEOUT, 5xx, DNS) return
+   * false so the session is left intact.
+   */
+  private isDefinitiveAuthFailure(error: unknown): boolean {
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      return status === 401 || status === 403;
+    }
+    return false;
   }
 
   /**
