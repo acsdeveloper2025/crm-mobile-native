@@ -20,6 +20,44 @@ const TAG = 'CameraService';
 const PHOTOS_DIR = `${RNFS.DocumentDirectoryPath}/photos`;
 const THUMBNAILS_DIR = `${PHOTOS_DIR}/thumbnails`;
 
+// How long savePhoto is willing to wait for a GPS fix before falling back
+// to no-location. LocationService's native timeout is 15s which blows the
+// perceived "save" budget on a cold-start GPS indoors. 5s keeps saves
+// responsive; the photo still captures, just without lat/lon. The
+// watermark re-stamper picks up the fix later once GPS warms up.
+const GPS_SAVE_TIMEOUT_MS = 5_000;
+
+function locationWithTimeout(
+  promise: Promise<Awaited<ReturnType<typeof LocationService.getCurrentLocation>>>,
+  ms: number,
+): Promise<Awaited<ReturnType<typeof LocationService.getCurrentLocation>>> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timeout = new Promise<null>(resolve => {
+    timer = setTimeout(() => {
+      Logger.warn(
+        TAG,
+        `GPS timed out after ${ms}ms during savePhoto; continuing without location`,
+      );
+      resolve(null);
+    }, ms);
+  });
+  return Promise.race([
+    promise.then(value => {
+      if (timer) {
+        clearTimeout(timer);
+      }
+      return value;
+    }),
+    timeout,
+  ]).catch(err => {
+    if (timer) {
+      clearTimeout(timer);
+    }
+    Logger.warn(TAG, 'GPS lookup failed during savePhoto; continuing without location', err);
+    return null;
+  });
+}
+
 export interface CapturedPhoto {
   id: string;
   localPath: string;
@@ -148,7 +186,10 @@ class CameraServiceClass {
               timestamp: override.timestamp || new Date().toISOString(),
               source: 'GPS' as const,
             }
-          : await LocationService.getCurrentLocation();
+          : await locationWithTimeout(
+              LocationService.getCurrentLocation(),
+              GPS_SAVE_TIMEOUT_MS,
+            );
       const taskMeta = await TaskRepository.getTaskIdentity(taskId);
       const formTypeKey = resolveFormTypeKey({
         verificationTypeCode: taskMeta?.verificationTypeCode || null,

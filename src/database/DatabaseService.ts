@@ -5,6 +5,7 @@ import SQLite, { SQLiteDatabase, ResultSet } from 'react-native-sqlite-storage';
 import { config } from '../config';
 import { SCHEMA_SQL, INDEX_SQL, MIGRATIONS, DB_VERSION } from './schema';
 import { Logger } from '../utils/logger';
+import { DatabaseKeyStore } from '../services/DatabaseKeyStore';
 
 // Enable promise-based API
 SQLite.enablePromise(true);
@@ -65,83 +66,186 @@ class DatabaseServiceClass {
     }
 
     try {
-      Logger.info('DatabaseService', 'Initializing database...');
+      await this.openAndSetup(options);
+    } catch (error) {
+      if (DatabaseServiceClass.isCorruptionError(error)) {
+        // SQLITE_CORRUPT[11] ("database disk image is malformed") here
+        // is almost always an encryption-key / DB-file pair mismatch,
+        // not a real on-disk corruption. Common trigger on Samsung:
+        // Smart Switch restores the app's `databases/` directory from
+        // a backup but not the Keychain entry, so a fresh key pairs
+        // with a ciphertext it can't decrypt. The local DB is just a
+        // cache of server-side data, so deleting it and retrying with
+        // a fresh key is a safe, user-invisible recovery. Retry once.
+        Logger.warn(
+          'DatabaseService',
+          'Database appears corrupt or keyed with a stale encryption key; deleting and retrying',
+          { error },
+        );
+        await this.safeCloseDb();
+        await this.deleteLocalDbFile();
+        await DatabaseKeyStore.reset().catch(() => {
+          /* non-fatal — see DatabaseKeyStore.reset comment */
+        });
+        // Mint a fresh key for the clean DB we're about to create. App.tsx
+        // set config.dbEncryptionKey on boot; replace it so the retry
+        // uses the new one.
+        if (!__DEV__) {
+          try {
+            config.dbEncryptionKey = await DatabaseKeyStore.getOrCreateKey();
+          } catch (keyErr) {
+            Logger.error(
+              'DatabaseService',
+              'Failed to regenerate encryption key during corruption recovery',
+              keyErr,
+            );
+            throw keyErr;
+          }
+        }
+        await this.openAndSetup(options);
+        Logger.info(
+          'DatabaseService',
+          'Database recreated after corruption recovery',
+        );
+      } else {
+        Logger.error(
+          'DatabaseService',
+          'Failed to initialize database',
+          error,
+        );
+        throw error;
+      }
+    }
+  }
 
-      this.db = await SQLite.openDatabase({
+  private static isCorruptionError(error: unknown): boolean {
+    const msg = (
+      error instanceof Error ? error.message : String(error)
+    ).toLowerCase();
+    return (
+      msg.includes('disk image is malformed') ||
+      msg.includes('sqlite_corrupt') ||
+      msg.includes('file is not a database') ||
+      msg.includes('file is encrypted') // SQLCipher wrong-key shape
+    );
+  }
+
+  private async safeCloseDb(): Promise<void> {
+    if (!this.db) {
+      return;
+    }
+    try {
+      await this.db.close();
+    } catch (err) {
+      Logger.warn(
+        'DatabaseService',
+        'Failed to close DB before corruption recovery; continuing',
+        err,
+      );
+    }
+    this.db = null;
+    this.initialized = false;
+  }
+
+  private async deleteLocalDbFile(): Promise<void> {
+    try {
+      await SQLite.deleteDatabase({
         name: config.dbName,
         location: 'default',
       });
-
-      // Encryption: When using react-native-sqlcipher-storage, set the key
-      // before any other PRAGMA. The key is derived from the device keychain
-      // so it's unique per installation and not stored in plaintext.
-      //
-      // Safety:
-      //  - The key must be a 64-character hex string (256 bits). Any other
-      //    format is rejected to prevent SQL injection via PRAGMA interpolation.
-      //  - In release builds (__DEV__ === false) a key is REQUIRED; starting
-      //    an unencrypted DB in production is a hard failure.
-      const encryptionKey = config.dbEncryptionKey;
-      if (encryptionKey) {
-        if (!DatabaseServiceClass.isValidEncryptionKey(encryptionKey)) {
-          throw new Error(
-            'Invalid database encryption key format (expected 64-char hex string)',
-          );
-        }
-        await this.db.executeSql(`PRAGMA key = "x'${encryptionKey}'";`);
-        Logger.info('DatabaseService', 'Database encryption enabled');
-      } else if (!__DEV__) {
-        throw new Error(
-          'Database encryption key is required in production builds. ' +
-            'Set config.dbEncryptionKey from the Keychain before initialize().',
-        );
-      } else {
-        Logger.warn(
-          'DatabaseService',
-          'Starting database WITHOUT encryption (development build)',
-        );
-      }
-
-      // Enable WAL mode for better concurrent read/write performance
-      await this.db.executeSql('PRAGMA journal_mode = WAL;');
-      // FULL synchronous ensures data survives device crashes during WAL checkpoints
-      await this.db.executeSql('PRAGMA synchronous = FULL;');
-      // Enable foreign keys
-      await this.db.executeSql('PRAGMA foreign_keys = ON;');
-
-      // Create tables
-      const statements = SCHEMA_SQL.split(';').filter(s => s.trim().length > 0);
-      for (const statement of statements) {
-        await this.db.executeSql(statement + ';');
-      }
-
-      // Create indexes
-      const indexes = INDEX_SQL.split(';').filter(s => s.trim().length > 0);
-      for (const index of indexes) {
-        await this.db.executeSql(index + ';');
-      }
-
-      // Mark the DB usable *before* the potentially slow migration pass.
-      // Callers that don't need migrated schema can proceed immediately.
-      this.initialized = true;
-
-      if (options.deferMigrations) {
-        Logger.info('DatabaseService', 'Database opened; migrations deferred');
-        // Caller is responsible for invoking runPendingMigrations().
-        // The migrationsReady promise stays pending until then.
-        this.migrationsReady = new Promise<void>((resolve, reject) => {
-          this.deferredMigrationResolve = resolve;
-          this.deferredMigrationReject = reject;
-        });
-        return;
-      }
-
-      await this.runMigrations();
-      Logger.info('DatabaseService', 'Database initialized successfully');
-    } catch (error) {
-      Logger.error('DatabaseService', 'Failed to initialize database', error);
-      throw error;
+      Logger.info('DatabaseService', 'Deleted local DB file for recovery');
+    } catch (err) {
+      // Not fatal — the subsequent openDatabase call will create fresh
+      // files anyway when the old ones are unreadable. Log so ops can
+      // track this if it happens repeatedly.
+      Logger.warn(
+        'DatabaseService',
+        'SQLite.deleteDatabase failed during recovery; proceeding with retry',
+        err,
+      );
     }
+  }
+
+  private async openAndSetup(options: {
+    deferMigrations?: boolean;
+  }): Promise<void> {
+    Logger.info('DatabaseService', 'Initializing database...');
+
+    this.db = await SQLite.openDatabase({
+      name: config.dbName,
+      location: 'default',
+    });
+
+    // Encryption: When using react-native-sqlcipher-storage, set the key
+    // before any other PRAGMA. The key is derived from the device keychain
+    // so it's unique per installation and not stored in plaintext.
+    //
+    // Safety:
+    //  - The key must be a 64-character hex string (256 bits). Any other
+    //    format is rejected to prevent SQL injection via PRAGMA interpolation.
+    //  - In release builds (__DEV__ === false) a key is REQUIRED; starting
+    //    an unencrypted DB in production is a hard failure.
+    const encryptionKey = config.dbEncryptionKey;
+    if (encryptionKey) {
+      if (!DatabaseServiceClass.isValidEncryptionKey(encryptionKey)) {
+        throw new Error(
+          'Invalid database encryption key format (expected 64-char hex string)',
+        );
+      }
+      await this.db.executeSql(`PRAGMA key = "x'${encryptionKey}'";`);
+      // Touch the schema_version page now so a wrong-key pairing surfaces
+      // as SQLITE_CORRUPT here (where the recovery path can catch it)
+      // rather than on the first real query much later in boot.
+      await this.db.executeSql('SELECT count(*) FROM sqlite_master;');
+      Logger.info('DatabaseService', 'Database encryption enabled');
+    } else if (!__DEV__) {
+      throw new Error(
+        'Database encryption key is required in production builds. ' +
+          'Set config.dbEncryptionKey from the Keychain before initialize().',
+      );
+    } else {
+      Logger.warn(
+        'DatabaseService',
+        'Starting database WITHOUT encryption (development build)',
+      );
+    }
+
+    // Enable WAL mode for better concurrent read/write performance
+    await this.db.executeSql('PRAGMA journal_mode = WAL;');
+    // FULL synchronous ensures data survives device crashes during WAL checkpoints
+    await this.db.executeSql('PRAGMA synchronous = FULL;');
+    // Enable foreign keys
+    await this.db.executeSql('PRAGMA foreign_keys = ON;');
+
+    // Create tables
+    const statements = SCHEMA_SQL.split(';').filter(s => s.trim().length > 0);
+    for (const statement of statements) {
+      await this.db.executeSql(statement + ';');
+    }
+
+    // Create indexes
+    const indexes = INDEX_SQL.split(';').filter(s => s.trim().length > 0);
+    for (const index of indexes) {
+      await this.db.executeSql(index + ';');
+    }
+
+    // Mark the DB usable *before* the potentially slow migration pass.
+    // Callers that don't need migrated schema can proceed immediately.
+    this.initialized = true;
+
+    if (options.deferMigrations) {
+      Logger.info('DatabaseService', 'Database opened; migrations deferred');
+      // Caller is responsible for invoking runPendingMigrations().
+      // The migrationsReady promise stays pending until then.
+      this.migrationsReady = new Promise<void>((resolve, reject) => {
+        this.deferredMigrationResolve = resolve;
+        this.deferredMigrationReject = reject;
+      });
+      return;
+    }
+
+    await this.runMigrations();
+    Logger.info('DatabaseService', 'Database initialized successfully');
   }
 
   private deferredMigrationResolve: (() => void) | null = null;
