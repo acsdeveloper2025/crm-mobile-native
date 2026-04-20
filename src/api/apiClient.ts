@@ -12,6 +12,7 @@
 import axios, {
   AxiosInstance,
   AxiosError,
+  AxiosHeaders,
   InternalAxiosRequestConfig,
   AxiosRequestConfig,
 } from 'axios';
@@ -69,8 +70,17 @@ class ApiClientClass {
     // Request interceptor - attach auth token
     this.client.interceptors.request.use(
       async (requestConfig: InternalAxiosRequestConfig) => {
+        // Axios types say `headers` is always present, but runtime can
+        // deliver undefined when callers pass custom configs that don't
+        // spread defaults (happened in AttachmentService.downloadAndCache
+        // before — C17 audit finding). Materialize an AxiosHeaders
+        // instance so downstream writes can't silently no-op.
+        if (!requestConfig.headers) {
+          requestConfig.headers = new AxiosHeaders();
+        }
+
         const token = await SessionStore.getAccessToken();
-        if (token && requestConfig.headers) {
+        if (token) {
           requestConfig.headers.Authorization = `Bearer ${token}`;
         }
 
@@ -80,7 +90,7 @@ class ApiClientClass {
         // caller has already set traceparent explicitly we do not
         // overwrite it — that lets future in-app span creation
         // piggyback on the same interceptor.
-        if (requestConfig.headers && !requestConfig.headers.traceparent) {
+        if (!requestConfig.headers.traceparent) {
           requestConfig.headers.traceparent = buildTraceparent();
         }
 
