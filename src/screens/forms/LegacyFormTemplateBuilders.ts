@@ -96,7 +96,7 @@ const getOutcomeLabel = (
     const individualLabelByOutcome: Record<PropertyIndividualOutcome, string> =
       {
         POSITIVE: 'Positive & Door Locked',
-        NSP: 'No Such Person & Door Locked No Such Person',
+        NSP: 'NSP & NSP Door Locked',
         ENTRY_RESTRICTED: 'ERT',
         UNTRACEABLE: 'Untraceable',
       };
@@ -202,7 +202,7 @@ const coerceOutcomeForFormType = (
 const NUMBERS_1_TO_20 = Array.from({ length: 20 }, (_, i) => String(i + 1));
 const NUMBERS_1_TO_50 = Array.from({ length: 50 }, (_, i) => String(i + 1));
 const NUMBERS_1_TO_100 = Array.from({ length: 100 }, (_, i) => String(i + 1));
-const STAYING_PERIOD_UNITS = ['Month', 'Year'];
+const STAYING_PERIOD_UNITS = ['Day', 'Month', 'Year'];
 const STANDARD_COLORS = [
   'White',
   'Off White',
@@ -328,7 +328,7 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
   societyNamePlateStatus: ['SIGHTED AS', 'NOT SIGHTED'],
   doorNamePlateStatus: ['SIGHTED AS', 'NOT SIGHTED'],
   sightStatus: ['SIGHTED AS', 'NOT SIGHTED'],
-  addressLocatable: ['Easy to Locate', 'Difficult to Locate', 'Poor to Locate'],
+  addressLocatable: ['Easy to Locate', 'Difficult to Locate'],
   addressRating: ['Good', 'Shabby', 'Poor'],
   tpcMetPerson: ['Neighbour', 'Security'],
   tpcConfirmation: ['Confirmed', 'Not Confirmed'],
@@ -390,26 +390,28 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
     'On a Pagadi System',
     'In the Staff Quarters',
     'As a Paying Guest',
-    'On a Company Accomodation',
+    'On a Company Accommodation',
     'In the Bachelor Accommodation',
     'In the Hostel',
   ],
   feedbackFromNeighbour: ['Adverse', 'No Adverse'],
-  premisesStatus: ['Vacant', 'Rented To', 'Owned By'],
-  premisesStatusBusiness: ['Vacant', 'Rented To', 'Owned By'],
+  premisesStatus: ['Vacant', 'Rented'],
+  premisesStatusBusiness: ['Vacant', 'Rented'],
   politicalConnection: [
     'Having Political Connection',
     'Not Having Political Connection',
   ],
   dominatedArea: ['A Community Dominated', 'Not a Community Dominated'],
-  finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
-  finalStatusPositive: ['Positive', 'Refer', 'Hold'],
-  finalStatusNsp: ['Negative', 'Refer', 'Fraud', 'Hold'],
-  finalStatusShifted: ['Negative', 'Refer', 'Fraud', 'Hold'],
-  finalStatusErt: ['Positive', 'Negative', 'Refer', 'Fraud', 'Hold'],
-  finalStatusUntraceable: ['Negative', 'Refer', 'Fraud', 'Hold'],
+  finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud'],
+  finalStatusPositive: ['Positive', 'Refer'],
+  finalStatusNsp: ['Negative', 'Refer', 'Fraud'],
+  finalStatusShifted: ['Negative', 'Refer', 'Fraud'],
+  finalStatusErt: ['Positive', 'Negative', 'Refer', 'Fraud'],
+  finalStatusUntraceable: ['Negative', 'Refer', 'Fraud'],
   businessPeriodValue: NUMBERS_1_TO_50,
   businessPeriodUnit: STAYING_PERIOD_UNITS,
+  workingPeriodValue: NUMBERS_1_TO_50,
+  workingPeriodUnit: STAYING_PERIOD_UNITS,
   establishmentPeriodValue: NUMBERS_1_TO_50,
   establishmentPeriodUnit: STAYING_PERIOD_UNITS,
   currentCompanyPeriodValue: NUMBERS_1_TO_50,
@@ -492,7 +494,7 @@ const legacyResidenceSelectOptions: Record<string, string[]> = {
   documentShownStatus: ['Showed', 'Did Not Showed Any Document'],
   documentType: [
     'Electricity Bill',
-    'Adhar Card',
+    'Aadhar Card',
     'Pan Card',
     'Passport',
     'Rent Deed',
@@ -767,16 +769,10 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
     required: true,
     options: [
       { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
-      { label: 'Hold', value: 'Hold' },
+      { label: 'Fraud', value: 'Fraud' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -814,13 +810,13 @@ const legacyShiftedResidenceFields = withLegacyResidenceOrder([
     requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
   },
   {
-    name: 'stayingPeriodValue',
+    name: 'shiftedPeriodValue',
     label: 'Shifted Period',
     type: 'select',
     required: true,
   },
   {
-    name: 'stayingPeriodUnit',
+    name: 'shiftedPeriodUnit',
     label: 'Period Unit (Month/Year)',
     type: 'select',
     required: true,
@@ -963,15 +959,7 @@ const legacyShiftedResidenceFields = withLegacyResidenceOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -1124,17 +1112,8 @@ const legacyNspResidenceFields = withLegacyResidenceOrder([
     required: true,
     options: [
       { label: 'Negative', value: 'Negative' },
-      { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -1226,7 +1205,7 @@ const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
   },
   {
     name: 'feedbackFromNeighbour',
-    label: 'Feedback from Neighbour',
+    label: 'Feedback from Met Person',
     type: 'select',
     required: true,
   },
@@ -1246,20 +1225,17 @@ const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
 const legacyUntraceableResidenceFields = withLegacyResidenceOrder([
-  { name: 'metPerson', label: 'Met Person', type: 'text', required: true },
+  {
+    name: 'contactPerson',
+    label: 'Contact Person',
+    type: 'text',
+    required: true,
+  },
   { name: 'callRemark', label: 'Call Remark', type: 'select', required: true },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -1287,15 +1263,7 @@ const legacyUntraceableResidenceFields = withLegacyResidenceOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -1359,16 +1327,15 @@ const legacyResiCumOfficeSelectOptions: Record<string, string[]> = {
   addressTraceable: ['Traceable', 'Untraceable'],
   resiCumOfficeStatus: ['Open', 'Closed'],
   businessStatusResiCumOffice: [
-    'Self Employee',
-    'Proprietorship',
+    'Self Employee - Proprietorship',
     'Partnership Firm',
-    'NA',
+    'Private Limited',
   ],
   businessLocation: ['At Same Address', 'From Different Address'],
   documentShownStatus: ['Showed', 'Did Not Showed Any Document'],
   documentType: [
     'Electricity Bill',
-    'Adhar Card',
+    'Aadhar Card',
     'Pan Card',
     'Passport',
     'Rent Deed',
@@ -1378,6 +1345,11 @@ const legacyResiCumOfficeSelectOptions: Record<string, string[]> = {
     'Office Exist At',
     'Office Does Not Exist At',
     'Office Shifted From',
+  ],
+  applicantWorkingStatus: [
+    'Applicant is Working At',
+    'Applicant is Shifted From',
+    'No Such Person Working At',
   ],
 };
 
@@ -1391,6 +1363,7 @@ const legacyResiCumOfficeOptionAliases: Record<string, string> = {
   tpcConfirmation2: 'tpcConfirmation',
   metPersonStatus: 'metPersonStatusShifted',
   metPerson: 'metPersonErt',
+  metPersonType: 'metPersonErt',
 };
 
 const withLegacyResiCumOfficeOrder = (
@@ -1684,15 +1657,7 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     options: [
       { label: 'Positive', value: 'Positive' },
       { label: 'Refer', value: 'Refer' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -1730,13 +1695,13 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
   },
   {
-    name: 'stayingPeriodValue',
+    name: 'shiftedPeriodValue',
     label: 'Shifted Period',
     type: 'select',
     required: true,
   },
   {
-    name: 'stayingPeriodUnit',
+    name: 'shiftedPeriodUnit',
     label: 'Period Unit (Month/Year)',
     type: 'select',
     required: true,
@@ -1872,15 +1837,7 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -2058,15 +2015,7 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -2083,7 +2032,12 @@ const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     type: 'select',
     required: true,
   },
-  { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
+  {
+    name: 'metPersonType',
+    label: 'Met Person',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOfMetPerson',
     label: 'Name of Met Person',
@@ -2093,6 +2047,12 @@ const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   {
     name: 'metPersonConfirmation',
     label: 'Met Person Confirmation',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantWorkingStatus',
+    label: 'Applicant Working Status',
     type: 'select',
     required: true,
   },
@@ -2161,7 +2121,7 @@ const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   },
   {
     name: 'feedbackFromNeighbour',
-    label: 'Feedback from Neighbour',
+    label: 'Feedback from Met Person',
     type: 'select',
     required: true,
   },
@@ -2181,20 +2141,17 @@ const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
 const legacyUntraceableResiCumOfficeFields = withLegacyResiCumOfficeOrder([
-  { name: 'metPerson', label: 'Met Person', type: 'text', required: true },
+  {
+    name: 'contactPerson',
+    label: 'Contact Person',
+    type: 'text',
+    required: true,
+  },
   { name: 'callRemark', label: 'Call Remark', type: 'select', required: true },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -2222,15 +2179,7 @@ const legacyUntraceableResiCumOfficeFields = withLegacyResiCumOfficeOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -2280,6 +2229,7 @@ const buildLegacyResidenceCumOfficeTemplate = (
 
 const legacyOfficeSelectOptions: Record<string, string[]> = {
   ...COMMON_SELECT_OPTIONS,
+  workingStatus: ['Company Payroll', 'Third Party Payroll', 'Contract Payroll'],
   officeStatus: ['Open', 'Closed', 'Shifted'],
   designationShiftedOffice: [
     'Applicant Self',
@@ -2301,6 +2251,11 @@ const legacyOfficeSelectOptions: Record<string, string[]> = {
     'Office Does Not Exist At',
     'Office Shifted From',
   ],
+  applicantWorkingStatus: [
+    'Applicant is Working At',
+    'Applicant is Shifted From',
+    'No Such Person Working At',
+  ],
 };
 
 const legacyOfficeOptionAliases: Record<string, string> = {
@@ -2310,6 +2265,7 @@ const legacyOfficeOptionAliases: Record<string, string> = {
   tpcConfirmation2: 'tpcConfirmation',
   officeExistence: 'officeExistence',
   metPerson: 'metPersonErt',
+  metPersonType: 'metPersonErt',
 };
 
 const withLegacyOfficeOrder = (
@@ -2365,14 +2321,14 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
-    name: 'businessPeriodValue',
+    name: 'workingPeriodValue',
     label: 'Working Period',
     type: 'select',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
-    name: 'businessPeriodUnit',
+    name: 'workingPeriodUnit',
     label: 'Period Unit (Month/Year)',
     type: 'select',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -2565,15 +2521,7 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
     options: [
       { label: 'Positive', value: 'Positive' },
       { label: 'Refer', value: 'Refer' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -2746,15 +2694,7 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -2783,14 +2723,13 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
     type: 'select',
     required: true,
   },
-  // --- Yellow fields (hidden when Closed) ---
   {
     name: 'currentCompanyName',
     label: 'Current Company Name',
     type: 'text',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+    required: true,
   },
+  // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
     label: 'Met Person',
@@ -2895,15 +2834,7 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -2920,7 +2851,12 @@ const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
     type: 'select',
     required: true,
   },
-  { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
+  {
+    name: 'metPersonType',
+    label: 'Met Person',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOfMetPerson',
     label: 'Name of Met Person',
@@ -2930,6 +2866,12 @@ const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
   {
     name: 'metPersonConfirmation',
     label: 'Met Person Confirmation',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantWorkingStatus',
+    label: 'Applicant Working Status',
     type: 'select',
     required: true,
   },
@@ -2979,7 +2921,7 @@ const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
   },
   {
     name: 'feedbackFromNeighbour',
-    label: 'Feedback from Neighbour',
+    label: 'Feedback from Met Person',
     type: 'select',
     required: true,
   },
@@ -2993,20 +2935,17 @@ const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
 const legacyUntraceableOfficeFields = withLegacyOfficeOrder([
-  { name: 'metPerson', label: 'Met Person', type: 'text', required: true },
+  {
+    name: 'contactPerson',
+    label: 'Contact Person',
+    type: 'text',
+    required: true,
+  },
   { name: 'callRemark', label: 'Call Remark', type: 'select', required: true },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -3034,15 +2973,7 @@ const legacyUntraceableOfficeFields = withLegacyOfficeOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -3122,6 +3053,11 @@ const legacyBusinessSelectOptions: Record<string, string[]> = {
     'Business Does Not Exist At',
     'Business Shifted From',
   ],
+  applicantWorkingStatus: [
+    'Applicant is Working At',
+    'Applicant is Shifted From',
+    'No Such Person Working At',
+  ],
 };
 
 const legacyBusinessOptionAliases: Record<string, string> = {
@@ -3132,6 +3068,7 @@ const legacyBusinessOptionAliases: Record<string, string> = {
   businessExistance: 'businessExistence',
   applicantExistance: 'applicantExistence',
   metPerson: 'metPersonErt',
+  metPersonType: 'metPersonErt',
 };
 
 const withLegacyBusinessOrder = (
@@ -3358,15 +3295,7 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -3546,15 +3475,7 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -3704,15 +3625,7 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -3729,7 +3642,12 @@ const legacyEntryRestrictedBusinessFields = withLegacyBusinessOrder([
     type: 'select',
     required: true,
   },
-  { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
+  {
+    name: 'metPersonType',
+    label: 'Met Person',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOfMetPerson',
     label: 'Name of Met Person',
@@ -3739,6 +3657,12 @@ const legacyEntryRestrictedBusinessFields = withLegacyBusinessOrder([
   {
     name: 'metPersonConfirmation',
     label: 'Met Person Confirmation',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantWorkingStatus',
+    label: 'Applicant Working Status',
     type: 'select',
     required: true,
   },
@@ -3777,7 +3701,7 @@ const legacyEntryRestrictedBusinessFields = withLegacyBusinessOrder([
   },
   {
     name: 'feedbackFromNeighbour',
-    label: 'Feedback from Neighbour',
+    label: 'Feedback from Met Person',
     type: 'select',
     required: true,
   },
@@ -3792,20 +3716,17 @@ const legacyEntryRestrictedBusinessFields = withLegacyBusinessOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
 const legacyUntraceableBusinessFields = withLegacyBusinessOrder([
-  { name: 'metPerson', label: 'Met Person', type: 'text', required: true },
+  {
+    name: 'contactPerson',
+    label: 'Contact Person',
+    type: 'text',
+    required: true,
+  },
   { name: 'callRemark', label: 'Call Remark', type: 'select', required: true },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -3820,7 +3741,7 @@ const legacyUntraceableBusinessFields = withLegacyBusinessOrder([
   },
   {
     name: 'otherObservation',
-    label: 'Other Extra Remark',
+    label: 'Other Observation',
     type: 'textarea',
     required: true,
   },
@@ -3833,15 +3754,7 @@ const legacyUntraceableBusinessFields = withLegacyBusinessOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -4103,15 +4016,7 @@ const legacyPositiveBuilderFields = withLegacyBusinessOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -4291,15 +4196,7 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -4448,15 +4345,7 @@ const legacyNspBuilderFields = withLegacyBusinessOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -4473,7 +4362,12 @@ const legacyEntryRestrictedBuilderFields = withLegacyBusinessOrder([
     type: 'select',
     required: true,
   },
-  { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
+  {
+    name: 'metPersonType',
+    label: 'Met Person',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOfMetPerson',
     label: 'Name of Met Person',
@@ -4483,6 +4377,12 @@ const legacyEntryRestrictedBuilderFields = withLegacyBusinessOrder([
   {
     name: 'metPersonConfirmation',
     label: 'Met Person Confirmation',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantWorkingStatus',
+    label: 'Applicant Working Status',
     type: 'select',
     required: true,
   },
@@ -4521,7 +4421,7 @@ const legacyEntryRestrictedBuilderFields = withLegacyBusinessOrder([
   },
   {
     name: 'feedbackFromNeighbour',
-    label: 'Feedback from Neighbour',
+    label: 'Feedback from Met Person',
     type: 'select',
     required: true,
   },
@@ -4536,20 +4436,17 @@ const legacyEntryRestrictedBuilderFields = withLegacyBusinessOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
 const legacyUntraceableBuilderFields = withLegacyBusinessOrder([
-  { name: 'metPerson', label: 'Met Person', type: 'text', required: true },
+  {
+    name: 'contactPerson',
+    label: 'Contact Person',
+    type: 'text',
+    required: true,
+  },
   { name: 'callRemark', label: 'Call Remark', type: 'select', required: true },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -4563,8 +4460,8 @@ const legacyUntraceableBuilderFields = withLegacyBusinessOrder([
     required: true,
   },
   {
-    name: 'otherExtraRemark',
-    label: 'Other Extra Remark',
+    name: 'otherObservation',
+    label: 'Other Observation',
     type: 'textarea',
     required: true,
   },
@@ -4577,15 +4474,7 @@ const legacyUntraceableBuilderFields = withLegacyBusinessOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -4674,6 +4563,7 @@ const legacyNocOptionAliases: Record<string, string> = {
   businessExistance: 'businessExistence',
   applicantExistance: 'applicantExistence',
   metPerson: 'metPersonErt',
+  metPersonType: 'metPersonErt',
   tpcMetPerson1: 'tpcMetPerson',
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
@@ -4788,8 +4678,8 @@ const legacyPositiveNocFields = withLegacyNocOrder([
     required: true,
   },
   {
-    name: 'otherExtraRemark',
-    label: 'Other Extra Remark',
+    name: 'otherObservation',
+    label: 'Other Observation',
     type: 'textarea',
     required: true,
   },
@@ -4801,15 +4691,7 @@ const legacyPositiveNocFields = withLegacyNocOrder([
     options: [
       { label: 'Positive', value: 'Positive' },
       { label: 'Refer', value: 'Refer' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -4982,15 +4864,7 @@ const legacyShiftedNocFields = withLegacyNocOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -5129,12 +5003,6 @@ const legacyNspNocFields = withLegacyNocOrder([
     type: 'select',
     required: true,
   },
-  {
-    name: 'feedbackFromNeighbour',
-    label: 'Feedback from Neighbour',
-    type: 'select',
-    required: true,
-  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
   {
     name: 'finalStatus',
@@ -5146,15 +5014,7 @@ const legacyNspNocFields = withLegacyNocOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -5171,7 +5031,12 @@ const legacyEntryRestrictedNocFields = withLegacyNocOrder([
     type: 'select',
     required: true,
   },
-  { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
+  {
+    name: 'metPersonType',
+    label: 'Met Person',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOfMetPerson',
     label: 'Name of Met Person',
@@ -5224,7 +5089,7 @@ const legacyEntryRestrictedNocFields = withLegacyNocOrder([
   },
   {
     name: 'feedbackFromNeighbour',
-    label: 'Feedback from Neighbour',
+    label: 'Feedback from Met Person',
     type: 'select',
     required: true,
   },
@@ -5239,20 +5104,17 @@ const legacyEntryRestrictedNocFields = withLegacyNocOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
 const legacyUntraceableNocFields = withLegacyNocOrder([
-  { name: 'metPerson', label: 'Met Person', type: 'text', required: true },
+  {
+    name: 'contactPerson',
+    label: 'Contact Person',
+    type: 'text',
+    required: true,
+  },
   { name: 'callRemark', label: 'Call Remark', type: 'select', required: true },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -5266,8 +5128,8 @@ const legacyUntraceableNocFields = withLegacyNocOrder([
     required: true,
   },
   {
-    name: 'otherExtraRemark',
-    label: 'Other Extra Remark',
+    name: 'otherObservation',
+    label: 'Other Observation',
     type: 'textarea',
     required: true,
   },
@@ -5280,15 +5142,7 @@ const legacyUntraceableNocFields = withLegacyNocOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -5368,6 +5222,8 @@ const legacyDsaOptionAliases: Record<string, string> = {
   businessExistance: 'businessExistence',
   applicantExistance: 'applicantExistence',
   metPerson: 'metPersonErt',
+  metPersonType: 'metPersonErt',
+  businessExistStatus: 'officeStatusErtDsa',
 };
 
 const withLegacyDsaOrder = (
@@ -5594,15 +5450,7 @@ const legacyPositiveDsaFields = withLegacyDsaOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -5782,15 +5630,7 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -5929,12 +5769,6 @@ const legacyNspDsaFields = withLegacyDsaOrder([
     type: 'select',
     required: true,
   },
-  {
-    name: 'feedbackFromNeighbour',
-    label: 'Feedback from Neighbour',
-    type: 'select',
-    required: true,
-  },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
   {
     name: 'finalStatus',
@@ -5946,15 +5780,7 @@ const legacyNspDsaFields = withLegacyDsaOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -5971,7 +5797,12 @@ const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
     type: 'select',
     required: true,
   },
-  { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
+  {
+    name: 'metPersonType',
+    label: 'Met Person',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'nameOfMetPerson',
     label: 'Name of Met Person',
@@ -5986,7 +5817,7 @@ const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
   },
   {
     name: 'businessExistStatus',
-    label: 'Business Exist Status',
+    label: 'Office Status',
     type: 'select',
     required: true,
   },
@@ -5994,6 +5825,12 @@ const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
   {
     name: 'addressStructure',
     label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'applicantStayingFloor',
+    label: 'Applicant Staying Floor',
     type: 'select',
     required: true,
   },
@@ -6019,7 +5856,7 @@ const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
   },
   {
     name: 'feedbackFromNeighbour',
-    label: 'Feedback from Neighbour',
+    label: 'Feedback from Met Person',
     type: 'select',
     required: true,
   },
@@ -6034,20 +5871,17 @@ const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
 const legacyUntraceableDsaFields = withLegacyDsaOrder([
-  { name: 'metPerson', label: 'Met Person', type: 'text', required: true },
+  {
+    name: 'contactPerson',
+    label: 'Contact Person',
+    type: 'text',
+    required: true,
+  },
   { name: 'callRemark', label: 'Call Remark', type: 'select', required: true },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -6061,8 +5895,8 @@ const legacyUntraceableDsaFields = withLegacyDsaOrder([
     required: true,
   },
   {
-    name: 'otherExtraRemark',
-    label: 'Other Extra Remark',
+    name: 'otherObservation',
+    label: 'Other Observation',
     type: 'textarea',
     required: true,
   },
@@ -6075,15 +5909,7 @@ const legacyUntraceableDsaFields = withLegacyDsaOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -6414,23 +6240,32 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
     required: true,
   },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
+  // Property APF uses constructionActivity-driven Final Status:
+  //   SEEN                                         → [Positive, Refer]
+  //   CONSTRUCTION IS STOP  |  PLOT IS VACANT      → [Negative, Refer]
+  // Two mutually-exclusive conditional fields below both map to
+  // DB column `final_status` (see propertyApfFormFieldMapping.ts).
   {
     name: 'finalStatus',
     label: 'Final Status',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('constructionActivity', 'equals', 'SEEN'),
+    requiredWhen: legacyCondition('constructionActivity', 'equals', 'SEEN'),
     options: [
       { label: 'Positive', value: 'Positive' },
       { label: 'Refer', value: 'Refer' },
-      { label: 'Hold', value: 'Hold' },
     ],
   },
   {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
+    name: 'finalStatusNegative',
+    label: 'Final Status',
+    type: 'select',
+    conditional: legacyCondition('constructionActivity', 'notEquals', 'SEEN'),
+    requiredWhen: legacyCondition('constructionActivity', 'notEquals', 'SEEN'),
+    options: [
+      { label: 'Negative', value: 'Negative' },
+      { label: 'Refer', value: 'Refer' },
+    ],
   },
 ]);
 
@@ -6454,7 +6289,7 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
     required: true,
   },
   {
-    name: 'metPerson',
+    name: 'metPersonType',
     label: 'Met Person',
     type: 'select',
     options: toSelectOptions(legacyPropertyApfSelectOptions.metPersonErt),
@@ -6479,25 +6314,17 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
   { name: 'nameOfTpc2', label: 'TPC Name 2', type: 'text' },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   {
-    name: 'societyNamePlateStatus',
+    name: 'companyNameBoard',
     label: 'Company Name Board',
     type: 'select',
     required: true,
   },
   {
-    name: 'nameOnSocietyBoard',
+    name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'societyNamePlateStatus',
-      'equals',
-      'SIGHTED AS',
-    ),
-    requiredWhen: legacyCondition(
-      'societyNamePlateStatus',
-      'equals',
-      'SIGHTED AS',
-    ),
+    conditional: legacyCondition('companyNameBoard', 'equals', 'SIGHTED AS'),
+    requiredWhen: legacyCondition('companyNameBoard', 'equals', 'SIGHTED AS'),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text' },
@@ -6515,7 +6342,7 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
   },
   {
     name: 'feedbackFromNeighbour',
-    label: 'Feedback from Neighbour',
+    label: 'Feedback from Met Person',
     type: 'select',
     required: true,
   },
@@ -6525,25 +6352,22 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
     label: 'Final Status',
     type: 'select',
     required: true,
+    // Fraud removed from APF per 2026-04-19 decision.
     options: [
       { label: 'Positive', value: 'Positive' },
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
-      { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
 const legacyUntraceablePropertyApfFields = withLegacyPropertyApfOrder([
-  { name: 'metPerson', label: 'Met Person', type: 'text', required: true },
+  {
+    name: 'contactPerson',
+    label: 'Contact Person',
+    type: 'text',
+    required: true,
+  },
   { name: 'callRemark', label: 'Call Remark', type: 'select', required: true },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -6567,19 +6391,11 @@ const legacyUntraceablePropertyApfFields = withLegacyPropertyApfOrder([
     label: 'Final Status',
     type: 'select',
     required: true,
+    // Fraud removed from APF per 2026-04-19 decision.
     options: [
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
-      { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -6861,15 +6677,7 @@ const legacyPositivePropertyIndividualFields =
       options: [
         { label: 'Positive', value: 'Positive' },
         { label: 'Refer', value: 'Refer' },
-        { label: 'Hold', value: 'Hold' },
       ],
-    },
-    {
-      name: 'holdReason',
-      label: 'Reason for Hold',
-      type: 'text',
-      conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-      requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
     },
   ]);
 
@@ -7015,15 +6823,7 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
       { label: 'Fraud', value: 'Fraud' },
-      { label: 'Hold', value: 'Hold' },
     ],
-  },
-  {
-    name: 'holdReason',
-    label: 'Reason for Hold',
-    type: 'text',
-    conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-    requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
   },
 ]);
 
@@ -7048,7 +6848,7 @@ const legacyEntryRestrictedPropertyIndividualFields =
       required: true,
     },
     {
-      name: 'metPerson',
+      name: 'metPersonType',
       label: 'Met Person',
       type: 'select',
       options: toSelectOptions(
@@ -7120,8 +6920,20 @@ const legacyEntryRestrictedPropertyIndividualFields =
       required: true,
     },
     {
+      name: 'politicalConnection',
+      label: 'Political Connection',
+      type: 'select',
+      required: true,
+    },
+    {
       name: 'dominatedArea',
       label: 'Dominated Area',
+      type: 'select',
+      required: true,
+    },
+    {
+      name: 'feedbackFromNeighbour',
+      label: 'Feedback from Met Person',
       type: 'select',
       required: true,
     },
@@ -7135,21 +6947,18 @@ const legacyEntryRestrictedPropertyIndividualFields =
         { label: 'Negative', value: 'Negative' },
         { label: 'Refer', value: 'Refer' },
         { label: 'Fraud', value: 'Fraud' },
-        { label: 'Hold', value: 'Hold' },
       ],
-    },
-    {
-      name: 'holdReason',
-      label: 'Reason for Hold',
-      type: 'text',
-      conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-      requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
     },
   ]);
 
 const legacyUntraceablePropertyIndividualFields =
   withLegacyPropertyIndividualOrder([
-    { name: 'metPerson', label: 'Met Person', type: 'text', required: true },
+    {
+      name: 'contactPerson',
+      label: 'Contact Person',
+      type: 'text',
+      required: true,
+    },
     {
       name: 'callRemark',
       label: 'Call Remark',
@@ -7182,15 +6991,7 @@ const legacyUntraceablePropertyIndividualFields =
         { label: 'Negative', value: 'Negative' },
         { label: 'Refer', value: 'Refer' },
         { label: 'Fraud', value: 'Fraud' },
-        { label: 'Hold', value: 'Hold' },
       ],
-    },
-    {
-      name: 'holdReason',
-      label: 'Reason for Hold',
-      type: 'text',
-      conditional: legacyCondition('finalStatus', 'equals', 'Hold'),
-      requiredWhen: legacyCondition('finalStatus', 'equals', 'Hold'),
     },
   ]);
 

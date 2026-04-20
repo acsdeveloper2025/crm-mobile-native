@@ -10,7 +10,8 @@
     "start": "react-native start",
     "typecheck": "tsc --noEmit",
     "check:ssl-pins": "bash scripts/check-ssl-pins.sh",
-    "prerelease": "npm run typecheck && npm run lint && npm run check:ssl-pins",
+    "verify:ssl-pins-live": "bash scripts/verify-ssl-pins-live.sh",
+    "prerelease": "npm run typecheck && npm run lint && npm run check:ssl-pins && npm run verify:ssl-pins-live",
     "postinstall": "patch-package"
   },
   "dependencies": {
