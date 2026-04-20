@@ -294,6 +294,13 @@ class AuthServiceClass {
 
       Logger.info(TAG, 'Logout completed');
 
+      // Drop the in-memory log ring buffer AFTER the final log line so
+      // this commit-marker makes it to disk first. Prior-user log lines
+      // (task IDs, addresses, error traces) were otherwise shipped to
+      // the backend's telemetry endpoint when the NEXT user triggered a
+      // crash report via RemoteLogService.
+      Logger.clearBuffer();
+
       if (this.onLogoutCallback) {
         this.onLogoutCallback();
       }
