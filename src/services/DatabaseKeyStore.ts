@@ -35,6 +35,21 @@ class DatabaseKeyStoreClass {
     });
     return generatedKey;
   }
+
+  /**
+   * Remove the stored key. Called from the SQLITE_CORRUPT recovery path
+   * in DatabaseService so that a restored-but-unreadable DB file can be
+   * paired with a freshly minted key on the next getOrCreateKey() call.
+   * Silently swallows errors — if the keychain is unreachable, the
+   * retry will still succeed because SQLCipher generates a fresh file.
+   */
+  async reset(): Promise<void> {
+    try {
+      await Keychain.resetGenericPassword({ service: DB_KEY_SERVICE });
+    } catch {
+      // Non-fatal: recovery continues with the existing (or regenerated) key.
+    }
+  }
 }
 
 export const DatabaseKeyStore = new DatabaseKeyStoreClass();
