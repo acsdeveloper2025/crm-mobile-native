@@ -427,15 +427,27 @@ class NotificationServiceImpl {
     }
   }
 
+  // C29 (audit 2026-04-20): notification state-change actions (mark-read,
+  // mark-all-read, clear-all) must only touch the local cache after the
+  // server has accepted the change. Previously an API failure (offline /
+  // 5xx) was logged and swallowed, but the local write proceeded anyway —
+  // so the UI flipped to "read" while the server still held it as
+  // "unread", and the next notification refresh overwrote the local
+  // state back to unread. For offline devices the user saw notifications
+  // pop back to unread with no explanation. Now: server is authoritative;
+  // if the API call fails the local cache is left untouched and the user
+  // can retry when online.
+
   async markAsRead(id: string): Promise<void> {
     try {
       await ApiClient.put(ENDPOINTS.NOTIFICATIONS.MARK_READ(id));
     } catch (e) {
       Logger.warn(
         TAG,
-        `Failed to mark notification ${id} as read on backend`,
+        `Failed to mark notification ${id} as read on backend; local state left unchanged`,
         e,
       );
+      return;
     }
 
     try {
@@ -452,9 +464,10 @@ class NotificationServiceImpl {
     } catch (e) {
       Logger.warn(
         TAG,
-        'Failed to mark all notifications as read on backend',
+        'Failed to mark all notifications as read on backend; local state left unchanged',
         e,
       );
+      return;
     }
 
     try {
@@ -469,7 +482,12 @@ class NotificationServiceImpl {
     try {
       await ApiClient.delete(ENDPOINTS.NOTIFICATIONS.CLEAR_ALL);
     } catch (e) {
-      Logger.warn(TAG, 'Failed to clear notifications on backend', e);
+      Logger.warn(
+        TAG,
+        'Failed to clear notifications on backend; local state left unchanged',
+        e,
+      );
+      return;
     }
 
     try {
