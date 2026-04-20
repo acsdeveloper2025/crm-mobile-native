@@ -71,16 +71,18 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
   const taskVerificationOutcome = task?.verificationOutcome ?? null;
   const taskFormDataJson = task?.formDataJson ?? null;
   const effectiveTaskId = task?.id || taskId;
-  const { autoSaveError } = useFormAutosave({
-    taskId: taskUuid,
-    taskFormTypeKey,
-    taskFormDataJson,
-    formValues,
-    setFormValues,
-    getAutoSavedForm,
-    updateTaskFormData,
-    persistAutoSave,
-  });
+  const { autoSaveError, isInitialized: autosaveInitialized } = useFormAutosave(
+    {
+      taskId: taskUuid,
+      taskFormTypeKey,
+      taskFormDataJson,
+      formValues,
+      setFormValues,
+      getAutoSavedForm,
+      updateTaskFormData,
+      persistAutoSave,
+    },
+  );
 
   const formProgress = useMemo(() => {
     if (!template) return { filled: 0, total: 0, percent: 0 };
@@ -783,7 +785,12 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
                   Choose an outcome in Step 2 to continue.
                 </Text>
               </View>
-            ) : templateLoading ? (
+            ) : templateLoading || (!!taskUuid && !autosaveInitialized) ? (
+              // Gate form render until the autosaved draft has hydrated.
+              // Without this gate, a user can type into an empty field
+              // during the brief window between first render and the
+              // draft-hydration effect — setFormValues(chosenDraft) then
+              // replaces the entire state and their keystrokes are lost.
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="small" color={theme.colors.primary} />
                 <Text
