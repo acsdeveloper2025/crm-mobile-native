@@ -68,8 +68,26 @@ class NotificationRepositoryClass {
       updatedAt?: string;
     }>,
   ): Promise<void> {
+    // C29 (audit 2026-04-20, Approach A): sticky-read. When the server
+    // pull returns a notification we already marked read locally (the
+    // MARK_READ may still be queued or in-flight), we must NOT downgrade
+    // is_read from 1 to 0 — otherwise an offline user sees notifications
+    // pop back to unread after reconnect. Upgrading 0 → 1 is always
+    // fine. Rare server-side "re-unread" events are sacrificed for
+    // offline correctness.
     await DatabaseService.transaction(async tx => {
       for (const notification of notifications || []) {
+        const [existingResult] = await tx.executeSql(
+          'SELECT is_read FROM notifications WHERE id = ? LIMIT 1',
+          [notification.id],
+        );
+        const localIsRead =
+          existingResult.rows.length > 0
+            ? (existingResult.rows.item(0) as { is_read: number }).is_read === 1
+            : false;
+        const serverIsRead = Boolean(notification.isRead);
+        const effectiveIsRead = localIsRead || serverIsRead ? 1 : 0;
+
         await tx.executeSql(
           `INSERT OR REPLACE INTO notifications
            (id, type, title, message, priority, is_read, task_id, case_number, action_url, timestamp)
@@ -80,7 +98,7 @@ class NotificationRepositoryClass {
             notification.title,
             notification.message,
             notification.priority || 'NORMAL',
-            notification.isRead ? 1 : 0,
+            effectiveIsRead,
             notification.taskId || null,
             notification.caseNumber || null,
             notification.actionUrl || null,
