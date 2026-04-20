@@ -11,6 +11,7 @@ import {
 } from '../sync/SyncOperationLog';
 import { StorageService } from './StorageService';
 import { Logger } from '../utils/logger';
+import { MobileTelemetryService } from '../telemetry/MobileTelemetryService';
 import type { SyncQueueItem } from '../types/mobile';
 
 const TAG = 'SyncQueue';
@@ -291,6 +292,33 @@ class SyncQueueClass {
     await SyncQueueRepository.markFailed(id, error, nextRetryAt);
 
     Logger.warn(TAG, `Item ${id} failed (attempt ${attempts}): ${error}`);
+
+    // C11 (audit 2026-04-20): detect the transition from "will retry" to
+    // "permanently failed" and emit a distinct signal. Without this the
+    // item silently falls out of listProcessible at the retry cap — no
+    // telemetry, no log differentiation, no way for ops to notice that
+    // the user's operation stopped syncing. The row is preserved so
+    // retryAllFailed() can still recover it.
+    const snapshot = await SyncQueueRepository.getFailureSnapshot(id);
+    if (snapshot && snapshot.attempts >= snapshot.maxAttempts) {
+      Logger.error(
+        TAG,
+        `DLQ_TRANSITION item=${id} ${snapshot.actionType} ${
+          snapshot.entityType
+        }/${snapshot.entityId} gave up after ${snapshot.attempts} attempts: ${
+          snapshot.lastError ?? error
+        }`,
+      );
+      MobileTelemetryService.trackSyncError('sync_dlq_transition', {
+        itemId: id,
+        actionType: snapshot.actionType,
+        entityType: snapshot.entityType,
+        entityId: snapshot.entityId,
+        attempts: snapshot.attempts,
+        maxAttempts: snapshot.maxAttempts,
+        lastError: snapshot.lastError ?? error,
+      });
+    }
   }
 
   /**

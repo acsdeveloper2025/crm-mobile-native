@@ -219,6 +219,37 @@ class SyncQueueRepositoryClass {
     return rows[0]?.attempts ?? 0;
   }
 
+  /**
+   * Read the fields needed to decide whether a just-failed item has hit
+   * its retry cap. Used by SyncQueue.markFailed to fire a
+   * `sync_dlq_transition` telemetry event exactly when an item crosses
+   * from "will retry" to "permanently failed" (C11, 2026-04-20 audit).
+   */
+  async getFailureSnapshot(id: string): Promise<{
+    attempts: number;
+    maxAttempts: number;
+    actionType: string;
+    entityType: string;
+    entityId: string;
+    lastError: string | null;
+  } | null> {
+    const rows = await DatabaseService.query<{
+      attempts: number;
+      maxAttempts: number;
+      actionType: string;
+      entityType: string;
+      entityId: string;
+      lastError: string | null;
+    }>(
+      `SELECT attempts, max_attempts, action_type, entity_type, entity_id, last_error
+         FROM sync_queue
+        WHERE id = ?
+        LIMIT 1`,
+      [id],
+    );
+    return rows[0] ?? null;
+  }
+
   async markFailed(
     id: string,
     error: string,
@@ -294,6 +325,29 @@ class SyncQueueRepositoryClass {
         ? `SELECT * FROM sync_queue WHERE status = 'FAILED' ORDER BY created_at DESC LIMIT ?`
         : `SELECT * FROM sync_queue ORDER BY created_at DESC LIMIT ?`;
     return DatabaseService.query<SyncQueueItem>(query, [limit]);
+  }
+
+  /**
+   * Dead-letter queue view: items that have hit their retry cap and will
+   * no longer be picked up by listProcessible. The rows are preserved so
+   * retryAllFailed() can recover them on explicit user action (C11,
+   * 2026-04-20 audit).
+   */
+  async listDeadLettered(limit: number = 100): Promise<SyncQueueItem[]> {
+    return DatabaseService.query<SyncQueueItem>(
+      `SELECT * FROM sync_queue
+        WHERE status = 'FAILED' AND attempts >= max_attempts
+        ORDER BY created_at DESC
+        LIMIT ?`,
+      [limit],
+    );
+  }
+
+  async countDeadLettered(): Promise<number> {
+    return DatabaseService.count(
+      'sync_queue',
+      "status = 'FAILED' AND attempts >= max_attempts",
+    );
   }
 
   async retryAllFailed(): Promise<void> {
