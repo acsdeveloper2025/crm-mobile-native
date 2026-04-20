@@ -28,7 +28,9 @@ const THUMBNAILS_DIR = `${PHOTOS_DIR}/thumbnails`;
 const GPS_SAVE_TIMEOUT_MS = 5_000;
 
 function locationWithTimeout(
-  promise: Promise<Awaited<ReturnType<typeof LocationService.getCurrentLocation>>>,
+  promise: Promise<
+    Awaited<ReturnType<typeof LocationService.getCurrentLocation>>
+  >,
   ms: number,
 ): Promise<Awaited<ReturnType<typeof LocationService.getCurrentLocation>>> {
   let timer: ReturnType<typeof setTimeout> | null = null;
@@ -53,7 +55,11 @@ function locationWithTimeout(
     if (timer) {
       clearTimeout(timer);
     }
-    Logger.warn(TAG, 'GPS lookup failed during savePhoto; continuing without location', err);
+    Logger.warn(
+      TAG,
+      'GPS lookup failed during savePhoto; continuing without location',
+      err,
+    );
     return null;
   });
 }
@@ -215,8 +221,22 @@ class CameraServiceClass {
         componentType,
       };
 
-      // Save to local database and queue for sync in a transaction to prevent
-      // orphaned files if a crash occurs between DB insert and sync enqueue.
+      // C12 (audit 2026-04-20): save to local DB AND queue for sync in
+      // a single transaction. Previously the transaction only wrapped
+      // the attachments INSERT (a no-op in SQLite — single statements
+      // auto-commit), while `SyncGateway.enqueueAttachment` ran
+      // afterwards. A crash between the two left an orphan attachment
+      // row with sync_status='PENDING' and no sync_queue entry.
+      // `SyncQueue.reconcileOrphanAttachments` would recover it on the
+      // NEXT app launch, but within-session orphans were invisible
+      // until restart.
+      //
+      // Nesting is safe for ATTACHMENT enqueues: `SyncQueue.enqueue`
+      // with entityType='ATTACHMENT' calls `SyncQueueRepository.insert`
+      // which issues a single INSERT with no inner transaction, so it
+      // joins the outer one cleanly. The storage-check read
+      // (`hasEnoughSpace`) is filesystem-only and does not touch the
+      // DB connection.
       await DatabaseService.transaction(async () => {
         await AttachmentRepository.create({
           id,
@@ -233,35 +253,34 @@ class CameraServiceClass {
           locationTimestamp: resolvedLocation?.timestamp || null,
           componentType,
         });
-      });
 
-      // GPS is captured in photo watermark — no separate location sync needed
+        // GPS is captured in photo watermark — no separate location sync needed
 
-      // Queue for sync (outside transaction — enqueue has its own persistence)
-      await SyncGateway.enqueueAttachment(
-        id,
-        {
+        await SyncGateway.enqueueAttachment(
           id,
-          taskId: backendTaskId,
-          localTaskId: taskId,
-          filename,
-          localPath: destPath,
-          mimeType: photo.mimeType,
-          size: photo.size,
-          componentType,
-          photoType: componentType === 'selfie' ? 'selfie' : 'verification',
-          ...(verificationType ? { verificationType } : {}),
-          geoLocation: resolvedLocation
-            ? {
-                latitude: resolvedLocation.latitude,
-                longitude: resolvedLocation.longitude,
-                accuracy: resolvedLocation.accuracy,
-                timestamp: resolvedLocation.timestamp,
-              }
-            : null,
-        },
-        SYNC_PRIORITY.HIGH,
-      );
+          {
+            id,
+            taskId: backendTaskId,
+            localTaskId: taskId,
+            filename,
+            localPath: destPath,
+            mimeType: photo.mimeType,
+            size: photo.size,
+            componentType,
+            photoType: componentType === 'selfie' ? 'selfie' : 'verification',
+            ...(verificationType ? { verificationType } : {}),
+            geoLocation: resolvedLocation
+              ? {
+                  latitude: resolvedLocation.latitude,
+                  longitude: resolvedLocation.longitude,
+                  accuracy: resolvedLocation.accuracy,
+                  timestamp: resolvedLocation.timestamp,
+                }
+              : null,
+          },
+          SYNC_PRIORITY.HIGH,
+        );
+      });
 
       Logger.info(
         TAG,
