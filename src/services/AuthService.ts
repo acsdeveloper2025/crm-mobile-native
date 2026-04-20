@@ -178,7 +178,10 @@ class AuthServiceClass {
       this.currentUser = user;
       await this.saveUserToDb(user, expiresAt);
 
-      Logger.info(TAG, `Login successful for ${user.name}`);
+      // Intentionally omit user.name — Logger ships its buffer to the backend
+      // telemetry endpoint on crash (RemoteLogService). Name is PII; user id
+      // is adequate for correlating logs to a session.
+      Logger.info(TAG, `Login successful (userId=${user.id})`);
       return { success: true, message: 'Login successful' };
     } catch (error: unknown) {
       Logger.error(TAG, 'Login failed during session storage', error);
