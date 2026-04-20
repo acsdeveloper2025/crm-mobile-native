@@ -81,12 +81,15 @@ class FormRepositoryClass {
       return { status: rows[0].status, syncStatus: 'SYNCED' };
     }
 
-    // Check sync_queue for failed FORM_SUBMISSION items for this task
+    // Check sync_queue for failed FORM_SUBMISSION items for this task.
+    // Schema column is `last_error` (not `error`); the prior SELECT was
+    // referencing a non-existent column, which left syncError always
+    // defaulted to 'Upload failed' and hid the real server reason.
     const failedQueue = await DatabaseService.query<{
       status: string;
-      error: string | null;
+      lastError: string | null;
     }>(
-      `SELECT status, error FROM sync_queue WHERE entity_type = 'FORM_SUBMISSION' AND json_extract(payload_json, '$.localTaskId') = ? ORDER BY created_at DESC LIMIT 1`,
+      `SELECT status, last_error FROM sync_queue WHERE entity_type = 'FORM_SUBMISSION' AND json_extract(payload_json, '$.localTaskId') = ? ORDER BY created_at DESC LIMIT 1`,
       [taskId],
     );
 
@@ -95,7 +98,7 @@ class FormRepositoryClass {
         return {
           status: 'FAILED',
           syncStatus: 'FAILED',
-          syncError: failedQueue[0].error || 'Upload failed',
+          syncError: failedQueue[0].lastError || 'Upload failed',
         };
       }
       if (
