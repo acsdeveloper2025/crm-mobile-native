@@ -402,12 +402,16 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
     'Not Having Political Connection',
   ],
   dominatedArea: ['A Community Dominated', 'Not a Community Dominated'],
+  // Per user direction 2026-04-20: every form × every outcome exposes the
+  // full Positive/Negative/Refer/Fraud set. Kept as separate keys so
+  // downstream consumers that reference an outcome-specific key keep
+  // resolving, but the values are intentionally identical.
   finalStatus: ['Positive', 'Negative', 'Refer', 'Fraud'],
-  finalStatusPositive: ['Positive', 'Refer'],
-  finalStatusNsp: ['Negative', 'Refer', 'Fraud'],
-  finalStatusShifted: ['Negative', 'Refer', 'Fraud'],
+  finalStatusPositive: ['Positive', 'Negative', 'Refer', 'Fraud'],
+  finalStatusNsp: ['Positive', 'Negative', 'Refer', 'Fraud'],
+  finalStatusShifted: ['Positive', 'Negative', 'Refer', 'Fraud'],
   finalStatusErt: ['Positive', 'Negative', 'Refer', 'Fraud'],
-  finalStatusUntraceable: ['Negative', 'Refer', 'Fraud'],
+  finalStatusUntraceable: ['Positive', 'Negative', 'Refer', 'Fraud'],
   businessPeriodValue: NUMBERS_1_TO_50,
   businessPeriodUnit: STAYING_PERIOD_UNITS,
   workingPeriodValue: NUMBERS_1_TO_50,
@@ -6245,6 +6249,15 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
   //   CONSTRUCTION IS STOP  |  PLOT IS VACANT      → [Negative, Refer]
   // Two mutually-exclusive conditional fields below both map to
   // DB column `final_status` (see propertyApfFormFieldMapping.ts).
+  // Per user direction 2026-04-20: every form × every outcome exposes the
+  // full Positive/Negative/Refer/Fraud set. That includes APF SEEN and the
+  // STOP / VACANT paths — the prior allow-list ([Positive, Refer] for SEEN,
+  // [Negative, Refer] for STOP/VACANT) is replaced below. The conditional
+  // visibility of the two fields stays — only one is shown at a time based
+  // on constructionActivity — but whichever is visible offers all four.
+  // The backend finalStatus auto-correction in submitPropertyApfVerification
+  // has been removed to match; form_type derivation from constructionActivity
+  // continues (that drives which report template renders, not the option).
   {
     name: 'finalStatus',
     label: 'Final Status',
@@ -6253,7 +6266,9 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
     requiredWhen: legacyCondition('constructionActivity', 'equals', 'SEEN'),
     options: [
       { label: 'Positive', value: 'Positive' },
+      { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
     ],
   },
   {
@@ -6263,8 +6278,10 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
     conditional: legacyCondition('constructionActivity', 'notEquals', 'SEEN'),
     requiredWhen: legacyCondition('constructionActivity', 'notEquals', 'SEEN'),
     options: [
+      { label: 'Positive', value: 'Positive' },
       { label: 'Negative', value: 'Negative' },
       { label: 'Refer', value: 'Refer' },
+      { label: 'Fraud', value: 'Fraud' },
     ],
   },
 ]);
