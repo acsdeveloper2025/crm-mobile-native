@@ -127,9 +127,14 @@ class LocationServiceClass {
               timestamp: new Date(position.timestamp).toISOString(),
               source: 'GPS',
             };
+            // Deliberately omit lat/lon from the message string — Logger
+            // ships its ring buffer to the backend telemetry endpoint on
+            // crash (RemoteLogService); GPS coordinates are PII. Key-based
+            // sensitive fields in data objects are already redacted by
+            // SENSITIVE_KEY_PATTERN in utils/logger.ts.
             Logger.debug(
               TAG,
-              `Location: ${result.latitude}, ${result.longitude} (±${result.accuracy}m)`,
+              `Location fix obtained (±${result.accuracy}m, source=${result.source})`,
             );
             resolve(result);
           },
