@@ -3,6 +3,7 @@ import type { SyncUploadResult } from './SyncUploadTypes';
 import { AttachmentUploader } from './uploaders/AttachmentUploader';
 import { FormUploader } from './uploaders/FormUploader';
 import { LocationUploader } from './uploaders/LocationUploader';
+import { NotificationUploader } from './uploaders/NotificationUploader';
 import { TaskUploader } from './uploaders/TaskUploader';
 
 class SyncUploadServiceClass {
@@ -19,6 +20,8 @@ class SyncUploadServiceClass {
         return TaskUploader.uploadTaskUpdate(operation);
       case 'TASK_STATUS':
         return TaskUploader.uploadTaskStatus(operation);
+      case 'NOTIFICATION_ACTION':
+        return NotificationUploader.upload(operation);
       default:
         return {
           outcome: 'FAILURE',

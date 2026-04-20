@@ -5,6 +5,7 @@ import { PushTokenService } from './PushTokenService';
 import { Logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { NotificationRepository } from '../repositories/NotificationRepository';
+import { SyncGateway } from './SyncGateway';
 import { validateResponse } from '../api/schemas/runtime';
 import { MobileNotificationListSchema } from '../api/schemas/sync.schema';
 import {
@@ -427,74 +428,73 @@ class NotificationServiceImpl {
     }
   }
 
-  // C29 (audit 2026-04-20): notification state-change actions (mark-read,
-  // mark-all-read, clear-all) must only touch the local cache after the
-  // server has accepted the change. Previously an API failure (offline /
-  // 5xx) was logged and swallowed, but the local write proceeded anyway —
-  // so the UI flipped to "read" while the server still held it as
-  // "unread", and the next notification refresh overwrote the local
-  // state back to unread. For offline devices the user saw notifications
-  // pop back to unread with no explanation. Now: server is authoritative;
-  // if the API call fails the local cache is left untouched and the user
-  // can retry when online.
+  // C29 (audit 2026-04-20, Approach A): notification state-change actions
+  // (mark-read, mark-all-read, clear-all) update local state immediately
+  // for instant UI feedback, then enqueue the server call via the
+  // SyncQueue pipeline. The SyncProcessor + NotificationUploader drain
+  // the queue when online, with retry + DLQ handled by the existing
+  // infrastructure (C11 gave us max_attempts=10 and DLQ telemetry).
+  //
+  // The sticky-read protection in NotificationRepository.upsertBatch
+  // stops a subsequent server-refresh from clobbering the optimistic
+  // local "read" before the queued MARK_READ has landed on the server.
 
   async markAsRead(id: string): Promise<void> {
-    try {
-      await ApiClient.put(ENDPOINTS.NOTIFICATIONS.MARK_READ(id));
-    } catch (e) {
-      Logger.warn(
-        TAG,
-        `Failed to mark notification ${id} as read on backend; local state left unchanged`,
-        e,
-      );
-      return;
-    }
-
     try {
       await NotificationRepository.markAsRead(id);
       this.markCacheAsRead(id);
     } catch (e) {
-      Logger.error(TAG, 'Failed to mark as read', e);
+      Logger.error(TAG, 'Failed to mark as read locally', e);
+      return;
+    }
+
+    try {
+      await SyncGateway.enqueueNotificationAction(id, 'MARK_READ', {
+        notificationId: id,
+      });
+    } catch (e) {
+      // Enqueue should not realistically fail; storage-low surfaces as
+      // a throw that the caller can retry, but local state has already
+      // been updated so the user UX is intact.
+      Logger.warn(TAG, `Failed to enqueue MARK_READ for notification ${id}`, e);
     }
   }
 
   async markAllAsRead(): Promise<void> {
     try {
-      await ApiClient.put(ENDPOINTS.NOTIFICATIONS.MARK_ALL_READ);
+      await NotificationRepository.markAllAsRead();
+      this.markAllCacheAsRead();
     } catch (e) {
-      Logger.warn(
-        TAG,
-        'Failed to mark all notifications as read on backend; local state left unchanged',
-        e,
-      );
+      Logger.error(TAG, 'Failed to mark all read locally', e);
       return;
     }
 
     try {
-      await NotificationRepository.markAllAsRead();
-      this.markAllCacheAsRead();
+      await SyncGateway.enqueueNotificationAction(
+        `mark_all_read_${Date.now()}`,
+        'MARK_ALL_READ',
+      );
     } catch (e) {
-      Logger.error(TAG, 'Failed to mark all read', e);
+      Logger.warn(TAG, 'Failed to enqueue MARK_ALL_READ', e);
     }
   }
 
   async clearAllNotifications(): Promise<void> {
     try {
-      await ApiClient.delete(ENDPOINTS.NOTIFICATIONS.CLEAR_ALL);
+      await NotificationRepository.clearAll();
+      this.replaceCache([]);
     } catch (e) {
-      Logger.warn(
-        TAG,
-        'Failed to clear notifications on backend; local state left unchanged',
-        e,
-      );
+      Logger.error(TAG, 'Failed to clear all notifications locally', e);
       return;
     }
 
     try {
-      await NotificationRepository.clearAll();
-      this.replaceCache([]);
+      await SyncGateway.enqueueNotificationAction(
+        `clear_all_${Date.now()}`,
+        'CLEAR_ALL',
+      );
     } catch (e) {
-      Logger.error(TAG, 'Failed to clear all notifications', e);
+      Logger.warn(TAG, 'Failed to enqueue CLEAR_ALL', e);
     }
   }
 

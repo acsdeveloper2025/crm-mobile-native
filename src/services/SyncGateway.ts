@@ -62,6 +62,28 @@ class SyncGatewayClass {
   ): Promise<void> {
     await SyncQueue.enqueue('CREATE', 'FORM_SUBMISSION', id, payload, priority);
   }
+
+  /**
+   * Enqueue a notification state-change action for offline-safe sync
+   * (C29, audit 2026-04-20). `action` is MARK_READ | MARK_ALL_READ |
+   * CLEAR_ALL. For MARK_READ the entityId is the notification id.
+   * For MARK_ALL_READ / CLEAR_ALL, entityId is a synthetic token so
+   * the queue rows are distinct.
+   */
+  async enqueueNotificationAction(
+    entityId: string,
+    action: 'MARK_READ' | 'MARK_ALL_READ' | 'CLEAR_ALL',
+    payload: Record<string, unknown> = {},
+    priority: number = SYNC_PRIORITY.LOW,
+  ): Promise<void> {
+    await SyncQueue.enqueue(
+      'UPDATE',
+      'NOTIFICATION_ACTION',
+      entityId,
+      { action, ...payload },
+      priority,
+    );
+  }
 }
 
 export const SyncGateway = new SyncGatewayClass();

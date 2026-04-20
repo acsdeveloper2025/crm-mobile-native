@@ -6,6 +6,7 @@ export type SyncOperationType =
   | 'FORM_UPDATED'
   | 'FORM_SUBMITTED'
   | 'TASK_COMPLETED'
+  | 'NOTIFICATION_ACTION'
   | 'LEGACY_OPERATION';
 
 export interface SyncOperation {
@@ -26,8 +27,9 @@ const OPERATION_PRIORITY: Record<SyncOperationType, number> = {
   TASK_STARTED: 80,
   FORM_UPDATED: 70,
   FORM_SUBMITTED: 60,
-  TASK_COMPLETED: 10,
   LEGACY_OPERATION: 50,
+  NOTIFICATION_ACTION: 20,
+  TASK_COMPLETED: 10,
 };
 
 const toRecord = (value: unknown): Record<string, unknown> =>
@@ -45,6 +47,9 @@ const inferLegacyType = (
   }
   if (item.entityType === 'FORM_SUBMISSION') {
     return 'FORM_SUBMITTED';
+  }
+  if (item.entityType === 'NOTIFICATION_ACTION') {
+    return 'NOTIFICATION_ACTION';
   }
   if (item.entityType === 'TASK_STATUS') {
     const status = String(payload.status || payload.action || '').toUpperCase();
