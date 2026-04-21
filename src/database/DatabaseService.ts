@@ -216,6 +216,13 @@ class DatabaseServiceClass {
     await this.db.executeSql('PRAGMA synchronous = FULL;');
     // Enable foreign keys
     await this.db.executeSql('PRAGMA foreign_keys = ON;');
+    // S4 (audit 2026-04-21 round 2): zero deleted pages rather than
+    // marking them free. Without this, legacy token bytes scrubbed by
+    // `UserSessionRepository.scrubLegacyTokens` remain readable in the
+    // `-wal` file until the next checkpoint + VACUUM. With
+    // `secure_delete = ON`, every DELETE/UPDATE zeros the overwritten
+    // region so forensic recovery of prior-token ciphertext is blocked.
+    await this.db.executeSql('PRAGMA secure_delete = ON;');
 
     // Create tables
     const statements = SCHEMA_SQL.split(';').filter(s => s.trim().length > 0);
