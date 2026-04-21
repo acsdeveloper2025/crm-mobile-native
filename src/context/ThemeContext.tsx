@@ -1,7 +1,9 @@
 import React, {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   ReactNode,
 } from 'react';
@@ -49,19 +51,26 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
 
   const theme = isDark ? darkTheme : lightTheme;
 
-  const setThemePreference = async (pref: ThemePreference) => {
+  // M7 (audit 2026-04-21): useCallback + useMemo so consumers of
+  // useTheme don't re-render on unrelated state ticks. H7 did this
+  // for AuthContext; ThemeContext had the same bug and an even
+  // bigger blast radius (every themed component subscribes).
+  const setThemePreference = useCallback(async (pref: ThemePreference) => {
     setThemePreferenceState(pref);
     try {
       await SettingsRepository.setValue('theme_preference', pref);
     } catch (err) {
       Logger.error('ThemeContext', 'Failed to save theme preference', err);
     }
-  };
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({ theme, themePreference, isDark, setThemePreference }),
+    [theme, themePreference, isDark, setThemePreference],
+  );
 
   return (
-    <ThemeContext.Provider
-      value={{ theme, themePreference, isDark, setThemePreference }}
-    >
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   );

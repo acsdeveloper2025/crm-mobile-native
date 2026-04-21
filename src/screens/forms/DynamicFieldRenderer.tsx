@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -113,7 +113,15 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({
     string | null
   >(null);
   const placeholder = `Enter ${field.label.toLowerCase()}`;
-  const options = Array.isArray(field.options) ? field.options : [];
+  // M9 (audit 2026-04-21): stabilise the options reference so downstream
+  // children (select rows, multi-select chips) see the same array
+  // instance when nothing structural changed. Does not fully avoid the
+  // parent-spread-new-field-every-render cost but clips the per-option
+  // churn inside this renderer.
+  const options = useMemo(
+    () => (Array.isArray(field.options) ? field.options : []),
+    [field.options],
+  );
 
   const handleBlur = useCallback(() => {
     setTouched(true);
