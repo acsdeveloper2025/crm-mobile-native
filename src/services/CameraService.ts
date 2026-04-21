@@ -20,12 +20,13 @@ const TAG = 'CameraService';
 const PHOTOS_DIR = `${RNFS.DocumentDirectoryPath}/photos`;
 const THUMBNAILS_DIR = `${PHOTOS_DIR}/thumbnails`;
 
-// How long savePhoto is willing to wait for a GPS fix before falling back
-// to no-location. LocationService's native timeout is 15s which blows the
-// perceived "save" budget on a cold-start GPS indoors. 5s keeps saves
-// responsive; the photo still captures, just without lat/lon. The
-// watermark re-stamper picks up the fix later once GPS warms up.
-const GPS_SAVE_TIMEOUT_MS = 5_000;
+// 2026-04-21: savePhoto never blocks on GPS beyond this window. If the
+// OS can give us a fix in 2 seconds (the hot / warm-cache case), we
+// use it; otherwise we proceed with no-location and let the
+// WatermarkReStamper running in App.tsx grab a fresh precise fix in
+// the background after the save returns. Capture UX stays snappy even
+// on cold-start GPS.
+const GPS_SAVE_TIMEOUT_MS = 2_000;
 
 function locationWithTimeout(
   promise: Promise<
@@ -180,6 +181,13 @@ class CameraServiceClass {
       const stat = await RNFS.stat(destPath);
       const thumbnailPath = await this.createThumbnail(destPath, id, extension);
 
+      // 2026-04-21: GPS is MANDATORY on every captured photo — there
+      // is no "save without location" path. Callers (WatermarkPreview)
+      // acquire GPS up-front and pass it in `options.locationOverride`;
+      // this internal fetch is the fallback for direct callers and is
+      // capped by GPS_SAVE_TIMEOUT_MS. If neither source yields a fix
+      // we throw so the save is aborted cleanly instead of persisting a
+      // GPS-less attachment.
       const override = options?.locationOverride || null;
       const resolvedLocation =
         override &&
@@ -196,6 +204,26 @@ class CameraServiceClass {
               LocationService.getCurrentLocation(),
               GPS_SAVE_TIMEOUT_MS,
             );
+
+      if (
+        !resolvedLocation ||
+        typeof resolvedLocation.latitude !== 'number' ||
+        typeof resolvedLocation.longitude !== 'number'
+      ) {
+        // Roll back the file we just moved — we will NOT persist a
+        // GPS-less attachment (user decision 2026-04-21).
+        if (await RNFS.exists(destPath)) {
+          await RNFS.unlink(destPath).catch(() => {});
+        }
+        if (thumbnailPath && (await RNFS.exists(thumbnailPath))) {
+          await RNFS.unlink(thumbnailPath).catch(() => {});
+        }
+        throw new Error(
+          'GPS_REQUIRED: unable to obtain a GPS fix for this photo. ' +
+            'Make sure location permission is granted and move to an area with signal.',
+        );
+      }
+
       const taskMeta = await TaskRepository.getTaskIdentity(taskId);
       const formTypeKey = resolveFormTypeKey({
         verificationTypeCode: taskMeta?.verificationTypeCode || null,

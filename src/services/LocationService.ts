@@ -11,7 +11,6 @@ import { LocationRepository } from '../repositories/LocationRepository';
 import { SyncGateway } from './SyncGateway';
 import { SYNC_PRIORITY } from './SyncQueue';
 import { Logger } from '../utils/logger';
-import { config } from '../config';
 import type { MobileLocationCaptureRequest } from '../types/api';
 
 const TAG = 'LocationService';
@@ -359,116 +358,7 @@ class LocationServiceClass {
 
     return R * c; // in meters
   }
-
-  /**
-   * Reverse geocode coordinates to a full address using OpenStreetMap
-   * Nominatim. No API key required — OSM's terms ask only for a
-   * descriptive User-Agent identifying the app and a rate limit of
-   * ≤ 1 req/sec. The 100-entry LRU cache (key = lat/lon rounded to
-   * 3 decimals, ≈110 m precision) keeps calls well under that for
-   * typical field-agent usage.
-   *
-   * C8 (audit 2026-04-20): replaces the Google Geocoding API path
-   * that required a hardcoded API key in the mobile binary.
-   *
-   * Uses Nominatim's `display_name` directly as the address string.
-   * Testing across Mumbai / Delhi / Bangalore / Kolkata / Kota /
-   * Jodhpur (2026-04-20) showed that building the address from
-   * individual `address.*` fields drops verification-critical detail —
-   * Nominatim puts tehsil/sub-district data in `county`/`municipality`
-   * fields that don't map 1:1 to Google's old schema, and UTs (Delhi)
-   * leave `address.state` empty entirely. `display_name` is
-   * Nominatim's own canonical rendering and contains every level with
-   * correct ordering. A tiny dedupe pass removes the occasional
-   * duplicate token (e.g. "Kota, Kota" where city = state_district).
-   */
-  async getAddressFromCoordinates(lat: number, lon: number): Promise<string> {
-    const cacheKey = `${lat.toFixed(3)},${lon.toFixed(3)}`;
-    const cached = LocationServiceClass.geocodeCache.get(cacheKey);
-    if (cached) {
-      // Refresh LRU ordering: delete + re-insert moves the entry to
-      // the end (most-recently-used) in an insertion-ordered Map.
-      LocationServiceClass.geocodeCache.delete(cacheKey);
-      LocationServiceClass.geocodeCache.set(cacheKey, cached);
-      return cached;
-    }
-
-    const fallback = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
-    try {
-      const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1&accept-language=en`;
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          // Nominatim usage policy requires a descriptive User-Agent.
-          'User-Agent': `ACS-CRM-Mobile/${config.appVersion} (${config.platform})`,
-        },
-      });
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        Logger.warn(TAG, `Nominatim returned HTTP ${response.status}`);
-        return fallback;
-      }
-
-      const data = (await response.json()) as {
-        display_name?: string;
-      };
-
-      const displayName = data.display_name;
-      if (!displayName || typeof displayName !== 'string') {
-        return fallback;
-      }
-
-      // Collapse duplicate tokens (keep first occurrence). Nominatim
-      // returns the same name at multiple admin levels when a city and
-      // its state_district / municipality share a name:
-      //   "Kota, Ladpura Tehsil, Kota, Rajasthan, …"
-      //   "Jodhpur, Jodhpur Tehsil, Jodhpur, Rajasthan, …"
-      //   "Kolkata, Kolkata Metropolitan Area, Kolkata, West Bengal, …"
-      // Strings that ARE legitimately different (e.g. "New Delhi" vs
-      // "Delhi") are preserved because they don't match character-for-
-      // character. This is safer than adjacent-only dedupe, which
-      // leaves the duplicates separated by a tehsil token intact.
-      const seen = new Set<string>();
-      const deduped: string[] = [];
-      for (const token of displayName.split(',').map(t => t.trim())) {
-        if (token && !seen.has(token)) {
-          seen.add(token);
-          deduped.push(token);
-        }
-      }
-      const result = deduped.join(', ') || fallback;
-
-      // LRU insert with eviction
-      if (LocationServiceClass.geocodeCache.size >= GEOCODE_CACHE_CAPACITY) {
-        const oldestKey = LocationServiceClass.geocodeCache.keys().next().value;
-        if (oldestKey !== undefined) {
-          LocationServiceClass.geocodeCache.delete(oldestKey);
-        }
-      }
-      LocationServiceClass.geocodeCache.set(cacheKey, result);
-
-      return result;
-    } catch (error) {
-      Logger.warn(
-        TAG,
-        'Nominatim reverse geocoding failed, using coordinates',
-        error,
-      );
-      return fallback;
-    }
-  }
-
-  // LRU cache (see getAddressFromCoordinates). Static singleton to
-  // survive service-instance churn during hot reloads and to be
-  // trivially shared across getAddressFromCoordinates callers.
-  private static geocodeCache = new Map<string, string>();
 }
-
-const GEOCODE_CACHE_CAPACITY = 100;
 
 // Singleton
 export const LocationService = new LocationServiceClass();
