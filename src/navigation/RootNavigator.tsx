@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   NavigationContainer,
   type NavigationContainerRef,
+  type NavigatorScreenParams,
 } from '@react-navigation/native';
 import {
   createNativeStackNavigator,
@@ -52,9 +53,9 @@ const isPlausibleTaskId = (value: unknown): value is string =>
 export type RootStackParamList = {
   Auth: undefined;
   ForceUpdate: { downloadUrl?: string; releaseNotes?: string[] };
-  Main: undefined;
+  Main: NavigatorScreenParams<TabParamList> | undefined;
   TaskDetail: { taskId: string };
-  TaskAttachments: { taskId: string };
+  TaskAttachments: { taskId: string; taskNumber?: string };
   CameraCapture: {
     taskId: string;
     componentType?: 'photo' | 'selfie';

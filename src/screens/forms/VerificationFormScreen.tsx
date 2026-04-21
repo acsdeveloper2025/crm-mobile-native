@@ -36,7 +36,16 @@ import {
   type LegacyOutcome,
 } from './LegacyFormTemplateBuilders';
 
-export const VerificationFormScreen = ({ route, navigation }: any) => {
+type VerificationFormScreenProps =
+  import('@react-navigation/native-stack').NativeStackScreenProps<
+    import('../../navigation/RootNavigator').RootStackParamList,
+    'VerificationForm'
+  >;
+
+export const VerificationFormScreen = ({
+  route,
+  navigation,
+}: VerificationFormScreenProps) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const {

@@ -20,10 +20,15 @@ import {
   attachmentService,
   RemoteTaskAttachment,
 } from '../../services/AttachmentService';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../../navigation/RootNavigator';
 
-export const TaskAttachmentsScreen = ({ route }: any) => {
+type Props = NativeStackScreenProps<RootStackParamList, 'TaskAttachments'>;
+
+export const TaskAttachmentsScreen = ({ route }: Props) => {
   const { theme } = useTheme();
-  const { taskId, taskNumber } = route.params || {};
+  const { taskId, taskNumber } =
+    route.params || ({} as Props['route']['params']);
   const [remoteAttachments, setRemoteAttachments] = useState<
     RemoteTaskAttachment[]
   >([]);
