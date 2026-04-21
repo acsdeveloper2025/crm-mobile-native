@@ -291,33 +291,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   emptyText: {
-    color: '#6B7280',
     fontSize: 16,
   },
   formTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#111827',
     marginBottom: 4,
   },
   formDescription: {
     fontSize: 14,
-    color: '#4B5563',
     marginBottom: 14,
   },
+  // M13 (audit 2026-04-21): colour/background/border tokens removed from the
+  // static StyleSheet — every render already overlays `theme.colors.*` via the
+  // inline style arrays below, so the hardcoded hex values were dead code and
+  // would have drifted from the theme if anyone had toggled dark mode.
   sectionContainer: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     marginBottom: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   sectionHeader: {
-    backgroundColor: '#F9FAFB',
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
@@ -326,12 +323,10 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#2563EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
   sectionBadgeText: {
-    color: '#FFFFFF',
     fontSize: 13,
     fontWeight: '700',
   },
@@ -341,11 +336,9 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1F2937',
   },
   sectionDesc: {
     fontSize: 12,
-    color: '#6B7280',
     marginTop: 2,
     lineHeight: 16,
   },

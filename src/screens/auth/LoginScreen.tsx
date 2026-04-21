@@ -18,12 +18,21 @@ import { validateResponse } from '../../api/schemas/runtime';
 import { MobileLoginResponseSchema } from '../../api/schemas/auth.schema';
 import { Logger } from '../../utils/logger';
 import { AuthService } from '../../services/AuthService';
+import { useTheme } from '../../context/ThemeContext';
 import type { MobileLoginResponse } from '../../types/api';
 
 const TAG = 'LoginScreen';
 
+// M13 (audit 2026-04-21): dark-chrome colours (container / form card /
+// inputs) stay hardcoded on purpose — the login screen is an
+// intentionally dark-branded pre-auth surface. Only the brand-coloured
+// accents (Sign-In button, error/required text, loading spinner) pull
+// from `theme.colors` so a brand-palette refresh doesn't require a
+// code edit here.
+
 export const LoginScreen = () => {
   const { login } = useAuth();
+  const { theme } = useTheme();
   const [username, setUsername] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -216,7 +225,7 @@ export const LoginScreen = () => {
           <View style={styles.formContainer}>
             {error ? (
               <Text
-                style={styles.errorText}
+                style={[styles.errorText, { color: theme.colors.danger }]}
                 numberOfLines={3}
                 ellipsizeMode="tail"
               >
@@ -226,7 +235,10 @@ export const LoginScreen = () => {
 
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>
-                Username <Text style={styles.required}>*</Text>
+                Username{' '}
+                <Text style={[styles.required, { color: theme.colors.danger }]}>
+                  *
+                </Text>
               </Text>
               <TextInput
                 style={styles.input}
@@ -244,7 +256,10 @@ export const LoginScreen = () => {
 
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>
-                Password <Text style={styles.required}>*</Text>
+                Password{' '}
+                <Text style={[styles.required, { color: theme.colors.danger }]}>
+                  *
+                </Text>
               </Text>
               <TextInput
                 style={styles.input}
@@ -260,7 +275,11 @@ export const LoginScreen = () => {
             </View>
 
             <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+              style={[
+                styles.button,
+                { backgroundColor: theme.colors.primary },
+                loading && styles.buttonDisabled,
+              ]}
               onPress={handleLogin}
               disabled={loading}
               testID="login-submit-button"

@@ -204,8 +204,11 @@ export const styles = StyleSheet.create({
   spacer: {
     height: 0,
   },
+  // M13 (audit 2026-04-21): colour tokens moved out — the banner now
+  // reads `theme.colors.danger` (with `+ '1A'` alpha tint for the
+  // background) at the call site so dark mode doesn't render a white-on-
+  // light banner that's unreadable.
   autoSaveErrorBanner: {
-    backgroundColor: '#FEE2E2',
     paddingHorizontal: 16,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -213,7 +216,6 @@ export const styles = StyleSheet.create({
     gap: 8,
   },
   autoSaveErrorText: {
-    color: '#991B1B',
     fontSize: 13,
     flex: 1,
     fontWeight: '500',

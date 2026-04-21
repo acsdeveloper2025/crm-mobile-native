@@ -629,9 +629,16 @@ export const VerificationFormScreen = ({
     >
       <ScreenHeader title="Verification Form" />
       {autoSaveError && (
-        <View style={styles.autoSaveErrorBanner}>
-          <Icon name="warning-outline" size={18} color="#DC2626" />
-          <Text style={styles.autoSaveErrorText}>
+        <View
+          style={[
+            styles.autoSaveErrorBanner,
+            { backgroundColor: theme.colors.danger + '1A' },
+          ]}
+        >
+          <Icon name="warning-outline" size={18} color={theme.colors.danger} />
+          <Text
+            style={[styles.autoSaveErrorText, { color: theme.colors.danger }]}
+          >
             Auto-save failed. Your changes may not be preserved. Please check
             device storage.
           </Text>
