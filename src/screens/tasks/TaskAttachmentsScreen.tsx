@@ -25,6 +25,87 @@ import type { RootStackParamList } from '../../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TaskAttachments'>;
 
+const formatBytes = (size: number) => {
+  if (!size) return '0 B';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+// M8 (audit 2026-04-21): memoized attachment-row component. On a task
+// with many attachments, the prior inline-`onPress` pattern recreated
+// N closures every render — React.memo + stable onOpen callback keeps
+// unchanged rows out of the re-render pass.
+const AttachmentRow = React.memo(
+  ({
+    attachment,
+    isOpening,
+    theme,
+    onOpen,
+  }: {
+    attachment: RemoteTaskAttachment;
+    isOpening: boolean;
+    theme: ReturnType<typeof useTheme>['theme'];
+    onOpen: (attachment: RemoteTaskAttachment) => void;
+  }) => {
+    const handlePress = useCallback(
+      () => onOpen(attachment),
+      [onOpen, attachment],
+    );
+    return (
+      <TouchableOpacity
+        style={[
+          styles.attachmentRow,
+          {
+            borderColor: theme.colors.border,
+            backgroundColor: theme.colors.surfaceAlt,
+          },
+        ]}
+        onPress={handlePress}
+        activeOpacity={0.75}
+        accessibilityRole="button"
+        accessibilityLabel={`Open ${attachment.name}`}
+      >
+        <View style={styles.attachmentIconWrap}>
+          <Icon
+            name={
+              attachment.type === 'image'
+                ? 'image-outline'
+                : 'document-text-outline'
+            }
+            size={22}
+            color={theme.colors.primary}
+          />
+        </View>
+        <View style={styles.attachmentMeta}>
+          <Text
+            numberOfLines={1}
+            style={[styles.attachmentName, { color: theme.colors.text }]}
+          >
+            {attachment.name}
+          </Text>
+          <Text
+            style={[styles.attachmentInfo, { color: theme.colors.textMuted }]}
+          >
+            {formatBytes(attachment.size)} •{' '}
+            {new Date(attachment.uploadedAt).toLocaleString()}
+          </Text>
+        </View>
+        {isOpening ? (
+          <ActivityIndicator size="small" color={theme.colors.primary} />
+        ) : (
+          <Icon
+            name="open-outline"
+            size={20}
+            color={theme.colors.textSecondary}
+          />
+        )}
+      </TouchableOpacity>
+    );
+  },
+);
+AttachmentRow.displayName = 'AttachmentRow';
+
 export const TaskAttachmentsScreen = ({ route }: Props) => {
   const { theme } = useTheme();
   const { taskId, taskNumber } =
@@ -62,18 +143,8 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
     }, [loadRemoteAttachments]),
   );
 
-  const formatFileSize = (size: number) => {
-    if (!size) {
-      return '0 B';
-    }
-    if (size < 1024) {
-      return `${size} B`;
-    }
-    if (size < 1024 * 1024) {
-      return `${(size / 1024).toFixed(1)} KB`;
-    }
-    return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-  };
+  // formatFileSize removed — module-scope `formatBytes` (above) used
+  // by the memoized AttachmentRow. Only caller was the inline row.
 
   const resolveAttachmentKind = (
     attachment: RemoteTaskAttachment,
@@ -134,71 +205,76 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
     [],
   );
 
-  const handleOpenAttachment = async (attachment: RemoteTaskAttachment) => {
-    try {
-      setOpeningAttachmentId(attachment.id);
-      const uri = await attachmentService.getAttachmentContent(attachment);
-      if (!uri) {
-        Alert.alert('Attachment Error', 'Unable to open this attachment.');
-        return;
-      }
+  // M8 (audit 2026-04-21): stable reference so memoized AttachmentRow
+  // only re-renders when its own attachment / isOpening prop changes.
+  const handleOpenAttachment = useCallback(
+    async (attachment: RemoteTaskAttachment) => {
+      try {
+        setOpeningAttachmentId(attachment.id);
+        const uri = await attachmentService.getAttachmentContent(attachment);
+        if (!uri) {
+          Alert.alert('Attachment Error', 'Unable to open this attachment.');
+          return;
+        }
 
-      const normalizedUri = uri.startsWith('file://') ? uri : `file://${uri}`;
-      const filePath = normalizedUri.replace(/^file:\/\//, '');
-      const kind = resolveAttachmentKind(attachment);
+        const normalizedUri = uri.startsWith('file://') ? uri : `file://${uri}`;
+        const filePath = normalizedUri.replace(/^file:\/\//, '');
+        const kind = resolveAttachmentKind(attachment);
 
-      setPreviewText('');
-      setPreviewMode('unsupported');
+        setPreviewText('');
+        setPreviewMode('unsupported');
 
-      if (kind === 'image') {
-        setPreviewAttachment(attachment);
-        setPreviewUri(normalizedUri);
-        setPreviewMode('image');
-        return;
-      }
+        if (kind === 'image') {
+          setPreviewAttachment(attachment);
+          setPreviewUri(normalizedUri);
+          setPreviewMode('image');
+          return;
+        }
 
-      if (kind === 'text') {
-        // Limit text preview to 500KB to prevent UI freeze on large files
-        const stat = await RNFS.stat(filePath);
-        const fileSize =
-          typeof stat.size === 'number'
-            ? stat.size
-            : parseInt(String(stat.size), 10);
-        if (fileSize > 512 * 1024) {
-          Alert.alert(
-            'File Too Large',
-            'This text file is too large to preview. Opening with system viewer instead.',
-          );
+        if (kind === 'text') {
+          // Limit text preview to 500KB to prevent UI freeze on large files
+          const stat = await RNFS.stat(filePath);
+          const fileSize =
+            typeof stat.size === 'number'
+              ? stat.size
+              : parseInt(String(stat.size), 10);
+          if (fileSize > 512 * 1024) {
+            Alert.alert(
+              'File Too Large',
+              'This text file is too large to preview. Opening with system viewer instead.',
+            );
+            await openWithNativeViewer(normalizedUri, attachment);
+            return;
+          }
+          const textData = await RNFS.readFile(filePath, 'utf8');
+          setPreviewAttachment(attachment);
+          setPreviewUri(normalizedUri);
+          setPreviewText(textData);
+          setPreviewMode('text');
+          return;
+        }
+
+        if (kind === 'pdf' || kind === 'word' || kind === 'excel') {
           await openWithNativeViewer(normalizedUri, attachment);
           return;
         }
-        const textData = await RNFS.readFile(filePath, 'utf8');
+
         setPreviewAttachment(attachment);
         setPreviewUri(normalizedUri);
-        setPreviewText(textData);
-        setPreviewMode('text');
-        return;
+        setPreviewMode('unsupported');
+      } catch (error: unknown) {
+        Alert.alert(
+          'Attachment Error',
+          error instanceof Error
+            ? error.message
+            : String(error) || 'Failed to open attachment.',
+        );
+      } finally {
+        setOpeningAttachmentId(null);
       }
-
-      if (kind === 'pdf' || kind === 'word' || kind === 'excel') {
-        await openWithNativeViewer(normalizedUri, attachment);
-        return;
-      }
-
-      setPreviewAttachment(attachment);
-      setPreviewUri(normalizedUri);
-      setPreviewMode('unsupported');
-    } catch (error: unknown) {
-      Alert.alert(
-        'Attachment Error',
-        error instanceof Error
-          ? error.message
-          : String(error) || 'Failed to open attachment.',
-      );
-    } finally {
-      setOpeningAttachmentId(null);
-    }
-  };
+    },
+    [openWithNativeViewer],
+  );
 
   const watermarkText = taskNumber
     ? `CONFIDENTIAL • CaseFlow Mobile • ${taskNumber}`
@@ -273,62 +349,13 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
             </View>
           ) : (
             remoteAttachments.map(attachment => (
-              <TouchableOpacity
+              <AttachmentRow
                 key={attachment.id}
-                style={[
-                  styles.attachmentRow,
-                  {
-                    borderColor: theme.colors.border,
-                    backgroundColor: theme.colors.surfaceAlt,
-                  },
-                ]}
-                onPress={() => handleOpenAttachment(attachment)}
-                activeOpacity={0.75}
-              >
-                <View style={styles.attachmentIconWrap}>
-                  <Icon
-                    name={
-                      attachment.type === 'image'
-                        ? 'image-outline'
-                        : 'document-text-outline'
-                    }
-                    size={22}
-                    color={theme.colors.primary}
-                  />
-                </View>
-                <View style={styles.attachmentMeta}>
-                  <Text
-                    numberOfLines={1}
-                    style={[
-                      styles.attachmentName,
-                      { color: theme.colors.text },
-                    ]}
-                  >
-                    {attachment.name}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.attachmentInfo,
-                      { color: theme.colors.textMuted },
-                    ]}
-                  >
-                    {formatFileSize(attachment.size)} •{' '}
-                    {new Date(attachment.uploadedAt).toLocaleString()}
-                  </Text>
-                </View>
-                {openingAttachmentId === attachment.id ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={theme.colors.primary}
-                  />
-                ) : (
-                  <Icon
-                    name="open-outline"
-                    size={20}
-                    color={theme.colors.textSecondary}
-                  />
-                )}
-              </TouchableOpacity>
+                attachment={attachment}
+                isOpening={openingAttachmentId === attachment.id}
+                theme={theme}
+                onOpen={handleOpenAttachment}
+              />
             ))
           )}
         </View>
