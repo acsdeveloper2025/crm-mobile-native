@@ -18,6 +18,13 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import RNFS from 'react-native-fs';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { AuthService } from '../../services/AuthService';
+import { ProfilePhotoUploader } from '../../services/ProfilePhotoUploader';
+import { NetworkService } from '../../services/NetworkService';
+import { SyncGateway } from '../../services/SyncGateway';
+import { Logger } from '../../utils/logger';
+
+const TAG = 'ProfilePhotoCaptureScreen';
 
 // M13 (audit 2026-04-21): camera-overlay colours (white text, rgba black
 // tints, capture-button white) are intentionally static — they render on
@@ -106,7 +113,45 @@ export const ProfilePhotoCaptureScreen = ({ navigation }: any) => {
         }
       }
 
-      await updateProfilePhoto(`file://${destPath}`);
+      const localUri = `file://${destPath}`;
+      await updateProfilePhoto(localUri);
+
+      // After saving locally, push the image to backend so the avatar
+      // shows up on CRM-FRONTEND. Online → direct upload; offline →
+      // queue in sync_queue (PROFILE_PHOTO entity) for drain on
+      // reconnect. Either way the screen returns immediately; the
+      // user sees the local file:// URL on their own Profile screen
+      // until the server URL arrives.
+      const userId = AuthService.getCurrentUser()?.id || null;
+      if (userId) {
+        if (NetworkService.getIsOnline()) {
+          ProfilePhotoUploader.upload(localUri)
+            .then(async ({ profilePhotoUrl }) => {
+              await AuthService.updateProfilePhotoUrl(profilePhotoUrl);
+            })
+            .catch(err => {
+              Logger.warn(TAG, 'Direct upload failed — queueing', err);
+              SyncGateway.enqueueProfilePhoto(userId, localUri).catch(
+                queueErr => {
+                  Logger.error(
+                    TAG,
+                    'Failed to queue profile photo for sync',
+                    queueErr,
+                  );
+                },
+              );
+            });
+        } else {
+          SyncGateway.enqueueProfilePhoto(userId, localUri).catch(err => {
+            Logger.error(
+              TAG,
+              'Failed to queue profile photo for offline sync',
+              err,
+            );
+          });
+        }
+      }
+
       if (isMountedRef.current) {
         navigation.goBack();
       }

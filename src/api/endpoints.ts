@@ -90,6 +90,13 @@ export const ENDPOINTS = {
     CLEAR_ALL: '/notifications',
   },
 
+  // Profile photo (field agent self-upload).
+  // Backend mirror: POST /api/mobile/users/me/photo →
+  // ProfilePhotoController.uploadForSelf.
+  PROFILE: {
+    UPLOAD_PHOTO: '/users/me/photo',
+  },
+
   // Version
   VERSION: {
     CHECK: '/auth/version-check',

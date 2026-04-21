@@ -157,7 +157,8 @@ export interface SyncQueueItem {
     | 'VISIT_PHOTO'
     | 'LOCATION'
     | 'FORM_SUBMISSION'
-    | 'NOTIFICATION_ACTION';
+    | 'NOTIFICATION_ACTION'
+    | 'PROFILE_PHOTO';
   entityId: string;
   payloadJson: string; // JSON blob of the data to sync
   status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';

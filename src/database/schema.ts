@@ -170,7 +170,13 @@ CREATE TABLE IF NOT EXISTS sync_metadata (
   device_id TEXT NOT NULL
 );
 
--- User session
+-- User session.
+--
+-- profile_photo_url holds whatever string AuthService.updateProfilePhoto
+-- is given -- a local file:// URI immediately after capture (instant
+-- display on ProfileScreen + Dashboard bell) or the server
+-- /uploads/profile-photos/... URL once ProfilePhotoUploader drains.
+-- RN Image accepts both so a single column is enough.
 CREATE TABLE IF NOT EXISTS user_session (
   id INTEGER PRIMARY KEY DEFAULT 1,
   user_id TEXT NOT NULL,

@@ -7,6 +7,7 @@ export type SyncOperationType =
   | 'FORM_SUBMITTED'
   | 'TASK_COMPLETED'
   | 'NOTIFICATION_ACTION'
+  | 'PROFILE_PHOTO'
   | 'LEGACY_OPERATION';
 
 export interface SyncOperation {
@@ -29,6 +30,9 @@ const OPERATION_PRIORITY: Record<SyncOperationType, number> = {
   FORM_SUBMITTED: 60,
   LEGACY_OPERATION: 50,
   NOTIFICATION_ACTION: 20,
+  // Profile photo is user-facing but non-critical; sits between
+  // notification actions and task-completed in priority.
+  PROFILE_PHOTO: 15,
   TASK_COMPLETED: 10,
 };
 
@@ -50,6 +54,9 @@ const inferLegacyType = (
   }
   if (item.entityType === 'NOTIFICATION_ACTION') {
     return 'NOTIFICATION_ACTION';
+  }
+  if (item.entityType === 'PROFILE_PHOTO') {
+    return 'PROFILE_PHOTO';
   }
   if (item.entityType === 'TASK_STATUS') {
     const status = String(payload.status || payload.action || '').toUpperCase();
