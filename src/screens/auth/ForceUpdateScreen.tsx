@@ -10,7 +10,13 @@ import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Logger } from '../../utils/logger';
 
-export const ForceUpdateScreen = ({ route }: any) => {
+type ForceUpdateScreenProps =
+  import('@react-navigation/native-stack').NativeStackScreenProps<
+    import('../../navigation/RootNavigator').RootStackParamList,
+    'ForceUpdate'
+  >;
+
+export const ForceUpdateScreen = ({ route }: ForceUpdateScreenProps) => {
   const { theme } = useTheme();
   const { downloadUrl, releaseNotes } = route.params || {};
 

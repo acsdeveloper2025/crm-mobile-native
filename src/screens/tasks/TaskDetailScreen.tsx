@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTask } from '../../hooks/useTask';
 import { useTheme } from '../../context/ThemeContext';
 import { ScreenHeader } from '../../components/ScreenHeader';
@@ -18,8 +19,11 @@ import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
 import { FormRepository } from '../../repositories/FormRepository';
 import { Logger } from '../../utils/logger';
 import { SyncService } from '../../services/SyncService';
+import type { RootStackParamList } from '../../navigation/RootNavigator';
 
-export const TaskDetailScreen = ({ route, navigation }: any) => {
+type Props = NativeStackScreenProps<RootStackParamList, 'TaskDetail'>;
+
+export const TaskDetailScreen = ({ route, navigation }: Props) => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { taskId } = route.params || {};
@@ -99,7 +103,11 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
   };
 
   const handleFillForm = () => {
-    navigation.navigate('VerificationForm', { taskId: task?.id });
+    // H21 (audit 2026-04-21): proper typing caught that task?.id can
+    // be undefined. Guard so the navigate call is never made without
+    // a real task id.
+    if (!task?.id) return;
+    navigation.navigate('VerificationForm', { taskId: task.id });
   };
 
   const handleResubmit = async () => {
