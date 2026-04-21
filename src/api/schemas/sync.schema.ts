@@ -40,8 +40,16 @@ export const MobileCaseSchema = z
 export const MobileSyncDownloadResponseSchema = z
   .object({
     cases: z.array(MobileCaseSchema),
+    // A4 (audit 2026-04-21 round 2): declare every field the backend
+    // actually sends so that a rename of `conflicts` / `attachmentChanges`
+    // / `deletedCaseIds` / `nextCursor` fires the schema drift warning
+    // instead of passing through silently.
     revokedAssignmentIds: z.array(z.string()).optional(),
     deletedTaskIds: z.array(z.string()).optional(),
+    deletedCaseIds: z.array(z.string()).optional(),
+    conflicts: z.array(z.unknown()).optional(),
+    attachmentChanges: z.array(z.unknown()).optional(),
+    nextCursor: z.string().nullable().optional(),
     hasMore: z.boolean().optional(),
     syncTimestamp: z.string().optional(),
   })

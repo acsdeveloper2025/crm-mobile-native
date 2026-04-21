@@ -4,7 +4,6 @@ import { ProjectionUpdater } from '../projections/ProjectionUpdater';
 import { TaskDetailProjection } from '../projections/TaskDetailProjection';
 import { TaskListProjection } from '../projections/TaskListProjection';
 import type { LocalTask } from '../types/mobile';
-import type { MobileCaseResponse } from '../types/api';
 import { mapSqliteTask } from '../utils/mapSqliteTask';
 
 export interface DashboardStats {
@@ -308,155 +307,13 @@ class TaskRepositoryClass {
     return stats.activeCount;
   }
 
-  async upsertFromServer(task: MobileCaseResponse): Promise<void> {
-    const canonicalTaskId = (task.verificationTaskId || task.id || '').trim();
-    if (!canonicalTaskId) {
-      return;
-    }
-
-    const staleRows = await DatabaseService.query<{ id: string }>(
-      `SELECT id
-       FROM tasks
-       WHERE case_id = ?
-         AND id != ?`,
-      [task.caseId, canonicalTaskId],
-    );
-
-    const existingRows = await DatabaseService.query<{
-      status: string;
-      isSaved: number;
-      inProgressAt: string | null;
-      savedAt: string | null;
-      completedAt: string | null;
-      syncStatus: string | null;
-    }>(
-      `SELECT status, is_saved, in_progress_at, saved_at, completed_at, sync_status
-       FROM tasks
-       WHERE id = ?
-       LIMIT 1`,
-      [canonicalTaskId],
-    );
-
-    const existing = existingRows[0];
-    const backendStatus = (task.status || 'ASSIGNED').toUpperCase();
-    let mergedStatus = backendStatus;
-    let mergedInProgressAt = task.inProgressAt || null;
-    let mergedSavedAt = task.savedAt || null;
-    let mergedCompletedAt = task.completedAt || null;
-    let mergedIsSaved = task.isSaved ? 1 : 0;
-
-    if (existing && existing.syncStatus === 'PENDING') {
-      const localStatus = (existing.status || '').toUpperCase();
-      const localSaved = existing.isSaved === 1;
-      const shouldPreserveLocal =
-        (backendStatus === 'ASSIGNED' &&
-          (localStatus === 'IN_PROGRESS' ||
-            localStatus === 'COMPLETED' ||
-            localSaved)) ||
-        (backendStatus === 'IN_PROGRESS' && localStatus === 'COMPLETED');
-      if (shouldPreserveLocal) {
-        mergedStatus = localStatus || mergedStatus;
-        mergedInProgressAt = existing.inProgressAt || mergedInProgressAt;
-        mergedSavedAt = existing.savedAt || mergedSavedAt;
-        mergedCompletedAt = existing.completedAt || mergedCompletedAt;
-        mergedIsSaved = localSaved ? 1 : mergedIsSaved;
-      }
-    }
-
-    const now = new Date().toISOString();
-
-    // C15 (audit 2026-04-20): wrap the stale-row migration loop + the
-    // canonical-task INSERT OR REPLACE in a single transaction. Prior
-    // to this, a crash between the child-table UPDATEs, the stale
-    // DELETE, and the final INSERT OR REPLACE could leave orphan FK
-    // references or an inconsistent tasks row. Atomic now.
-    await DatabaseService.transaction(async tx => {
-      for (const stale of staleRows) {
-        await tx.executeSql(
-          'UPDATE attachments SET task_id = ? WHERE task_id = ?',
-          [canonicalTaskId, stale.id],
-        );
-        await tx.executeSql(
-          'UPDATE locations SET task_id = ? WHERE task_id = ?',
-          [canonicalTaskId, stale.id],
-        );
-        await tx.executeSql(
-          'UPDATE form_submissions SET task_id = ? WHERE task_id = ?',
-          [canonicalTaskId, stale.id],
-        );
-        await tx.executeSql(
-          "UPDATE sync_queue SET entity_id = ? WHERE entity_type IN ('TASK', 'TASK_STATUS') AND entity_id = ?",
-          [canonicalTaskId, stale.id],
-        );
-        await tx.executeSql('DELETE FROM tasks WHERE id = ?', [stale.id]);
-      }
-
-      await tx.executeSql(
-        `INSERT OR REPLACE INTO tasks
-        (id, case_id, verification_task_id, verification_task_number, title, description, customer_name, customer_calling_code,
-         customer_phone, customer_email, address_street, address_city, address_state, address_pincode, latitude, longitude,
-         status, priority, assigned_at, updated_at, completed_at, notes, verification_type, verification_outcome, applicant_type,
-         backend_contact_number, created_by_backend_user, assigned_to_field_user, client_id, client_name, client_code,
-         product_id, product_name, product_code, verification_type_id, verification_type_name, verification_type_code,
-         form_data_json, is_revoked, revoked_at, revoked_by_name, revoke_reason,
-         in_progress_at, saved_at, is_saved, attachment_count,
-         sync_status, last_synced_at, local_updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SYNCED', ?, ?)`,
-        [
-          canonicalTaskId,
-          task.caseId,
-          canonicalTaskId,
-          task.verificationTaskNumber || '',
-          task.title,
-          task.description || '',
-          task.customerName,
-          task.customerCallingCode || null,
-          task.customerPhone || null,
-          task.customerEmail || null,
-          task.addressStreet || '',
-          task.addressCity || '',
-          task.addressState || '',
-          task.addressPincode || '',
-          task.latitude || null,
-          task.longitude || null,
-          mergedStatus,
-          task.priority || 'MEDIUM',
-          task.assignedAt || now,
-          task.updatedAt || now,
-          mergedCompletedAt,
-          task.notes || null,
-          task.verificationType || null,
-          task.verificationOutcome || null,
-          task.applicantType || null,
-          task.backendContactNumber || null,
-          task.createdByBackendUser || null,
-          task.assignedToFieldUser || null,
-          task.client?.id || null,
-          task.client?.name || null,
-          task.client?.code || null,
-          task.product?.id || null,
-          task.product?.name || null,
-          task.product?.code || null,
-          task.verificationTypeDetails?.id || null,
-          task.verificationTypeDetails?.name || null,
-          task.verificationTypeDetails?.code || null,
-          task.formData ? JSON.stringify(task.formData) : null,
-          task.isRevoked ? 1 : 0,
-          task.revokedAt || null,
-          task.revokedByName || null,
-          task.revokeReason || null,
-          mergedInProgressAt,
-          mergedSavedAt,
-          mergedIsSaved,
-          task.attachmentCount || 0,
-          now,
-          now,
-        ],
-      );
-    });
-
-    await ProjectionUpdater.scheduleTaskRebuild(canonicalTaskId);
-  }
+  // DB1 (audit 2026-04-21 round 2): the previous `upsertFromServer`
+  // method lived here for historical reasons but was never called —
+  // `SyncDownloadService.upsertTaskFromServer` is the live path. The
+  // old implementation used `INSERT OR REPLACE INTO tasks` which under
+  // our `ON DELETE CASCADE` children would delete every attachment /
+  // form_submission / location row for the task on every sync. Removed
+  // so nothing re-wires it by accident.
 }
 
 export const TaskRepository = new TaskRepositoryClass();

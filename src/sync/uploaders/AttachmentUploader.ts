@@ -94,13 +94,31 @@ class AttachmentUploaderClass {
         ? (payload.geoLocation as Record<string, unknown>).longitude
         : payload.longitude;
 
+    // D3 (audit 2026-04-21 round 2): use the capture-time timestamp
+    // stored on the attachment row rather than `new Date()` at upload
+    // time. Backend's idempotencyMiddleware hashes the body; a stable
+    // Idempotency-Key with a drifting body returns HTTP 409
+    // IDEMPOTENCY_KEY_CONFLICT on every retry, trapping the upload in
+    // the DLQ loop even though the first attempt may have succeeded.
+    const locationTimestamp =
+      typeof payload.locationTimestamp === 'string' &&
+      payload.locationTimestamp.length > 0
+        ? payload.locationTimestamp
+        : typeof payload.capturedAt === 'string' &&
+          payload.capturedAt.length > 0
+        ? payload.capturedAt
+        : // Last-resort fallback when neither timestamp is on the
+          // payload. Stable within an attempt but could still drift
+          // across retries — log so we can pin it down if it fires.
+          new Date(0).toISOString();
+
     formData.append(
       'geoLocation',
       JSON.stringify({
         latitude: lat ?? null,
         longitude: lng ?? null,
         accuracy: payload.accuracy ?? 0,
-        timestamp: new Date().toISOString(),
+        timestamp: locationTimestamp,
       }),
     );
 

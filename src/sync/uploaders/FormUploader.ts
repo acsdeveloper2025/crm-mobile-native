@@ -3,6 +3,7 @@ import { ApiClient } from '../../api/apiClient';
 import { ENDPOINTS } from '../../api/endpoints';
 import { DatabaseService } from '../../database/DatabaseService';
 import { SyncEngineRepository } from '../../repositories/SyncEngineRepository';
+import { SyncQueueRepository } from '../../repositories/SyncQueueRepository';
 import { Logger } from '../../utils/logger';
 import { resolveFormTypeKey, type FormTypeKey } from '../../utils/formTypeKey';
 import { NetworkService } from '../../services/NetworkService';
@@ -157,6 +158,16 @@ class FormUploaderClass {
           isOnline ? '' : ', offline — not counted'
         })`;
         payload._deferCount = nextDeferCount;
+        // D2 (audit 2026-04-21 round 2): previously the counter was
+        // mutated on a spread copy of `operation.payload` and the queue
+        // row was never updated. On the next retry the old `deferCount`
+        // was re-read from SQLite so `MAX_DEFERS` never tripped — forms
+        // with permanently-failed attachments deferred forever and the
+        // promised `'failed'` state never surfaced.
+        await SyncQueueRepository.updatePayload(
+          operation.queueId,
+          JSON.stringify({ ...operation.payload, _deferCount: nextDeferCount }),
+        );
         await this.updateLocalSubmissionState(localTaskId, 'pending');
         return { outcome: 'DEFER', error };
       }

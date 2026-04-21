@@ -46,12 +46,17 @@ export const useFormAutosave = ({
   const [autoSaveError, setAutoSaveError] = useState(false);
   const isMountedRef = useRef(true);
   const latestFormValuesRef = useRef(formValues);
+  // B3 (audit 2026-04-21 round 2): records which taskId the values in
+  // `latestFormValuesRef` actually belong to, so unmount flushes can
+  // detect and drop stale values after a taskId change.
+  const valuesTaskIdRef = useRef<string | null>(taskId);
   const latestTaskIdRef = useRef(taskId);
   const latestTaskFormTypeRef = useRef(taskFormTypeKey);
 
   useEffect(() => {
     latestFormValuesRef.current = formValues;
-  }, [formValues]);
+    valuesTaskIdRef.current = taskId;
+  }, [formValues, taskId]);
 
   useEffect(() => {
     latestTaskIdRef.current = taskId;
@@ -66,7 +71,21 @@ export const useFormAutosave = ({
     return () => {
       const currentTaskId = latestTaskIdRef.current;
       const latestValues = latestFormValuesRef.current;
-      if (currentTaskId && Object.keys(latestValues).length > 0) {
+      const valuesTaskId = valuesTaskIdRef.current;
+      // B3 (audit 2026-04-21 round 2): only flush the pending values if
+      // they actually belong to the current task. When `taskId` switches
+      // on a mounted screen (React Nav re-uses the screen for a
+      // different task), the reset effect clears `isInitialized` but
+      // `latestFormValuesRef` still carries the previous task's values.
+      // An unmount in the brief window before the init effect writes the
+      // new draft would otherwise persist task A's form data under
+      // task B, silently corrupting drafts. Tag the ref with its
+      // owning taskId so we can drop stale flushes.
+      if (
+        currentTaskId &&
+        valuesTaskId === currentTaskId &&
+        Object.keys(latestValues).length > 0
+      ) {
         updateTaskFormData(currentTaskId, latestValues).catch(err => {
           Logger.error(TAG, 'Failed to persist form data on unmount', err);
         });
@@ -85,7 +104,13 @@ export const useFormAutosave = ({
   useEffect(() => {
     setIsInitialized(false);
     setAutoSaveError(false);
-  }, [taskId]);
+    // B3: clear the cached values + re-tag the owner. The live
+    // `formValues` state is owned by the caller; telling it to reset
+    // avoids showing task A's data briefly while task B's draft loads.
+    latestFormValuesRef.current = {};
+    valuesTaskIdRef.current = taskId;
+    setFormValues({});
+  }, [taskId, setFormValues]);
 
   useEffect(() => {
     if (!taskId || isInitialized) {

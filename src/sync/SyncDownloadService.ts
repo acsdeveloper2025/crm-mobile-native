@@ -7,7 +7,6 @@ import { config } from '../config';
 import { DatabaseService } from '../database/DatabaseService';
 import { ProjectionUpdater } from '../projections/ProjectionUpdater';
 import { SyncEngineRepository } from '../repositories/SyncEngineRepository';
-import { SyncQueueRepository } from '../repositories/SyncQueueRepository';
 import { notificationService } from '../services/NotificationService';
 import { Logger } from '../utils/logger';
 import { syncConflictResolver } from './SyncConflictResolver';
@@ -88,76 +87,35 @@ class SyncDownloadServiceClass {
           }
         }
 
-        for (const taskId of payload.revokedAssignmentIds || []) {
-          // C10 (audit 2026-04-20): preserve PENDING files/rows as
-          // before, but also (a) mark them sync_status='ABANDONED'
-          // so reconcileOrphanAttachments doesn't re-enqueue them,
-          // and (b) delete the sync_queue entries so the uploader
-          // stops retrying against a task the server has revoked.
+        // C10 + DB2 (round 2): both delete loops use purgeTaskTransactional
+        // so DB mutations commit atomically per task and files are unlinked
+        // only after the DB writes succeed.
+        for (const backendTaskId of payload.revokedAssignmentIds || []) {
           const taskRows = await SyncEngineRepository.query<{ id: string }>(
             'SELECT id FROM tasks WHERE verification_task_id = ?',
-            [taskId],
+            [backendTaskId],
           );
           for (const row of taskRows) {
-            // Unlink disk files BEFORE deleting rows so we still have the paths.
-            await this.unlinkSyncedAttachmentFiles(row.id);
-            await SyncEngineRepository.execute(
-              "DELETE FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'",
-              [row.id],
-            );
-            await SyncEngineRepository.execute(
-              "UPDATE attachments SET sync_status = 'ABANDONED' WHERE task_id = ? AND sync_status = 'PENDING'",
-              [row.id],
-            );
-            await SyncEngineRepository.execute(
-              'DELETE FROM locations WHERE task_id = ?',
-              [row.id],
-            );
-            await SyncEngineRepository.execute(
-              "DELETE FROM form_submissions WHERE task_id = ? AND sync_status = 'SYNCED'",
-              [row.id],
-            );
-            await SyncEngineRepository.execute(
-              "UPDATE form_submissions SET sync_status = 'ABANDONED' WHERE task_id = ? AND sync_status = 'PENDING'",
-              [row.id],
-            );
-            await SyncQueueRepository.deleteQueueItemsForTask(row.id, taskId);
+            await this.purgeTaskTransactional(row.id, backendTaskId);
           }
-          await SyncEngineRepository.execute(
-            'DELETE FROM tasks WHERE verification_task_id = ?',
-            [taskId],
-          );
-          await ProjectionUpdater.rebuildTask(taskId);
+          await ProjectionUpdater.rebuildTask(backendTaskId);
         }
         for (const taskId of payload.deletedTaskIds || []) {
-          // C10 (audit 2026-04-20): see revokedAssignmentIds loop above.
-          await this.unlinkSyncedAttachmentFiles(taskId);
-          await SyncEngineRepository.execute(
-            "DELETE FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'",
-            [taskId],
-          );
-          await SyncEngineRepository.execute(
-            "UPDATE attachments SET sync_status = 'ABANDONED' WHERE task_id = ? AND sync_status = 'PENDING'",
-            [taskId],
-          );
-          await SyncEngineRepository.execute(
-            'DELETE FROM locations WHERE task_id = ?',
-            [taskId],
-          );
-          await SyncEngineRepository.execute(
-            "DELETE FROM form_submissions WHERE task_id = ? AND sync_status = 'SYNCED'",
-            [taskId],
-          );
-          await SyncEngineRepository.execute(
-            "UPDATE form_submissions SET sync_status = 'ABANDONED' WHERE task_id = ? AND sync_status = 'PENDING'",
-            [taskId],
-          );
-          await SyncQueueRepository.deleteQueueItemsForTask(taskId, taskId);
-          await SyncEngineRepository.execute(
-            'DELETE FROM tasks WHERE id = ? OR verification_task_id = ?',
-            [taskId, taskId],
-          );
+          await this.purgeTaskTransactional(taskId, taskId, {
+            deleteMatchOnVerificationTaskId: true,
+          });
           await ProjectionUpdater.rebuildTask(taskId);
+        }
+        // A5 (round 2): case-level deletions.
+        for (const caseId of payload.deletedCaseIds || []) {
+          const rows = await SyncEngineRepository.query<{ id: string }>(
+            'SELECT id FROM tasks WHERE case_id = ?',
+            [caseId],
+          );
+          for (const { id: taskId } of rows) {
+            await this.purgeTaskTransactional(taskId, taskId);
+            await ProjectionUpdater.rebuildTask(taskId);
+          }
         }
 
         conflicts += payload.conflicts?.length || 0;
@@ -224,6 +182,101 @@ class SyncDownloadServiceClass {
    * Failures to unlink are logged but not thrown — stale files are a storage
    * cost, not a data-integrity problem.
    */
+  /**
+   * DB2 (audit 2026-04-21 round 2): transactional per-task purge used
+   * by the revoke/delete loops. Captures file paths first (SELECT),
+   * does every DB write in a single transaction, then unlinks files
+   * AFTER commit — mirrors the H5 fix pattern (never delete disk files
+   * while the DB rows referring to them are still alive).
+   *
+   * `deleteMatchOnVerificationTaskId` controls whether the final tasks
+   * DELETE also matches on `verification_task_id` — matters for the
+   * legacy `deletedTaskIds` path which uses backend task UUID as the
+   * key rather than the local task id.
+   */
+  private async purgeTaskTransactional(
+    localTaskId: string,
+    backendTaskId: string,
+    options: { deleteMatchOnVerificationTaskId?: boolean } = {},
+  ): Promise<void> {
+    const photos = await SyncEngineRepository.query<{
+      localPath: string | null;
+      thumbnailPath: string | null;
+    }>(
+      "SELECT local_path, thumbnail_path FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'",
+      [localTaskId],
+    );
+
+    await DatabaseService.transaction(async tx => {
+      await tx.executeSql(
+        "DELETE FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'",
+        [localTaskId],
+      );
+      await tx.executeSql(
+        "UPDATE attachments SET sync_status = 'ABANDONED' WHERE task_id = ? AND sync_status = 'PENDING'",
+        [localTaskId],
+      );
+      await tx.executeSql('DELETE FROM locations WHERE task_id = ?', [
+        localTaskId,
+      ]);
+      await tx.executeSql(
+        "DELETE FROM form_submissions WHERE task_id = ? AND sync_status = 'SYNCED'",
+        [localTaskId],
+      );
+      await tx.executeSql(
+        "UPDATE form_submissions SET sync_status = 'ABANDONED' WHERE task_id = ? AND sync_status = 'PENDING'",
+        [localTaskId],
+      );
+      await tx.executeSql(
+        `DELETE FROM sync_queue
+          WHERE (
+            entity_type IN ('TASK', 'TASK_STATUS')
+            AND entity_id IN (?, ?)
+          )
+             OR (
+            entity_type IN ('ATTACHMENT', 'VISIT_PHOTO', 'LOCATION', 'FORM_SUBMISSION')
+            AND (
+              json_extract(payload_json, '$.taskId') IN (?, ?)
+              OR json_extract(payload_json, '$.localTaskId') IN (?, ?)
+            )
+          )`,
+        [
+          localTaskId,
+          backendTaskId,
+          localTaskId,
+          backendTaskId,
+          localTaskId,
+          backendTaskId,
+        ],
+      );
+      if (options.deleteMatchOnVerificationTaskId) {
+        await tx.executeSql(
+          'DELETE FROM tasks WHERE id = ? OR verification_task_id = ?',
+          [localTaskId, backendTaskId],
+        );
+      } else {
+        await tx.executeSql('DELETE FROM tasks WHERE id = ?', [localTaskId]);
+      }
+    });
+
+    for (const photo of photos) {
+      try {
+        if (photo.localPath && (await RNFS.exists(photo.localPath))) {
+          await RNFS.unlink(photo.localPath);
+        }
+        if (photo.thumbnailPath && (await RNFS.exists(photo.thumbnailPath))) {
+          await RNFS.unlink(photo.thumbnailPath);
+        }
+      } catch (error) {
+        Logger.warn(
+          TAG,
+          `Failed to unlink attachment file for task ${localTaskId}`,
+          error,
+        );
+      }
+    }
+  }
+
   private async unlinkSyncedAttachmentFiles(
     localTaskId: string,
   ): Promise<void> {
@@ -349,8 +402,14 @@ class SyncDownloadServiceClass {
         savedAt: string | null;
         completedAt: string | null;
         syncStatus: string | null;
+        localUpdatedAt: string | null;
       }>(
-        `SELECT status, is_saved, in_progress_at, saved_at, completed_at, sync_status
+        // D1 (audit 2026-04-21 round 2): include `local_updated_at`
+        // in the SELECT so the conflict resolver's "local fresher than
+        // server" branch can actually fire. Without it, `isLocalFresher`
+        // always saw undefined and returned false, silently overwriting
+        // fresh local status/isSaved/etc. with stale server payload.
+        `SELECT status, is_saved, in_progress_at, saved_at, completed_at, sync_status, local_updated_at
        FROM tasks
        WHERE id = ?
        LIMIT 1`,
@@ -372,6 +431,7 @@ class SyncDownloadServiceClass {
               savedAt: existingRows[0].savedAt,
               completedAt: existingRows[0].completedAt,
               syncStatus: existingRows[0].syncStatus,
+              localUpdatedAt: existingRows[0].localUpdatedAt,
             }
           : null,
         hasQueuedChanges,

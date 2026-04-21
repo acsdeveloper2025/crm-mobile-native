@@ -152,6 +152,10 @@ class CameraServiceClass {
     componentType: 'photo' | 'selfie' = 'photo',
     options?: SavePhotoOptions,
   ): Promise<CapturedPhoto | null> {
+    // B2 (audit 2026-04-21 round 2): scoped outside the try so the
+    // catch block below can unlink them if any post-move step throws.
+    let destPath: string | null = null;
+    let thumbnailPath: string | null = null;
     try {
       await this.initialize();
 
@@ -172,14 +176,18 @@ class CameraServiceClass {
       const timestamp = new Date().toISOString();
       const extension = sourcePath.split('.').pop() || 'jpg';
       const filename = `${componentType}_${id}.${extension}`;
-      const destPath = `${PHOTOS_DIR}/${filename}`;
+      destPath = `${PHOTOS_DIR}/${filename}`;
+      // Local non-nullable alias for use inside the async transaction
+      // closure below — TS can't track narrowing of the outer `destPath`
+      // through the async callback.
+      const finalDestPath: string = destPath;
 
       // Move file from temp to our photos directory
-      await RNFS.moveFile(sourcePath, destPath);
+      await RNFS.moveFile(sourcePath, finalDestPath);
 
       // Get file size
-      const stat = await RNFS.stat(destPath);
-      const thumbnailPath = await this.createThumbnail(destPath, id, extension);
+      const stat = await RNFS.stat(finalDestPath);
+      thumbnailPath = await this.createThumbnail(finalDestPath, id, extension);
 
       // 2026-04-21: GPS is MANDATORY on every captured photo — there
       // is no "save without location" path. Callers (WatermarkPreview)
@@ -212,8 +220,8 @@ class CameraServiceClass {
       ) {
         // Roll back the file we just moved — we will NOT persist a
         // GPS-less attachment (user decision 2026-04-21).
-        if (await RNFS.exists(destPath)) {
-          await RNFS.unlink(destPath).catch(() => {});
+        if (await RNFS.exists(finalDestPath)) {
+          await RNFS.unlink(finalDestPath).catch(() => {});
         }
         if (thumbnailPath && (await RNFS.exists(thumbnailPath))) {
           await RNFS.unlink(thumbnailPath).catch(() => {});
@@ -237,7 +245,7 @@ class CameraServiceClass {
 
       const photo: CapturedPhoto = {
         id,
-        localPath: destPath,
+        localPath: finalDestPath,
         thumbnailPath: thumbnailPath || undefined,
         filename,
         mimeType: extension === 'png' ? 'image/png' : 'image/jpeg',
@@ -272,7 +280,7 @@ class CameraServiceClass {
           filename,
           mimeType: photo.mimeType,
           size: photo.size,
-          localPath: destPath,
+          localPath: finalDestPath,
           thumbnailPath,
           uploadedAt: timestamp,
           latitude: photo.latitude,
@@ -291,7 +299,7 @@ class CameraServiceClass {
             taskId: backendTaskId,
             localTaskId: taskId,
             filename,
-            localPath: destPath,
+            localPath: finalDestPath,
             mimeType: photo.mimeType,
             size: photo.size,
             componentType,
@@ -317,6 +325,27 @@ class CameraServiceClass {
 
       return photo;
     } catch (error) {
+      // B2 (audit 2026-04-21 round 2): if the GPS-missing branch above
+      // didn't fire and we instead threw later (e.g. DB write failed
+      // inside the transaction), the moved file + thumbnail were left
+      // on disk with no attachments row pointing at them. They'd get
+      // reclaimed by the 45-day orphan sweep eventually, but that's a
+      // slow cleanup. Undo the filesystem side-effects here so failure
+      // is symmetric with success.
+      try {
+        if (destPath && (await RNFS.exists(destPath))) {
+          await RNFS.unlink(destPath);
+        }
+        if (thumbnailPath && (await RNFS.exists(thumbnailPath))) {
+          await RNFS.unlink(thumbnailPath);
+        }
+      } catch (cleanupErr) {
+        Logger.warn(
+          TAG,
+          `Cleanup failed after savePhoto error for task ${taskId}`,
+          cleanupErr,
+        );
+      }
       Logger.error(TAG, 'Failed to save photo', error);
       return null;
     }
