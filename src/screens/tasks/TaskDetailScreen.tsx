@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,19 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
     syncStatus: string;
     syncError?: string;
   } | null>(null);
+
+  // H16 (audit 2026-04-21): guard setState calls in async handlers
+  // against unmount. Without this, `handleStartVisit`'s finally
+  // setState could fire after the user navigated away, producing
+  // the classic "can't perform React state update on unmounted
+  // component" console warning.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (task?.status === 'COMPLETED' && task?.id) {
@@ -79,7 +92,9 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
           'Failed to start visit.',
       );
     } finally {
-      setIsActionLoading(false);
+      if (isMountedRef.current) {
+        setIsActionLoading(false);
+      }
     }
   };
 
