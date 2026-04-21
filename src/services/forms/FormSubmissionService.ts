@@ -1,4 +1,5 @@
 import { AttachmentRepository } from '../../repositories/AttachmentRepository';
+import { isCountableAttachment } from '../../utils/attachmentCount';
 import { validateTemplateRequiredFields } from './FormValidationEngine';
 import type { FormTemplate } from '../../types/api';
 import type { LocalTask } from '../../types/mobile';
@@ -43,25 +44,19 @@ class FormSubmissionServiceClass {
       }
     }
 
-    // H3 (audit 2026-04-21): only count photos that are actually
-    // uploadable toward the submission minimum. ABANDONED (task-revoke
-    // cleanup from C10) and SKIPPED (file missing on disk) photos
-    // cannot be synced and must not satisfy the "minimum 5 photos"
-    // rule — otherwise the form submits but the server receives fewer
-    // images than the count displayed to the agent.
+    // H3/M4 (audit 2026-04-21): only count photos that are actually
+    // uploadable toward the submission minimum. ABANDONED / SKIPPED
+    // are excluded. Shared helper `isCountableAttachment` keeps this
+    // in sync with the PhotoGallery display count.
     const attachments = await AttachmentRepository.listForTask(task.id);
-    const COUNTABLE_STATUSES = new Set(['PENDING', 'UPLOADING', 'SYNCED']);
     let photoCount = 0;
     let selfieCount = 0;
     attachments.forEach(row => {
-      const raw = row as unknown as Record<string, unknown>;
-      const ct = raw.componentType ?? row.componentType;
-      const syncStatus = String(
-        raw.syncStatus ?? raw.sync_status ?? 'PENDING',
-      ).toUpperCase();
-      if (!COUNTABLE_STATUSES.has(syncStatus)) {
+      if (!isCountableAttachment(row)) {
         return;
       }
+      const raw = row as unknown as Record<string, unknown>;
+      const ct = raw.componentType ?? row.componentType;
       if (ct === 'photo') photoCount += 1;
       if (ct === 'selfie') selfieCount += 1;
     });

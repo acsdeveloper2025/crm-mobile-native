@@ -13,6 +13,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import RNFS from 'react-native-fs';
 import { Logger } from '../../utils/logger';
+import { isCountableAttachment } from '../../utils/attachmentCount';
 import { useFocusEffect } from '@react-navigation/native';
 import type { LocalAttachment } from '../../types/mobile';
 import { useTheme } from '../../context/ThemeContext';
@@ -64,25 +65,13 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
 
       if (isMountedRef.current && requestId === requestIdRef.current) {
         const photoList = results || [];
-        // H3 (audit 2026-04-21): onPhotosLoaded is consumed by
+        // H3/M4 (audit 2026-04-21): onPhotosLoaded is consumed by
         // VerificationFormScreen to show "N captured" next to the
         // 5-photo minimum. It must match what FormSubmissionService
-        // counts toward the submit validator — which excludes
-        // ABANDONED (C10 cleanup) and SKIPPED (file missing) so the
-        // agent doesn't see "5 captured" then hit a submit error.
-        // The gallery itself still DISPLAYS all statuses so the
-        // agent can see what's been captured historically.
-        const countable = photoList.filter(row => {
-          const raw = row as unknown as Record<string, unknown>;
-          const status = String(
-            raw.syncStatus ?? raw.sync_status ?? 'PENDING',
-          ).toUpperCase();
-          return (
-            status === 'PENDING' ||
-            status === 'UPLOADING' ||
-            status === 'SYNCED'
-          );
-        });
+        // counts toward the submit validator — ABANDONED (C10) and
+        // SKIPPED (file missing) are excluded. Shared helper
+        // `isCountableAttachment` keeps the two call-sites in sync.
+        const countable = photoList.filter(isCountableAttachment);
         console.warn(
           `[PhotoGallery] loadPhotos: taskId=${taskId}, type=${componentType}, found=${photoList.length} (countable=${countable.length})`,
           photoList.map(p => p.id),
