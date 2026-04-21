@@ -39,12 +39,24 @@ class NetworkServiceClass {
   }
 
   /**
-   * Start monitoring network connectivity
+   * Start monitoring network connectivity.
+   *
+   * H12 (audit 2026-04-21): idempotent. A second call without a
+   * prior `destroy()` used to silently replace `unsubscribeNetInfo`,
+   * leaking the first NetInfo listener. Now a no-op if already
+   * subscribed.
    */
   initialize(): void {
     if (this.netInfoUnavailable) {
       this.isOnline = true;
       this.connectionType = 'unknown';
+      return;
+    }
+
+    if (this.unsubscribeNetInfo) {
+      // Already initialized. Second calls (hot reload, accidental
+      // double-invocation at app startup) would otherwise overwrite
+      // the stored unsubscribe fn and leak the original listener.
       return;
     }
 
