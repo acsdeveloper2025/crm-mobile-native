@@ -69,62 +69,103 @@ class DatabaseServiceClass {
     try {
       await this.openAndSetup(options);
     } catch (error) {
-      if (DatabaseServiceClass.isCorruptionError(error)) {
-        // SQLITE_CORRUPT[11] ("database disk image is malformed") here
-        // is almost always an encryption-key / DB-file pair mismatch,
-        // not a real on-disk corruption. Common trigger on Samsung:
-        // Smart Switch restores the app's `databases/` directory from
-        // a backup but not the Keychain entry, so a fresh key pairs
-        // with a ciphertext it can't decrypt. The local DB is just a
-        // cache of server-side data, so deleting it and retrying with
-        // a fresh key is a safe, user-invisible recovery. Retry once.
-        Logger.warn(
-          'DatabaseService',
-          'Database appears corrupt or keyed with a stale encryption key; deleting and retrying',
-          { error },
-        );
-        await this.safeCloseDb();
-        await this.deleteLocalDbFile();
-        await DatabaseKeyStore.reset().catch(() => {
-          /* non-fatal — see DatabaseKeyStore.reset comment */
-        });
-        // Mint a fresh key for the clean DB we're about to create. App.tsx
-        // set config.dbEncryptionKey on boot; replace it so the retry
-        // uses the new one.
-        if (!__DEV__) {
-          try {
-            config.dbEncryptionKey = await DatabaseKeyStore.getOrCreateKey();
-          } catch (keyErr) {
-            Logger.error(
-              'DatabaseService',
-              'Failed to regenerate encryption key during corruption recovery',
-              keyErr,
-            );
-            throw keyErr;
-          }
+      // 2026-04-21 v1.0.4: ALWAYS attempt recovery on init failure.
+      //
+      // The v1.0.3 attempt at a Samsung-specific fix used an
+      // `isCorruptionError(error)` guard that inspected
+      // `error.message`. But `react-native-sqlite-storage` sometimes
+      // throws a plain object `{ code: 11, message: '…' }` rather than
+      // an Error instance — on that path `String(error)` returns
+      // `[object Object]`, my matcher returned `false`, and the
+      // recovery never fired. Users on Samsung saw the original error
+      // re-surfaced with no attempt to self-heal.
+      //
+      // Since the local DB is a cache of server-side data, the
+      // recovery is non-destructive (next sync refills). Running it
+      // unconditionally on ANY init failure is strictly safer than
+      // skipping it due to an error-shape mismatch. The full error
+      // shape is dumped below so future regressions can be debugged
+      // from a single logcat line.
+      Logger.warn(
+        'DatabaseService',
+        'Initial DB open failed; attempting corruption recovery',
+        DatabaseServiceClass.describeError(error),
+      );
+
+      await this.safeCloseDb();
+      await this.deleteLocalDbFile();
+      await DatabaseKeyStore.reset().catch(() => {
+        /* non-fatal — see DatabaseKeyStore.reset comment */
+      });
+      // Mint a fresh key for the clean DB we're about to create. App.tsx
+      // set config.dbEncryptionKey on boot; replace it so the retry
+      // uses the new one.
+      if (!__DEV__) {
+        try {
+          config.dbEncryptionKey = await DatabaseKeyStore.getOrCreateKey();
+        } catch (keyErr) {
+          Logger.error(
+            'DatabaseService',
+            'Failed to regenerate encryption key during corruption recovery',
+            DatabaseServiceClass.describeError(keyErr),
+          );
+          throw keyErr;
         }
+      }
+
+      try {
         await this.openAndSetup(options);
         Logger.info(
           'DatabaseService',
           'Database recreated after corruption recovery',
         );
-      } else {
-        Logger.error('DatabaseService', 'Failed to initialize database', error);
-        throw error;
+      } catch (retryErr) {
+        // Recovery itself failed. Surface the ORIGINAL error too so
+        // the user / ops can see both sides.
+        Logger.error(
+          'DatabaseService',
+          'Corruption recovery retry also failed',
+          {
+            original: DatabaseServiceClass.describeError(error),
+            retry: DatabaseServiceClass.describeError(retryErr),
+          },
+        );
+        throw retryErr;
       }
     }
   }
 
-  private static isCorruptionError(error: unknown): boolean {
-    const msg = (
-      error instanceof Error ? error.message : String(error)
-    ).toLowerCase();
-    return (
-      msg.includes('disk image is malformed') ||
-      msg.includes('sqlite_corrupt') ||
-      msg.includes('file is not a database') ||
-      msg.includes('file is encrypted') // SQLCipher wrong-key shape
-    );
+  /**
+   * Collect every useful property from an unknown error shape into a
+   * serializable object the logger can render. `react-native-sqlite-storage`
+   * sometimes throws plain objects with `{ code, message }`, sometimes
+   * Error instances, sometimes just strings. This normalizer lets the
+   * log line be uniform regardless.
+   */
+  private static describeError(err: unknown): Record<string, unknown> {
+    if (err == null) {
+      return { kind: 'null' };
+    }
+    if (err instanceof Error) {
+      return {
+        kind: 'Error',
+        name: err.name,
+        message: err.message,
+        stack: err.stack?.split('\n').slice(0, 5).join('\n'),
+      };
+    }
+    if (typeof err === 'object') {
+      const o = err as Record<string, unknown>;
+      return {
+        kind: 'object',
+        code: o.code,
+        errno: o.errno,
+        message: o.message,
+        sqliteError: o.sqliteError,
+        keys: Object.keys(o),
+      };
+    }
+    return { kind: typeof err, value: String(err) };
   }
 
   private async safeCloseDb(): Promise<void> {
