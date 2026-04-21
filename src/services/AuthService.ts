@@ -300,6 +300,20 @@ class AuthServiceClass {
         await UserSessionRepository.clearSession();
       }
 
+      // H4 (audit 2026-04-21): stop the GPS watch + adaptive interval
+      // that `LocationService.startTracking` started for the previous
+      // user. Without this, the watch keeps firing after logout, GPS
+      // stays locked (battery drain), and `recordLocation` runs under
+      // a no-user context — writes land with `user_id=null` (C6 legacy
+      // bucket) and could be processed under the next logged-in user.
+      // Lazy-require to avoid a circular import cycle with AuthService.
+      try {
+        const { LocationService } = require('./LocationService');
+        LocationService.stopTracking();
+      } catch (err) {
+        Logger.warn(TAG, 'Failed to stop location tracking on logout', err);
+      }
+
       // Clear the in-memory projection cache so a subsequent login on a
       // shared device can't read the prior user's tasks/customer data via
       // useTask/useTasks selectors. Local DB rows stay until next sync —
