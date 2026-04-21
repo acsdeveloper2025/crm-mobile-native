@@ -8,9 +8,9 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  Image,
   Linking,
 } from 'react-native';
+import { ZoomableImage } from '../../components/media/ZoomableImage';
 import RNFS from 'react-native-fs';
 import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -475,10 +475,15 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
 
             <View style={styles.previewBodyContainer}>
               {previewMode === 'image' && previewUri ? (
-                <Image
-                  source={{ uri: previewUri }}
-                  style={styles.previewImage}
-                  resizeMode="contain"
+                // UX (2026-04-21): ZoomableImage gives the user
+                // pinch-to-zoom + scroll/trackpad zoom + a vertical
+                // slider on the right edge (1×–5×). Backgrounded by
+                // a WebView under the hood so we don't add a native
+                // gesture-handler dep.
+                <ZoomableImage
+                  uri={previewUri}
+                  backgroundColor={theme.colors.surfaceAlt}
+                  sliderTint={theme.colors.primary}
                 />
               ) : previewMode === 'text' ? (
                 <ScrollView
@@ -653,14 +658,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
-  previewImage: {
-    width: '100%',
-    height: 460,
-    backgroundColor: '#000',
-  },
   previewBodyContainer: {
     position: 'relative',
     minHeight: 420,
+    // The image preview (ZoomableImage) fills this container via its
+    // WebView flex. Older Image-based preview used `previewImage`
+    // explicit height; removed because ZoomableImage is now the sole
+    // image renderer here.
+    height: 460,
   },
   previewTextWrap: {
     maxHeight: 520,
