@@ -63,12 +63,22 @@ class SyncQueueRepositoryClass {
     payloadJson: string,
     priority: number,
     createdAt: string,
+    userId: string | null,
   ): Promise<void> {
     await DatabaseService.execute(
       `INSERT INTO sync_queue
-        (id, action_type, entity_type, entity_id, payload_json, status, priority, created_at, attempts, max_attempts, started_at, lease_expires_at)
-       VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, 0, 10, NULL, NULL)`,
-      [id, actionType, entityType, entityId, payloadJson, priority, createdAt],
+        (id, action_type, entity_type, entity_id, payload_json, status, priority, created_at, attempts, max_attempts, started_at, lease_expires_at, user_id)
+       VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?, 0, 10, NULL, NULL, ?)`,
+      [
+        id,
+        actionType,
+        entityType,
+        entityId,
+        payloadJson,
+        priority,
+        createdAt,
+        userId,
+      ],
     );
   }
 
@@ -111,29 +121,48 @@ class SyncQueueRepositoryClass {
     payloadJson: string,
     priority: number,
     createdAt: string,
+    userId: string | null,
   ): Promise<void> {
+    // C6 (audit 2026-04-20, 2026-04-21 decision): the DELETE is scoped
+    // by user_id so user A's pending mutation isn't clobbered when
+    // user B logs in on a shared device and does an unrelated action.
+    // Legacy rows (user_id IS NULL) are deleted under either user —
+    // they pre-date the isolation and can't be attributed.
     await DatabaseService.transaction(async tx => {
       await tx.executeSql(
         `DELETE FROM sync_queue
          WHERE entity_type = 'TASK_STATUS'
            AND entity_id = ?
-           AND status IN ('PENDING', 'FAILED')`,
-        [entityId],
+           AND status IN ('PENDING', 'FAILED')
+           AND (user_id IS NULL OR user_id = ?)`,
+        [entityId, userId],
       );
       await tx.executeSql(
         `INSERT INTO sync_queue
-          (id, action_type, entity_type, entity_id, payload_json, status, priority, created_at, attempts, max_attempts, started_at, lease_expires_at)
-         VALUES (?, ?, 'TASK_STATUS', ?, ?, 'PENDING', ?, ?, 0, 10, NULL, NULL)`,
-        [id, actionType, entityId, payloadJson, priority, createdAt],
+          (id, action_type, entity_type, entity_id, payload_json, status, priority, created_at, attempts, max_attempts, started_at, lease_expires_at, user_id)
+         VALUES (?, ?, 'TASK_STATUS', ?, ?, 'PENDING', ?, ?, 0, 10, NULL, NULL, ?)`,
+        [id, actionType, entityId, payloadJson, priority, createdAt, userId],
       );
     });
   }
 
-  async listProcessible(now: string, limit: number): Promise<SyncQueueItem[]> {
+  async listProcessible(
+    now: string,
+    limit: number,
+    currentUserId: string | null,
+  ): Promise<SyncQueueItem[]> {
+    // C6: only return rows that belong to the current user. Legacy
+    // rows (user_id IS NULL, created before the v10 migration) still
+    // process for whoever is logged in — they pre-date isolation and
+    // can't be attributed. If currentUserId is null (no one logged
+    // in), only legacy rows process.
     return DatabaseService.query<SyncQueueItem>(
       `SELECT * FROM sync_queue
-       WHERE status = 'PENDING'
-          OR (status = 'FAILED' AND attempts < max_attempts AND (next_retry_at IS NULL OR next_retry_at <= ?))
+       WHERE (
+         status = 'PENDING'
+         OR (status = 'FAILED' AND attempts < max_attempts AND (next_retry_at IS NULL OR next_retry_at <= ?))
+       )
+       AND (user_id IS NULL OR user_id = ?)
        ORDER BY
          CASE
            WHEN json_extract(payload_json, '$._operation.priority') IS NOT NULL
@@ -142,7 +171,7 @@ class SyncQueueRepositoryClass {
          END DESC,
          created_at ASC
        LIMIT ?`,
-      [now, limit],
+      [now, currentUserId, limit],
     );
   }
 
@@ -168,7 +197,12 @@ class SyncQueueRepositoryClass {
     id: string,
     startedAt: string,
     leaseExpiresAt: string,
+    currentUserId: string | null,
   ): Promise<boolean> {
+    // C6: the CAS also requires the row to belong to the current user
+    // (or to have no user_id, i.e. legacy). This closes the race where
+    // user A's row could be leased under user B's auth context if the
+    // listProcessible filter was bypassed somehow.
     const result = await DatabaseService.execute(
       `UPDATE sync_queue
        SET status = 'IN_PROGRESS',
@@ -176,12 +210,13 @@ class SyncQueueRepositoryClass {
            started_at = ?,
            lease_expires_at = ?
        WHERE id = ?
+         AND (user_id IS NULL OR user_id = ?)
          AND (
            status = 'PENDING'
            OR (status = 'FAILED' AND attempts < max_attempts)
            OR (status = 'IN_PROGRESS' AND lease_expires_at IS NOT NULL AND lease_expires_at < ?)
          )`,
-      [startedAt, leaseExpiresAt, id, startedAt],
+      [startedAt, leaseExpiresAt, id, currentUserId, startedAt],
     );
     return result.rowsAffected > 0;
   }
