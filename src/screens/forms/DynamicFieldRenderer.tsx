@@ -122,19 +122,20 @@ const MultiSelectOption = React.memo(
       () => onToggle(option.value),
       [onToggle, option.value],
     );
+    // L5 (audit 2026-04-21): hoist colour picks to named variables so
+    // eslint's `react-native/no-inline-styles` AST walker doesn't trip
+    // over the nested ternary and emit a false-positive warning.
+    const activeColor = theme.colors.primary;
+    const rowBg = isSelected ? activeColor + '15' : theme.colors.surface;
+    const rowBorder = isSelected ? activeColor : theme.colors.border;
+    const boxBorder = rowBorder;
+    const boxBg = isSelected ? activeColor : 'transparent';
     return (
       <TouchableOpacity
         onPress={handlePress}
         style={[
           styles.switchContainer,
-          {
-            backgroundColor: isSelected
-              ? theme.colors.primary + '15'
-              : theme.colors.surface,
-            borderColor: isSelected
-              ? theme.colors.primary
-              : theme.colors.border,
-          },
+          { backgroundColor: rowBg, borderColor: rowBorder },
         ]}
       >
         <Text style={[styles.switchLabel, { color: theme.colors.text }]}>
@@ -143,14 +144,7 @@ const MultiSelectOption = React.memo(
         <View
           style={[
             styles.checkboxBox,
-            {
-              borderColor: isSelected
-                ? theme.colors.primary
-                : theme.colors.border,
-              backgroundColor: isSelected
-                ? theme.colors.primary
-                : 'transparent',
-            },
+            { borderColor: boxBorder, backgroundColor: boxBg },
           ]}
         >
           {isSelected && <Text style={styles.checkboxCheckmark}>✓</Text>}

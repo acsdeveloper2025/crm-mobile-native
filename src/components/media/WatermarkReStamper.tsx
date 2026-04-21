@@ -44,7 +44,7 @@ export const WatermarkReStamper: React.FC = () => {
     if (!job) return;
 
     processingRef.current = true;
-    console.warn('[RESTAMP] Processing job:', job.attachmentId);
+    Logger.debug(TAG, `Processing job ${job.attachmentId}`);
     try {
       // Use the saved photo (not raw) — raw may be deleted by OS
       const photoToUse = (await RNFS.exists(job.rawPhotoPath))
@@ -120,10 +120,8 @@ export const WatermarkReStamper: React.FC = () => {
       }
 
       Logger.info(TAG, `Re-stamped ${job.attachmentId} with address`);
-      console.warn('[RESTAMP] Success:', job.attachmentId);
     } catch (err) {
       Logger.error(TAG, `Re-stamp failed for ${job.attachmentId}`, err);
-      console.warn('[RESTAMP] FAILED:', err);
       WatermarkReStampQueue.dequeue();
     } finally {
       setCurrentJob(null);
