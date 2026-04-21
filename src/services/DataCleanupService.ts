@@ -92,8 +92,24 @@ export class DataCleanupService {
 
       for (const taskId of oldTaskIds) {
         try {
+          // H5 (audit 2026-04-21): delete DB rows FIRST (transactional
+          // via deleteTaskGraph), then unlink the files. Previous
+          // order was unlink-then-delete-DB, so a crash between the
+          // two left DB rows pointing at already-deleted files —
+          // unreadable, unrecoverable, and breaks any read that
+          // tries to render the "missing" attachments. With the
+          // reversed order, a crash leaves orphan files on disk
+          // which are pure storage cost and can be swept by a
+          // periodic cleanup later.
           const attachments =
             await DataCleanupRepository.listAttachmentsForTask(taskId);
+
+          await DataCleanupRepository.deleteTaskGraph(taskId);
+          result.deletedCases++;
+
+          // DB is now authoritative. Unlink the files we cached above.
+          // Failures here are logged via the outer catch but don't
+          // undo the DB delete — that's the point of the new order.
           for (const att of attachments) {
             if (att.localPath && (await RNFS.exists(att.localPath))) {
               const stat = await RNFS.stat(att.localPath);
@@ -105,10 +121,6 @@ export class DataCleanupService {
               await RNFS.unlink(att.thumbnailPath);
             }
           }
-
-          await DataCleanupRepository.deleteTaskGraph(taskId);
-
-          result.deletedCases++;
         } catch (taskErr: unknown) {
           result.errors.push(
             `Failed cleaning task ${taskId}: ${
