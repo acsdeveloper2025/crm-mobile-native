@@ -80,18 +80,20 @@ export const VerificationFormScreen = ({
   const taskVerificationOutcome = task?.verificationOutcome ?? null;
   const taskFormDataJson = task?.formDataJson ?? null;
   const effectiveTaskId = task?.id || taskId;
-  const { autoSaveError, isInitialized: autosaveInitialized } = useFormAutosave(
-    {
-      taskId: taskUuid,
-      taskFormTypeKey,
-      taskFormDataJson,
-      formValues,
-      setFormValues,
-      getAutoSavedForm,
-      updateTaskFormData,
-      persistAutoSave,
-    },
-  );
+  const {
+    autoSaveError,
+    isInitialized: autosaveInitialized,
+    flushNow: flushAutosaveNow,
+  } = useFormAutosave({
+    taskId: taskUuid,
+    taskFormTypeKey,
+    taskFormDataJson,
+    formValues,
+    setFormValues,
+    getAutoSavedForm,
+    updateTaskFormData,
+    persistAutoSave,
+  });
 
   const formProgress = useMemo(() => {
     if (!template) return { filled: 0, total: 0, percent: 0 };
@@ -376,13 +378,27 @@ export const VerificationFormScreen = ({
           {
             text: 'Leave',
             style: 'destructive',
-            onPress: () => navigation.dispatch(e.data.action),
+            onPress: async () => {
+              // M6 (audit 2026-04-21): flush synchronously before
+              // dispatching the pending nav action. Without this, the
+              // 300 ms autosave debounce could still be pending; the
+              // unmount cleanup would then cancel it and the user's
+              // last keystrokes would be lost — directly contradicting
+              // the "your draft will be auto-saved" alert text above.
+              try {
+                await flushAutosaveNow();
+              } catch {
+                // best effort — navigation happens regardless so the
+                // user isn't trapped on the screen.
+              }
+              navigation.dispatch(e.data.action);
+            },
           },
         ],
       );
     });
     return unsubscribe;
-  }, [navigation, formValues, isSubmitting]);
+  }, [navigation, formValues, isSubmitting, flushAutosaveNow]);
 
   const handleSave = async () => {
     if (!task || !selectedOutcome) return;

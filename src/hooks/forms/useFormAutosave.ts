@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { Logger } from '../../utils/logger';
 
@@ -40,6 +40,7 @@ export const useFormAutosave = ({
 }: UseFormAutosaveParams): {
   isInitialized: boolean;
   autoSaveError: boolean;
+  flushNow: () => Promise<void>;
 } => {
   const [isInitialized, setIsInitialized] = useState(false);
   const [autoSaveError, setAutoSaveError] = useState(false);
@@ -255,7 +256,31 @@ export const useFormAutosave = ({
     updateTaskFormData,
   ]);
 
-  return { isInitialized, autoSaveError };
+  // M6 (audit 2026-04-21): synchronous flush path for callers who
+  // need to persist the current form state NOW — e.g. the
+  // `beforeRemove` navigation guard that shows "your draft will be
+  // auto-saved" and then lets the user leave. Without this, the
+  // 300 ms debounce timer could still be pending at the moment of
+  // navigation; the effect's cleanup would then cancel it and the
+  // last keystrokes would be lost.
+  const flushNow = useCallback(async () => {
+    const currentTaskId = latestTaskIdRef.current;
+    const latestValues = latestFormValuesRef.current;
+    if (!currentTaskId || Object.keys(latestValues).length === 0) {
+      return;
+    }
+    try {
+      await updateTaskFormData(currentTaskId, latestValues);
+      await persistAutoSave(currentTaskId, {
+        formType: latestTaskFormTypeRef.current || 'DEFAULT',
+        formData: latestValues,
+      });
+    } catch (err) {
+      Logger.error(TAG, 'Autosave flushNow failed', err);
+    }
+  }, [persistAutoSave, updateTaskFormData]);
+
+  return { isInitialized, autoSaveError, flushNow };
 };
 
 export default useFormAutosave;
