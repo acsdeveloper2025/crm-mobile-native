@@ -58,8 +58,13 @@ const MAX_BUFFER_SIZE = 500;
  * it redacts values for keys whose name looks sensitive, regardless
  * of how deep they are in the object.
  */
+// S5 (audit 2026-04-21 round 2): extended to redact user-PII keys —
+// `username`, `email`, `phone`/`mobile`, `employeeId`, `pincode`, and
+// `address`. Previously only password/tokens/coords were covered, so
+// an `error.config.data` payload from a login-endpoint failure could
+// still ship the username unredacted.
 const SENSITIVE_KEY_PATTERN =
-  /(access[_-]?token|refresh[_-]?token|id[_-]?token|auth(?:orization)?|password|passcode|pin(?![a-z])|secret|api[_-]?key|private[_-]?key|ssn|aadhaar|pan(?:[_-]?card)?|credit[_-]?card|cvv|otp|session[_-]?id|cookie|bearer|\blat(?:itude)?\b|\blon(?:g|gitude)?\b|\blng\b|\bcoord(?:s|inate|inates)?\b|\bgps\b|\bgeo[_-]?location\b)/i;
+  /(access[_-]?token|refresh[_-]?token|id[_-]?token|auth(?:orization)?|password|passcode|pin(?![a-z])|secret|api[_-]?key|private[_-]?key|ssn|aadhaar|pan(?:[_-]?card)?|credit[_-]?card|cvv|otp|session[_-]?id|cookie|bearer|\blat(?:itude)?\b|\blon(?:g|gitude)?\b|\blng\b|\bcoord(?:s|inate|inates)?\b|\bgps\b|\bgeo[_-]?location\b|username|\bemail\b|\bphone\b|\bmobile[_-]?number\b|employee[_-]?id|pincode|\baddress(?![_-]?(?:city|state|pincode|street))\b)/i;
 
 const REDACTED = '[REDACTED]';
 // Bound recursion on deeply nested or cyclic inputs.

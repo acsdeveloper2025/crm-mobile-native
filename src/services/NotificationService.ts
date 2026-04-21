@@ -522,39 +522,66 @@ class NotificationServiceImpl {
   }
 
   /**
-   * Hook for network sync to dump backend payloads
+   * Hook for network sync to dump backend payloads.
+   *
+   * A8 (audit 2026-04-21 round 2): previously made a single call with
+   * `limit=100&offset=0` — a field agent with >100 backlogged
+   * notifications would lose the oldest ones. Now paginates in
+   * 100-row pages up to a safety cap until `pagination.hasMore === false`.
    */
   async refreshFromBackend(): Promise<void> {
-    try {
-      const response = await ApiClient.get<{
-        success: boolean;
-        data?: Array<{
-          id: string;
-          type: string;
-          title: string;
-          message: string;
-          priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
-          isRead?: boolean;
-          taskId?: string | null;
-          caseNumber?: string | null;
-          actionUrl?: string | null;
-          createdAt?: string;
-          updatedAt?: string;
-        }>;
-      }>(`${ENDPOINTS.NOTIFICATIONS.LIST}?limit=100&offset=0`);
+    type NotificationRow = {
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
+      isRead?: boolean;
+      taskId?: string | null;
+      caseNumber?: string | null;
+      actionUrl?: string | null;
+      createdAt?: string;
+      updatedAt?: string;
+    };
 
-      if (!response.success || !response.data) {
-        throw new Error('Invalid notifications response');
+    const PAGE_LIMIT = 100;
+    const MAX_PAGES = 10; // safety cap — 1000 notifications per refresh
+    const collected: NotificationRow[] = [];
+
+    try {
+      let offset = 0;
+      for (let page = 0; page < MAX_PAGES; page += 1) {
+        const response = await ApiClient.get<{
+          success: boolean;
+          data?: NotificationRow[];
+          pagination?: { hasMore?: boolean };
+        }>(
+          `${ENDPOINTS.NOTIFICATIONS.LIST}?limit=${PAGE_LIMIT}&offset=${offset}`,
+        );
+
+        if (!response.success || !response.data) {
+          throw new Error('Invalid notifications response');
+        }
+
+        validateResponse(MobileNotificationListSchema, response.data, {
+          service: 'notifications',
+          endpoint: 'GET /notifications',
+        });
+
+        collected.push(...response.data);
+
+        const hasMore =
+          Boolean(response.pagination?.hasMore) &&
+          response.data.length === PAGE_LIMIT;
+        if (!hasMore) {
+          break;
+        }
+        offset += PAGE_LIMIT;
       }
 
-      validateResponse(MobileNotificationListSchema, response.data, {
-        service: 'notifications',
-        endpoint: 'GET /notifications',
-      });
+      await this.upsertBackendNotifications(collected);
 
-      await this.upsertBackendNotifications(response.data || []);
-
-      const assignment = (response.data || []).find(
+      const assignment = collected.find(
         item =>
           (item.type === 'CASE_ASSIGNED' || item.type === 'CASE_REASSIGNED') &&
           item.taskId,

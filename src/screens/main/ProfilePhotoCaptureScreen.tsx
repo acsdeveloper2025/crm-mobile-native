@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -37,6 +37,17 @@ export const ProfilePhotoCaptureScreen = ({ navigation }: any) => {
   const [isActive, setIsActive] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isPreparing, setIsPreparing] = useState(true);
+
+  // B5 (audit 2026-04-21 round 2): guard async setState in handleCapture
+  // against unmount. Without this, `setIsCapturing(false)` +
+  // `updateProfilePhoto` can fire after the user has navigated away.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const format = useCameraFormat(device, [
     { photoResolution: { width: 1280, height: 720 } },
@@ -96,16 +107,22 @@ export const ProfilePhotoCaptureScreen = ({ navigation }: any) => {
       }
 
       await updateProfilePhoto(`file://${destPath}`);
-      navigation.goBack();
+      if (isMountedRef.current) {
+        navigation.goBack();
+      }
     } catch (err: unknown) {
-      Alert.alert(
-        'Capture Error',
-        err instanceof Error
-          ? err.message
-          : String(err) || 'Failed to capture photo.',
-      );
+      if (isMountedRef.current) {
+        Alert.alert(
+          'Capture Error',
+          err instanceof Error
+            ? err.message
+            : String(err) || 'Failed to capture photo.',
+        );
+      }
     } finally {
-      setIsCapturing(false);
+      if (isMountedRef.current) {
+        setIsCapturing(false);
+      }
     }
   };
 

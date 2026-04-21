@@ -211,6 +211,22 @@ export const SubmitVerificationUseCase = {
       );
     }
 
+    // D7 (audit 2026-04-21 round 2): Pre-emptively run cleanup above
+    // the transaction boundary. `SyncQueue.enqueue` (called inside the
+    // transaction below) has its own `hasEnoughSpace(50)` check that
+    // invokes `StorageService.cleanupSyncedData` when low — which
+    // deletes both DB rows and disk files while the outer transaction
+    // is open. If the outer transaction later fails, the DB row
+    // DELETEs roll back but the RNFS.unlink calls don't, leaving
+    // attachments rows pointing at non-existent files. Running the
+    // cleanup first means by the time we enter the transaction,
+    // `hasEnoughSpace(50)` is satisfied and the inner cleanup is a
+    // no-op.
+    const hasHeadroomForEnqueue = await StorageService.hasEnoughSpace(50);
+    if (!hasHeadroomForEnqueue) {
+      await StorageService.cleanupSyncedData(1);
+    }
+
     // Wrap all DB writes + sync queue enqueue in a single transaction.
     // If any step fails, everything rolls back — no orphaned forms.
     await DatabaseService.transaction(async () => {

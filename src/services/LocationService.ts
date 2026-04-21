@@ -138,7 +138,13 @@ class LocationServiceClass {
             resolve(result);
           },
           (error: GeolocationError) => {
-            Logger.error(TAG, `Location error: ${error.message}`, error);
+            // S7 (audit 2026-04-21 round 2): pass the error as the
+            // structured `data` argument so the logger's
+            // SENSITIVE_KEY_PATTERN can redact any coord-shaped keys
+            // the OS attaches (some Android OEMs include last-known
+            // lat/lng in the message field). Do not interpolate
+            // `error.message` into the log string.
+            Logger.error(TAG, 'Location error', error);
             reject(error);
           },
           {

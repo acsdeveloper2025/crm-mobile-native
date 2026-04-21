@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -25,15 +25,30 @@ export const SyncLogsScreen = () => {
   const [filter, setFilter] = useState<'ALL' | 'FAILED'>('FAILED');
   const failedCount = logs.filter(item => item.status === 'FAILED').length;
 
+  // B6 (audit 2026-04-21 round 2): guard loadLogs setState against
+  // unmount. Without this, navigating away during a slow DB read
+  // produces the "can't setState on unmounted component" warning and
+  // briefly wastes work rebuilding the list.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const loadLogs = useCallback(async () => {
     try {
       setLoading(true);
       const results = await SyncQueueRepository.listLogs(filter);
+      if (!isMountedRef.current) return;
       setLogs(results);
     } catch (e) {
       Logger.error('SyncLogsScreen', 'Failed to load sync logs', e);
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
   }, [filter]);
 
@@ -180,6 +195,9 @@ export const SyncLogsScreen = () => {
           },
         ]}
       >
+        {/* U10 + U11 (audit 2026-04-21 round 2): 44×44 touch target via
+            styles.tab (bumped to minHeight 44) and a11y role +
+            selected state. */}
         <TouchableOpacity
           style={[
             styles.tab,
@@ -189,6 +207,9 @@ export const SyncLogsScreen = () => {
             ],
           ]}
           onPress={() => setFilter('FAILED')}
+          accessibilityRole="button"
+          accessibilityState={{ selected: filter === 'FAILED' }}
+          accessibilityLabel="Show failed sync logs only"
         >
           <Text
             style={[
@@ -212,6 +233,9 @@ export const SyncLogsScreen = () => {
             ],
           ]}
           onPress={() => setFilter('ALL')}
+          accessibilityRole="button"
+          accessibilityState={{ selected: filter === 'ALL' }}
+          accessibilityLabel="Show all sync logs"
         >
           <Text
             style={[
@@ -350,8 +374,12 @@ const styles = StyleSheet.create({
   },
   tab: {
     flex: 1,
-    paddingVertical: 10,
+    // U10 (round 2): raise padding + minHeight so the two filter tabs
+    // clear the 44 px touch-target threshold.
+    minHeight: 44,
+    paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
     borderRadius: 8,
   },
   tabActive: {

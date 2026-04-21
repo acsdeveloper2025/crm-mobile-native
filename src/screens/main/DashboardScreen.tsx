@@ -244,12 +244,20 @@ export const DashboardScreen = () => {
               </Text>
             </View>
             <View style={styles.headerActions}>
+              {/* U4 (audit 2026-04-21 round 2): added accessibilityRole
+                  + accessibilityLabel on the three icon-only header
+                  buttons so screen readers announce them. */}
               <TouchableOpacity
                 style={[
                   styles.bellIcon,
-                  { backgroundColor: theme.colors.surface },
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                  },
                 ]}
                 onPress={cycleThemePreference}
+                accessibilityRole="button"
+                accessibilityLabel={`Toggle theme (current: ${themePreference})`}
               >
                 <Icon
                   name={getThemeIcon()}
@@ -260,9 +268,18 @@ export const DashboardScreen = () => {
               <TouchableOpacity
                 style={[
                   styles.bellIcon,
-                  { backgroundColor: theme.colors.surface },
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                  },
                 ]}
                 onPress={() => setIsNotificationCenterVisible(true)}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  unreadNotifications > 0
+                    ? `Open notifications, ${unreadNotifications} unread`
+                    : 'Open notifications'
+                }
               >
                 <Icon
                   name="notifications-outline"
@@ -285,9 +302,14 @@ export const DashboardScreen = () => {
               <TouchableOpacity
                 style={[
                   styles.bellIcon,
-                  { backgroundColor: theme.colors.surface },
+                  {
+                    backgroundColor: theme.colors.surface,
+                    borderColor: theme.colors.border,
+                  },
                 ]}
                 onPress={() => navigation.navigate('Profile')}
+                accessibilityRole="button"
+                accessibilityLabel="Open profile"
               >
                 <Icon
                   name="person-outline"
@@ -359,6 +381,8 @@ export const DashboardScreen = () => {
                 },
               ]}
               onPress={() => navigateToTasks('ASSIGNED')}
+              accessibilityRole="button"
+              accessibilityLabel={`${assignedTasks} assigned tasks, tap to open`}
             >
               <View style={styles.statHeader}>
                 <Text
@@ -390,6 +414,8 @@ export const DashboardScreen = () => {
                 },
               ]}
               onPress={() => navigateToTasks('IN_PROGRESS')}
+              accessibilityRole="button"
+              accessibilityLabel={`${inProgressTasks} in-progress tasks, tap to open`}
             >
               <View style={styles.statHeader}>
                 <Text
@@ -423,6 +449,8 @@ export const DashboardScreen = () => {
                 },
               ]}
               onPress={() => navigateToTasks('COMPLETED')}
+              accessibilityRole="button"
+              accessibilityLabel={`${completedTasks} completed tasks, tap to open`}
             >
               <View style={styles.statHeader}>
                 <Text
@@ -454,6 +482,8 @@ export const DashboardScreen = () => {
                 },
               ]}
               onPress={() => navigateToTasks('SAVED')}
+              accessibilityRole="button"
+              accessibilityLabel={`${savedTasks} saved tasks, tap to open`}
             >
               <View style={styles.statHeader}>
                 <Text
@@ -554,6 +584,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     columnGap: 8,
   },
+  // U2 (audit 2026-04-21 round 2): borderColor was hardcoded
+  // rgba(0,0,0,0.1) — near-invisible on dark-mode surfaces. Consumers
+  // now override with `theme.colors.border` inline.
   bellIcon: {
     width: 44,
     height: 44,
@@ -561,7 +594,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(0,0,0,0.1)',
     position: 'relative',
   },
   unreadBadge: {

@@ -108,11 +108,7 @@ class DatabaseServiceClass {
           'Database recreated after corruption recovery',
         );
       } else {
-        Logger.error(
-          'DatabaseService',
-          'Failed to initialize database',
-          error,
-        );
+        Logger.error('DatabaseService', 'Failed to initialize database', error);
         throw error;
       }
     }
@@ -224,16 +220,34 @@ class DatabaseServiceClass {
     // region so forensic recovery of prior-token ciphertext is blocked.
     await this.db.executeSql('PRAGMA secure_delete = ON;');
 
-    // Create tables
+    // DB5 (audit 2026-04-21 round 2): wrap CREATE TABLE + CREATE INDEX
+    // setup in a single transaction. Previously a transient SQLite I/O
+    // error mid-loop would leave the DB with a partial schema
+    // (fewer indexes than expected), which the next open would
+    // silently accept. Atomic setup means we either have the full
+    // schema or roll all the way back.
     const statements = SCHEMA_SQL.split(';').filter(s => s.trim().length > 0);
-    for (const statement of statements) {
-      await this.db.executeSql(statement + ';');
-    }
-
-    // Create indexes
     const indexes = INDEX_SQL.split(';').filter(s => s.trim().length > 0);
-    for (const index of indexes) {
-      await this.db.executeSql(index + ';');
+    await this.db.executeSql('BEGIN TRANSACTION;');
+    try {
+      for (const statement of statements) {
+        await this.db.executeSql(statement + ';');
+      }
+      for (const index of indexes) {
+        await this.db.executeSql(index + ';');
+      }
+      await this.db.executeSql('COMMIT;');
+    } catch (schemaError) {
+      try {
+        await this.db.executeSql('ROLLBACK;');
+      } catch (rollbackError) {
+        Logger.error(
+          'DatabaseService',
+          'Schema setup rollback failed',
+          rollbackError,
+        );
+      }
+      throw schemaError;
     }
 
     // Mark the DB usable *before* the potentially slow migration pass.

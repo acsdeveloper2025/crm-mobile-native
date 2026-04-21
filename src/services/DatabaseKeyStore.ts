@@ -29,9 +29,13 @@ class DatabaseKeyStoreClass {
     }
 
     const generatedKey = generateEncryptionKey();
+    // S8 (audit 2026-04-21 round 2): request hardware-backed storage
+    // for the DB master key too. Library silently falls back to
+    // software on devices without a Secure Element.
     await Keychain.setGenericPassword(DB_KEY_USERNAME, generatedKey, {
       service: DB_KEY_SERVICE,
       accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+      securityLevel: Keychain.SECURITY_LEVEL.SECURE_HARDWARE,
     });
     return generatedKey;
   }

@@ -312,14 +312,18 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
               <TouchableOpacity
                 style={[
                   styles.reorderButton,
+                  { backgroundColor: theme.colors.surfaceAlt },
                   !canMoveUp && styles.reorderButtonDisabled,
                 ]}
                 onPress={() => onMoveTask?.(task.id, 'up')}
                 disabled={!canMoveUp}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="Move task up"
               >
                 <Icon
                   name="chevron-up-outline"
-                  size={16}
+                  size={18}
                   color={
                     canMoveUp
                       ? theme.colors.textSecondary
@@ -330,14 +334,18 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
               <TouchableOpacity
                 style={[
                   styles.reorderButton,
+                  { backgroundColor: theme.colors.surfaceAlt },
                   !canMoveDown && styles.reorderButtonDisabled,
                 ]}
                 onPress={() => onMoveTask?.(task.id, 'down')}
                 disabled={!canMoveDown}
+                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                accessibilityRole="button"
+                accessibilityLabel="Move task down"
               >
                 <Icon
                   name="chevron-down-outline"
-                  size={16}
+                  size={18}
                   color={
                     canMoveDown
                       ? theme.colors.textSecondary
@@ -529,13 +537,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 4,
   },
+  // U8 (audit 2026-04-21 round 2): sized to 40×40 (just below 44 for
+  // density in the badge row but large enough to hit reliably) with
+  // 12/12 hitSlop applied inline at call sites. Background override
+  // now comes from theme.colors.surfaceAlt so dark mode doesn't lose
+  // visibility.
   reorderButton: {
-    width: 28,
-    height: 24,
-    borderRadius: 6,
+    width: 40,
+    height: 40,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   reorderButtonDisabled: {
     opacity: 0.5,

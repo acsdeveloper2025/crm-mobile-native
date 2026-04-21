@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useTaskManager } from '../context/TaskContext';
 import { ProjectionStore } from '../store/ProjectionStore';
@@ -30,7 +30,21 @@ export const useTasks = (statusFilter?: string, searchQuery?: string): any => {
   );
   const taskIds = useSelector(selector);
 
+  // B8 (audit 2026-04-21 round 2): requestId pattern — only the most
+  // recent refresh call is allowed to clear the spinner. A rapid
+  // tab-switch previously let a stale resolve land after a newer
+  // refresh had started, clearing the spinner in error.
+  const requestIdRef = useRef(0);
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const refreshProjectedTasks = useCallback(async () => {
+    const requestId = ++requestIdRef.current;
     try {
       setIsLoading(true);
       setError(null);
@@ -38,13 +52,17 @@ export const useTasks = (statusFilter?: string, searchQuery?: string): any => {
       await ProjectionStore.ensureSelector(selector, { force: true });
     } catch (refreshError) {
       Logger.warn(TAG, 'Failed to refresh projected tasks', refreshError);
-      setError(
-        refreshError instanceof Error
-          ? refreshError.message
-          : 'Failed to refresh tasks',
-      );
+      if (isMountedRef.current && requestId === requestIdRef.current) {
+        setError(
+          refreshError instanceof Error
+            ? refreshError.message
+            : 'Failed to refresh tasks',
+        );
+      }
     } finally {
-      setIsLoading(false);
+      if (isMountedRef.current && requestId === requestIdRef.current) {
+        setIsLoading(false);
+      }
     }
   }, [refreshTasks, selector]);
 

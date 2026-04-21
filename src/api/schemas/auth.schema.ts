@@ -12,7 +12,11 @@ import { z } from 'zod';
 export const MobileUserSchema = z
   .object({
     id: z.string().min(1),
-    name: z.string(),
+    // A6 (audit 2026-04-21 round 2): backend's `users.name` is not
+    // NOT NULL in the DB; it arrives as JSON `null` for rows with no
+    // display name. Previous `z.string()` fired a drift warning every
+    // time such a user logged in.
+    name: z.string().nullable().optional(),
     username: z.string().min(1),
     email: z.string().optional().nullable(),
     role: z.string(),

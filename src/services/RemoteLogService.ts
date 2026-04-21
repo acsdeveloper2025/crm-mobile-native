@@ -61,11 +61,13 @@ class RemoteLogServiceClass {
         payload,
       });
       return true;
-    } catch (error) {
-      // Can't Logger.error here without risking a feedback loop
-      // where the failed upload generates a new error entry that
-      // triggers another upload attempt. Log via console only.
-      console.warn(`[${TAG}] Failed to upload log tail`, error);
+    } catch {
+      // S11 (audit 2026-04-21 round 2): can't call Logger here (would
+      // feedback-loop a new error into the next upload batch), and
+      // we don't log the error object — it can carry device
+      // fingerprint / request headers. One-line console.warn is
+      // enough for local debugging.
+      console.warn(`[${TAG}] upload failed`);
       return false;
     }
   }

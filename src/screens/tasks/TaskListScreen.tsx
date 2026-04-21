@@ -698,7 +698,14 @@ export const TaskListScreen = ({
             onChangeText={setSearchQuery}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            // U7 (audit 2026-04-21 round 2): added hitSlop so the 20px
+            // icon has a full 44×44 tappable area, plus a11y label.
+            <TouchableOpacity
+              onPress={() => setSearchQuery('')}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              accessibilityRole="button"
+              accessibilityLabel="Clear search"
+            >
               <Icon
                 name="close-circle"
                 size={20}
@@ -825,10 +832,14 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
   },
+  // U9 (audit 2026-04-21 round 2): raise padding + minHeight to meet
+  // 44×44 target for sort-order buttons.
   sortButton: {
     borderRadius: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   sortButtonText: {
     fontSize: 12,
@@ -878,10 +889,16 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   filterTab: {
-    paddingVertical: 7,
+    // U6 (audit 2026-04-21 round 2): raised to 44 min-height +
+    // centered content so the 5 filter pills at the top of every
+    // task list satisfy the 44×44 touch-target guideline. Previous
+    // paddingVertical: 7 gave ~28 px.
+    minHeight: 44,
+    paddingVertical: 10,
     paddingHorizontal: 14,
-    borderRadius: 20,
+    borderRadius: 22,
     marginRight: 8,
+    justifyContent: 'center',
   },
   activeFilterTab: {
     elevation: 2,

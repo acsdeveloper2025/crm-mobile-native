@@ -1,7 +1,7 @@
 // SQLite Database Schema and Migrations
 // Offline-first schema for field verification data
 
-export const DB_VERSION = 10;
+export const DB_VERSION = 11;
 
 /**
  * All CREATE TABLE statements for the local SQLite database.
@@ -188,7 +188,14 @@ CREATE TABLE IF NOT EXISTS user_session (
   logged_in_at TEXT NOT NULL
 );
 
--- Audit log (local operation trail for accountability)
+-- Audit log (local operation trail for accountability).
+-- DB3 (audit 2026-04-21 round 2): this table is currently inert -- no
+-- INSERT INTO audit_log call site exists in src/. Left in place
+-- (schema stays stable, no migration needed) pending a decision to
+-- either wire up AuthService / SyncProcessor writes OR drop the table
+-- in a later DB_VERSION bump. Sweep cron
+-- MaintenanceRepository.deleteSyncedAuditLogsOlderThan still runs
+-- harmlessly against zero rows.
 CREATE TABLE IF NOT EXISTS audit_log (
   id TEXT PRIMARY KEY,
   action TEXT NOT NULL,
@@ -289,7 +296,11 @@ CREATE INDEX IF NOT EXISTS idx_locations_timestamp ON locations(timestamp);
 CREATE INDEX IF NOT EXISTS idx_form_submissions_task_id ON form_submissions(task_id);
 CREATE INDEX IF NOT EXISTS idx_form_submissions_sync_status ON form_submissions(sync_status);
 
-CREATE INDEX IF NOT EXISTS idx_form_templates_lookup ON form_templates(verification_type, outcome);
+-- DB4 (audit 2026-04-21 round 2): promoted to UNIQUE so backend
+-- template churn (id regenerated but same verification_type/outcome
+-- pair) cannot accumulate duplicate rows that getCachedTemplate
+-- LIMIT 1 would silently pick between.
+CREATE UNIQUE INDEX IF NOT EXISTS idx_form_templates_lookup ON form_templates(verification_type, outcome);
 
 CREATE INDEX IF NOT EXISTS idx_sync_queue_status ON sync_queue(status);
 CREATE INDEX IF NOT EXISTS idx_sync_queue_priority ON sync_queue(priority, created_at);
@@ -547,6 +558,15 @@ export const MIGRATIONS: Migration[] = [
       'Add sync_queue.user_id to isolate per-user queues on shared devices (C6)',
     sql: `
       ALTER TABLE sync_queue ADD COLUMN user_id TEXT;
+    `,
+  },
+  {
+    version: 11,
+    description:
+      'Promote idx_form_templates_lookup to UNIQUE so backend template-id churn cannot accumulate duplicates (DB4, round-2 audit)',
+    sql: `
+      DROP INDEX IF EXISTS idx_form_templates_lookup;
+      CREATE UNIQUE INDEX idx_form_templates_lookup ON form_templates(verification_type, outcome);
     `,
   },
 ];

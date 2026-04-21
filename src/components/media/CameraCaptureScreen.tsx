@@ -25,6 +25,10 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
   const { taskId, componentType, taskMeta } = route.params || {};
   const device = useCameraDevice(componentType === 'selfie' ? 'front' : 'back');
   const camera = useRef<Camera>(null);
+  // B4 (audit 2026-04-21 round 2): AppState listener reads the latest
+  // permission state via this ref rather than a state variable that
+  // would be stale in the closure captured at focus time.
+  const hasPermissionRef = useRef<boolean>(false);
 
   const [hasPermission, setHasPermission] = useState<boolean>(false);
   const [isActive, setIsActive] = useState(false);
@@ -47,6 +51,7 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
       const cameraPermission = await Camera.requestCameraPermission();
       const granted = cameraPermission === 'granted';
       setHasPermission(granted);
+      hasPermissionRef.current = granted;
       Logger.info(TAG, `Camera permission: ${cameraPermission}`);
 
       if (!granted) {
@@ -101,7 +106,11 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
       // Handle app going to background/foreground — camera must deactivate
       // when app is backgrounded to release the hardware resource on real devices.
       const subscription = AppState.addEventListener('change', nextState => {
-        if (nextState === 'active' && hasPermission) {
+        // B4 (audit 2026-04-21 round 2): read permission state from the
+        // ref so the listener sees the latest value, not whatever was
+        // captured at focus time (which was always false on the first
+        // post-grant background/foreground cycle).
+        if (nextState === 'active' && hasPermissionRef.current) {
           setIsActive(true);
         } else if (nextState === 'background' || nextState === 'inactive') {
           setIsActive(false);
@@ -112,7 +121,6 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
         setIsActive(false);
         subscription.remove();
       };
-      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [requestPermissions]),
   );
 
