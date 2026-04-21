@@ -170,15 +170,25 @@ class SyncDownloadServiceClass {
         }
         offset += pageSize;
 
-        // Update sync timestamp per page so a mid-download crash doesn't
-        // re-download all pages from scratch. Pages already processed won't
-        // cause duplicates thanks to upsertTaskFromServer using INSERT OR REPLACE.
-        await SyncEngineRepository.execute(
-          `INSERT OR REPLACE INTO sync_metadata (id, last_download_sync_at, device_id, sync_in_progress)
-           VALUES (1, ?, (SELECT COALESCE(device_id, 'unknown') FROM sync_metadata WHERE id = 1), 1)`,
-          [latestSyncTimestamp],
-        );
+        // H2 (audit 2026-04-21): last_download_sync_at is NOT persisted
+        // per page any more. Previous impl updated it at the end of every
+        // page, so a mid-cycle crash in page N+1 on restart would ask the
+        // server for rows newer than page N's end-timestamp and SKIP any
+        // rows between the cycle's original lastSyncAt and page N's end.
+        // Full-cycle persist (below, after the loop) is the correctness
+        // fix; `upsertTaskFromServer` is INSERT OR REPLACE so re-
+        // downloading a few pages on crash recovery is cheap and idempotent.
       }
+
+      // Cycle succeeded — NOW persist the new watermark. If we error out
+      // before this line, last_download_sync_at stays at its pre-cycle
+      // value and the next cycle re-downloads from there. No skip,
+      // upserts are idempotent.
+      await SyncEngineRepository.execute(
+        `INSERT OR REPLACE INTO sync_metadata (id, last_download_sync_at, device_id, sync_in_progress)
+         VALUES (1, ?, (SELECT COALESCE(device_id, 'unknown') FROM sync_metadata WHERE id = 1), 1)`,
+        [latestSyncTimestamp],
+      );
 
       await ProjectionUpdater.rebuildDashboard();
 
@@ -191,13 +201,15 @@ class SyncDownloadServiceClass {
       );
       return { tasksDownloaded: 0, conflicts: 0, errors };
     } finally {
-      // ALWAYS clear sync_in_progress flag, even on mid-download errors, so the
-      // watchdog / UI doesn't see a stuck "syncing" state on the next app launch.
+      // ALWAYS clear sync_in_progress flag, even on mid-download errors, so
+      // the watchdog / UI doesn't see a stuck "syncing" state on the next
+      // app launch. H2: this UPDATE is scoped to sync_in_progress ONLY and
+      // must NOT touch last_download_sync_at — otherwise a mid-cycle error
+      // would stamp a partial watermark and cause the skip the main fix
+      // above is designed to prevent.
       try {
         await SyncEngineRepository.execute(
-          `INSERT OR REPLACE INTO sync_metadata (id, last_download_sync_at, device_id, sync_in_progress)
-           VALUES (1, ?, (SELECT COALESCE(device_id, 'unknown') FROM sync_metadata WHERE id = 1), 0)`,
-          [latestSyncTimestamp],
+          `UPDATE sync_metadata SET sync_in_progress = 0 WHERE id = 1`,
         );
       } catch (flagError) {
         Logger.error(TAG, 'Failed to clear sync_in_progress flag', flagError);
