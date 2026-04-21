@@ -107,6 +107,43 @@ export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
       return [];
     }
 
+    // H23 (audit 2026-04-21): detect colliding field keys across the
+    // whole template up front. The old code silently fell back to
+    // `field.id` when `field.name` was empty; if two fields shared
+    // an id (template authoring error) both would map to the same
+    // form-state key and every keystroke on one would overwrite the
+    // other. Logging a warning at render time surfaces the bug to
+    // telemetry so authoring issues get caught in testing instead of
+    // corrupting live submissions.
+    const seenKeys = new Set<string>();
+    const collisions = new Set<string>();
+    for (const section of Array.isArray(template.sections)
+      ? template.sections
+      : []) {
+      for (const field of Array.isArray(section.fields) ? section.fields : []) {
+        const valueKey =
+          field.name && field.name.trim() !== '' ? field.name : field.id;
+        if (!valueKey) {
+          continue;
+        }
+        if (seenKeys.has(valueKey)) {
+          collisions.add(valueKey);
+        } else {
+          seenKeys.add(valueKey);
+        }
+      }
+    }
+    if (collisions.size > 0) {
+      console.warn(
+        '[DynamicFormBuilder] duplicate field keys in template — form state will collide',
+        {
+          templateKey: (template as unknown as Record<string, unknown>)
+            .formType,
+          collisions: Array.from(collisions),
+        },
+      );
+    }
+
     return (Array.isArray(template.sections) ? template.sections : [])
       .filter((section: FormSectionTemplate) =>
         isSectionVisible(section, formValues),

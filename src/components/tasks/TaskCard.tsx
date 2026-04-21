@@ -212,6 +212,10 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
                 style={styles.iconButton}
                 onPress={handleAccept}
                 disabled={isAccepting}
+                accessibilityRole="button"
+                accessibilityLabel={
+                  isAccepting ? 'Accepting task' : 'Accept task'
+                }
               >
                 {isAccepting ? (
                   <ActivityIndicator
@@ -235,6 +239,8 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
               <TouchableOpacity
                 style={styles.iconButton}
                 onPress={() => onRevokePress?.(task)}
+                accessibilityRole="button"
+                accessibilityLabel="Revoke task"
               >
                 <Icon
                   name="close-circle"
@@ -253,6 +259,8 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
           <TouchableOpacity
             style={styles.iconButton}
             onPress={() => onInfoPress?.(task)}
+            accessibilityRole="button"
+            accessibilityLabel="Task info"
           >
             <Icon
               name="information-circle"
@@ -273,6 +281,12 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
             style={styles.iconButton}
             onPress={() =>
               onAttachmentsPress ? onAttachmentsPress(task) : onPress(task)
+            }
+            accessibilityRole="button"
+            accessibilityLabel={
+              (task.attachmentCount || 0) > 0
+                ? `Attachments (${task.attachmentCount})`
+                : 'Attachments'
             }
           >
             <Icon name="attach" size={28} color={theme.colors.primary} />
