@@ -77,8 +77,28 @@ class SyncQueueClass {
    * window in CameraService.saveCapturedPhoto where the DB insert (inside a
    * transaction) and the enqueue call (outside) can be interrupted, leaving
    * a PENDING attachment that would otherwise never upload.
+   *
+   * H1 (audit 2026-04-21): only reconcile attachments whose task belongs to
+   * the currently logged-in user. Without this filter, if user A's PENDING
+   * attachments survive logout and user B signs in before SyncDownloadService
+   * drops A's tasks, this method would re-enqueue A's orphans stamped with
+   * B's userId (enqueue() reads AuthService.getCurrentUser()) — they'd then
+   * upload under B's JWT and be attributed to B on the server. The JOIN to
+   * `tasks` is INNER here (no orphans without a task) and filters by
+   * `assigned_to_field_user = current_user_id` so cross-user contamination
+   * is impossible. Attachments whose task has been dropped from the local
+   * tasks table are skipped — SyncDownloadService's revoke/delete path (C10)
+   * has already moved them to `sync_status='ABANDONED'` anyway.
    */
   async reconcileOrphanAttachments(): Promise<number> {
+    const userId = this.currentUserId();
+    if (!userId) {
+      // No logged-in user → nothing to reconcile for. Defensive: the sync
+      // pipeline shouldn't be running in that state, but returning 0 here
+      // avoids any chance of grabbing orphaned-legacy rows under no user.
+      return 0;
+    }
+
     const rows = await SyncEngineRepository.query<{
       id: string;
       taskId: string;
@@ -99,14 +119,16 @@ class SyncQueueClass {
               a.latitude, a.longitude, a.accuracy, a.location_timestamp,
               t.verification_type_code
        FROM attachments a
-       LEFT JOIN tasks t ON t.id = a.task_id
+       INNER JOIN tasks t ON t.id = a.task_id
        WHERE a.sync_status = 'PENDING'
+         AND t.assigned_to_field_user = ?
          AND NOT EXISTS (
            SELECT 1 FROM sync_queue q
            WHERE q.entity_type = 'ATTACHMENT'
              AND q.entity_id = a.id
              AND q.status IN ('PENDING', 'IN_PROGRESS', 'FAILED')
          )`,
+      [userId],
     );
 
     if (rows.length === 0) {
