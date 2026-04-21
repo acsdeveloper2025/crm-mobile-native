@@ -88,6 +88,8 @@ export const TaskInfoModal: React.FC<TaskInfoModalProps> = ({
             <TouchableOpacity
               onPress={onClose}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
             >
               <Icon name="close" size={24} color={theme.colors.textMuted} />
             </TouchableOpacity>
