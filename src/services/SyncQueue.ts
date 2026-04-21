@@ -30,7 +30,8 @@ export type EntityType =
   | 'VISIT_PHOTO'
   | 'LOCATION'
   | 'FORM_SUBMISSION'
-  | 'NOTIFICATION_ACTION';
+  | 'NOTIFICATION_ACTION'
+  | 'PROFILE_PHOTO';
 export type ActionType = 'CREATE' | 'UPDATE' | 'DELETE';
 
 // Legacy priority levels remain supported for backward compatibility.

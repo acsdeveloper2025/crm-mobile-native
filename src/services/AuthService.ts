@@ -385,6 +385,9 @@ class AuthServiceClass {
 
   /**
    * Update profile photo URL for current user and persist to SQLite.
+   * Accepts either a local `file://` path (immediate post-capture
+   * display) or a server URL (after upload succeeds); the caller
+   * decides the semantics.
    */
   async updateProfilePhoto(
     profilePhotoUrl: string,
@@ -405,6 +408,17 @@ class AuthServiceClass {
     }
 
     return updatedUser;
+  }
+
+  /**
+   * Replace the stored profile-photo URL with a server URL after a
+   * background upload succeeds. Semantic alias for
+   * `updateProfilePhoto` used by `ProfilePhotoSyncUploader` so the
+   * call site reads as "the upload completed; swap the local file://
+   * URL for the server URL".
+   */
+  async updateProfilePhotoUrl(serverUrl: string): Promise<UserProfile | null> {
+    return this.updateProfilePhoto(serverUrl);
   }
 
   /**

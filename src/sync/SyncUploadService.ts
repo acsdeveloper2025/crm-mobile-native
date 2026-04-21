@@ -4,6 +4,7 @@ import { AttachmentUploader } from './uploaders/AttachmentUploader';
 import { FormUploader } from './uploaders/FormUploader';
 import { LocationUploader } from './uploaders/LocationUploader';
 import { NotificationUploader } from './uploaders/NotificationUploader';
+import { ProfilePhotoSyncUploader } from './uploaders/ProfilePhotoSyncUploader';
 import { TaskUploader } from './uploaders/TaskUploader';
 
 class SyncUploadServiceClass {
@@ -22,6 +23,8 @@ class SyncUploadServiceClass {
         return TaskUploader.uploadTaskStatus(operation);
       case 'NOTIFICATION_ACTION':
         return NotificationUploader.upload(operation);
+      case 'PROFILE_PHOTO':
+        return ProfilePhotoSyncUploader.upload(operation);
       default:
         return {
           outcome: 'FAILURE',
