@@ -34,28 +34,30 @@ type TaskMeta = {
   verificationType?: string;
 };
 
-const resolveLocation = (
-  highAccuracy: boolean,
-  timeout: number,
-  maxAge: number,
-): Promise<PreviewLocation | null> =>
-  new Promise(resolve => {
-    Geolocation.getCurrentPosition(
-      pos => {
-        resolve({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          alt: pos.coords.altitude || 0,
-          spd: pos.coords.speed || 0,
-          accuracy: pos.coords.accuracy || 0,
-          timestamp: new Date(pos.timestamp).toISOString(),
-          heading: pos.coords.heading || undefined,
-        });
-      },
-      () => resolve(null),
-      { enableHighAccuracy: highAccuracy, timeout, maximumAge: maxAge },
-    );
-  });
+// Tiered GPS acquisition ladder (user directive 2026-04-21). Strict at
+// first, relaxes over time. Save button enables at the first tier
+// whose accuracy requirement is met by the best-seen fix at that
+// elapsed time. Cold GPS can take up to 10s; warm GPS often enables at
+// tier 1 in ≤ 2s. After acceptance the watcher keeps running until 10s
+// and upgrades the stored fix whenever a tighter one arrives.
+type GpsTier = { untilMs: number; maxAccuracyM: number; label: string };
+const GPS_ACQUISITION_TIERS: GpsTier[] = [
+  { untilMs: 2_000, maxAccuracyM: 10, label: 'Strict' },
+  { untilMs: 5_000, maxAccuracyM: 20, label: 'Good' },
+  { untilMs: 7_000, maxAccuracyM: 50, label: 'Decent' },
+  { untilMs: 10_000, maxAccuracyM: Infinity, label: 'Any fix' },
+];
+const GPS_WATCH_CAP_MS =
+  GPS_ACQUISITION_TIERS[GPS_ACQUISITION_TIERS.length - 1].untilMs;
+
+const shouldAcceptFix = (bestAccuracyM: number, elapsedMs: number): boolean => {
+  for (const tier of GPS_ACQUISITION_TIERS) {
+    if (elapsedMs >= tier.untilMs && bestAccuracyM <= tier.maxAccuracyM) {
+      return true;
+    }
+  }
+  return false;
+};
 
 const formatDMS = (decimal: number, isLat: boolean): string => {
   const abs = Math.abs(decimal);
@@ -109,29 +111,84 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
     setTimeStr(`${hours}:${mins}:${secs}`);
     setTimestamp(`${day} ${month} ${year}  ${hours}:${mins}:${secs}`);
 
+    // Tiered GPS acquisition (2026-04-21 user directive).
+    // watchPosition runs continuously; we track the tightest fix seen
+    // so far and accept it at the earliest tier whose accuracy ceiling
+    // it satisfies. After acceptance the watch keeps running until the
+    // hard cap (10 s) so a tighter fix can still replace the accepted
+    // one in the background. GPS is mandatory — if we never receive a
+    // fix, `location` stays null and the Save button stays disabled.
+    const startedAt = Date.now();
     let active = true;
-    const loadLocation = async () => {
-      setIsLocating(true);
+    let bestFix: PreviewLocation | null = null;
+    let bestAccuracy = Infinity;
+    let accepted = false;
+    setIsLocating(true);
 
-      // Fast GPS for immediate coordinate preview
-      const fast = await resolveLocation(false, 3000, 10000);
-      if (!active) return;
-      if (fast) setLocation(fast);
-
-      // Precise GPS — upgrades the initial fix in-place when it lands.
-      // The WatermarkReStamper in App.tsx also fetches a fresh precise
-      // fix in the background and re-renders the watermark after save,
-      // so this is a best-effort pre-capture upgrade only.
-      const precise = await resolveLocation(true, 15000, 5000);
-      if (!active) return;
-      if (precise) setLocation(precise);
-      setIsLocating(false);
+    const evaluateAndMaybeAccept = () => {
+      if (!active || !bestFix) return;
+      const elapsed = Date.now() - startedAt;
+      if (!accepted && shouldAcceptFix(bestAccuracy, elapsed)) {
+        accepted = true;
+        setLocation(bestFix);
+        setIsLocating(false);
+      } else if (accepted) {
+        // Already accepted — keep upgrading displayed fix as better
+        // ones arrive, up to the 10 s watch cap.
+        setLocation(bestFix);
+      }
     };
 
-    loadLocation();
+    const watchId = Geolocation.watchPosition(
+      pos => {
+        const accuracy = pos.coords.accuracy || Infinity;
+        if (accuracy < bestAccuracy) {
+          bestAccuracy = accuracy;
+          bestFix = {
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+            alt: pos.coords.altitude || 0,
+            spd: pos.coords.speed || 0,
+            accuracy,
+            timestamp: new Date(pos.timestamp).toISOString(),
+            heading: pos.coords.heading || undefined,
+          };
+          evaluateAndMaybeAccept();
+        }
+      },
+      () => {
+        // Individual error callbacks are ignored — the watch keeps
+        // trying. The hard-cap timeout below handles the
+        // never-got-a-fix outcome.
+      },
+      { enableHighAccuracy: true, distanceFilter: 0, interval: 500 },
+    );
+
+    // Fire a check at each tier boundary so we accept even when the
+    // fix accuracy didn't change but the tier relaxed.
+    const tierTimers = GPS_ACQUISITION_TIERS.map(tier =>
+      setTimeout(evaluateAndMaybeAccept, tier.untilMs),
+    );
+
+    // Hard cap: stop watching + release Locating spinner. If
+    // still no fix, Save stays disabled and the preview screen
+    // will show the `location` null state.
+    const capTimer = setTimeout(() => {
+      if (!active) return;
+      Geolocation.clearWatch(watchId);
+      setIsLocating(false);
+      // Last-ditch accept: tier 4 accepts anything, so this is
+      // only reached if bestFix is still null (no fix ever received).
+      if (!bestFix) {
+        // Leave location null; Save remains disabled.
+      }
+    }, GPS_WATCH_CAP_MS + 100);
 
     return () => {
       active = false;
+      Geolocation.clearWatch(watchId);
+      tierTimers.forEach(clearTimeout);
+      clearTimeout(capTimer);
     };
   }, []);
 
