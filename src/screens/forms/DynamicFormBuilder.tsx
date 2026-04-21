@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { useTheme } from '../../context/ThemeContext';
+import { Logger } from '../../utils/logger';
 import type {
   FormTemplate,
   FormSectionTemplate,
@@ -139,8 +140,9 @@ export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
       }
     }
     if (collisions.size > 0) {
-      console.warn(
-        '[DynamicFormBuilder] duplicate field keys in template — form state will collide',
+      Logger.warn(
+        'DynamicFormBuilder',
+        'duplicate field keys in template — form state will collide',
         {
           templateKey: (template as unknown as Record<string, unknown>)
             .formType,

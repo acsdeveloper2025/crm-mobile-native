@@ -72,9 +72,10 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
         // SKIPPED (file missing) are excluded. Shared helper
         // `isCountableAttachment` keeps the two call-sites in sync.
         const countable = photoList.filter(isCountableAttachment);
-        console.warn(
-          `[PhotoGallery] loadPhotos: taskId=${taskId}, type=${componentType}, found=${photoList.length} (countable=${countable.length})`,
-          photoList.map(p => p.id),
+        Logger.debug(
+          'PhotoGallery',
+          `loadPhotos taskId=${taskId} type=${componentType} found=${photoList.length} countable=${countable.length}`,
+          { ids: photoList.map(p => p.id) },
         );
         setPhotos(photoList);
         onPhotosLoaded?.(countable.length);

@@ -307,19 +307,15 @@ export const RootNavigator = () => {
     const checkAppVersion = async () => {
       try {
         const result = await VersionService.checkVersion();
-        console.warn(
-          '[VERSION_DEBUG]',
-          JSON.stringify({
-            forceUpdate: result.forceUpdate,
-            updateRequired: result.updateRequired,
-            version: result.version,
-          }),
-        );
+        Logger.debug('RootNavigator', 'version check result', {
+          forceUpdate: result.forceUpdate,
+          updateRequired: result.updateRequired,
+          version: result.version,
+        });
         if (isMounted) {
           setVersionResult(result);
         }
       } catch (e) {
-        console.warn('[VERSION_DEBUG] ERROR', e);
         Logger.error('RootNavigator', 'Failed to check version', e);
       }
     };
