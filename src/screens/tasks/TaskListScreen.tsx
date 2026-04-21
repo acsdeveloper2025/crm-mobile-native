@@ -15,7 +15,17 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
-import { useRoute, useFocusEffect } from '@react-navigation/native';
+import {
+  useRoute,
+  useFocusEffect,
+  type CompositeNavigationProp,
+} from '@react-navigation/native';
+import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type {
+  RootStackParamList,
+  TabParamList,
+} from '../../navigation/RootNavigator';
 import {
   SafeAreaView,
   useSafeAreaInsets,
@@ -99,12 +109,30 @@ const TaskListRow = React.memo(
   },
 );
 
+// H21 completion (2026-04-21): TaskListScreen is a shared component
+// used by the 4 tab-screen wrappers (Saved/Assigned/InProgress/
+// Completed). Each wrapper types its own navigation as a
+// CompositeNavigationProp merging the tab + root stack. This alias
+// captures the shape they all spread in, with the tab slot left
+// generic (keyof TabParamList) so Saved/Assigned/… all fit.
+type TaskListNavigation = CompositeNavigationProp<
+  BottomTabNavigationProp<TabParamList, keyof TabParamList>,
+  NativeStackNavigationProp<RootStackParamList>
+>;
+
+interface TaskListScreenProps {
+  navigation: TaskListNavigation;
+  defaultFilter?: string;
+  defaultLockedFilter?: boolean;
+  defaultSearchPlaceholder?: string;
+}
+
 export const TaskListScreen = ({
   navigation,
   defaultFilter,
   defaultLockedFilter,
   defaultSearchPlaceholder,
-}: any) => {
+}: TaskListScreenProps) => {
   const { theme } = useTheme();
   const route = useRoute<any>();
   const initialFilter = route.params?.filter ?? defaultFilter;
