@@ -17,6 +17,7 @@ import { PhotoGallery } from '../../components/media/PhotoGallery';
 import { DynamicFormBuilder } from './DynamicFormBuilder';
 import { useTheme } from '../../context/ThemeContext';
 import { ScreenHeader } from '../../components/ScreenHeader';
+import { VerificationFormSkeleton } from '../../components/ui/Skeleton';
 import Icon from 'react-native-vector-icons/Ionicons';
 import type { FormTemplate } from '../../types/api';
 import { useTaskManager } from '../../context/TaskContext';
@@ -524,22 +525,15 @@ export const VerificationFormScreen = ({
   };
 
   if (taskLoading) {
+    // M15 (audit 2026-04-21): skeleton mirrors the outcome-picker +
+    // section layout so the form doesn't pop in with a layout jump once
+    // the task loads.
     return (
       <View
-        style={[
-          styles.centerContainer,
-          { backgroundColor: theme.colors.background },
-        ]}
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text
-          style={[
-            styles.centerLoadingText,
-            { color: theme.colors.textSecondary },
-          ]}
-        >
-          Loading verification form...
-        </Text>
+        <ScreenHeader title="Verification Form" />
+        <VerificationFormSkeleton />
       </View>
     );
   }

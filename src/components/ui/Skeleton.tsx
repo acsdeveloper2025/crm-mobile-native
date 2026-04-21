@@ -91,6 +91,114 @@ export const DashboardCardSkeleton = () => {
   );
 };
 
+// M15 (audit 2026-04-21): per-screen skeletons replace bare
+// ActivityIndicator spinners so users see a rough layout preview that
+// matches the real page, reducing perceived load time.
+
+export const TaskDetailSkeleton = () => {
+  const { theme } = useTheme();
+  const cardStyle = {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+  };
+  return (
+    <View style={styles.scrollPad}>
+      {/* Header card */}
+      <View style={[styles.card, cardStyle]}>
+        <View style={styles.header}>
+          <SkeletonBox width={90} height={22} borderRadius={11} />
+          <SkeletonBox width={60} height={16} />
+        </View>
+        <SkeletonBox width="70%" height={22} style={styles.mb12} />
+        <SkeletonBox width="50%" height={16} style={styles.mb12} />
+        <SkeletonBox width="40%" height={16} />
+      </View>
+
+      {/* Details card */}
+      <View style={[styles.card, cardStyle]}>
+        <SkeletonBox width={120} height={18} style={styles.mb16} />
+        <SkeletonBox width="90%" height={14} style={styles.mb8} />
+        <SkeletonBox width="85%" height={14} style={styles.mb8} />
+        <SkeletonBox width="60%" height={14} style={styles.mb8} />
+        <SkeletonBox width="75%" height={14} />
+      </View>
+
+      {/* Action card */}
+      <View style={[styles.card, cardStyle]}>
+        <SkeletonBox width="100%" height={44} borderRadius={8} />
+      </View>
+    </View>
+  );
+};
+
+export const VerificationFormSkeleton = () => {
+  const { theme } = useTheme();
+  const sectionStyle = {
+    backgroundColor: theme.colors.surfaceAlt,
+    borderColor: theme.colors.border,
+  };
+  return (
+    <View style={styles.scrollPad}>
+      {/* Outcome picker */}
+      <View style={[styles.card, sectionStyle]}>
+        <SkeletonBox width={100} height={16} style={styles.mb8} />
+        <SkeletonBox width="100%" height={44} borderRadius={8} />
+      </View>
+
+      {/* Form section 1 */}
+      <View style={[styles.card, sectionStyle]}>
+        <SkeletonBox width={140} height={18} style={styles.mb16} />
+        <SkeletonBox
+          width="100%"
+          height={44}
+          borderRadius={8}
+          style={styles.mb12}
+        />
+        <SkeletonBox
+          width="100%"
+          height={44}
+          borderRadius={8}
+          style={styles.mb12}
+        />
+        <SkeletonBox width="100%" height={44} borderRadius={8} />
+      </View>
+
+      {/* Form section 2 */}
+      <View style={[styles.card, sectionStyle]}>
+        <SkeletonBox width={160} height={18} style={styles.mb16} />
+        <SkeletonBox
+          width="100%"
+          height={44}
+          borderRadius={8}
+          style={styles.mb12}
+        />
+        <SkeletonBox width="100%" height={88} borderRadius={8} />
+      </View>
+    </View>
+  );
+};
+
+export const SyncLogsSkeleton = () => {
+  const { theme } = useTheme();
+  const rowStyle = {
+    backgroundColor: theme.colors.surface,
+    borderColor: theme.colors.border,
+  };
+  return (
+    <View>
+      {[0, 1, 2, 3, 4].map(i => (
+        <View key={`sync-skel-${i}`} style={[styles.syncRow, rowStyle]}>
+          <SkeletonBox width={24} height={24} borderRadius={12} />
+          <View style={styles.syncRowBody}>
+            <SkeletonBox width="70%" height={14} style={styles.mb8} />
+            <SkeletonBox width="40%" height={12} />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
   card: {
     borderRadius: 12,
@@ -124,4 +232,19 @@ const styles = StyleSheet.create({
   mb12: { marginBottom: 12 },
   mb16: { marginBottom: 16 },
   mb8: { marginBottom: 8 },
+  scrollPad: {
+    padding: 16,
+  },
+  syncRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  syncRowBody: {
+    flex: 1,
+  },
 });

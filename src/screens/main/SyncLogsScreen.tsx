@@ -7,12 +7,12 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 import { ScreenHeader } from '../../components/ScreenHeader';
+import { SyncLogsSkeleton } from '../../components/ui/Skeleton';
 import { Logger } from '../../utils/logger';
 import { SyncQueueRepository } from '../../repositories/SyncQueueRepository';
 import type { SyncQueueItem } from '../../types/mobile';
@@ -246,12 +246,10 @@ export const SyncLogsScreen = () => {
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
             {loading ? (
-              <>
-                <ActivityIndicator size="large" color={theme.colors.primary} />
-                <Text style={[styles.emptyText, { color: theme.colors.text }]}>
-                  Loading sync logs...
-                </Text>
-              </>
+              // M15 (audit 2026-04-21): row-shaped skeleton instead of a
+              // centred spinner so the list preview matches the eventual
+              // sync-queue layout.
+              <SyncLogsSkeleton />
             ) : (
               <>
                 <Icon
