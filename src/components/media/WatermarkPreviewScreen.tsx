@@ -12,9 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import Geolocation from '@react-native-community/geolocation';
 import Icon from 'react-native-vector-icons/Ionicons';
-import RNFS from 'react-native-fs';
 import { CameraService } from '../../services/CameraService';
-import { LocationService } from '../../services/LocationService';
 import { WatermarkReStampQueue } from '../../services/WatermarkReStampQueue';
 
 type PreviewLocation = {
@@ -84,10 +82,7 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [isLocating, setIsLocating] = useState(true);
-  const [isAddressLoading, setIsAddressLoading] = useState(true);
-  const addressReadyRef = useRef(false);
   const [location, setLocation] = useState<PreviewLocation | null>(null);
-  const [address, setAddress] = useState<string | null>(null);
   const [_timestamp, setTimestamp] = useState('');
   const [dateStr, setDateStr] = useState('');
   const [timeStr, setTimeStr] = useState('');
@@ -118,38 +113,19 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
     const loadLocation = async () => {
       setIsLocating(true);
 
-      // Fast GPS for immediate coordinate preview only
+      // Fast GPS for immediate coordinate preview
       const fast = await resolveLocation(false, 3000, 10000);
       if (!active) return;
       if (fast) setLocation(fast);
 
-      // Precise GPS — this is the ONLY source for address
+      // Precise GPS — upgrades the initial fix in-place when it lands.
+      // The WatermarkReStamper in App.tsx also fetches a fresh precise
+      // fix in the background and re-renders the watermark after save,
+      // so this is a best-effort pre-capture upgrade only.
       const precise = await resolveLocation(true, 15000, 5000);
       if (!active) return;
       if (precise) setLocation(precise);
       setIsLocating(false);
-
-      // Fetch address ONLY from PRECISE GPS — never from fast
-      if (precise && active) {
-        LocationService.getAddressFromCoordinates(precise.lat, precise.lng)
-          .then(addr => {
-            if (active) {
-              setAddress(addr);
-              setIsAddressLoading(false);
-              addressReadyRef.current = true;
-            }
-          })
-          .catch(() => {
-            if (active) {
-              setIsAddressLoading(false);
-              addressReadyRef.current = true;
-            }
-          });
-      } else {
-        // Precise GPS failed — no address, just coordinates
-        setIsAddressLoading(false);
-        addressReadyRef.current = true;
-      }
     };
 
     loadLocation();
@@ -160,6 +136,18 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
   }, []);
 
   const handleSave = async () => {
+    // 2026-04-21: GPS is mandatory. The Save button is disabled until
+    // `location` is populated, but re-check here as a safety net so no
+    // race between state-update and the tap can ever save a GPS-less
+    // photo.
+    if (!location) {
+      Alert.alert(
+        'GPS required',
+        'Waiting for a GPS fix. The photo cannot be saved without location.',
+      );
+      return;
+    }
+
     try {
       setIsSaving(true);
 
@@ -175,54 +163,42 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
         taskId,
         componentType,
         {
-          locationOverride: location
-            ? {
-                latitude: location.lat,
-                longitude: location.lng,
-                accuracy: location.accuracy,
-                timestamp: location.timestamp,
-              }
-            : null,
+          locationOverride: {
+            latitude: location.lat,
+            longitude: location.lng,
+            accuracy: location.accuracy,
+            timestamp: location.timestamp,
+          },
         },
       );
 
       if (savedPhoto) {
-        // If address hasn't loaded yet, queue a background re-stamp
-        // The WatermarkReStamper (in App.tsx) will fetch address, re-render watermark, and overwrite the file
-        if (!addressReadyRef.current && location) {
-          console.warn('[RESTAMP_QUEUE] Enqueueing re-stamp:', {
-            attachmentId: savedPhoto.id,
-            rawPhotoPath: photoPath,
-            savedPhotoPath: savedPhoto.localPath,
-            addressReady: addressReadyRef.current,
-          });
-          WatermarkReStampQueue.enqueue({
-            attachmentId: savedPhoto.id,
-            rawPhotoPath: photoPath, // Keep original camera photo for re-stamping
-            savedPhotoPath: savedPhoto.localPath,
-            taskId,
-            componentType,
-            location: {
-              lat: location.lat,
-              lng: location.lng,
-              alt: location.alt,
-              spd: location.spd,
-              accuracy: location.accuracy,
-              heading: location.heading,
-              timestamp: location.timestamp,
-            },
-            taskMeta: meta,
-            dateStr,
-            timeStr,
-            queuedAt: Date.now(),
-          });
-          // Don't delete raw photo — needed for re-stamp
-        } else {
-          // Address already on watermark — safe to delete raw photo
-          if (photoPath !== cleanPath && (await RNFS.exists(photoPath))) {
-            await RNFS.unlink(photoPath);
-          }
-        }
+        // 2026-04-21: GPS is guaranteed present here (checked above),
+        // so always enqueue a background re-stamp. The re-stamper
+        // grabs a fresh precise fix (enableHighAccuracy, 15s timeout)
+        // and re-renders the watermark with tighter coords. Raw photo
+        // is kept on disk for the re-stamp; the re-stamper cleans it
+        // up on success.
+        WatermarkReStampQueue.enqueue({
+          attachmentId: savedPhoto.id,
+          rawPhotoPath: photoPath, // Kept for re-stamp; cleaned by re-stamper
+          savedPhotoPath: savedPhoto.localPath,
+          taskId,
+          componentType,
+          location: {
+            lat: location.lat,
+            lng: location.lng,
+            alt: location.alt,
+            spd: location.spd,
+            accuracy: location.accuracy,
+            heading: location.heading,
+            timestamp: location.timestamp,
+          },
+          taskMeta: meta,
+          dateStr,
+          timeStr,
+          queuedAt: Date.now(),
+        });
 
         navigation.pop(2);
       } else {
@@ -298,18 +274,9 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
               <Text style={styles.dataLabel}>{timeStr}</Text>
             </View>
 
-            {/* Row 2: Address */}
-            <View style={styles.dataRow}>
-              <Icon name="location-outline" size={11} color="#f59e0b" />
-              <Text style={styles.addressText} numberOfLines={2}>
-                {address ||
-                  (isAddressLoading
-                    ? 'Fetching address...'
-                    : 'Address unavailable')}
-              </Text>
-            </View>
-
-            {/* Task metadata removed — only GPS, address, date/time, altitude shown */}
+            {/* Address row removed — the human-readable address is resolved
+                on the CRM web frontend at view time from the stored GPS
+                coords, so field capture stays instant and offline-safe. */}
 
             {/* Row 6: Altitude / Speed / Compass */}
             {location && (
@@ -348,12 +315,20 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
         </TouchableOpacity>
 
         <TouchableOpacity
-          style={styles.saveBtn}
+          style={[
+            styles.saveBtn,
+            !location && !isSaving ? styles.saveBtnDisabled : null,
+          ]}
           onPress={handleSave}
-          disabled={isSaving}
+          disabled={isSaving || !location}
         >
           {isSaving ? (
             <ActivityIndicator color="white" />
+          ) : !location ? (
+            <>
+              <ActivityIndicator color="white" />
+              <Text style={styles.btnText}>Acquiring GPS…</Text>
+            </>
           ) : (
             <>
               <Icon name="checkmark" size={22} color="white" />
@@ -528,6 +503,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     minWidth: 92,
     justifyContent: 'center',
+  },
+  saveBtnDisabled: {
+    backgroundColor: '#64748b',
   },
   btnText: {
     color: 'white',

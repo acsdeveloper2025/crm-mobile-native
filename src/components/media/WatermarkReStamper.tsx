@@ -12,7 +12,6 @@ import {
   WatermarkReStampQueue,
   type ReStampJob,
 } from '../../services/WatermarkReStampQueue';
-import { LocationService } from '../../services/LocationService';
 import { Logger } from '../../utils/logger';
 
 const TAG = 'WatermarkReStamper';
@@ -36,9 +35,7 @@ const getCompassDirection = (heading?: number): string => {
 
 export const WatermarkReStamper: React.FC = () => {
   const viewShotRef = useRef<ViewShot>(null);
-  const [currentJob, setCurrentJob] = useState<
-    (ReStampJob & { address: string }) | null
-  >(null);
+  const [currentJob, setCurrentJob] = useState<ReStampJob | null>(null);
   const processingRef = useRef(false);
 
   const processNext = useCallback(async () => {
@@ -86,28 +83,16 @@ export const WatermarkReStamper: React.FC = () => {
 
       const bestLocation = preciseLocation || job.location;
 
-      // Fetch address from precise GPS
-      const address = await LocationService.getAddressFromCoordinates(
-        bestLocation.lat,
-        bestLocation.lng,
-      );
-      if (!address) {
-        Logger.warn(
-          TAG,
-          `Address fetch failed for ${job.attachmentId}, skipping`,
-        );
-        WatermarkReStampQueue.dequeue();
-        processingRef.current = false;
-        return;
-      }
-
-      // Update job with precise location + address, use available photo
+      // 2026-04-21: watermark no longer shows the human-readable address.
+      // Reverse geocoding happens on the web CRM UI at view time,
+      // resolved from the attachment's stored GPS coords. This keeps
+      // photo capture fast, removes the network dependency, and
+      // guarantees the displayed address is always up to date.
       WatermarkReStampQueue.dequeue();
       setCurrentJob({
         ...job,
         rawPhotoPath: photoToUse,
         location: { ...job.location, ...bestLocation },
-        address,
       });
 
       // Wait for React to render the ViewShot
@@ -158,7 +143,7 @@ export const WatermarkReStamper: React.FC = () => {
 
   if (!currentJob) return null;
 
-  const { location, dateStr, timeStr, address } = currentJob;
+  const { location, dateStr, timeStr } = currentJob;
 
   return (
     <View style={styles.hidden}>
@@ -206,13 +191,6 @@ export const WatermarkReStamper: React.FC = () => {
                 style={styles.iconSpacer}
               />
               <Text style={styles.dataLabel}>{timeStr}</Text>
-            </View>
-
-            <View style={styles.dataRow}>
-              <Icon name="location-outline" size={11} color="#f59e0b" />
-              <Text style={styles.addressText} numberOfLines={2}>
-                {address}
-              </Text>
             </View>
 
             {location && (

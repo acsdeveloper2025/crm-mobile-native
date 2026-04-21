@@ -69,6 +69,7 @@ export const ENDPOINTS = {
   LOCATION: {
     CAPTURE: '/location/capture',
     TRAIL: '/location/trail',
+    REVERSE_GEOCODE: '/location/reverse-geocode',
   },
 
   // Sync
