@@ -277,10 +277,15 @@ class AuthServiceClass {
    */
   async logout(): Promise<void> {
     try {
-      // Try to notify server (best effort)
+      // Try to notify server (best effort).
+      // S13 (audit 2026-04-21 round 2): pass the device's refresh token
+      // so the server can invalidate JUST this session's row instead of
+      // all of the user's refresh tokens (kills other devices).
       if (this.accessToken) {
         try {
-          await ApiClient.post(ENDPOINTS.AUTH.LOGOUT);
+          await ApiClient.post(ENDPOINTS.AUTH.LOGOUT, {
+            refreshToken: this.refreshToken ?? undefined,
+          });
         } catch {
           // Ignore server logout failure
         }
