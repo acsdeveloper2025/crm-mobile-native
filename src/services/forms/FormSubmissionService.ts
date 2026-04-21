@@ -43,13 +43,25 @@ class FormSubmissionServiceClass {
       }
     }
 
+    // H3 (audit 2026-04-21): only count photos that are actually
+    // uploadable toward the submission minimum. ABANDONED (task-revoke
+    // cleanup from C10) and SKIPPED (file missing on disk) photos
+    // cannot be synced and must not satisfy the "minimum 5 photos"
+    // rule — otherwise the form submits but the server receives fewer
+    // images than the count displayed to the agent.
     const attachments = await AttachmentRepository.listForTask(task.id);
+    const COUNTABLE_STATUSES = new Set(['PENDING', 'UPLOADING', 'SYNCED']);
     let photoCount = 0;
     let selfieCount = 0;
     attachments.forEach(row => {
-      const ct =
-        (row as unknown as Record<string, unknown>).componentType ??
-        row.componentType;
+      const raw = row as unknown as Record<string, unknown>;
+      const ct = raw.componentType ?? row.componentType;
+      const syncStatus = String(
+        raw.syncStatus ?? raw.sync_status ?? 'PENDING',
+      ).toUpperCase();
+      if (!COUNTABLE_STATUSES.has(syncStatus)) {
+        return;
+      }
       if (ct === 'photo') photoCount += 1;
       if (ct === 'selfie') selfieCount += 1;
     });
