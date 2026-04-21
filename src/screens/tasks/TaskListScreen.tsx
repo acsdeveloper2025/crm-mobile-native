@@ -58,7 +58,59 @@ const FILTER_TABS = [
   { id: 'IN_PROGRESS', label: 'In Progress', value: 'IN_PROGRESS' },
   { id: 'COMPLETED', label: 'Completed', value: 'COMPLETED' },
   { id: 'SAVED', label: 'Saved', value: 'SAVED' },
-];
+] as const;
+
+type FilterTabDef = (typeof FILTER_TABS)[number];
+
+// M8 (audit 2026-04-21): memoized filter-tab pill so the 5-tab row
+// doesn't re-render on every parent state tick. The parent passes a
+// stable `onSelect` and the tab renders only when its own `isActive`,
+// `count`, or theme colors change.
+const FilterTabPill = React.memo(
+  ({
+    tab,
+    isActive,
+    count,
+    theme,
+    onSelect,
+  }: {
+    tab: FilterTabDef;
+    isActive: boolean;
+    count: number | undefined;
+    theme: ReturnType<typeof useTheme>['theme'];
+    onSelect: (tab: FilterTabDef) => void;
+  }) => {
+    const handlePress = useCallback(() => onSelect(tab), [onSelect, tab]);
+    return (
+      <TouchableOpacity
+        style={[
+          styles.filterTab,
+          { backgroundColor: theme.colors.surfaceAlt },
+          isActive && [
+            styles.activeFilterTab,
+            { backgroundColor: theme.colors.primary },
+          ],
+        ]}
+        onPress={handlePress}
+      >
+        <Text
+          style={[
+            styles.filterText,
+            { color: theme.colors.textSecondary },
+            isActive && [
+              styles.activeFilterText,
+              { color: theme.colors.surface },
+            ],
+          ]}
+        >
+          {tab.label}
+          {count !== undefined ? ` (${count})` : ''}
+        </Text>
+      </TouchableOpacity>
+    );
+  },
+);
+FilterTabPill.displayName = 'FilterTabPill';
 
 const TaskListRow = React.memo(
   ({
@@ -180,6 +232,14 @@ export const TaskListScreen = ({
       if (tab) setActiveTab(tab);
     }
   }, [route.params?.filter]);
+
+  // M8 (audit 2026-04-21): stable reference so the memoized
+  // FilterTabPill only re-renders when its own tab's isActive / count
+  // changes, not on every parent state tick.
+  const handleFilterTabSelect = useCallback(
+    (tab: FilterTabDef) => setActiveTab(tab),
+    [],
+  );
 
   const metadata = useMemo(() => {
     if (!lockedFilter) {
@@ -461,34 +521,14 @@ export const TaskListScreen = ({
     >
       <ScrollView horizontal showsHorizontalScrollIndicator={false}>
         {FILTER_TABS.map(tab => (
-          <TouchableOpacity
+          <FilterTabPill
             key={tab.id}
-            style={[
-              styles.filterTab,
-              { backgroundColor: theme.colors.surfaceAlt },
-              activeTab.id === tab.id && [
-                styles.activeFilterTab,
-                { backgroundColor: theme.colors.primary },
-              ],
-            ]}
-            onPress={() => setActiveTab(tab)}
-          >
-            <Text
-              style={[
-                styles.filterText,
-                { color: theme.colors.textSecondary },
-                activeTab.id === tab.id && [
-                  styles.activeFilterText,
-                  { color: theme.colors.surface },
-                ],
-              ]}
-            >
-              {tab.label}{' '}
-              {counts[tab.id as keyof TaskListCounts] !== undefined
-                ? `(${counts[tab.id as keyof TaskListCounts]})`
-                : ''}
-            </Text>
-          </TouchableOpacity>
+            tab={tab}
+            isActive={activeTab.id === tab.id}
+            count={counts[tab.id as keyof TaskListCounts]}
+            theme={theme}
+            onSelect={handleFilterTabSelect}
+          />
         ))}
       </ScrollView>
     </View>

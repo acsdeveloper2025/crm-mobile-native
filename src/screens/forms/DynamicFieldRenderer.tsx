@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -99,6 +99,106 @@ const validateField = (
   }
 
   return null;
+};
+
+// M8 (audit 2026-04-21): memoized multiselect option row. Pre-refactor,
+// a 50-option multiselect created 50 inline onPress closures + 50
+// conditional style arrays on every parent re-render. Now each option
+// only re-renders when its own `isSelected` or theme colors change.
+type MultiSelectOptionData = { value: string | number; label: string };
+const MultiSelectOption = React.memo(
+  ({
+    option,
+    isSelected,
+    theme,
+    onToggle,
+  }: {
+    option: MultiSelectOptionData;
+    isSelected: boolean;
+    theme: ReturnType<typeof useTheme>['theme'];
+    onToggle: (value: string | number) => void;
+  }) => {
+    const handlePress = useCallback(
+      () => onToggle(option.value),
+      [onToggle, option.value],
+    );
+    return (
+      <TouchableOpacity
+        onPress={handlePress}
+        style={[
+          styles.switchContainer,
+          {
+            backgroundColor: isSelected
+              ? theme.colors.primary + '15'
+              : theme.colors.surface,
+            borderColor: isSelected
+              ? theme.colors.primary
+              : theme.colors.border,
+          },
+        ]}
+      >
+        <Text style={[styles.switchLabel, { color: theme.colors.text }]}>
+          {option.label}
+        </Text>
+        <View
+          style={[
+            styles.checkboxBox,
+            {
+              borderColor: isSelected
+                ? theme.colors.primary
+                : theme.colors.border,
+              backgroundColor: isSelected
+                ? theme.colors.primary
+                : 'transparent',
+            },
+          ]}
+        >
+          {isSelected && <Text style={styles.checkboxCheckmark}>✓</Text>}
+        </View>
+      </TouchableOpacity>
+    );
+  },
+);
+MultiSelectOption.displayName = 'MultiSelectOption';
+
+// Small internal component that owns the stable toggle callback for
+// the multiselect so MultiSelectOption's React.memo can avoid
+// re-rendering unchanged rows.
+const MultiSelectCase: React.FC<{
+  field: DynamicFieldProps['field'];
+  value: DynamicFieldProps['value'];
+  onChange: DynamicFieldProps['onChange'];
+  options: MultiSelectOptionData[];
+  theme: ReturnType<typeof useTheme>['theme'];
+}> = ({ field, value, onChange, options, theme }) => {
+  const selectedValues = Array.isArray(value)
+    ? (value as (string | number)[])
+    : [];
+  const selectedRef = useRef(selectedValues);
+  selectedRef.current = selectedValues;
+  const handleToggle = useCallback(
+    (optionValue: string | number) => {
+      const current = selectedRef.current;
+      const next = current.includes(optionValue)
+        ? current.filter(v => v !== optionValue)
+        : [...current, optionValue];
+      onChange(field.id, next);
+    },
+    [field.id, onChange],
+  );
+  return (
+    <View style={styles.multiselectContainer}>
+      {options.map((opt, index) => (
+        <MultiSelectOption
+          key={`${field.id}_multi_${String(opt.value)}_${index}`}
+          option={opt}
+          isSelected={selectedValues.includes(opt.value)}
+          theme={theme}
+          onToggle={handleToggle}
+        />
+      ))}
+    </View>
+  );
 };
 
 const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({
@@ -336,60 +436,14 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({
         );
 
       case 'multiselect': {
-        const selectedValues = Array.isArray(value) ? (value as string[]) : [];
         return (
-          <View style={styles.multiselectContainer}>
-            {options.map((opt, index) => {
-              const isSelected = selectedValues.includes(opt.value);
-              return (
-                <TouchableOpacity
-                  key={`${field.id}_multi_${String(opt.value)}_${index}`}
-                  onPress={() => {
-                    const next = isSelected
-                      ? selectedValues.filter(v => v !== opt.value)
-                      : [...selectedValues, opt.value];
-                    onChange(field.id, next);
-                  }}
-                  style={[
-                    styles.switchContainer,
-                    {
-                      backgroundColor: isSelected
-                        ? theme.colors.primary + '15'
-                        : theme.colors.surface,
-                      borderColor: isSelected
-                        ? theme.colors.primary
-                        : theme.colors.border,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[styles.switchLabel, { color: theme.colors.text }]}
-                  >
-                    {opt.label}
-                  </Text>
-                  {/* eslint-disable react-native/no-inline-styles */}
-                  <View
-                    style={[
-                      styles.checkboxBox,
-                      {
-                        borderColor: isSelected
-                          ? theme.colors.primary
-                          : theme.colors.border,
-                        backgroundColor: isSelected
-                          ? theme.colors.primary
-                          : 'transparent',
-                      },
-                    ]}
-                  >
-                    {/* eslint-enable react-native/no-inline-styles */}
-                    {isSelected && (
-                      <Text style={styles.checkboxCheckmark}>✓</Text>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+          <MultiSelectCase
+            field={field}
+            value={value}
+            onChange={onChange}
+            options={options}
+            theme={theme}
+          />
         );
       }
 
