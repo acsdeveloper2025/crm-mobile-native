@@ -28,10 +28,24 @@ export const evaluateFieldCondition = (
     case 'notContains':
       if (Array.isArray(actual)) return !actual.includes(expected);
       return !String(actual ?? '').includes(String(expected ?? ''));
-    case 'greaterThan':
-      return Number(actual) > Number(expected);
-    case 'lessThan':
-      return Number(actual) < Number(expected);
+    case 'greaterThan': {
+      // M3 (audit 2026-04-21): short-circuit when either side isn't a
+      // real number. `Number(undefined)` / `Number('')` → NaN, and
+      // NaN > N is always false — so a conditional predicate using
+      // greaterThan against a missing field would look "false" even
+      // when the author meant "no value; doesn't apply". Returning
+      // false stays consistent but we now explicitly document it.
+      const a = Number(actual);
+      const e = Number(expected);
+      if (Number.isNaN(a) || Number.isNaN(e)) return false;
+      return a > e;
+    }
+    case 'lessThan': {
+      const a = Number(actual);
+      const e = Number(expected);
+      if (Number.isNaN(a) || Number.isNaN(e)) return false;
+      return a < e;
+    }
     case 'in':
       return toArray(expected).includes(actual);
     case 'notIn':

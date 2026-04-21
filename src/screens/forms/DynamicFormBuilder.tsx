@@ -81,6 +81,11 @@ const isFieldRequired = (
   const conditions = Array.isArray(field.requiredWhen)
     ? field.requiredWhen
     : [field.requiredWhen];
+  // M1 (audit 2026-04-21): `Array.prototype.every` returns true on an
+  // empty array. An empty `requiredWhen` array (template authoring
+  // quirk) would therefore mark every field required. Short-circuit
+  // to the plain `alwaysRequired` flag when there are no conditions.
+  if (conditions.length === 0) return alwaysRequired;
   const requiredByCondition = conditions.every(condition =>
     evaluateCondition(condition, values),
   );

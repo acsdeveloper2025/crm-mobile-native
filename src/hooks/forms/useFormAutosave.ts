@@ -145,8 +145,18 @@ export const useFormAutosave = ({
             }
           }
         }
-      } catch {
-        // Ignore malformed cached drafts and continue with empty form state.
+      } catch (err) {
+        // M2 (audit 2026-04-21): log malformed cached drafts. Prior
+        // code silently swallowed the parse error so a field agent
+        // whose previously-saved draft went corrupt just saw "no
+        // draft" with no trace. Logging surfaces the corruption in
+        // telemetry; UI still falls back to empty form state, which
+        // is the only safe behaviour.
+        Logger.warn(
+          'useFormAutosave',
+          `Autosave draft for task ${taskId} failed to restore`,
+          err,
+        );
       } finally {
         if (isActive && isMountedRef.current) {
           setIsInitialized(true);
