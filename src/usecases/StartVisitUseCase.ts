@@ -1,3 +1,4 @@
+import { DatabaseService } from '../database/DatabaseService';
 import { TaskRepository } from '../repositories/TaskRepository';
 import { SyncGateway } from '../services/SyncGateway';
 import { TaskStatus } from '../types/enums';
@@ -30,11 +31,17 @@ export const startVisitUseCase = async (
     throw new Error('Task not found');
   }
 
-  await TaskRepository.updateTaskStatus(taskId, TaskStatus.InProgress);
-  await SyncGateway.enqueueTaskStatus(
-    resolveBackendTaskId(task.id, task.verificationTaskId),
-    task.id,
-    TaskStatus.InProgress,
-  );
+  // D4 (audit 2026-04-21 round 2): wrap the local status write + queue
+  // enqueue in a single transaction so a crash between the two can't
+  // leave a `sync_status='PENDING'` row with no corresponding queue
+  // item (which no background path ever reconciles).
+  await DatabaseService.transaction(async () => {
+    await TaskRepository.updateTaskStatus(taskId, TaskStatus.InProgress);
+    await SyncGateway.enqueueTaskStatus(
+      resolveBackendTaskId(task.id, task.verificationTaskId),
+      task.id,
+      TaskStatus.InProgress,
+    );
+  });
   return { success: true };
 };

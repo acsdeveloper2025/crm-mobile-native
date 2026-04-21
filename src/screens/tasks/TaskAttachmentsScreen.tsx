@@ -114,6 +114,11 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
     RemoteTaskAttachment[]
   >([]);
   const [isRemoteLoading, setIsRemoteLoading] = useState(true);
+  // U1 (audit 2026-04-21 round 2): track fetch errors separately from
+  // the empty-list case so a network / auth failure doesn't silently
+  // render the "No shared attachments found" copy — that was
+  // misleading users into thinking attachments didn't exist.
+  const [remoteError, setRemoteError] = useState<string | null>(null);
   const [openingAttachmentId, setOpeningAttachmentId] = useState<string | null>(
     null,
   );
@@ -127,11 +132,15 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
 
   const loadRemoteAttachments = useCallback(async () => {
     setIsRemoteLoading(true);
+    setRemoteError(null);
     try {
       const attachments = await attachmentService.getRemoteTaskAttachments(
         taskId,
       );
       setRemoteAttachments(attachments);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setRemoteError(msg || 'Failed to load attachments.');
     } finally {
       setIsRemoteLoading(false);
     }
@@ -326,6 +335,45 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
             <View style={styles.loaderWrap}>
               <ActivityIndicator size="small" color={theme.colors.primary} />
             </View>
+          ) : remoteError ? (
+            // U1 (audit 2026-04-21 round 2): explicit error state with
+            // retry; previously fell through to "no attachments found".
+            <View
+              style={[
+                styles.emptyWrap,
+                {
+                  borderColor: theme.colors.danger,
+                  backgroundColor: theme.colors.danger + '10',
+                },
+              ]}
+            >
+              <Icon
+                name="cloud-offline-outline"
+                size={22}
+                color={theme.colors.danger}
+              />
+              <Text style={[styles.emptyText, { color: theme.colors.danger }]}>
+                {remoteError}
+              </Text>
+              <TouchableOpacity
+                onPress={loadRemoteAttachments}
+                accessibilityRole="button"
+                accessibilityLabel="Retry loading attachments"
+                style={[
+                  styles.retryButton,
+                  { backgroundColor: theme.colors.primary },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.retryButtonText,
+                    { color: theme.colors.surface },
+                  ]}
+                >
+                  Retry
+                </Text>
+              </TouchableOpacity>
+            </View>
           ) : remoteAttachments.length === 0 ? (
             <View
               style={[
@@ -517,6 +565,19 @@ const styles = StyleSheet.create({
   emptyText: {
     fontSize: 13,
     fontWeight: '500',
+    textAlign: 'center',
+  },
+  retryButton: {
+    marginTop: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+    minHeight: 36,
+    justifyContent: 'center',
+  },
+  retryButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
   attachmentRow: {
     borderWidth: 1,

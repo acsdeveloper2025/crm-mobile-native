@@ -1,3 +1,4 @@
+import { DatabaseService } from '../database/DatabaseService';
 import { TaskRepository } from '../repositories/TaskRepository';
 import { SyncGateway } from '../services/SyncGateway';
 import { SYNC_PRIORITY } from '../services/SyncQueue';
@@ -25,13 +26,16 @@ export const RevokeTaskUseCase = {
       throw new Error('Task not found');
     }
 
-    await TaskRepository.revokeTask(taskId, reason);
-    await SyncGateway.enqueueTaskStatus(
-      resolveBackendTaskId(task.id, task.verificationTaskId),
-      task.id,
-      'REVOKED',
-      { reason, revokeReason: reason },
-      SYNC_PRIORITY.CRITICAL,
-    );
+    // D4 (audit 2026-04-21 round 2): atomic local-write + enqueue.
+    await DatabaseService.transaction(async () => {
+      await TaskRepository.revokeTask(taskId, reason);
+      await SyncGateway.enqueueTaskStatus(
+        resolveBackendTaskId(task.id, task.verificationTaskId),
+        task.id,
+        'REVOKED',
+        { reason, revokeReason: reason },
+        SYNC_PRIORITY.CRITICAL,
+      );
+    });
   },
 };

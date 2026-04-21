@@ -126,9 +126,14 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
       );
 
       if (failedItems.length > 0) {
-        // Re-queue failed items and sync
+        // Re-queue failed items and sync.
+        // B1 (audit 2026-04-21 round 2): column was `last_error`, not
+        // `error` (schema renamed by C24). Previous `error = NULL`
+        // raised "no such column" so the Resubmit button was a silent
+        // no-op — caller's catch shows a generic Alert but nothing
+        // ever got re-queued.
         await SyncEngineRepository.execute(
-          "UPDATE sync_queue SET status = 'PENDING', error = NULL, attempts = 0 WHERE status = 'FAILED' AND (json_extract(payload_json, '$.localTaskId') = ? OR json_extract(payload_json, '$.taskId') = ?)",
+          "UPDATE sync_queue SET status = 'PENDING', last_error = NULL, attempts = 0 WHERE status = 'FAILED' AND (json_extract(payload_json, '$.localTaskId') = ? OR json_extract(payload_json, '$.taskId') = ?)",
           [task.id, task.verificationTaskId || task.id],
         );
         await SyncService.performSync();
