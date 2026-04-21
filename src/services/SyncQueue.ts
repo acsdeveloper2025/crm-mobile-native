@@ -10,6 +10,7 @@ import {
   priorityForOperationType,
 } from '../sync/SyncOperationLog';
 import { StorageService } from './StorageService';
+import { AuthService } from './AuthService';
 import { Logger } from '../utils/logger';
 import { MobileTelemetryService } from '../telemetry/MobileTelemetryService';
 import type { SyncQueueItem } from '../types/mobile';
@@ -43,6 +44,20 @@ export const SYNC_PRIORITY = {
 class SyncQueueClass {
   private getLeaseExpiry(timeoutMs: number): string {
     return new Date(Date.now() + timeoutMs).toISOString();
+  }
+
+  /**
+   * C6 (audit 2026-04-20, 2026-04-21 decision): per-user queue
+   * isolation. Every write to sync_queue is stamped with the current
+   * user's id; reads filter by it. Rows created by user A remain in
+   * the queue after A logs out and are invisible to user B on a
+   * shared device — they get processed when A logs back in.
+   *
+   * Returns null if no user is currently logged in (the sync
+   * processor shouldn't be running in that state; defensive).
+   */
+  private currentUserId(): string | null {
+    return AuthService.getCurrentUser()?.id ?? null;
   }
 
   async recoverExpiredLeases(): Promise<number> {
@@ -204,6 +219,7 @@ class SyncQueueClass {
         payloadJson,
         priority,
         now,
+        this.currentUserId(),
       );
     } else {
       await SyncQueueRepository.insert(
@@ -214,6 +230,7 @@ class SyncQueueClass {
         payloadJson,
         priority,
         now,
+        this.currentUserId(),
       );
     }
 
@@ -230,7 +247,11 @@ class SyncQueueClass {
   async getPendingItems(limit: number = 50): Promise<SyncQueueItem[]> {
     await this.recoverExpiredLeases();
 
-    return SyncQueueRepository.listProcessible(new Date().toISOString(), limit);
+    return SyncQueueRepository.listProcessible(
+      new Date().toISOString(),
+      limit,
+      this.currentUserId(),
+    );
   }
 
   /**
@@ -263,6 +284,7 @@ class SyncQueueClass {
       id,
       now,
       this.getLeaseExpiry(leaseTimeoutMs),
+      this.currentUserId(),
     );
   }
 
