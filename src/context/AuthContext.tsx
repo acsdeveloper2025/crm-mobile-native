@@ -2,6 +2,8 @@ import React, {
   createContext,
   useState,
   useEffect,
+  useMemo,
+  useCallback,
   ReactNode,
   useContext,
 } from 'react';
@@ -120,45 +122,54 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const login = async (
-    token: string,
-    profile: UserProfile,
-    refreshToken?: string,
-    expiresIn?: number,
-  ) => {
-    try {
-      const result = await AuthService.login(
-        token,
-        profile,
-        refreshToken,
-        expiresIn,
-      );
-      if (!result.success) {
-        throw new Error(result.message);
-      }
-      setIsAuthenticated(true);
-      setUser(profile);
-      SyncService.startPeriodicSync();
-      DataCleanupService.initializeAutoCleanup().catch(error => {
-        Logger.warn(TAG, 'Auto-cleanup initialization failed', error);
-      });
-      notificationService.registerCurrentDevice().catch(error => {
-        Logger.warn(
-          TAG,
-          'Notification device registration after login failed',
-          error,
+  // H7 (audit 2026-04-21): wrap handlers in useCallback + Provider
+  // value in useMemo so consumers don't re-render on every state tick.
+  // Without this, typing in any input anywhere re-fired every consumer
+  // of useAuth because the object literal was a new reference each
+  // render. TaskContext + ThemeContext already followed this pattern;
+  // AuthContext was the outlier.
+  const login = useCallback(
+    async (
+      token: string,
+      profile: UserProfile,
+      refreshToken?: string,
+      expiresIn?: number,
+    ) => {
+      try {
+        const result = await AuthService.login(
+          token,
+          profile,
+          refreshToken,
+          expiresIn,
         );
-      });
-      SyncService.performSync().catch(syncError => {
-        Logger.warn(TAG, 'Initial sync after login failed', syncError);
-      });
-    } catch (e) {
-      Logger.error(TAG, 'Login failed in context', e);
-      throw e;
-    }
-  };
+        if (!result.success) {
+          throw new Error(result.message);
+        }
+        setIsAuthenticated(true);
+        setUser(profile);
+        SyncService.startPeriodicSync();
+        DataCleanupService.initializeAutoCleanup().catch(error => {
+          Logger.warn(TAG, 'Auto-cleanup initialization failed', error);
+        });
+        notificationService.registerCurrentDevice().catch(error => {
+          Logger.warn(
+            TAG,
+            'Notification device registration after login failed',
+            error,
+          );
+        });
+        SyncService.performSync().catch(syncError => {
+          Logger.warn(TAG, 'Initial sync after login failed', syncError);
+        });
+      } catch (e) {
+        Logger.error(TAG, 'Login failed in context', e);
+        throw e;
+      }
+    },
+    [],
+  );
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       await AuthService.logout();
       SyncService.stopPeriodicSync();
@@ -167,9 +178,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (e) {
       Logger.error(TAG, 'Logout failed in context', e);
     }
-  };
+  }, []);
 
-  const updateProfilePhoto = async (profilePhotoUrl: string) => {
+  const updateProfilePhoto = useCallback(async (profilePhotoUrl: string) => {
     try {
       const updatedUser = await AuthService.updateProfilePhoto(profilePhotoUrl);
       if (updatedUser) {
@@ -178,20 +189,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     } catch (e) {
       Logger.error(TAG, 'Profile photo update failed', e);
     }
-  };
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({
+      isAuthenticated,
+      isLoading,
+      user,
+      login,
+      logout,
+      updateProfilePhoto,
+    }),
+    [isAuthenticated, isLoading, user, login, logout, updateProfilePhoto],
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        isAuthenticated,
-        isLoading,
-        user,
-        login,
-        logout,
-        updateProfilePhoto,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
+    <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
   );
 };
