@@ -2,6 +2,7 @@
 // This is the single entry point for all local data operations
 
 import SQLite, { SQLiteDatabase, ResultSet } from 'react-native-sqlite-storage';
+import RNFS from 'react-native-fs';
 import { config } from '../config';
 import { SCHEMA_SQL, INDEX_SQL, MIGRATIONS, DB_VERSION } from './schema';
 import { Logger } from '../utils/logger';
@@ -144,20 +145,58 @@ class DatabaseServiceClass {
   }
 
   private async deleteLocalDbFile(): Promise<void> {
+    let deletedViaApi = false;
     try {
       await SQLite.deleteDatabase({
         name: config.dbName,
         location: 'default',
       });
+      deletedViaApi = true;
       Logger.info('DatabaseService', 'Deleted local DB file for recovery');
     } catch (err) {
-      // Not fatal — the subsequent openDatabase call will create fresh
-      // files anyway when the old ones are unreadable. Log so ops can
-      // track this if it happens repeatedly.
+      // Not fatal — we retry via RNFS below. Log so ops can track this.
       Logger.warn(
         'DatabaseService',
-        'SQLite.deleteDatabase failed during recovery; proceeding with retry',
+        'SQLite.deleteDatabase failed during recovery; falling back to RNFS unlink',
         err,
+      );
+    }
+
+    // 2026-04-21 v1.0.3: belt-and-braces file-level delete of the DB
+    // + its WAL + SHM sidecars. On some Samsung devices
+    // `SQLite.deleteDatabase` from react-native-sqlite-storage reports
+    // success but leaves the files on disk (or leaves the `-wal` /
+    // `-shm` sidecars behind), so the next `openDatabase` re-attaches
+    // the corrupt state. Explicit `RNFS.unlink` is idempotent and
+    // survives the library's quirks.
+    const candidates = [
+      `${RNFS.DocumentDirectoryPath}/../databases/${config.dbName}`,
+      `${RNFS.DocumentDirectoryPath}/../databases/${config.dbName}-wal`,
+      `${RNFS.DocumentDirectoryPath}/../databases/${config.dbName}-shm`,
+      `${RNFS.DocumentDirectoryPath}/../databases/${config.dbName}-journal`,
+    ];
+    for (const path of candidates) {
+      try {
+        if (await RNFS.exists(path)) {
+          await RNFS.unlink(path);
+          Logger.info('DatabaseService', `Unlinked stale DB file: ${path}`);
+        }
+      } catch (err) {
+        // Per-file failures are non-fatal; openDatabase will still work
+        // because the main .db file has already been deleted (or
+        // SQLite's own retry will create fresh).
+        Logger.warn(
+          'DatabaseService',
+          `RNFS.unlink failed for ${path}; continuing`,
+          err,
+        );
+      }
+    }
+
+    if (!deletedViaApi) {
+      Logger.info(
+        'DatabaseService',
+        'DB file cleanup completed via RNFS fallback',
       );
     }
   }

@@ -44,21 +44,34 @@ class SessionStoreClass {
   }
 
   async setTokens(tokens: StoredSessionTokens): Promise<void> {
-    // S8 (audit 2026-04-21 round 2): prefer hardware-backed storage
-    // (Android Trusted Execution Environment / secure enclave) when
-    // available. On devices without a TEE the library falls back to
-    // software-encrypted storage with no exception thrown — behaviour
-    // identical to the pre-flag code path for those devices, but
-    // modern hardware gets the hardware-anchored key.
-    await Keychain.setGenericPassword(
+    // 2026-04-21 v1.0.3 fix: do NOT request `SECURITY_LEVEL.SECURE_HARDWARE`.
+    // See `DatabaseKeyStore.getOrCreateKey` for the Samsung regression
+    // story — some Knox/StrongBox policies silently no-op the store,
+    // the library returns `false` without throwing, and the app runs
+    // with an un-stored value that vanishes on next launch. For session
+    // tokens that meant the user was silently logged out on every
+    // cold-start; for the DB key it meant SQLITE_CORRUPT on launch 2.
+    //
+    // `ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY` still keeps tokens
+    // (a) off the cloud/backup path, (b) unreadable while screen locked,
+    // (c) using the OS-best backing (hardware-backed when the platform
+    // exposes it reliably, software-encrypted otherwise). Net security
+    // is equivalent on every OEM we've tested except Samsung, where
+    // this variant is the one that actually works.
+    const result = await Keychain.setGenericPassword(
       SESSION_USERNAME,
       JSON.stringify(tokens),
       {
         service: SESSION_SERVICE,
         accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
-        securityLevel: Keychain.SECURITY_LEVEL.SECURE_HARDWARE,
       },
     );
+
+    if (result === false) {
+      // Surface silent store failures so we don't end up with the same
+      // wrong-key class of regressions again.
+      throw new Error('Failed to store session tokens in the system keychain');
+    }
   }
 
   async clearTokens(): Promise<void> {
