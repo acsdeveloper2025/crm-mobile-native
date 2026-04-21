@@ -257,33 +257,62 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
 
         {/* Revoke Banner */}
         {(task.isRevoked === 1 || task.status === 'REVOKED') && (
-          <View style={[styles.sectionCard, styles.revokedBannerContainer]}>
+          <View
+            style={[
+              styles.sectionCard,
+              styles.revokedBannerContainer,
+              {
+                backgroundColor: theme.colors.danger + '1A',
+                borderLeftColor: theme.colors.danger,
+              },
+            ]}
+          >
             <View style={styles.revokedBannerHeader}>
               <Icon
                 name="alert-circle"
                 size={24}
-                color="#DC2626"
+                color={theme.colors.danger}
                 style={styles.icon}
               />
               <View style={styles.flex1}>
-                <Text style={[styles.sectionTitle, styles.revokedBannerTitle]}>
+                <Text
+                  style={[
+                    styles.sectionTitle,
+                    styles.revokedBannerTitle,
+                    { color: theme.colors.danger },
+                  ]}
+                >
                   Task Revoked
                 </Text>
                 {task.revokeReason ? (
-                  <Text style={[styles.detailValue, styles.revokedBannerText]}>
+                  <Text
+                    style={[
+                      styles.detailValue,
+                      styles.revokedBannerText,
+                      { color: theme.colors.danger },
+                    ]}
+                  >
                     Reason: {task.revokeReason}
                   </Text>
                 ) : null}
                 {task.revokedByName ? (
                   <Text
-                    style={[styles.detailLabel, styles.revokedBannerSubtext]}
+                    style={[
+                      styles.detailLabel,
+                      styles.revokedBannerSubtext,
+                      { color: theme.colors.danger },
+                    ]}
                   >
                     By: {task.revokedByName}
                   </Text>
                 ) : null}
                 {task.revokedAt ? (
                   <Text
-                    style={[styles.detailLabel, styles.revokedBannerSubtext]}
+                    style={[
+                      styles.detailLabel,
+                      styles.revokedBannerSubtext,
+                      { color: theme.colors.danger },
+                    ]}
                   >
                     At: {new Date(task.revokedAt).toLocaleString()}
                   </Text>
@@ -708,10 +737,11 @@ const styles = StyleSheet.create({
   flex1: {
     flex: 1,
   },
+  // M13 (audit 2026-04-21): danger-hex literals removed — the banner now
+  // derives all four colours from `theme.colors.danger` (with alpha for the
+  // tint) at render time so dark mode renders a legible banner.
   revokedBannerContainer: {
-    backgroundColor: '#FEE2E2',
     borderLeftWidth: 4,
-    borderLeftColor: '#DC2626',
   },
   revokedBannerHeader: {
     flexDirection: 'row',
@@ -719,15 +749,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   revokedBannerTitle: {
-    color: '#DC2626',
     marginBottom: 4,
   },
-  revokedBannerText: {
-    color: '#991B1B',
-  },
-  revokedBannerSubtext: {
-    color: '#B91C1C',
-  },
+  revokedBannerText: {},
+  revokedBannerSubtext: {},
   scrollContent: {
     padding: 16,
   },

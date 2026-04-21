@@ -17,9 +17,18 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import RNFS from 'react-native-fs';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
+
+// M13 (audit 2026-04-21): camera-overlay colours (white text, rgba black
+// tints, capture-button white) are intentionally static — they render on
+// top of the live camera feed which is always visually dark. Theming them
+// would hurt legibility. Only the loading-state ActivityIndicator uses
+// `theme.colors.primary` so the brand colour can change without a code
+// edit.
 
 export const ProfilePhotoCaptureScreen = ({ navigation }: any) => {
   const { updateProfilePhoto } = useAuth();
+  const { theme } = useTheme();
   const device = useCameraDevice('front');
   const camera = useRef<Camera>(null);
   const insets = useSafeAreaInsets();
@@ -103,7 +112,7 @@ export const ProfilePhotoCaptureScreen = ({ navigation }: any) => {
   if (!hasPermission || !device || isPreparing) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={styles.loadingText}>Preparing camera...</Text>
       </View>
     );
