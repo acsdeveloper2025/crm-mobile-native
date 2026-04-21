@@ -10,6 +10,7 @@ import {
   Platform,
   Image,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '../../context/AuthContext';
 import { ApiClient } from '../../api/apiClient';
@@ -144,7 +145,11 @@ export const LoginScreen = () => {
     setError('');
 
     try {
-      Logger.info(TAG, `Attempting login for ${parsed.username}`);
+      // S6 (audit 2026-04-21 round 2): the username was interpolated
+      // into the message string (not passed as `data`), so the logger's
+      // redactor couldn't reach it. Ops gets nothing useful from the
+      // username anyway — a plain "Attempting login" line is enough.
+      Logger.info(TAG, 'Attempting login');
 
       const deviceInfo = await AuthService.getDeviceInfo();
       // C20 (audit 2026-04-20): per-attempt Idempotency-Key lets the
@@ -204,7 +209,10 @@ export const LoginScreen = () => {
   };
 
   return (
-    <View style={styles.container}>
+    // U14 (audit 2026-04-21 round 2): wrap in SafeAreaView so on
+    // notched devices the welcome text doesn't collide with the
+    // status bar / home indicator.
+    <SafeAreaView edges={['top', 'bottom']} style={styles.container}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardContainer}
@@ -294,7 +302,7 @@ export const LoginScreen = () => {
           </View>
         </View>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 };
 

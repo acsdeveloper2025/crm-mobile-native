@@ -405,9 +405,16 @@ class SyncQueueClass {
   }
 
   /**
-   * Remove completed items older than the specified hours
+   * Remove completed items older than the specified hours.
+   *
+   * S9 (audit 2026-04-21 round 2): default lowered 24h → 1h. COMPLETED
+   * rows hold plaintext payload_json (form field values, applicant
+   * names, addresses) inside the SQLCipher envelope. Shrinking the
+   * retention window shrinks the blast radius on a rooted / lost
+   * device without losing any recovery value — completed rows are
+   * already out of every processor's reach.
    */
-  async cleanup(olderThanHours: number = 24): Promise<number> {
+  async cleanup(olderThanHours: number = 1): Promise<number> {
     const cutoff = new Date(
       Date.now() - olderThanHours * 60 * 60 * 1000,
     ).toISOString();
@@ -422,15 +429,27 @@ class SyncQueueClass {
   }
 
   /**
-   * Check if there's a pending item for a specific entity
+   * Check if there's a pending item for a specific entity.
+   *
+   * D5 (audit 2026-04-21 round 2): filter by the current user so
+   * user B on a shared device doesn't see user A's pending work as
+   * "their own" (matches the C6 user-isolation contract used by every
+   * other sync_queue query). Legacy rows with `user_id IS NULL` stay
+   * visible so the one-time C6 migration window works uniformly.
    */
   async hasPendingItem(
     entityType: EntityType,
     entityId: string,
   ): Promise<boolean> {
+    const userId = this.currentUserId();
     const rows = await SyncEngineRepository.query<{ c: number }>(
-      `SELECT 1 as c FROM sync_queue WHERE entity_type = ? AND entity_id = ? AND (status = 'PENDING' OR status = 'IN_PROGRESS') LIMIT 1`,
-      [entityType, entityId],
+      `SELECT 1 as c FROM sync_queue
+         WHERE entity_type = ?
+           AND entity_id = ?
+           AND (status = 'PENDING' OR status = 'IN_PROGRESS')
+           AND (user_id IS NULL OR user_id = ?)
+         LIMIT 1`,
+      [entityType, entityId, userId],
     );
     return rows.length > 0;
   }

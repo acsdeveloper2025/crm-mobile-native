@@ -120,6 +120,8 @@ export const ProfileScreen = ({ navigation }: any) => {
                 { backgroundColor: theme.colors.primary },
               ]}
               onPress={() => navigation.navigate('ProfilePhotoCapture')}
+              accessibilityRole="button"
+              accessibilityLabel="Change profile photo"
             >
               <Icon name="camera" size={16} color={theme.colors.surface} />
             </TouchableOpacity>
@@ -206,6 +208,8 @@ export const ProfileScreen = ({ navigation }: any) => {
               },
             ]}
             onPress={() => navigation.navigate('DigitalIdCard')}
+            accessibilityRole="button"
+            accessibilityLabel="View Digital ID Card"
           >
             <Icon
               name="card-outline"
@@ -233,6 +237,8 @@ export const ProfileScreen = ({ navigation }: any) => {
               },
             ]}
             onPress={() => navigation.navigate('SyncLogs')}
+            accessibilityRole="button"
+            accessibilityLabel="Open diagnostics and sync logs"
           >
             <Icon
               name="bug-outline"
@@ -260,6 +266,8 @@ export const ProfileScreen = ({ navigation }: any) => {
               },
             ]}
             onPress={() => navigation.navigate('DataCleanup' as never)}
+            accessibilityRole="button"
+            accessibilityLabel="Open data cleanup manager"
           >
             <Icon
               name="trash-outline"
@@ -288,6 +296,8 @@ export const ProfileScreen = ({ navigation }: any) => {
             },
           ]}
           onPress={logout}
+          accessibilityRole="button"
+          accessibilityLabel="Log out"
         >
           <Icon name="log-out-outline" size={22} color={theme.colors.danger} />
           <Text

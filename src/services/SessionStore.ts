@@ -44,12 +44,19 @@ class SessionStoreClass {
   }
 
   async setTokens(tokens: StoredSessionTokens): Promise<void> {
+    // S8 (audit 2026-04-21 round 2): prefer hardware-backed storage
+    // (Android Trusted Execution Environment / secure enclave) when
+    // available. On devices without a TEE the library falls back to
+    // software-encrypted storage with no exception thrown — behaviour
+    // identical to the pre-flag code path for those devices, but
+    // modern hardware gets the hardware-anchored key.
     await Keychain.setGenericPassword(
       SESSION_USERNAME,
       JSON.stringify(tokens),
       {
         service: SESSION_SERVICE,
         accessible: Keychain.ACCESSIBLE.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
+        securityLevel: Keychain.SECURITY_LEVEL.SECURE_HARDWARE,
       },
     );
   }

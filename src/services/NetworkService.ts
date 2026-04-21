@@ -16,7 +16,16 @@ type NetworkChangeCallback = (isOnline: boolean) => void;
 const NETWORK_DEBOUNCE_MS = 3000;
 
 class NetworkServiceClass {
-  private isOnline = true;
+  // D8 (audit 2026-04-21 round 2): default `false` so the first
+  // NetInfo event has to positively flip us online. Previously a
+  // cold-start with a dead radio returned `true` from
+  // `getIsOnline()` until the first NetInfo event fired, causing
+  // `SyncProcessor.processPending` to stack 30-second-timeout
+  // requests against an unreachable network. Overridden to `true`
+  // only on the `netInfoUnavailable` bail-out below, where the
+  // library itself has refused to load.
+  private isOnline = false;
+  private hasObservedNetworkState = false;
   private connectionType: string = 'unknown';
   private subscribers: NetworkChangeCallback[] = [];
   private unsubscribeNetInfo: NetInfoSubscription | null = null;
@@ -49,6 +58,7 @@ class NetworkServiceClass {
   initialize(): void {
     if (this.netInfoUnavailable) {
       this.isOnline = true;
+      this.hasObservedNetworkState = true;
       this.connectionType = 'unknown';
       return;
     }
@@ -65,6 +75,7 @@ class NetworkServiceClass {
         (state: NetInfoState) => {
           const normalizedState = this.normalizeState(state);
           const wasOnline = this.isOnline;
+          this.hasObservedNetworkState = true;
           this.isOnline =
             normalizedState.isConnected === true &&
             normalizedState.isInternetReachable !== false;
@@ -91,6 +102,7 @@ class NetworkServiceClass {
     } catch (error) {
       this.netInfoUnavailable = true;
       this.isOnline = true;
+      this.hasObservedNetworkState = true;
       this.connectionType = 'unknown';
       Logger.warn(
         TAG,

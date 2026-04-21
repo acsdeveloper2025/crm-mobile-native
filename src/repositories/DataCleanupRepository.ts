@@ -66,6 +66,13 @@ class DataCleanupRepositoryClass {
       await tx.executeSql(`DELETE FROM key_value_store WHERE key LIKE ?`, [
         `auto_save_${taskId}%`,
       ]);
+      // DB12 (audit 2026-04-21 round 2): notifications.task_id has
+      // no FK (table predates ON DELETE CASCADE retrofit), so a deleted
+      // task left orphan notifications pointing at a non-existent id.
+      // Purge them here as part of the same transaction.
+      await tx.executeSql(`DELETE FROM notifications WHERE task_id = ?`, [
+        taskId,
+      ]);
       await tx.executeSql(`DELETE FROM tasks WHERE id = ?`, [taskId]);
       await tx.executeSql(`DELETE FROM task_list_projection WHERE id = ?`, [
         taskId,

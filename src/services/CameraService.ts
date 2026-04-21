@@ -109,7 +109,11 @@ class CameraServiceClass {
     }
 
     this.initialized = true;
-    Logger.info(TAG, `Photos directory: ${PHOTOS_DIR}`);
+    // S12 (audit 2026-04-21 round 2): demoted from info to debug so
+    // the device-internal path doesn't ride into the remote log
+    // buffer on every init. Path is private on Android
+    // (DocumentDirectoryPath + allowBackup=false) but still noisy.
+    Logger.debug(TAG, `Photos directory: ${PHOTOS_DIR}`);
   }
 
   /**

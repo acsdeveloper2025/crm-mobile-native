@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -130,6 +130,19 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
   >('unsupported');
   const [previewText, setPreviewText] = useState('');
 
+  // B7 (audit 2026-04-21 round 2): guard async handlers in this screen
+  // against unmount. Users on spotty networks + large attachments hit
+  // the unmount-during-fetch case often enough to produce the RN
+  // setState warning; the stat+readFile inside handleOpenAttachment
+  // can also fire `setPreviewMode('text')` after unmount.
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
   const loadRemoteAttachments = useCallback(async () => {
     setIsRemoteLoading(true);
     setRemoteError(null);
@@ -137,12 +150,16 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
       const attachments = await attachmentService.getRemoteTaskAttachments(
         taskId,
       );
+      if (!isMountedRef.current) return;
       setRemoteAttachments(attachments);
     } catch (err) {
+      if (!isMountedRef.current) return;
       const msg = err instanceof Error ? err.message : String(err);
       setRemoteError(msg || 'Failed to load attachments.');
     } finally {
-      setIsRemoteLoading(false);
+      if (isMountedRef.current) {
+        setIsRemoteLoading(false);
+      }
     }
   }, [taskId]);
 
@@ -221,6 +238,7 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
       try {
         setOpeningAttachmentId(attachment.id);
         const uri = await attachmentService.getAttachmentContent(attachment);
+        if (!isMountedRef.current) return;
         if (!uri) {
           Alert.alert('Attachment Error', 'Unable to open this attachment.');
           return;
@@ -243,6 +261,7 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
         if (kind === 'text') {
           // Limit text preview to 500KB to prevent UI freeze on large files
           const stat = await RNFS.stat(filePath);
+          if (!isMountedRef.current) return;
           const fileSize =
             typeof stat.size === 'number'
               ? stat.size
@@ -256,6 +275,7 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
             return;
           }
           const textData = await RNFS.readFile(filePath, 'utf8');
+          if (!isMountedRef.current) return;
           setPreviewAttachment(attachment);
           setPreviewUri(normalizedUri);
           setPreviewText(textData);
@@ -268,10 +288,12 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
           return;
         }
 
+        if (!isMountedRef.current) return;
         setPreviewAttachment(attachment);
         setPreviewUri(normalizedUri);
         setPreviewMode('unsupported');
       } catch (error: unknown) {
+        if (!isMountedRef.current) return;
         Alert.alert(
           'Attachment Error',
           error instanceof Error
@@ -279,7 +301,9 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
             : String(error) || 'Failed to open attachment.',
         );
       } finally {
-        setOpeningAttachmentId(null);
+        if (isMountedRef.current) {
+          setOpeningAttachmentId(null);
+        }
       }
     },
     [openWithNativeViewer],

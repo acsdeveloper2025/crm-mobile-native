@@ -154,7 +154,12 @@ export const DataCleanupManager = () => {
         data newer than 45 days.
       </Text>
 
-      <View style={styles.toggleRow}>
+      {/* U3 (audit 2026-04-21 round 2): override static
+          rgba borderBottomColor with the theme token so the
+          separator is visible on dark-mode surfaces. */}
+      <View
+        style={[styles.toggleRow, { borderBottomColor: theme.colors.border }]}
+      >
         <View style={styles.toggleLabelGroup}>
           <Icon name="timer-outline" size={20} color={theme.colors.primary} />
           <Text style={[styles.toggleLabel, { color: theme.colors.text }]}>
@@ -288,7 +293,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 16,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
+    // borderBottomColor set inline from theme.colors.border (U3).
   },
   toggleLabelGroup: {
     flexDirection: 'row',
