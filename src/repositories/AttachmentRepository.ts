@@ -43,6 +43,11 @@ class AttachmentRepositoryClass {
     );
   }
 
+  // H8/H9 (audit 2026-04-21): hard LIMIT on per-task queries. UI
+  // rendering and validators only care about the current task's
+  // attachments, and product limits cap photos-per-task well below
+  // 500. The cap is a defense-in-depth against a corrupted / runaway
+  // dataset OOM-ing the device.
   async listForTask(
     taskId: string,
     componentType?: 'photo' | 'selfie',
@@ -53,7 +58,7 @@ class AttachmentRepositoryClass {
       query += ' AND component_type = ?';
       params.push(componentType);
     }
-    query += ' ORDER BY uploaded_at DESC';
+    query += ' ORDER BY uploaded_at DESC LIMIT 500';
     return DatabaseService.query<LocalAttachment>(query, params);
   }
 
@@ -62,7 +67,8 @@ class AttachmentRepositoryClass {
       `SELECT * FROM attachments
        WHERE task_id = ?
          AND component_type IN ('photo', 'selfie')
-       ORDER BY uploaded_at ASC`,
+       ORDER BY uploaded_at ASC
+       LIMIT 500`,
       [taskId],
     );
   }

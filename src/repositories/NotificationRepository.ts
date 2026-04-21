@@ -27,9 +27,14 @@ type DbNotification = {
 };
 
 class NotificationRepositoryClass {
+  // H11 (audit 2026-04-21): cap at 500. Notifications land via push +
+  // periodic refresh; old ones eventually age out via cleanup, but a
+  // long-lived install could accumulate thousands without an upstream
+  // cap. The UI never renders more than ~100; 500 is a generous
+  // ceiling before pagination would become meaningful.
   async listAll(): Promise<NotificationRecord[]> {
     const rows = await DatabaseService.query<DbNotification>(
-      'SELECT * FROM notifications ORDER BY timestamp DESC',
+      'SELECT * FROM notifications ORDER BY timestamp DESC LIMIT 500',
     );
     return rows.map(row => ({
       id: row.id,
