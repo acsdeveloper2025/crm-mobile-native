@@ -64,12 +64,31 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
 
       if (isMountedRef.current && requestId === requestIdRef.current) {
         const photoList = results || [];
+        // H3 (audit 2026-04-21): onPhotosLoaded is consumed by
+        // VerificationFormScreen to show "N captured" next to the
+        // 5-photo minimum. It must match what FormSubmissionService
+        // counts toward the submit validator — which excludes
+        // ABANDONED (C10 cleanup) and SKIPPED (file missing) so the
+        // agent doesn't see "5 captured" then hit a submit error.
+        // The gallery itself still DISPLAYS all statuses so the
+        // agent can see what's been captured historically.
+        const countable = photoList.filter(row => {
+          const raw = row as unknown as Record<string, unknown>;
+          const status = String(
+            raw.syncStatus ?? raw.sync_status ?? 'PENDING',
+          ).toUpperCase();
+          return (
+            status === 'PENDING' ||
+            status === 'UPLOADING' ||
+            status === 'SYNCED'
+          );
+        });
         console.warn(
-          `[PhotoGallery] loadPhotos: taskId=${taskId}, type=${componentType}, found=${photoList.length}`,
+          `[PhotoGallery] loadPhotos: taskId=${taskId}, type=${componentType}, found=${photoList.length} (countable=${countable.length})`,
           photoList.map(p => p.id),
         );
         setPhotos(photoList);
-        onPhotosLoaded?.(photoList.length);
+        onPhotosLoaded?.(countable.length);
       }
     } catch (err) {
       Logger.error('PhotoGallery', 'Failed to load photos', err);
