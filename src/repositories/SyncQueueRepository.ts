@@ -82,16 +82,25 @@ class SyncQueueRepositoryClass {
     );
   }
 
-  async deletePendingStatusItems(entityId: string): Promise<void> {
+  async deletePendingStatusItems(
+    entityId: string,
+    userId: string | null,
+  ): Promise<void> {
     // Only delete PENDING and FAILED items — NOT IN_PROGRESS items.
     // Deleting an IN_PROGRESS item orphans its active lease and can cause
     // the processor to lose track of the operation.
+    //
+    // H6 (audit 2026-04-21): scoped by user_id so a call under user B
+    // can't wipe user A's pending status mutation for the same entity.
+    // Legacy rows (user_id IS NULL) are deleted under any user — they
+    // pre-date C6 and can't be attributed.
     await DatabaseService.execute(
       `DELETE FROM sync_queue
        WHERE entity_type = 'TASK_STATUS'
          AND entity_id = ?
-         AND status IN ('PENDING', 'FAILED')`,
-      [entityId],
+         AND status IN ('PENDING', 'FAILED')
+         AND (user_id IS NULL OR user_id = ?)`,
+      [entityId, userId],
     );
   }
 
