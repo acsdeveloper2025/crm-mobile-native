@@ -66,7 +66,18 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
             setGpsWarning('GPS unavailable — photos will lack location data');
           }
         })
-        .catch(() => {});
+        .catch((err: unknown) => {
+          // H15 (audit 2026-04-21): was .catch(() => {}) — silent.
+          // Log so a hard permission-request failure (hardware denied,
+          // OS error) surfaces in telemetry. UI still shows the
+          // "GPS unavailable" warning on the subsequent screen because
+          // WatermarkPreviewScreen's ladder will never get a fix.
+          Logger.warn(
+            'CameraCaptureScreen',
+            'Location permission request failed',
+            err,
+          );
+        });
 
       // Activate camera ONLY after permission is confirmed.
       // On real devices, a small delay lets the native camera HAL initialize.
