@@ -117,7 +117,14 @@ export const ProfileScreen = ({ navigation }: any) => {
             <TouchableOpacity
               style={[
                 styles.avatarEditButton,
-                { backgroundColor: theme.colors.primary },
+                {
+                  backgroundColor: theme.colors.primary,
+                  // UI audit (2026-04-21): border reads from
+                  // theme.colors.surface so the ring around the edit
+                  // pill contrasts correctly in both light and dark
+                  // mode (was hardcoded '#fff').
+                  borderColor: theme.colors.surface,
+                },
               ]}
               onPress={() => navigation.navigate('ProfilePhotoCapture')}
               accessibilityRole="button"
@@ -369,7 +376,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    // borderColor set inline from theme.colors.surface (UI audit 2026-04-21).
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.2,

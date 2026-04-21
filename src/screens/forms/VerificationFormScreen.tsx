@@ -729,7 +729,7 @@ export const VerificationFormScreen = ({
                   style={{
                     color:
                       photoCount >= 5
-                        ? theme.colors.success || '#16A34A'
+                        ? theme.colors.success
                         : theme.colors.danger,
                   }}
                 >
@@ -759,7 +759,7 @@ export const VerificationFormScreen = ({
                   style={{
                     color:
                       selfieCount >= 1
-                        ? theme.colors.success || '#16A34A'
+                        ? theme.colors.success
                         : theme.colors.danger,
                   }}
                 >
@@ -807,7 +807,6 @@ export const VerificationFormScreen = ({
                   { backgroundColor: theme.colors.surfaceAlt },
                 ]}
               >
-                {/* eslint-disable react-native/no-inline-styles */}
                 <View
                   style={[
                     styles.progressFill,
@@ -815,12 +814,11 @@ export const VerificationFormScreen = ({
                       width: `${formProgress.percent}%`,
                       backgroundColor:
                         formProgress.percent === 100
-                          ? '#22C55E'
+                          ? theme.colors.success
                           : theme.colors.primary,
                     },
                   ]}
                 />
-                {/* eslint-enable react-native/no-inline-styles */}
               </View>
             </View>
           ) : null}

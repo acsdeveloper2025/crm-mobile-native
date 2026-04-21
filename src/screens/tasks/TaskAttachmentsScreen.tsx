@@ -468,6 +468,12 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
                   setPreviewText('');
                   setPreviewMode('unsupported');
                 }}
+                // UI audit (2026-04-21): 22 px icon needs hitSlop to
+                // reach the 44×44 target. Plus a11y role/label so
+                // screen readers announce it.
+                accessibilityRole="button"
+                accessibilityLabel="Close preview"
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               >
                 <Icon name="close" size={22} color={theme.colors.textMuted} />
               </TouchableOpacity>

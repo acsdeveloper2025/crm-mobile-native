@@ -293,7 +293,12 @@ export const DashboardScreen = () => {
                       { backgroundColor: theme.colors.danger },
                     ]}
                   >
-                    <Text style={styles.unreadBadgeText}>
+                    <Text
+                      style={[
+                        styles.unreadBadgeText,
+                        { color: theme.colors.surface },
+                      ]}
+                    >
                       {unreadNotifications}
                     </Text>
                   </View>
@@ -347,6 +352,11 @@ export const DashboardScreen = () => {
               ]}
               onPress={handleForceSync}
               disabled={isSyncing}
+              accessibilityRole="button"
+              accessibilityLabel={
+                isSyncing ? 'Syncing with server' : 'Sync with server'
+              }
+              accessibilityState={{ disabled: isSyncing, busy: isSyncing }}
             >
               {isSyncing ? (
                 <ActivityIndicator color={theme.colors.surface} />
@@ -608,7 +618,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   unreadBadgeText: {
-    color: '#ffffff',
+    // Color set inline from theme.colors.surface (UI audit 2026-04-21).
     fontSize: 10,
     fontWeight: 'bold',
   },
@@ -686,8 +696,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
   },
   syncButtonText: {
+    // color set inline from theme.colors.surface (UI audit 2026-04-21).
     marginLeft: 8,
-    color: '#fff',
     fontWeight: '600',
     fontSize: 16,
   },

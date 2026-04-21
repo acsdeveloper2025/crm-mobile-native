@@ -133,6 +133,13 @@ const MultiSelectOption = React.memo(
     return (
       <TouchableOpacity
         onPress={handlePress}
+        // UI audit (2026-04-21): add a11y props to the shared
+        // multi-select primitive so screen readers announce each
+        // option + its selected state. Previously every form's
+        // multi-select lacked these — a core-primitive gap.
+        accessibilityRole="checkbox"
+        accessibilityLabel={String(option.label)}
+        accessibilityState={{ checked: isSelected }}
         style={[
           styles.switchContainer,
           { backgroundColor: rowBg, borderColor: rowBorder },
@@ -147,7 +154,20 @@ const MultiSelectOption = React.memo(
             { borderColor: boxBorder, backgroundColor: boxBg },
           ]}
         >
-          {isSelected && <Text style={styles.checkboxCheckmark}>✓</Text>}
+          {isSelected && (
+            <Text
+              style={[
+                styles.checkboxCheckmark,
+                // UI audit (2026-04-21): tick reads from theme so the
+                // contrast with the selected-state background
+                // (theme.colors.primary) stays correct in both light
+                // and dark modes.
+                { color: theme.colors.surface },
+              ]}
+            >
+              ✓
+            </Text>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -583,7 +603,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxCheckmark: {
-    color: '#fff',
+    // UI audit (2026-04-21): color overridden inline from
+    // `theme.colors.surface` at the call site; dropped from the
+    // static stylesheet so it doesn't shadow the themed value.
     fontSize: 14,
     fontWeight: '700',
   },
