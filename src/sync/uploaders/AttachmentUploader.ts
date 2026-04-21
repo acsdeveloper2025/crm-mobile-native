@@ -2,6 +2,7 @@ import RNFS from 'react-native-fs';
 import { ApiClient } from '../../api/apiClient';
 import { ENDPOINTS } from '../../api/endpoints';
 import { SyncEngineRepository } from '../../repositories/SyncEngineRepository';
+import attachmentService from '../../services/AttachmentService';
 import { notificationService } from '../../services/NotificationService';
 import { Logger } from '../../utils/logger';
 import type { SyncOperation } from '../SyncOperationLog';
@@ -60,6 +61,14 @@ class AttachmentUploaderClass {
         error: `Photo file missing (skipped): ${localPath}`,
       };
     }
+
+    // C7 (audit 2026-04-20, 2026-04-21 decision): strip EXIF in
+    // place before upload. Vision Camera writes GPS/device/serial
+    // into the JPEG's EXIF headers; the watermark already has the
+    // evidence fields we want, so the EXIF is pure leakage. Best
+    // effort — on failure the file is uploaded unchanged (pre-C7
+    // behaviour) with a warning logged.
+    await attachmentService.stripExifMetadata(localPath);
 
     const formData = new FormData();
     formData.append('files', {

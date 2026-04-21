@@ -5,6 +5,7 @@
 
 import { Platform } from 'react-native';
 import RNFS from 'react-native-fs';
+import piexif from 'piexifjs';
 import { Logger } from '../utils/logger';
 import { Attachment } from '../types/index';
 import { ApiClient } from '../api/apiClient';
@@ -259,17 +260,48 @@ class AttachmentServiceClass {
   }
 
   /**
-   * Strip EXIF metadata from image before upload to protect user privacy.
-   * Vision Camera captures raw JPEG with GPS/device data in EXIF headers.
-   * NOTE: For full EXIF stripping, use a native library like react-native-image-manipulator
-   * on the upload path. This method provides a placeholder for the integration.
+   * Strip every EXIF IFD from a JPEG on disk (user directive
+   * 2026-04-21, C7 fix). Vision Camera writes raw JPEGs whose EXIF
+   * contains GPS, device model, serial number, timestamp etc. —
+   * which we do NOT want leaving the device embedded in the
+   * uploaded bytes. The on-screen watermark has the data we care
+   * about for evidence; the hidden EXIF is pure leakage.
+   *
+   * Implementation: piexifjs `remove()` — pure JS, works in RN,
+   * rewrites the file in-place. PNG files are passed through
+   * untouched (no EXIF container). On any failure (e.g. corrupt
+   * JPEG, read error) we log and return the path unchanged so the
+   * upload is never blocked by EXIF processing.
    */
   async stripExifMetadata(imagePath: string): Promise<string> {
-    // TODO: Integrate react-native-image-manipulator or similar to strip EXIF
-    // For now, the watermark processing already re-encodes the image which
-    // removes most EXIF data, but explicit stripping is recommended.
-    Logger.debug(TAG, `EXIF stripping placeholder for: ${imagePath}`);
-    return imagePath;
+    try {
+      if (!/\.jpe?g$/i.test(imagePath)) {
+        return imagePath; // PNG / other formats have no EXIF to strip
+      }
+
+      const base64 = await RNFS.readFile(imagePath, 'base64');
+      // piexifjs accepts the base64 with or without the data URI
+      // prefix; including the prefix here avoids an edge case where
+      // some base64 payloads start with bytes the library mistakes
+      // for a header.
+      const dataUri = `data:image/jpeg;base64,${base64}`;
+      const strippedUri = piexif.remove(dataUri);
+      const strippedBase64 = strippedUri.replace(
+        /^data:image\/jpeg;base64,/,
+        '',
+      );
+
+      await RNFS.writeFile(imagePath, strippedBase64, 'base64');
+      Logger.debug(TAG, `EXIF stripped: ${imagePath}`);
+      return imagePath;
+    } catch (err) {
+      // Best effort — never block an upload because EXIF stripping
+      // failed. The original (with EXIF) would still upload, which
+      // is the pre-C7 behaviour. Surface a warning so the failure
+      // is visible in telemetry.
+      Logger.warn(TAG, `EXIF strip failed for ${imagePath}`, err);
+      return imagePath;
+    }
   }
 
   private buildAttachmentContentUrls(attachment: Attachment): string[] {
