@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
@@ -77,6 +78,28 @@ export const VerificationFormScreen = ({
   const [outcomeWarning, setOutcomeWarning] = useState<string | null>(null);
   const [photoCount, setPhotoCount] = useState(0);
   const [selfieCount, setSelfieCount] = useState(0);
+  // UX (2026-04-21): track keyboard height so the ScrollView can grow
+  // its bottom padding while the keyboard is up. Without this, a
+  // TextInput focused on the last form field got covered by the
+  // keyboard and the Save/Submit buttons stayed off-screen — user had
+  // to dismiss the keyboard first to reach them.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent =
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const showSub = Keyboard.addListener(showEvent, e => {
+      setKeyboardHeight(e.endCoordinates?.height ?? 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+    });
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
   const taskUuid = task?.id ?? null;
   const taskVerificationOutcome = task?.verificationOutcome ?? null;
   const taskFormDataJson = task?.formDataJson ?? null;
@@ -640,14 +663,29 @@ export const VerificationFormScreen = ({
       )}
       <KeyboardAvoidingView
         style={styles.flex1}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView
           style={styles.scrollView}
+          // UX (2026-04-21):
+          //   - keyboardShouldPersistTaps='handled' lets the user tap
+          //     Save/Submit while the keyboard is up without first
+          //     dismissing it.
+          //   - keyboardDismissMode='on-drag' dismisses the keyboard
+          //     when the user starts scrolling the form.
+          //   - paddingBottom grows with keyboardHeight so the last
+          //     field + Save/Submit row always clear the keyboard.
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           contentContainerStyle={[
             styles.scrollContentWithFooter,
-            { paddingBottom: Math.max(insets.bottom, 16) + 80 },
+            {
+              paddingBottom:
+                Math.max(insets.bottom, 16) +
+                80 +
+                (keyboardHeight > 0 ? keyboardHeight + 40 : 0),
+            },
           ]}
           showsVerticalScrollIndicator={false}
         >

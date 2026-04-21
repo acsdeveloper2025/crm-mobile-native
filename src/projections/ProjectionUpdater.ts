@@ -131,6 +131,15 @@ class ProjectionUpdaterClass {
         );
 
         await tx.executeSql('DELETE FROM task_detail_projection');
+        // UX fix (2026-04-21): every key inside json_object() MUST be
+        // camelCase. The payload is consumed directly via
+        // `JSON.parse(taskJson)` in `TaskDetailProjection.getTaskById`
+        // and fed into `mapSqliteTask` which destructures camelCase
+        // property names. Previous snake_case keys (`is_revoked`,
+        // `attachment_count`, etc.) silently made those fields
+        // undefined on any task hydrated from the detail projection —
+        // which masked the Assigned-tab attachment-count badge after
+        // the user opened a task detail and returned to the tab.
         await tx.executeSql(
           `INSERT INTO task_detail_projection (id, task_json, updated_at)
            SELECT id, json_object(
@@ -172,14 +181,14 @@ class ProjectionUpdaterClass {
              'verificationTypeName', verification_type_name,
              'verificationTypeCode', verification_type_code,
              'formDataJson', form_data_json,
-             'is_revoked', is_revoked,
-             'revoked_at', revoked_at,
-             'revoked_by_name', revoked_by_name,
-             'revoke_reason', revoke_reason,
-             'in_progress_at', in_progress_at,
-             'saved_at', saved_at,
-             'is_saved', is_saved,
-             'attachment_count', attachment_count,
+             'isRevoked', is_revoked,
+             'revokedAt', revoked_at,
+             'revokedByName', revoked_by_name,
+             'revokeReason', revoke_reason,
+             'inProgressAt', in_progress_at,
+             'savedAt', saved_at,
+             'isSaved', is_saved,
+             'attachmentCount', attachment_count,
              'syncStatus', sync_status,
              'lastSyncedAt', last_synced_at,
              'localUpdatedAt', local_updated_at
@@ -289,14 +298,14 @@ class ProjectionUpdaterClass {
              'verificationTypeName', verification_type_name,
              'verificationTypeCode', verification_type_code,
              'formDataJson', form_data_json,
-             'is_revoked', is_revoked,
-             'revoked_at', revoked_at,
-             'revoked_by_name', revoked_by_name,
-             'revoke_reason', revoke_reason,
-             'in_progress_at', in_progress_at,
-             'saved_at', saved_at,
-             'is_saved', is_saved,
-             'attachment_count', attachment_count,
+             'isRevoked', is_revoked,
+             'revokedAt', revoked_at,
+             'revokedByName', revoked_by_name,
+             'revokeReason', revoke_reason,
+             'inProgressAt', in_progress_at,
+             'savedAt', saved_at,
+             'isSaved', is_saved,
+             'attachmentCount', attachment_count,
              'syncStatus', sync_status,
              'lastSyncedAt', last_synced_at,
              'localUpdatedAt', local_updated_at

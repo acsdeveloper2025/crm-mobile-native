@@ -277,33 +277,43 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
             </Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() =>
-              onAttachmentsPress ? onAttachmentsPress(task) : onPress(task)
-            }
-            accessibilityRole="button"
-            accessibilityLabel={
-              (task.attachmentCount || 0) > 0
-                ? `Attachments (${task.attachmentCount})`
-                : 'Attachments'
-            }
-          >
-            <Icon name="attach" size={28} color={theme.colors.primary} />
-            {(task.attachmentCount || 0) > 0 && (
-              <View
-                style={[
-                  styles.badgeContainer,
-                  { backgroundColor: theme.colors.danger },
-                ]}
+          {/* UX (2026-04-21): hide the Attachments button on COMPLETED
+              tasks — once the agent submits, the verification is closed
+              and the attached documents are no longer relevant to the
+              field-app user. Keep the button on ASSIGNED / IN_PROGRESS /
+              SAVED / REVOKED so the agent can still reference docs
+              while work is ongoing. */}
+          {task.status !== 'COMPLETED' && (
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() =>
+                onAttachmentsPress ? onAttachmentsPress(task) : onPress(task)
+              }
+              accessibilityRole="button"
+              accessibilityLabel={
+                (task.attachmentCount || 0) > 0
+                  ? `Attachments (${task.attachmentCount})`
+                  : 'Attachments'
+              }
+            >
+              <Icon name="attach" size={28} color={theme.colors.primary} />
+              {(task.attachmentCount || 0) > 0 && (
+                <View
+                  style={[
+                    styles.badgeContainer,
+                    { backgroundColor: theme.colors.danger },
+                  ]}
+                >
+                  <Text style={styles.badgeText}>{task.attachmentCount}</Text>
+                </View>
+              )}
+              <Text
+                style={[styles.actionLabel, { color: theme.colors.primary }]}
               >
-                <Text style={styles.badgeText}>{task.attachmentCount}</Text>
-              </View>
-            )}
-            <Text style={[styles.actionLabel, { color: theme.colors.primary }]}>
-              Attachments
-            </Text>
-          </TouchableOpacity>
+                Attachments
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         <View style={styles.statusBadgeContainer}>
