@@ -10,6 +10,16 @@ const LAST_CLEANUP_DATE_KEY = 'last_cleanup_date';
 const RETENTION_DAYS = 45;
 const ATTACHMENT_CACHE_DIR = `${RNFS.CachesDirectoryPath}/attachments`;
 
+// H5 orphan-sweep follow-up (2026-04-21): paths mirror CameraService's
+// constants. Duplicated rather than imported to avoid pulling Camera
+// internals into the cleanup service.
+const PHOTOS_DIR = `${RNFS.DocumentDirectoryPath}/photos`;
+const THUMBNAILS_DIR = `${PHOTOS_DIR}/thumbnails`;
+// A file must be at least this old before the sweep is willing to
+// delete it as an orphan — protects live captures that have written
+// their file to disk but not yet inserted the DB row.
+const ORPHAN_FILE_MIN_AGE_MS = 60_000;
+
 export interface CleanupResult {
   success: boolean;
   deletedCases: number;
@@ -132,6 +142,20 @@ export class DataCleanupService {
 
       if (result.errors.length > 0) result.success = false;
       await ProjectionUpdater.rebuildDashboard();
+
+      // H5 follow-up (2026-04-21): piggyback an orphan-file sweep on
+      // the auto/manual cleanup run. H5 reversed the old order so the
+      // DB is deleted before the files; a crash between the two leaves
+      // orphan files on disk (safer than orphan DB rows, but still
+      // takes storage). This sweep reclaims them on the next cleanup
+      // tick without adding a separate cron/scheduler.
+      try {
+        const sweep = await this.sweepOrphanFiles();
+        result.deletedFiles += sweep.deletedFiles;
+        result.deletedSize += sweep.reclaimedBytes;
+      } catch (sweepErr) {
+        Logger.warn(TAG, 'Orphan-file sweep failed', sweepErr);
+      }
     } catch (err: unknown) {
       result.success = false;
       result.errors.push(err instanceof Error ? err.message : String(err));
@@ -139,6 +163,89 @@ export class DataCleanupService {
     }
 
     return result;
+  }
+
+  /**
+   * Scan the photos / thumbnails directories for files not referenced
+   * by any row in the `attachments` table and delete them.
+   *
+   * H5 follow-up (2026-04-21). Guards:
+   *  - Files younger than ORPHAN_FILE_MIN_AGE_MS are skipped (a live
+   *    capture may have written but not yet INSERTed the DB row).
+   *  - Errors on individual unlinks are logged and do not abort the
+   *    sweep — worst case we try again on the next tick.
+   *  - `RNFS.unlink` with a path that no longer exists is harmless.
+   */
+  static async sweepOrphanFiles(): Promise<{
+    deletedFiles: number;
+    reclaimedBytes: number;
+    scannedFiles: number;
+  }> {
+    let deletedFiles = 0;
+    let reclaimedBytes = 0;
+    let scannedFiles = 0;
+
+    const photosExist = await RNFS.exists(PHOTOS_DIR);
+    if (!photosExist) {
+      return { deletedFiles, reclaimedBytes, scannedFiles };
+    }
+
+    // Build the referenced-paths set from every attachment row,
+    // including thumbnail paths. A single set-hit is enough to keep
+    // a file.
+    const referenced = new Set<string>();
+    const rows = await DataCleanupRepository.listAllAttachments();
+    for (const row of rows) {
+      if (row.localPath) referenced.add(row.localPath);
+      if (row.thumbnailPath) referenced.add(row.thumbnailPath);
+    }
+
+    const now = Date.now();
+    const scanDir = async (dir: string) => {
+      const dirExists = await RNFS.exists(dir);
+      if (!dirExists) return;
+      const entries = await RNFS.readDir(dir);
+      for (const entry of entries) {
+        if (!entry.isFile()) {
+          continue; // skip thumbnails subdir, scanned separately
+        }
+        scannedFiles++;
+        if (referenced.has(entry.path)) {
+          continue;
+        }
+        const mtimeMs = entry.mtime ? new Date(entry.mtime).getTime() : 0;
+        if (mtimeMs && now - mtimeMs < ORPHAN_FILE_MIN_AGE_MS) {
+          // Too fresh — probably an in-flight capture.
+          continue;
+        }
+        const size =
+          typeof entry.size === 'number'
+            ? entry.size
+            : parseInt(String(entry.size || 0), 10) || 0;
+        try {
+          await RNFS.unlink(entry.path);
+          deletedFiles++;
+          reclaimedBytes += size;
+        } catch (unlinkErr) {
+          Logger.warn(
+            TAG,
+            `Orphan-file unlink failed: ${entry.path}`,
+            unlinkErr,
+          );
+        }
+      }
+    };
+
+    await scanDir(PHOTOS_DIR);
+    await scanDir(THUMBNAILS_DIR);
+
+    if (deletedFiles > 0) {
+      Logger.info(
+        TAG,
+        `Orphan-file sweep: scanned ${scannedFiles}, reclaimed ${deletedFiles} files (${reclaimedBytes} bytes)`,
+      );
+    }
+    return { deletedFiles, reclaimedBytes, scannedFiles };
   }
 
   /**
