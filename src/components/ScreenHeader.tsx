@@ -36,6 +36,8 @@ export const ScreenHeader: React.FC<ScreenHeaderProps> = ({
           <TouchableOpacity
             onPress={() => navigation.goBack()}
             style={styles.backBtn}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
           >
             <Icon name="chevron-back" size={24} color={theme.colors.text} />
           </TouchableOpacity>

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
+import { useTheme } from '../../context/ThemeContext';
 
 interface SkeletonProps {
   width?: number | string;
@@ -14,6 +15,7 @@ export const SkeletonBox: React.FC<SkeletonProps> = ({
   borderRadius = 4,
   style,
 }) => {
+  const { theme } = useTheme();
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -35,44 +37,66 @@ export const SkeletonBox: React.FC<SkeletonProps> = ({
 
   return (
     <Animated.View
-      style={[styles.skeleton, { width, height, borderRadius, opacity }, style]}
+      style={[
+        // M13 (audit 2026-04-21): theme-aware skeleton tint. Previous
+        // hardcoded `#E5E7EB` showed a bright gray block in dark mode.
+        { backgroundColor: theme.colors.border },
+        { width, height, borderRadius, opacity },
+        style,
+      ]}
     />
   );
 };
 
-export const TaskCardSkeleton = () => (
-  <View style={styles.card}>
-    <View style={styles.header}>
-      <SkeletonBox width={80} height={24} borderRadius={12} />
-      <SkeletonBox width={100} height={16} />
+export const TaskCardSkeleton = () => {
+  const { theme } = useTheme();
+  return (
+    <View
+      style={[
+        styles.card,
+        {
+          backgroundColor: theme.colors.surface,
+          borderColor: theme.colors.border,
+        },
+      ]}
+    >
+      <View style={styles.header}>
+        <SkeletonBox width={80} height={24} borderRadius={12} />
+        <SkeletonBox width={100} height={16} />
+      </View>
+      <SkeletonBox width="60%" height={20} style={styles.mb12} />
+      <SkeletonBox width="40%" height={16} style={styles.mb12} />
+      <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
+        <SkeletonBox width="80%" height={16} />
+      </View>
     </View>
-    <SkeletonBox width="60%" height={20} style={styles.mb12} />
-    <SkeletonBox width="40%" height={16} style={styles.mb12} />
-    <View style={styles.footer}>
-      <SkeletonBox width="80%" height={16} />
-    </View>
-  </View>
-);
+  );
+};
 
-export const DashboardCardSkeleton = () => (
-  <View style={styles.dashboardCard}>
-    <SkeletonBox width={40} height={40} borderRadius={8} style={styles.mb16} />
-    <SkeletonBox width="40%" height={24} style={styles.mb8} />
-    <SkeletonBox width="70%" height={16} />
-  </View>
-);
+export const DashboardCardSkeleton = () => {
+  const { theme } = useTheme();
+  return (
+    <View
+      style={[styles.dashboardCard, { backgroundColor: theme.colors.surface }]}
+    >
+      <SkeletonBox
+        width={40}
+        height={40}
+        borderRadius={8}
+        style={styles.mb16}
+      />
+      <SkeletonBox width="40%" height={24} style={styles.mb8} />
+      <SkeletonBox width="70%" height={16} />
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
-  skeleton: {
-    backgroundColor: '#E5E7EB', // gray-200
-  },
   card: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
   },
   header: {
     flexDirection: 'row',
@@ -85,10 +109,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#F3F4F6',
   },
   dashboardCard: {
-    backgroundColor: '#FFFFFF',
     borderRadius: 16,
     padding: 20,
     width: '48%',

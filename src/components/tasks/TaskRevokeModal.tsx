@@ -56,7 +56,12 @@ export const TaskRevokeModal: React.FC<TaskRevokeModalProps> = ({
             <Text style={[styles.modalTitle, { color: theme.colors.text }]}>
               Revoke Task
             </Text>
-            <TouchableOpacity onPress={onClose} disabled={isRevoking}>
+            <TouchableOpacity
+              onPress={onClose}
+              disabled={isRevoking}
+              accessibilityRole="button"
+              accessibilityLabel="Close"
+            >
               <Icon name="close" size={24} color={theme.colors.textMuted} />
             </TouchableOpacity>
           </View>
