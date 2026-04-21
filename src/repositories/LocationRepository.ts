@@ -51,9 +51,17 @@ class LocationRepositoryClass {
     );
   }
 
+  // H10 (audit 2026-04-21): cap the per-task location history at 2000
+  // rows. Adaptive location tracking records every 60-120 s while a
+  // task is active, so a multi-day verification in the field could
+  // generate thousands of rows. No screen renders more than the most
+  // recent ~100; 2000 is a generous ceiling before we page.
   async listForTask(taskId: string): Promise<LocalLocation[]> {
     return DatabaseService.query<LocalLocation>(
-      'SELECT * FROM locations WHERE task_id = ? ORDER BY timestamp DESC',
+      `SELECT * FROM locations
+       WHERE task_id = ?
+       ORDER BY timestamp DESC
+       LIMIT 2000`,
       [taskId],
     );
   }
