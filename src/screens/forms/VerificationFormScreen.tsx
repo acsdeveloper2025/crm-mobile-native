@@ -891,7 +891,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
                     isSaving && styles.actionButtonDimmed,
                   ]}
                   onPress={handleSave}
-                  disabled={isSaving || isSubmitting}
+                  disabled={isSaving || isSubmitting || templateLoading}
                 >
                   {isSaving ? (
                     <>
@@ -932,7 +932,7 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
                     isSubmitting && styles.actionButtonDimmed,
                   ]}
                   onPress={handleSubmit}
-                  disabled={isSubmitting || isSaving}
+                  disabled={isSubmitting || isSaving || templateLoading}
                 >
                   {isSubmitting ? (
                     <>
