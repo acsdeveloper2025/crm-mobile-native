@@ -402,6 +402,9 @@ export const VerificationFormScreen = ({
 
   const handleSave = async () => {
     if (!task || !selectedOutcome) return;
+    // M12 (audit 2026-04-21): defensive in-flight re-check — see
+    // handleSubmit for the same pattern.
+    if (isSaving || isSubmitting) return;
 
     try {
       setIsSaving(true);
@@ -463,6 +466,14 @@ export const VerificationFormScreen = ({
       if (!confirmed) return;
     }
 
+    // M12 (audit 2026-04-21): defensive in-flight re-check. Button
+    // `disabled` guards most double-taps but a rapid tap within the
+    // same event-loop tick could slip through before the state
+    // update propagates. Re-read the state at handler entry.
+    if (isSubmitting || isSaving) {
+      return;
+    }
+
     try {
       setIsSubmitting(true);
 
@@ -496,6 +507,16 @@ export const VerificationFormScreen = ({
       )
         ? 'Missing Evidence'
         : 'Submission Error';
+      // M11 (audit 2026-04-21): surface submission failures to
+      // telemetry so ops see rejection trends without waiting for
+      // user bug reports. The Alert stays so the user sees the same
+      // explanatory copy as before; the logged entry just adds
+      // observability.
+      Logger.warn(
+        'VerificationFormScreen',
+        `Submission failed for task ${task?.id}: ${message}`,
+        err,
+      );
       Alert.alert(title, message);
     } finally {
       setIsSubmitting(false);
