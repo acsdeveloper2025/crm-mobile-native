@@ -16,6 +16,7 @@ import { ScreenHeader } from '../../components/ScreenHeader';
 import { TaskTimeline } from '../../components/tasks/TaskTimeline';
 import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
 import { FormRepository } from '../../repositories/FormRepository';
+import { Logger } from '../../utils/logger';
 import { SyncService } from '../../services/SyncService';
 
 export const TaskDetailScreen = ({ route, navigation }: any) => {
@@ -32,9 +33,18 @@ export const TaskDetailScreen = ({ route, navigation }: any) => {
 
   useEffect(() => {
     if (task?.status === 'COMPLETED' && task?.id) {
+      // H14 (audit 2026-04-21): was .catch(() => {}) — silent. Log
+      // the failure so a broken sync-status read doesn't leave the
+      // UI in a stale "unknown" state without any record.
       FormRepository.getSubmissionSyncStatus(task.id)
         .then(setSubmissionSync)
-        .catch(() => {});
+        .catch(err => {
+          Logger.warn(
+            'TaskDetailScreen',
+            `Failed to load submission sync status for task ${task.id}`,
+            err,
+          );
+        });
     }
   }, [task?.status, task?.id]);
 

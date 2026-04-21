@@ -323,7 +323,18 @@ export const VerificationFormScreen = ({ route, navigation }: any) => {
     if (!outcome) {
       return;
     }
-    handleOutcomeSelect(outcome as LegacyOutcome).catch(() => {});
+    // H13 (audit 2026-04-21): log the failure so a broken outcome
+    // selection surfaces in telemetry / crash reports. The UX
+    // fallback (selector stays on the prior value visually) is
+    // intentional — a toast/alert here would be noisy for the
+    // common case of a transient DB contention retry.
+    handleOutcomeSelect(outcome as LegacyOutcome).catch(err => {
+      Logger.warn(
+        'VerificationFormScreen',
+        'Failed to apply outcome selection',
+        err,
+      );
+    });
   };
 
   const handleFieldChange = React.useCallback(
