@@ -14,6 +14,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTask } from '../../hooks/useTask';
 import { useTheme } from '../../context/ThemeContext';
 import { ScreenHeader } from '../../components/ScreenHeader';
+import { TaskDetailSkeleton } from '../../components/ui/Skeleton';
 import { TaskTimeline } from '../../components/tasks/TaskTimeline';
 import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
 import { FormRepository } from '../../repositories/FormRepository';
@@ -162,17 +163,15 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
   };
 
   if (isLoading) {
+    // M15 (audit 2026-04-21): layout-preview skeleton instead of a bare
+    // spinner. Matches the eventual header/details/action card layout so
+    // the shell doesn't shift when data arrives.
     return (
       <View
-        style={[
-          styles.centerContainer,
-          { backgroundColor: theme.colors.background },
-        ]}
+        style={[styles.container, { backgroundColor: theme.colors.background }]}
       >
-        <ActivityIndicator size="large" color={theme.colors.primary} />
-        <Text style={[styles.stateText, { color: theme.colors.textSecondary }]}>
-          Loading task details...
-        </Text>
+        <ScreenHeader title="Task Details" />
+        <TaskDetailSkeleton />
       </View>
     );
   }
