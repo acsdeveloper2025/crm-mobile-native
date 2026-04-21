@@ -40,7 +40,12 @@ const Modal: React.FC<ModalProps> = ({
             ) : (
               <View />
             )}
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={styles.closeButton}
+              accessibilityLabel="Close"
+              accessibilityRole="button"
+            >
               <Text style={{ color: theme.colors.textSecondary }}>Close</Text>
             </TouchableOpacity>
           </View>
@@ -67,6 +72,13 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  // H18 (audit 2026-04-21): 44x44 min tap target.
+  closeButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 18,

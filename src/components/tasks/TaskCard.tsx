@@ -476,9 +476,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   iconButton: {
+    // H20 (audit 2026-04-21): 44×44 min tap target.
     position: 'relative',
     padding: 4,
+    minWidth: 44,
+    minHeight: 44,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   actionLabel: {
     fontSize: 10,

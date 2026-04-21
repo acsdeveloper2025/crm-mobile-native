@@ -65,6 +65,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   backBtn: {
+    // H19 (audit 2026-04-21): 44×44 min tap target (iOS HIG).
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
     padding: 6,
   },
   backPlaceholder: {
