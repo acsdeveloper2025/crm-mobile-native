@@ -7,6 +7,8 @@ import {
   ScrollView,
   Appearance,
   DevSettings,
+  type ColorSchemeName,
+  type NativeEventSubscription,
 } from 'react-native';
 import { Logger } from '../utils/logger';
 
@@ -19,16 +21,47 @@ interface State {
   error?: Error;
   errorInfo?: ErrorInfo;
   showDetails: boolean;
+  // Appearance API can return null (never set) or undefined in some
+  // environments, so mirror the SDK signature rather than force-cast.
+  colorScheme: ColorSchemeName | null | undefined;
 }
 
+// ErrorBoundary is a class component (React requires
+// componentDidCatch/getDerivedStateFromError for error boundaries) and
+// runs OUTSIDE the ThemeContext provider — it must keep working even if
+// ThemeContext itself throws. So instead of useTheme, we subscribe to
+// the platform Appearance API directly and re-render when the system
+// theme flips. Previously we read Appearance.getColorScheme() once at
+// render which produced stale chrome on live theme changes.
 class ErrorBoundary extends Component<Props, State> {
+  private appearanceSubscription: NativeEventSubscription | null = null;
+
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, showDetails: false };
+    this.state = {
+      hasError: false,
+      showDetails: false,
+      colorScheme: Appearance.getColorScheme(),
+    };
   }
 
-  static getDerivedStateFromError(error: Error): State {
+  static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error, showDetails: false };
+  }
+
+  componentDidMount() {
+    // Live-subscribe so the error screen adapts if the user toggles
+    // their system theme while the crash UI is on screen.
+    this.appearanceSubscription = Appearance.addChangeListener(
+      ({ colorScheme }) => {
+        this.setState({ colorScheme });
+      },
+    );
+  }
+
+  componentWillUnmount() {
+    this.appearanceSubscription?.remove();
+    this.appearanceSubscription = null;
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -46,7 +79,7 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   private getThemeColors() {
-    const isDark = Appearance.getColorScheme() === 'dark';
+    const isDark = this.state.colorScheme === 'dark';
 
     if (isDark) {
       return {

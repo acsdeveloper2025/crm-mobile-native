@@ -1,8 +1,10 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NetworkService } from '../../services/NetworkService';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { useTheme } from '../../context/ThemeContext';
+import type { Theme } from '../../theme/Theme';
 
 /**
  * Persistent network status banner shown app-wide.
@@ -12,6 +14,8 @@ import Icon from 'react-native-vector-icons/Ionicons';
  */
 export const NetworkStatusBanner: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
   const [isOnline, setIsOnline] = useState(NetworkService.getIsOnline());
   const [showOnlineBanner, setShowOnlineBanner] = useState(false);
   const wasOfflineRef = useRef(false);
@@ -85,30 +89,36 @@ export const NetworkStatusBanner: React.FC = () => {
   return null;
 };
 
-const styles = StyleSheet.create({
-  banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-    gap: 8,
-  },
-  offlineBanner: {
-    backgroundColor: '#DC2626',
-  },
-  onlineBanner: {
-    backgroundColor: '#16A34A',
-  },
-  offlineText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-  },
-  onlineText: {
-    color: '#FFFFFF',
-    fontSize: 13,
-    fontWeight: '500',
-    flex: 1,
-  },
-});
+// Banner background and text are semantic: red for offline (`danger`)
+// and green for online (`success`). Both palette entries already track
+// theme (richer saturation in light, lighter tone in dark). White text
+// stays hardcoded — it's legible on both saturated red and saturated
+// green regardless of theme.
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    banner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 16,
+      paddingBottom: 8,
+      gap: 8,
+    },
+    offlineBanner: {
+      backgroundColor: theme.colors.danger,
+    },
+    onlineBanner: {
+      backgroundColor: theme.colors.success,
+    },
+    offlineText: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '500',
+      flex: 1,
+    },
+    onlineText: {
+      color: '#FFFFFF',
+      fontSize: 13,
+      fontWeight: '500',
+      flex: 1,
+    },
+  });
