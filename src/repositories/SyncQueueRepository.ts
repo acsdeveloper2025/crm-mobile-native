@@ -138,7 +138,7 @@ class SyncQueueRepositoryClass {
     // Legacy rows (user_id IS NULL) are deleted under either user —
     // they pre-date the isolation and can't be attributed.
     await DatabaseService.transaction(async tx => {
-      await tx.executeSql(
+      await tx.execute(
         `DELETE FROM sync_queue
          WHERE entity_type = 'TASK_STATUS'
            AND entity_id = ?
@@ -146,7 +146,7 @@ class SyncQueueRepositoryClass {
            AND (user_id IS NULL OR user_id = ?)`,
         [entityId, userId],
       );
-      await tx.executeSql(
+      await tx.execute(
         `INSERT INTO sync_queue
           (id, action_type, entity_type, entity_id, payload_json, status, priority, created_at, attempts, max_attempts, started_at, lease_expires_at, user_id)
          VALUES (?, ?, 'TASK_STATUS', ?, ?, 'PENDING', ?, ?, 0, 10, NULL, NULL, ?)`,

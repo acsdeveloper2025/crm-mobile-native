@@ -106,8 +106,8 @@ class ProjectionUpdaterClass {
     this.rebuilding = true;
     try {
       await DatabaseService.transaction(async tx => {
-        await tx.executeSql('DELETE FROM task_list_projection');
-        await tx.executeSql(
+        await tx.execute('DELETE FROM task_list_projection');
+        await tx.execute(
           `INSERT INTO task_list_projection (
              id, case_id, verification_task_id, verification_task_number, title, customer_name,
              address_street, address_city, address_state, address_pincode, status, priority,
@@ -130,7 +130,7 @@ class ProjectionUpdaterClass {
            FROM tasks`,
         );
 
-        await tx.executeSql('DELETE FROM task_detail_projection');
+        await tx.execute('DELETE FROM task_detail_projection');
         // UX fix (2026-04-21): every key inside json_object() MUST be
         // camelCase. The payload is consumed directly via
         // `JSON.parse(taskJson)` in `TaskDetailProjection.getTaskById`
@@ -140,7 +140,7 @@ class ProjectionUpdaterClass {
         // undefined on any task hydrated from the detail projection —
         // which masked the Assigned-tab attachment-count badge after
         // the user opened a task detail and returned to the tab.
-        await tx.executeSql(
+        await tx.execute(
           `INSERT INTO task_detail_projection (id, task_json, updated_at)
            SELECT id, json_object(
              'id', id,
@@ -196,8 +196,8 @@ class ProjectionUpdaterClass {
            FROM tasks`,
         );
 
-        await tx.executeSql('DELETE FROM dashboard_projection');
-        await tx.executeSql(
+        await tx.execute('DELETE FROM dashboard_projection');
+        await tx.execute(
           `INSERT INTO dashboard_projection
            SELECT
              1,
@@ -227,10 +227,10 @@ class ProjectionUpdaterClass {
   ): Promise<void> {
     try {
       await DatabaseService.transaction(async tx => {
-        await tx.executeSql('DELETE FROM task_list_projection WHERE id = ?', [
+        await tx.execute('DELETE FROM task_list_projection WHERE id = ?', [
           taskId,
         ]);
-        await tx.executeSql(
+        await tx.execute(
           `INSERT INTO task_list_projection (
              id, case_id, verification_task_id, verification_task_number, title, customer_name,
              address_street, address_city, address_state, address_pincode, status, priority,
@@ -254,10 +254,10 @@ class ProjectionUpdaterClass {
            WHERE id = ?`,
           [taskId],
         );
-        await tx.executeSql('DELETE FROM task_detail_projection WHERE id = ?', [
+        await tx.execute('DELETE FROM task_detail_projection WHERE id = ?', [
           taskId,
         ]);
-        await tx.executeSql(
+        await tx.execute(
           `INSERT INTO task_detail_projection (id, task_json, updated_at)
            SELECT id, json_object(
              'id', id,
@@ -337,8 +337,8 @@ class ProjectionUpdaterClass {
   async rebuildDashboard(shouldNotify: boolean = true): Promise<void> {
     // Wrap in transaction so dashboard is never empty between DELETE and INSERT
     await DatabaseService.transaction(async tx => {
-      await tx.executeSql('DELETE FROM dashboard_projection WHERE id = 1');
-      await tx.executeSql(
+      await tx.execute('DELETE FROM dashboard_projection WHERE id = 1');
+      await tx.execute(
         `INSERT INTO dashboard_projection
          SELECT
            1,

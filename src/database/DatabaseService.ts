@@ -1,18 +1,45 @@
 // DatabaseService - SQLite CRUD operations and lifecycle management
-// This is the single entry point for all local data operations
+// This is the single entry point for all local data operations.
+//
+// v1.0.5: backed directly by @op-engineering/op-sqlite built with
+// SQLCipher 4.6+ (see package.json "op-sqlite": { "sqlcipher": true }).
+// Encryption is applied at open-time via the `encryptionKey` parameter —
+// no more `PRAGMA key` which (a) was silently ignored on the previous
+// plugin (unencrypted DB in every OEM) and (b) triggered Samsung Knox's
+// Protected Module false-positive HMAC check on Samsung devices causing
+// SQLITE_CORRUPT on every launch.
+//
+// There is NO compat shim anymore. The public surface of DatabaseService
+// (query, execute, transaction, getDb, count, close, ...) is unchanged,
+// but callers receive op-sqlite's native types: a `Transaction` exposes
+// `.execute(sql, params)` and `QueryResult.rows` is a plain array. The
+// old `.executeSql()` / `.rows.item(i)` / `.rows.raw()` / array-wrapped
+// result shape from react-native-sqlite-storage is gone.
 
-import SQLite, { SQLiteDatabase, ResultSet } from 'react-native-sqlite-storage';
+import {
+  open,
+  type DB,
+  type QueryResult,
+  type Transaction,
+} from '@op-engineering/op-sqlite';
 import RNFS from 'react-native-fs';
 import { config } from '../config';
 import { SCHEMA_SQL, INDEX_SQL, MIGRATIONS, DB_VERSION } from './schema';
 import { Logger } from '../utils/logger';
 import { DatabaseKeyStore } from '../services/DatabaseKeyStore';
 
-// Enable promise-based API
-SQLite.enablePromise(true);
+/**
+ * Re-exported op-sqlite types so repositories can annotate their own
+ * transaction callbacks without importing op-sqlite directly. That keeps
+ * the dependency surface narrow: DatabaseService is the only file that
+ * speaks to op-sqlite.
+ */
+export type { DB, QueryResult, Transaction };
+
+type SqlParam = string | number | null;
 
 class DatabaseServiceClass {
-  private db: SQLiteDatabase | null = null;
+  private db: DB | null = null;
   private initialized = false;
   // Phase C4: migrations can run deferred. This promise is set by
   // initialize() and resolved either synchronously (if called without
@@ -72,20 +99,21 @@ class DatabaseServiceClass {
       // 2026-04-21 v1.0.4: ALWAYS attempt recovery on init failure.
       //
       // The v1.0.3 attempt at a Samsung-specific fix used an
-      // `isCorruptionError(error)` guard that inspected
-      // `error.message`. But `react-native-sqlite-storage` sometimes
-      // throws a plain object `{ code: 11, message: '…' }` rather than
-      // an Error instance — on that path `String(error)` returns
-      // `[object Object]`, my matcher returned `false`, and the
-      // recovery never fired. Users on Samsung saw the original error
-      // re-surfaced with no attempt to self-heal.
-      //
-      // Since the local DB is a cache of server-side data, the
+      // `isCorruptionError(error)` guard that inspected `error.message`.
+      // But the old plugin sometimes threw a plain object `{ code, message }`
+      // rather than an Error, the matcher missed, and recovery never
+      // fired. Since the local DB is a cache of server-side data, the
       // recovery is non-destructive (next sync refills). Running it
       // unconditionally on ANY init failure is strictly safer than
       // skipping it due to an error-shape mismatch. The full error
       // shape is dumped below so future regressions can be debugged
       // from a single logcat line.
+      //
+      // v1.0.5 dual use: this same path now performs the one-time
+      // migration from v1.0.4's plaintext DB to v1.0.5's SQLCipher-
+      // encrypted DB. Opening a plaintext file with an encryption key
+      // fails at the first query ("file is not a database"); the
+      // catch wipes it and openAndSetup recreates a fresh encrypted DB.
       Logger.warn(
         'DatabaseService',
         'Initial DB open failed; attempting corruption recovery',
@@ -137,10 +165,9 @@ class DatabaseServiceClass {
 
   /**
    * Collect every useful property from an unknown error shape into a
-   * serializable object the logger can render. `react-native-sqlite-storage`
-   * sometimes throws plain objects with `{ code, message }`, sometimes
-   * Error instances, sometimes just strings. This normalizer lets the
-   * log line be uniform regardless.
+   * serializable object the logger can render. op-sqlite throws proper
+   * Error instances, but keep the object-shape branch as defense for
+   * any future plugin change or wrapped rejection.
    */
   private static describeError(err: unknown): Record<string, unknown> {
     if (err == null) {
@@ -173,7 +200,7 @@ class DatabaseServiceClass {
       return;
     }
     try {
-      await this.db.close();
+      this.db.close();
     } catch (err) {
       Logger.warn(
         'DatabaseService',
@@ -186,46 +213,35 @@ class DatabaseServiceClass {
   }
 
   private async deleteLocalDbFile(): Promise<void> {
-    let deletedViaApi = false;
-    try {
-      await SQLite.deleteDatabase({
-        name: config.dbName,
-        location: 'default',
-      });
-      deletedViaApi = true;
-      Logger.info('DatabaseService', 'Deleted local DB file for recovery');
-    } catch (err) {
-      // Not fatal — we retry via RNFS below. Log so ops can track this.
-      Logger.warn(
-        'DatabaseService',
-        'SQLite.deleteDatabase failed during recovery; falling back to RNFS unlink',
-        err,
-      );
-    }
-
-    // 2026-04-21 v1.0.3: belt-and-braces file-level delete of the DB
-    // + its WAL + SHM sidecars. On some Samsung devices
-    // `SQLite.deleteDatabase` from react-native-sqlite-storage reports
-    // success but leaves the files on disk (or leaves the `-wal` /
-    // `-shm` sidecars behind), so the next `openDatabase` re-attaches
-    // the corrupt state. Explicit `RNFS.unlink` is idempotent and
-    // survives the library's quirks.
+    // op-sqlite exposes `db.delete()` but requires an open handle; our
+    // recovery path has already closed / never opened. Instead, unlink the
+    // files directly via RNFS. op-sqlite uses the standard Android
+    // `/data/data/<pkg>/databases/` location identical to the old plugin,
+    // so the paths computed below still apply.
+    //
+    // Belt-and-braces file-level delete of the DB + its WAL + SHM sidecars
+    // (kept from v1.0.3). On some Samsung devices the plugin's own delete
+    // reports success while leaving `-wal` / `-shm` sidecars behind, so
+    // the next open re-attached the corrupt state. RNFS.unlink is
+    // idempotent and survives that quirk.
     const candidates = [
       `${RNFS.DocumentDirectoryPath}/../databases/${config.dbName}`,
       `${RNFS.DocumentDirectoryPath}/../databases/${config.dbName}-wal`,
       `${RNFS.DocumentDirectoryPath}/../databases/${config.dbName}-shm`,
       `${RNFS.DocumentDirectoryPath}/../databases/${config.dbName}-journal`,
     ];
+    let unlinked = 0;
     for (const path of candidates) {
       try {
         if (await RNFS.exists(path)) {
           await RNFS.unlink(path);
+          unlinked++;
           Logger.info('DatabaseService', `Unlinked stale DB file: ${path}`);
         }
       } catch (err) {
-        // Per-file failures are non-fatal; openDatabase will still work
-        // because the main .db file has already been deleted (or
-        // SQLite's own retry will create fresh).
+        // Per-file failures are non-fatal; the next open will still
+        // work because the main .db file has been removed or SQLite's
+        // own path will re-create fresh.
         Logger.warn(
           'DatabaseService',
           `RNFS.unlink failed for ${path}; continuing`,
@@ -234,12 +250,10 @@ class DatabaseServiceClass {
       }
     }
 
-    if (!deletedViaApi) {
-      Logger.info(
-        'DatabaseService',
-        'DB file cleanup completed via RNFS fallback',
-      );
-    }
+    Logger.info(
+      'DatabaseService',
+      `DB file cleanup complete (${unlinked} files unlinked)`,
+    );
   }
 
   private async openAndSetup(options: {
@@ -247,20 +261,18 @@ class DatabaseServiceClass {
   }): Promise<void> {
     Logger.info('DatabaseService', 'Initializing database...');
 
-    this.db = await SQLite.openDatabase({
-      name: config.dbName,
-      location: 'default',
-    });
-
-    // Encryption: When using react-native-sqlcipher-storage, set the key
-    // before any other PRAGMA. The key is derived from the device keychain
-    // so it's unique per installation and not stored in plaintext.
+    // Encryption: op-sqlite is compiled with SQLCipher (see package.json
+    // "op-sqlite": { "sqlcipher": true }). Passing `encryptionKey` at open
+    // time transparently encrypts every on-disk page with AES-256; there
+    // is no separate PRAGMA key step and none is needed.
     //
     // Safety:
     //  - The key must be a 64-character hex string (256 bits). Any other
-    //    format is rejected to prevent SQL injection via PRAGMA interpolation.
-    //  - In release builds (__DEV__ === false) a key is REQUIRED; starting
-    //    an unencrypted DB in production is a hard failure.
+    //    format is rejected so a malformed Keychain entry can't silently
+    //    produce a weak key.
+    //  - In release builds (__DEV__ === false) a key is REQUIRED.
+    //  - Dev builds without a key start unencrypted — useful for devtools
+    //    that inspect the raw DB file on the simulator.
     const encryptionKey = config.dbEncryptionKey;
     if (encryptionKey) {
       if (!DatabaseServiceClass.isValidEncryptionKey(encryptionKey)) {
@@ -268,12 +280,6 @@ class DatabaseServiceClass {
           'Invalid database encryption key format (expected 64-char hex string)',
         );
       }
-      await this.db.executeSql(`PRAGMA key = "x'${encryptionKey}'";`);
-      // Touch the schema_version page now so a wrong-key pairing surfaces
-      // as SQLITE_CORRUPT here (where the recovery path can catch it)
-      // rather than on the first real query much later in boot.
-      await this.db.executeSql('SELECT count(*) FROM sqlite_master;');
-      Logger.info('DatabaseService', 'Database encryption enabled');
     } else if (!__DEV__) {
       throw new Error(
         'Database encryption key is required in production builds. ' +
@@ -286,49 +292,57 @@ class DatabaseServiceClass {
       );
     }
 
+    // op-sqlite's `open` is synchronous. It returns immediately with a
+    // DB handle bound to the file — actual SQLCipher key verification
+    // happens on the first query, which is why the sanity-SELECT below
+    // is critical for catching a wrong-key pairing (or a leftover
+    // plaintext DB from v1.0.4) at init time rather than deep into boot.
+    this.db = open({
+      name: config.dbName,
+      encryptionKey: encryptionKey ?? undefined,
+    });
+
+    // Touch the schema page now. A wrong key or a legacy plaintext file
+    // surfaces here as "file is not a database" / SQLITE_NOTADB, which
+    // the catch in initialize() will absorb into the recovery path.
+    await this.db.execute('SELECT count(*) FROM sqlite_master;');
+    if (encryptionKey) {
+      Logger.info('DatabaseService', 'Database encryption enabled (SQLCipher)');
+    }
+
     // Enable WAL mode for better concurrent read/write performance
-    await this.db.executeSql('PRAGMA journal_mode = WAL;');
+    await this.db.execute('PRAGMA journal_mode = WAL;');
     // FULL synchronous ensures data survives device crashes during WAL checkpoints
-    await this.db.executeSql('PRAGMA synchronous = FULL;');
+    await this.db.execute('PRAGMA synchronous = FULL;');
     // Enable foreign keys
-    await this.db.executeSql('PRAGMA foreign_keys = ON;');
+    await this.db.execute('PRAGMA foreign_keys = ON;');
     // S4 (audit 2026-04-21 round 2): zero deleted pages rather than
     // marking them free. Without this, legacy token bytes scrubbed by
     // `UserSessionRepository.scrubLegacyTokens` remain readable in the
     // `-wal` file until the next checkpoint + VACUUM. With
     // `secure_delete = ON`, every DELETE/UPDATE zeros the overwritten
     // region so forensic recovery of prior-token ciphertext is blocked.
-    await this.db.executeSql('PRAGMA secure_delete = ON;');
+    // On SQLCipher this is additionally important because a decrypted
+    // page in memory is still sensitive; zeroing avoids any cipher
+    // ambiguity on the freed page.
+    await this.db.execute('PRAGMA secure_delete = ON;');
 
     // DB5 (audit 2026-04-21 round 2): wrap CREATE TABLE + CREATE INDEX
-    // setup in a single transaction. Previously a transient SQLite I/O
-    // error mid-loop would leave the DB with a partial schema
-    // (fewer indexes than expected), which the next open would
-    // silently accept. Atomic setup means we either have the full
-    // schema or roll all the way back.
+    // setup in a single transaction. A transient SQLite I/O error
+    // mid-loop would otherwise leave the DB with a partial schema
+    // (fewer indexes than expected), which the next open would silently
+    // accept. Atomic setup means we either have the full schema or
+    // roll all the way back.
     const statements = SCHEMA_SQL.split(';').filter(s => s.trim().length > 0);
     const indexes = INDEX_SQL.split(';').filter(s => s.trim().length > 0);
-    await this.db.executeSql('BEGIN TRANSACTION;');
-    try {
+    await this.db.transaction(async tx => {
       for (const statement of statements) {
-        await this.db.executeSql(statement + ';');
+        await tx.execute(statement + ';');
       }
       for (const index of indexes) {
-        await this.db.executeSql(index + ';');
+        await tx.execute(index + ';');
       }
-      await this.db.executeSql('COMMIT;');
-    } catch (schemaError) {
-      try {
-        await this.db.executeSql('ROLLBACK;');
-      } catch (rollbackError) {
-        Logger.error(
-          'DatabaseService',
-          'Schema setup rollback failed',
-          rollbackError,
-        );
-      }
-      throw schemaError;
-    }
+    });
 
     // Mark the DB usable *before* the potentially slow migration pass.
     // Callers that don't need migrated schema can proceed immediately.
@@ -389,9 +403,11 @@ class DatabaseServiceClass {
       throw new Error('Database not opened');
     }
 
-    // Get current schema version
-    const [result] = await this.db.executeSql('PRAGMA user_version;');
-    const currentVersion = result.rows.item(0).userVersion || 0;
+    // Get current schema version. op-sqlite returns column names exactly
+    // as SQLite reports them, so `user_version` stays snake_case here.
+    const result = await this.db.execute('PRAGMA user_version;');
+    const currentVersion =
+      (result.rows[0]?.user_version as number | undefined) ?? 0;
 
     Logger.info(
       'DatabaseService',
@@ -399,7 +415,7 @@ class DatabaseServiceClass {
     );
 
     if (currentVersion === 0) {
-      await this.db.executeSql(`PRAGMA user_version = ${DB_VERSION};`);
+      await this.db.execute(`PRAGMA user_version = ${DB_VERSION};`);
       return;
     }
 
@@ -416,37 +432,26 @@ class DatabaseServiceClass {
       const migrationStatements = migration.sql
         .split(';')
         .filter(s => s.trim().length > 0);
-      await this.db.executeSql('BEGIN TRANSACTION;');
-      try {
+      // op-sqlite's transaction helper handles BEGIN/COMMIT/ROLLBACK
+      // automatically — throwing from the callback rolls back.
+      await this.db.transaction(async tx => {
         for (const stmt of migrationStatements) {
-          await this.db.executeSql(stmt + ';');
+          await tx.execute(stmt + ';');
         }
-        await this.db.executeSql(`PRAGMA user_version = ${migration.version};`);
-        await this.db.executeSql('COMMIT;');
-      } catch (migrationError) {
-        try {
-          await this.db.executeSql('ROLLBACK;');
-        } catch (rollbackError) {
-          Logger.error(
-            'DatabaseService',
-            `Migration v${migration.version} rollback failed`,
-            rollbackError,
-          );
-        }
-        throw migrationError;
-      }
+        await tx.execute(`PRAGMA user_version = ${migration.version};`);
+      });
     }
 
     // Update schema version to DB_VERSION if no migrations ran but version is behind
     if (pendingMigrations.length === 0 && currentVersion < DB_VERSION) {
-      await this.db.executeSql(`PRAGMA user_version = ${DB_VERSION};`);
+      await this.db.execute(`PRAGMA user_version = ${DB_VERSION};`);
     }
   }
 
   /**
    * Get the database instance. Throws if not initialized.
    */
-  getDb(): SQLiteDatabase {
+  getDb(): DB {
     if (!this.db || !this.initialized) {
       throw new Error('Database not initialized. Call initialize() first.');
     }
@@ -454,27 +459,29 @@ class DatabaseServiceClass {
   }
 
   /**
-   * Execute a SQL query with parameters and return results
+   * Execute a SQL query with parameters and return results as typed objects.
+   * Column names are automatically camel-cased (snake_case originals are
+   * also retained on the row object for legacy reads).
    */
   async query<T = Record<string, unknown>>(
     sql: string,
-    params: (string | number | null)[] = [],
+    params: SqlParam[] = [],
   ): Promise<T[]> {
     const db = this.getDb();
-    const [result] = await db.executeSql(sql, params);
+    const result = await db.execute(sql, params);
     return this.resultSetToArray<T>(result);
   }
 
   /**
-   * Execute a SQL statement (INSERT, UPDATE, DELETE) with parameters
-   * Returns the number of rows affected
+   * Execute a SQL statement (INSERT, UPDATE, DELETE) with parameters.
+   * Returns the number of rows affected and the insertId (if any).
    */
   async execute(
     sql: string,
-    params: (string | number | null)[] = [],
+    params: SqlParam[] = [],
   ): Promise<{ rowsAffected: number; insertId?: number }> {
     const db = this.getDb();
-    const [result] = await db.executeSql(sql, params);
+    const result = await db.execute(sql, params);
     return {
       rowsAffected: result.rowsAffected,
       insertId: result.insertId,
@@ -482,41 +489,38 @@ class DatabaseServiceClass {
   }
 
   /**
-   * Execute multiple statements in a transaction
-   * If any statement fails, all changes are rolled back
+   * Execute multiple statements atomically. op-sqlite's built-in
+   * `db.transaction` handles BEGIN / COMMIT / ROLLBACK: throwing from
+   * the callback triggers a rollback, successful completion commits.
+   *
+   * The callback receives a `Transaction` with `.execute(sql, params)` —
+   * use that instead of `DatabaseService.execute` inside the transaction
+   * so writes route through the same transaction context.
    */
   async transaction(
-    operations: (tx: SQLiteDatabase) => Promise<void>,
+    operations: (tx: Transaction) => Promise<void>,
   ): Promise<void> {
     const db = this.getDb();
-    await db.executeSql('BEGIN TRANSACTION;');
     try {
-      await operations(db);
-      await db.executeSql('COMMIT;');
+      await db.transaction(async tx => {
+        await operations(tx);
+      });
     } catch (error) {
-      try {
-        await db.executeSql('ROLLBACK;');
-      } catch (rollbackError) {
-        Logger.error(
-          'DatabaseService',
-          'Transaction rollback failed',
-          rollbackError,
-        );
-      }
+      Logger.error('DatabaseService', 'Transaction failed', error);
       throw error;
     }
   }
 
   /**
-   * Convert a ResultSet from SQLite into an array of typed objects
+   * Convert an op-sqlite QueryResult into an array of typed, camel-cased
+   * objects.
    */
-  private resultSetToArray<T>(result: ResultSet): T[] {
-    const rows: T[] = [];
-    for (let i = 0; i < result.rows.length; i++) {
-      const row = result.rows.item(i) as Record<string, unknown>;
-      rows.push(this.normalizeRow<T>(row));
+  private resultSetToArray<T>(result: QueryResult): T[] {
+    const out: T[] = [];
+    for (const row of result.rows) {
+      out.push(this.normalizeRow<T>(row as Record<string, unknown>));
     }
-    return rows;
+    return out;
   }
 
   /**
@@ -524,7 +528,7 @@ class DatabaseServiceClass {
    */
   async close(): Promise<void> {
     if (this.db) {
-      await this.db.close();
+      this.db.close();
       this.db = null;
       this.initialized = false;
       Logger.info('DatabaseService', 'Database closed');
@@ -539,9 +543,9 @@ class DatabaseServiceClass {
   }
 
   /**
-   * Validate a SQLCipher encryption key. Must be a 64-character lowercase-or-
-   * uppercase hex string (256 bits of entropy). Rejecting anything else
-   * prevents PRAGMA-injection via an attacker-controlled key source.
+   * Validate a SQLCipher encryption key. Must be a 64-character hex
+   * string (256 bits of entropy). Rejecting anything else prevents a
+   * bad-format key from silently producing a weak cipher.
    */
   private static isValidEncryptionKey(key: string): boolean {
     return /^[A-Fa-f0-9]{64}$/.test(key);
@@ -578,7 +582,7 @@ class DatabaseServiceClass {
   async count(
     table: string,
     where?: string,
-    params?: (string | number | null)[],
+    params?: SqlParam[],
   ): Promise<number> {
     this.assertTableName(table);
     const sql = where

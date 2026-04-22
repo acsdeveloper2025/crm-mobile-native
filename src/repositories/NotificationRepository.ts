@@ -82,18 +82,18 @@ class NotificationRepositoryClass {
     // offline correctness.
     await DatabaseService.transaction(async tx => {
       for (const notification of notifications || []) {
-        const [existingResult] = await tx.executeSql(
+        const existingResult = await tx.execute(
           'SELECT is_read FROM notifications WHERE id = ? LIMIT 1',
           [notification.id],
         );
         const localIsRead =
           existingResult.rows.length > 0
-            ? (existingResult.rows.item(0) as { is_read: number }).is_read === 1
+            ? (existingResult.rows[0] as { is_read: number }).is_read === 1
             : false;
         const serverIsRead = Boolean(notification.isRead);
         const effectiveIsRead = localIsRead || serverIsRead ? 1 : 0;
 
-        await tx.executeSql(
+        await tx.execute(
           `INSERT OR REPLACE INTO notifications
            (id, type, title, message, priority, is_read, task_id, case_number, action_url, timestamp)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,

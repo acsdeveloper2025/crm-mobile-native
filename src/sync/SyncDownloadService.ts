@@ -208,26 +208,26 @@ class SyncDownloadServiceClass {
     );
 
     await DatabaseService.transaction(async tx => {
-      await tx.executeSql(
+      await tx.execute(
         "DELETE FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'",
         [localTaskId],
       );
-      await tx.executeSql(
+      await tx.execute(
         "UPDATE attachments SET sync_status = 'ABANDONED' WHERE task_id = ? AND sync_status = 'PENDING'",
         [localTaskId],
       );
-      await tx.executeSql('DELETE FROM locations WHERE task_id = ?', [
+      await tx.execute('DELETE FROM locations WHERE task_id = ?', [
         localTaskId,
       ]);
-      await tx.executeSql(
+      await tx.execute(
         "DELETE FROM form_submissions WHERE task_id = ? AND sync_status = 'SYNCED'",
         [localTaskId],
       );
-      await tx.executeSql(
+      await tx.execute(
         "UPDATE form_submissions SET sync_status = 'ABANDONED' WHERE task_id = ? AND sync_status = 'PENDING'",
         [localTaskId],
       );
-      await tx.executeSql(
+      await tx.execute(
         `DELETE FROM sync_queue
           WHERE (
             entity_type IN ('TASK', 'TASK_STATUS')
@@ -250,12 +250,12 @@ class SyncDownloadServiceClass {
         ],
       );
       if (options.deleteMatchOnVerificationTaskId) {
-        await tx.executeSql(
+        await tx.execute(
           'DELETE FROM tasks WHERE id = ? OR verification_task_id = ?',
           [localTaskId, backendTaskId],
         );
       } else {
-        await tx.executeSql('DELETE FROM tasks WHERE id = ?', [localTaskId]);
+        await tx.execute('DELETE FROM tasks WHERE id = ?', [localTaskId]);
       }
     });
 
