@@ -1,7 +1,7 @@
 // SQLite Database Schema and Migrations
 // Offline-first schema for field verification data
 
-export const DB_VERSION = 11;
+export const DB_VERSION = 12;
 
 /**
  * All CREATE TABLE statements for the local SQLite database.
@@ -120,7 +120,6 @@ CREATE TABLE IF NOT EXISTS form_submissions (
   photo_data_json TEXT NOT NULL DEFAULT '[]',
   sync_status TEXT NOT NULL DEFAULT 'PENDING',
   sync_attempts INTEGER NOT NULL DEFAULT 0,
-  last_sync_attempt_at TEXT,
   sync_error TEXT,
   FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
 );
@@ -165,7 +164,6 @@ CREATE TABLE IF NOT EXISTS sync_metadata (
   id INTEGER PRIMARY KEY DEFAULT 1,
   last_download_sync_at TEXT,
   last_upload_sync_at TEXT,
-  last_full_sync_at TEXT,
   sync_in_progress INTEGER NOT NULL DEFAULT 0,
   device_id TEXT NOT NULL
 );
@@ -194,23 +192,10 @@ CREATE TABLE IF NOT EXISTS user_session (
   logged_in_at TEXT NOT NULL
 );
 
--- Audit log (local operation trail for accountability).
--- DB3 (audit 2026-04-21 round 2): this table is currently inert -- no
--- INSERT INTO audit_log call site exists in src/. Left in place
--- (schema stays stable, no migration needed) pending a decision to
--- either wire up AuthService / SyncProcessor writes OR drop the table
--- in a later DB_VERSION bump. Sweep cron
--- MaintenanceRepository.deleteSyncedAuditLogsOlderThan still runs
--- harmlessly against zero rows.
-CREATE TABLE IF NOT EXISTS audit_log (
-  id TEXT PRIMARY KEY,
-  action TEXT NOT NULL,
-  resource TEXT NOT NULL,
-  resource_id TEXT,
-  details_json TEXT,
-  timestamp TEXT NOT NULL,
-  synced INTEGER NOT NULL DEFAULT 0
-);
+-- Audit log table removed in v12 (2026-04-22) — was inert since
+-- introduction (no INSERT INTO audit_log call site ever existed in
+-- src/). See migration v12 for the DROP TABLE statement that runs on
+-- upgrade from older DB_VERSIONs.
 
 -- Notifications
 CREATE TABLE IF NOT EXISTS notifications (
@@ -313,8 +298,7 @@ CREATE INDEX IF NOT EXISTS idx_sync_queue_priority ON sync_queue(priority, creat
 CREATE INDEX IF NOT EXISTS idx_sync_queue_entity ON sync_queue(entity_type, entity_id);
 CREATE INDEX IF NOT EXISTS idx_sync_queue_pending_window ON sync_queue(status, next_retry_at, priority, created_at);
 
-CREATE INDEX IF NOT EXISTS idx_audit_log_synced ON audit_log(synced);
-CREATE INDEX IF NOT EXISTS idx_audit_log_timestamp ON audit_log(timestamp);
+-- audit_log indexes removed with the table in v12.
 
 CREATE INDEX IF NOT EXISTS idx_task_list_projection_status_saved ON task_list_projection(status, is_saved, is_revoked, assigned_at);
 CREATE INDEX IF NOT EXISTS idx_task_list_projection_search ON task_list_projection(search_text);
@@ -573,6 +557,18 @@ export const MIGRATIONS: Migration[] = [
     sql: `
       DROP INDEX IF EXISTS idx_form_templates_lookup;
       CREATE UNIQUE INDEX idx_form_templates_lookup ON form_templates(verification_type, outcome);
+    `,
+  },
+  {
+    version: 12,
+    description:
+      'Drop confirmed-orphan schema: audit_log table (never written), form_submissions.last_sync_attempt_at (no writes), sync_metadata.last_full_sync_at (no writes). Post-v1.0.5 column-coverage audit.',
+    sql: `
+      DROP INDEX IF EXISTS idx_audit_log_synced;
+      DROP INDEX IF EXISTS idx_audit_log_timestamp;
+      DROP TABLE IF EXISTS audit_log;
+      ALTER TABLE form_submissions DROP COLUMN last_sync_attempt_at;
+      ALTER TABLE sync_metadata DROP COLUMN last_full_sync_at;
     `,
   },
 ];

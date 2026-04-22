@@ -561,7 +561,6 @@ class DatabaseServiceClass {
     'sync_queue',
     'sync_metadata',
     'user_session',
-    'audit_log',
     'notifications',
     'key_value_store',
     'task_list_projection',

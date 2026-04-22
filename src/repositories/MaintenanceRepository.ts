@@ -54,12 +54,8 @@ class MaintenanceRepositoryClass {
     return result.rowsAffected;
   }
 
-  async deleteSyncedAuditLogsOlderThan(cutoffIso: string): Promise<void> {
-    await DatabaseService.execute(
-      'DELETE FROM audit_log WHERE synced = 1 AND timestamp < ?',
-      [cutoffIso],
-    );
-  }
+  // `deleteSyncedAuditLogsOlderThan` removed in v1.0.6 (DB_VERSION 12) —
+  // the audit_log table was dropped because no code ever wrote to it.
 
   /** Whitelist of tables safe to bulk-clear during maintenance */
   private static readonly CLEARABLE_TABLES = new Set([
@@ -70,7 +66,6 @@ class MaintenanceRepositoryClass {
     'form_templates',
     'sync_queue',
     'sync_metadata',
-    'audit_log',
     'notifications',
     'key_value_store',
     'task_list_projection',
