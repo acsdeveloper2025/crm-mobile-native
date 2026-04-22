@@ -20,20 +20,22 @@ import { MobileLoginResponseSchema } from '../../api/schemas/auth.schema';
 import { Logger } from '../../utils/logger';
 import { AuthService } from '../../services/AuthService';
 import { useTheme } from '../../context/ThemeContext';
+import type { Theme } from '../../theme/Theme';
 import type { MobileLoginResponse } from '../../types/api';
 
 const TAG = 'LoginScreen';
 
-// M13 (audit 2026-04-21): dark-chrome colours (container / form card /
-// inputs) stay hardcoded on purpose — the login screen is an
-// intentionally dark-branded pre-auth surface. Only the brand-coloured
-// accents (Sign-In button, error/required text, loading spinner) pull
-// from `theme.colors` so a brand-palette refresh doesn't require a
-// code edit here.
+// v1.0.7 (2026-04-22): reversed the M13 decision to hardcode dark chrome.
+// Login now follows the active theme (system-respecting by default). All
+// chrome colors — screen background, form card, inputs, borders, body
+// text — pull from `theme.colors.*`. Only the brand pill (logo circle),
+// the Sign-In button (`#00a950`), and semantic error red stay fixed
+// because they're the same in both themes by design.
 
 export const LoginScreen = () => {
   const { login } = useAuth();
   const { theme } = useTheme();
+  const styles = React.useMemo(() => makeStyles(theme), [theme]);
   const [username, setUsername] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -251,7 +253,7 @@ export const LoginScreen = () => {
               <TextInput
                 style={styles.input}
                 placeholder="Enter your username"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.colors.textMuted}
                 value={username}
                 onChangeText={setUsername}
                 autoCapitalize="none"
@@ -272,7 +274,7 @@ export const LoginScreen = () => {
               <TextInput
                 style={styles.input}
                 placeholder="Enter your password"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor={theme.colors.textMuted}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -306,114 +308,131 @@ export const LoginScreen = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#111827',
-  },
-  keyboardContainer: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  headerSection: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  logoCircle: {
-    width: 80,
-    height: 80,
-    backgroundColor: '#ffffff',
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  logoImage: {
-    width: '100%',
-    height: '100%',
-  },
-  title: {
-    color: '#ffffff',
-    fontSize: 22,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  subtitle: {
-    color: '#9CA3AF',
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  formContainer: {
-    width: '100%',
-    maxWidth: 400,
-    alignSelf: 'center',
-    backgroundColor: '#1F2937',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  fieldGroup: {
-    marginBottom: 16,
-  },
-  fieldLabel: {
-    color: '#E5E7EB',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  required: {
-    color: '#ef4444',
-  },
-  input: {
-    backgroundColor: '#374151',
-    borderRadius: 8,
-    padding: 12,
-    color: '#ffffff',
-    fontSize: 16,
-    borderWidth: 1,
-    borderColor: '#4B5563',
-    minHeight: 44,
-  },
-  button: {
-    backgroundColor: '#00a950',
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-    minHeight: 48,
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  buttonDisabled: {
-    backgroundColor: '#6B7280',
-  },
-  buttonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  errorText: {
-    color: '#ef4444',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-});
+/**
+ * Theme-aware stylesheet factory. Memoized by the caller so the
+ * StyleSheet is only recomputed when the theme object actually swaps
+ * (system light↔dark toggle, or manual user preference change).
+ *
+ * Colors chosen to map 1:1 to the intended visual weight across themes:
+ *   container.background    → theme.colors.background  (page)
+ *   formContainer           → theme.colors.surface     (elevated card)
+ *   input                   → theme.colors.surfaceAlt  (recessed field)
+ *   title / fieldLabel      → theme.colors.text        (primary text)
+ *   subtitle                → theme.colors.textMuted   (secondary text)
+ *   input border            → theme.colors.border
+ *   logoCircle              → pure white pill (brand-neutral, stays same)
+ *   Sign-In button          → `#00a950` (brand primary, same in both)
+ *   error / required        → theme.colors.danger (handled inline in JSX)
+ */
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    keyboardContainer: {
+      flex: 1,
+    },
+    content: {
+      flex: 1,
+      justifyContent: 'center',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    headerSection: {
+      alignItems: 'center',
+      marginBottom: 20,
+    },
+    logoCircle: {
+      width: 80,
+      height: 80,
+      backgroundColor: '#ffffff',
+      borderRadius: 40,
+      justifyContent: 'center',
+      alignItems: 'center',
+      overflow: 'hidden',
+      marginBottom: 12,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.2,
+      shadowRadius: 6,
+      elevation: 4,
+    },
+    logoImage: {
+      width: '100%',
+      height: '100%',
+    },
+    title: {
+      color: theme.colors.text,
+      fontSize: 22,
+      fontWeight: 'bold',
+      textAlign: 'center',
+      marginBottom: 4,
+    },
+    subtitle: {
+      color: theme.colors.textMuted,
+      fontSize: 14,
+      textAlign: 'center',
+    },
+    formContainer: {
+      width: '100%',
+      maxWidth: 400,
+      alignSelf: 'center',
+      backgroundColor: theme.colors.surface,
+      borderRadius: 12,
+      padding: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.15,
+      shadowRadius: 8,
+      elevation: 6,
+    },
+    fieldGroup: {
+      marginBottom: 16,
+    },
+    fieldLabel: {
+      color: theme.colors.text,
+      fontSize: 14,
+      fontWeight: '600',
+      marginBottom: 6,
+    },
+    required: {
+      color: theme.colors.danger,
+    },
+    input: {
+      backgroundColor: theme.colors.surfaceAlt,
+      borderRadius: 8,
+      padding: 12,
+      color: theme.colors.text,
+      fontSize: 16,
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      minHeight: 44,
+    },
+    button: {
+      backgroundColor: '#00a950',
+      borderRadius: 8,
+      padding: 14,
+      alignItems: 'center',
+      minHeight: 48,
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+    buttonDisabled: {
+      backgroundColor: theme.colors.textMuted,
+    },
+    buttonText: {
+      color: '#ffffff',
+      fontSize: 16,
+      fontWeight: 'bold',
+    },
+    errorText: {
+      color: theme.colors.danger,
+      marginBottom: 16,
+      textAlign: 'center',
+    },
+  });
