@@ -177,8 +177,8 @@ class AttachmentUploaderClass {
         lastUpdateError = err;
         // 50ms, 150ms backoff — short enough that the outer lease
         // timeout is not at risk.
-        await new Promise(resolve =>
-          setTimeout(resolve, 50 * (attempt + 1) ** 2),
+        await new Promise<void>(resolve =>
+          setTimeout(() => resolve(), 50 * (attempt + 1) ** 2),
         );
       }
     }

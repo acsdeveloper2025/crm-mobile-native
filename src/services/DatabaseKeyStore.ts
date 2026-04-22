@@ -5,6 +5,14 @@ const TAG = 'DatabaseKeyStore';
 const DB_KEY_SERVICE = 'crm-mobile-native.database-encryption-key';
 const DB_KEY_USERNAME = 'database';
 
+// The Web Crypto `crypto` global is provided at runtime by
+// `react-native-get-random-values` (polyfill imported in index.js). The
+// tsconfig's `lib` doesn't include `dom`, so declare the minimal shape we
+// use here so tsc knows about it without pulling in all of lib.dom.
+declare const crypto: {
+  getRandomValues<T extends ArrayBufferView>(array: T): T;
+};
+
 const isValidEncryptionKey = (key: string): boolean =>
   /^[A-Fa-f0-9]{64}$/.test(key);
 

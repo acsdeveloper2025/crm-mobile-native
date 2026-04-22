@@ -96,7 +96,7 @@ export const WatermarkReStamper: React.FC = () => {
       });
 
       // Wait for React to render the ViewShot
-      await new Promise(resolve => setTimeout(resolve, 600));
+      await new Promise<void>(resolve => setTimeout(() => resolve(), 600));
 
       // Capture the rendered watermark
       const uri = await captureRef(viewShotRef, {

@@ -1,7 +1,10 @@
 {
   "name": "CrmMobileNative",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "private": true,
+  "op-sqlite": {
+    "sqlcipher": true
+  },
   "scripts": {
     "android": "react-native run-android",
     "ios": "react-native run-ios",
@@ -16,6 +19,7 @@
   },
   "dependencies": {
     "@bam.tech/react-native-image-resizer": "^3.0.11",
+    "@op-engineering/op-sqlite": "^15.2.0",
     "@opentelemetry/api": "^1.9.1",
     "@opentelemetry/auto-instrumentations-node": "^0.72.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.214.0",
@@ -30,7 +34,6 @@
     "@react-navigation/bottom-tabs": "^7.15.3",
     "@react-navigation/native": "^7.1.31",
     "@react-navigation/native-stack": "^7.14.2",
-    "@types/react-native-sqlite-storage": "^6.0.5",
     "@types/react-native-vector-icons": "^6.4.18",
     "axios": "^1.13.6",
     "piexifjs": "^1.0.6",
@@ -41,7 +44,6 @@
     "react-native-keychain": "^10.0.0",
     "react-native-safe-area-context": "^5.7.0",
     "react-native-screens": "^4.24.0",
-    "react-native-sqlite-storage": "^6.0.1",
     "react-native-svg": "^15.15.3",
     "react-native-vector-icons": "^10.3.0",
     "react-native-view-shot": "^4.0.3",
@@ -61,6 +63,7 @@
     "@react-native/eslint-config": "0.84.1",
     "@react-native/metro-config": "0.84.1",
     "@react-native/typescript-config": "0.84.1",
+    "@types/jest": "^30.0.0",
     "@types/react": "^19.2.0",
     "@types/uuid": "^10.0.0",
     "eslint": "^8.19.0",

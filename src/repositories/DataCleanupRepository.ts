@@ -48,14 +48,12 @@ class DataCleanupRepositoryClass {
 
   async deleteTaskGraph(taskId: string): Promise<void> {
     await DatabaseService.transaction(async tx => {
-      await tx.executeSql(`DELETE FROM attachments WHERE task_id = ?`, [
+      await tx.execute(`DELETE FROM attachments WHERE task_id = ?`, [taskId]);
+      await tx.execute(`DELETE FROM locations WHERE task_id = ?`, [taskId]);
+      await tx.execute(`DELETE FROM form_submissions WHERE task_id = ?`, [
         taskId,
       ]);
-      await tx.executeSql(`DELETE FROM locations WHERE task_id = ?`, [taskId]);
-      await tx.executeSql(`DELETE FROM form_submissions WHERE task_id = ?`, [
-        taskId,
-      ]);
-      await tx.executeSql(
+      await tx.execute(
         `DELETE FROM sync_queue
          WHERE entity_id = ?
             OR json_extract(payload_json, '$.localTaskId') = ?
@@ -63,21 +61,19 @@ class DataCleanupRepositoryClass {
             OR json_extract(payload_json, '$.visitId') = ?`,
         [taskId, taskId, taskId, taskId],
       );
-      await tx.executeSql(`DELETE FROM key_value_store WHERE key LIKE ?`, [
+      await tx.execute(`DELETE FROM key_value_store WHERE key LIKE ?`, [
         `auto_save_${taskId}%`,
       ]);
       // DB12 (audit 2026-04-21 round 2): notifications.task_id has
       // no FK (table predates ON DELETE CASCADE retrofit), so a deleted
       // task left orphan notifications pointing at a non-existent id.
       // Purge them here as part of the same transaction.
-      await tx.executeSql(`DELETE FROM notifications WHERE task_id = ?`, [
+      await tx.execute(`DELETE FROM notifications WHERE task_id = ?`, [taskId]);
+      await tx.execute(`DELETE FROM tasks WHERE id = ?`, [taskId]);
+      await tx.execute(`DELETE FROM task_list_projection WHERE id = ?`, [
         taskId,
       ]);
-      await tx.executeSql(`DELETE FROM tasks WHERE id = ?`, [taskId]);
-      await tx.executeSql(`DELETE FROM task_list_projection WHERE id = ?`, [
-        taskId,
-      ]);
-      await tx.executeSql(`DELETE FROM task_detail_projection WHERE id = ?`, [
+      await tx.execute(`DELETE FROM task_detail_projection WHERE id = ?`, [
         taskId,
       ]);
     });
@@ -97,12 +93,12 @@ class DataCleanupRepositoryClass {
 
   async clearCacheAndSyncTables(): Promise<void> {
     await DatabaseService.transaction(async tx => {
-      await tx.executeSql('DELETE FROM form_templates');
-      await tx.executeSql('DELETE FROM task_list_projection');
-      await tx.executeSql('DELETE FROM task_detail_projection');
-      await tx.executeSql('DELETE FROM dashboard_projection');
+      await tx.execute('DELETE FROM form_templates');
+      await tx.execute('DELETE FROM task_list_projection');
+      await tx.execute('DELETE FROM task_detail_projection');
+      await tx.execute('DELETE FROM dashboard_projection');
       // Keep autosaves for 7 days — only delete older ones
-      await tx.executeSql(
+      await tx.execute(
         `DELETE FROM key_value_store WHERE key LIKE 'auto_save_%' AND json_extract(value, '$.timestamp') < ?`,
         [new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()],
       );

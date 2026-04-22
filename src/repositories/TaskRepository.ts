@@ -52,19 +52,19 @@ class TaskRepositoryClass {
       const targetId = row.verificationTaskId;
 
       await DatabaseService.transaction(async tx => {
-        await tx.executeSql(
+        await tx.execute(
           'UPDATE attachments SET task_id = ? WHERE task_id = ?',
           [targetId, currentId],
         );
-        await tx.executeSql(
-          'UPDATE locations SET task_id = ? WHERE task_id = ?',
-          [targetId, currentId],
-        );
-        await tx.executeSql(
+        await tx.execute('UPDATE locations SET task_id = ? WHERE task_id = ?', [
+          targetId,
+          currentId,
+        ]);
+        await tx.execute(
           'UPDATE form_submissions SET task_id = ? WHERE task_id = ?',
           [targetId, currentId],
         );
-        await tx.executeSql(
+        await tx.execute(
           "UPDATE sync_queue SET entity_id = ? WHERE entity_type IN ('TASK', 'TASK_STATUS') AND entity_id = ?",
           [targetId, currentId],
         );
@@ -72,15 +72,15 @@ class TaskRepositoryClass {
         // Read the target-exists check inside the transaction so a
         // concurrent writer cannot flip the answer between SELECT
         // and the final write.
-        const [targetExistsResult] = await tx.executeSql(
+        const targetExistsResult = await tx.execute(
           'SELECT id FROM tasks WHERE id = ? LIMIT 1',
           [targetId],
         );
 
         if (targetExistsResult.rows.length > 0) {
-          await tx.executeSql('DELETE FROM tasks WHERE id = ?', [currentId]);
+          await tx.execute('DELETE FROM tasks WHERE id = ?', [currentId]);
         } else {
-          await tx.executeSql(
+          await tx.execute(
             'UPDATE tasks SET id = ?, verification_task_id = ? WHERE id = ?',
             [targetId, targetId, currentId],
           );
