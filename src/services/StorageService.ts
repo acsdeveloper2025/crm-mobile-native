@@ -106,8 +106,7 @@ class StorageServiceClass {
       deletedSyncItems =
         await MaintenanceRepository.deleteCompletedSyncItemsOlderThan(cutoff);
 
-      // Delete synced audit logs
-      await MaintenanceRepository.deleteSyncedAuditLogsOlderThan(cutoff);
+      // audit_log sweep removed in v1.0.6 — table dropped (was inert).
 
       Logger.info(
         TAG,
@@ -182,7 +181,6 @@ class StorageServiceClass {
       // Clear database tables (order matters for foreign keys)
       const tables = [
         'sync_queue',
-        'audit_log',
         'form_submissions',
         'attachments',
         'locations',

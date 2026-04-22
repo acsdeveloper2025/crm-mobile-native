@@ -175,7 +175,7 @@ export interface SyncMetadata {
   id: number; // Always 1 - singleton row
   lastDownloadSyncAt?: string;
   lastUploadSyncAt?: string;
-  lastFullSyncAt?: string;
+  // `lastFullSyncAt` dropped with DB_VERSION 12 — no writer ever existed.
   syncInProgress: boolean;
   deviceId: string;
 }
