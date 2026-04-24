@@ -129,6 +129,8 @@ export const styles = StyleSheet.create({
   photoLabel: {
     fontSize: 15,
     fontWeight: '600',
+    flex: 1,
+    marginRight: 12,
   },
   addBtn: {
     width: 44,
