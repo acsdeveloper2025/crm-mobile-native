@@ -1,11 +1,4 @@
 import React, { forwardRef, useCallback } from 'react';
-// Import the unwrapped TextInput via deep path so this wrapper composes
-// with the original native component, NOT with the upper-wrapped version
-// installed by `installUppercaseDefaults` on the public `react-native`
-// export. Without the deep import we'd double-wrap (UpperTextInput around
-// UpperTextInput) and uppercase user input twice + duplicate the style array.
-// eslint-disable-next-line @react-native/no-deep-imports
-import { TextInput as OriginalTextInput } from 'react-native/Libraries/Components/TextInput/TextInput';
 import type {
   TextInput,
   TextInputProps,
@@ -13,6 +6,21 @@ import type {
   TextInputChangeEventData,
 } from 'react-native';
 import { shouldUppercaseField, toUpperCaseSafe } from '../../utils/uppercase';
+
+// Resolve the unwrapped TextInput via deep path using `require(...).default`.
+// The d.ts declares `export class TextInput` (named) but the runtime JS uses
+// `export default TextInput as any` only — a named `import { TextInput }`
+// resolves to `undefined` at runtime and any JSX use crashes with
+// "Element type is invalid". `require(...).default` works regardless of the
+// d.ts shape mismatch.
+//
+// The deep import is intentional: this wrapper MUST compose against the
+// unwrapped TextInput so it's not double-wrapped by the upper render-patch
+// installed via `installUppercaseDefaults`.
+const OriginalTextInput =
+  // eslint-disable-next-line @react-native/no-deep-imports
+  require('react-native/Libraries/Components/TextInput/TextInput')
+    .default as React.ComponentType<TextInputProps & { ref?: unknown }>;
 
 export type UppercaseTextInputProps = TextInputProps & {
   // Field identifier used to look up case-sensitivity tokens. Optional;

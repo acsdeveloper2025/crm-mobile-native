@@ -1,13 +1,4 @@
 import React from 'react';
-// Import the unwrapped originals via deep paths so this module can later
-// override the public `react-native` exports without recursing into itself.
-// Deep imports are intentional: these wrappers MUST compose against the
-// unwrapped originals so that `installUppercaseDefaults` can override the
-// public `react-native` exports without recursing through itself.
-// eslint-disable-next-line @react-native/no-deep-imports
-import { Text as OriginalText } from 'react-native/Libraries/Text/Text';
-// eslint-disable-next-line @react-native/no-deep-imports
-import { TextInput as OriginalTextInput } from 'react-native/Libraries/Components/TextInput/TextInput';
 import type {
   TextProps,
   TextInputProps,
@@ -17,6 +8,26 @@ import type {
   TextInputChangeEventData,
 } from 'react-native';
 import { shouldUppercaseField, toUpperCaseSafe } from './uppercase';
+
+// Resolve the unwrapped originals via deep paths using `require(...).default`.
+// The d.ts at these paths declares `export class Text` / `class TextInput`
+// (named) but the runtime JS uses `export default TextImpl` only — a named
+// `import { Text }` resolves to `undefined` at runtime and any JSX use crashes
+// with "Element type is invalid". `require(...).default` works at runtime
+// regardless of the d.ts shape mismatch.
+//
+// These wrappers MUST compose against the unwrapped originals so that
+// `installUppercaseDefaults` can override the public `react-native` exports
+// without recursing through itself.
+const OriginalText =
+  // eslint-disable-next-line @react-native/no-deep-imports
+  require('react-native/Libraries/Text/Text').default as React.ComponentType<
+    TextProps & { ref?: unknown }
+  >;
+const OriginalTextInput =
+  // eslint-disable-next-line @react-native/no-deep-imports
+  require('react-native/Libraries/Components/TextInput/TextInput')
+    .default as React.ComponentType<TextInputProps & { ref?: unknown }>;
 
 // Global UPPERCASE-on-display policy for the mobile app.
 //
@@ -47,16 +58,11 @@ const UpperText = React.forwardRef<unknown, TextProps>(function UpperText(
   props,
   ref,
 ) {
-  return React.createElement(
-    OriginalText as unknown as React.ComponentType<
-      TextProps & { ref?: unknown }
-    >,
-    {
-      ...props,
-      ref,
-      style: [UPPER_STYLE, props.style],
-    },
-  );
+  return React.createElement(OriginalText, {
+    ...props,
+    ref,
+    style: [UPPER_STYLE, props.style],
+  });
 });
 
 // Keyboards that imply non-text content. Matching here keeps every numeric /
@@ -122,20 +128,15 @@ const UpperTextInput = React.forwardRef<unknown, UpperTextInputProps>(
       ? [UPPER_STYLE, rest.style]
       : [rest.style, PRESERVE_STYLE];
 
-    return React.createElement(
-      OriginalTextInput as unknown as React.ComponentType<
-        TextInputProps & { ref?: unknown }
-      >,
-      {
-        ...rest,
-        ref,
-        autoCapitalize: auto ? 'characters' : rest.autoCapitalize ?? 'none',
-        autoCorrect: auto ? false : rest.autoCorrect,
-        onChangeText: handleChangeText,
-        onChange: handleChange,
-        style,
-      },
-    );
+    return React.createElement(OriginalTextInput, {
+      ...rest,
+      ref,
+      autoCapitalize: auto ? 'characters' : rest.autoCapitalize ?? 'none',
+      autoCorrect: auto ? false : rest.autoCorrect,
+      onChangeText: handleChangeText,
+      onChange: handleChange,
+      style,
+    });
   },
 );
 
