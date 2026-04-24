@@ -181,15 +181,32 @@ class TaskRepositoryClass {
     status: string,
   ): Promise<void> {
     const now = new Date().toISOString();
+    // 2026-04-24: when submission moves status to COMPLETED, also stamp
+    // completed_at and clear is_saved so the task lands in the Completed
+    // tab cleanly (TaskCard timestamp helper reads completed_at; Saved
+    // tab filter excludes status=COMPLETED). Sync_status stays PENDING
+    // until FormUploader confirms server ack — UI shows "pending sync".
     await DatabaseService.execute(
       `UPDATE tasks
        SET form_data_json = ?,
            status = ?,
            in_progress_at = CASE WHEN in_progress_at IS NULL AND ? = 'IN_PROGRESS' THEN ? ELSE in_progress_at END,
+           completed_at = CASE WHEN ? = 'COMPLETED' THEN ? ELSE completed_at END,
+           is_saved = CASE WHEN ? = 'COMPLETED' THEN 0 ELSE is_saved END,
            sync_status = 'PENDING',
            local_updated_at = ?
        WHERE id = ?`,
-      [JSON.stringify(formData), status, status, now, now, taskId],
+      [
+        JSON.stringify(formData),
+        status,
+        status,
+        now,
+        status,
+        now,
+        status,
+        now,
+        taskId,
+      ],
     );
     await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }

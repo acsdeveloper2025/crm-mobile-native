@@ -18,6 +18,7 @@ import {
   type FormTypeKey,
 } from '../utils/formTypeKey';
 import { ENDPOINTS } from '../api/endpoints';
+import { TaskStatus } from '../types/enums';
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -251,10 +252,17 @@ export const SubmitVerificationUseCase = {
       submissionPayload.photos as unknown[],
     );
 
+    // 2026-04-24: on submit, immediately move task to COMPLETED locally so
+    // it leaves the In-Progress tab and lands in Completed (with
+    // sync_status=PENDING showing "pending sync" indicator). This matches
+    // the offline-first contract: queued = locally complete + awaiting
+    // server ack. FormUploader flips sync_status → SYNCED on backend ack.
+    // On backend failure the task stays COMPLETED + sync_status=PENDING +
+    // form_submission.status='failed' → Resubmit button shows.
     await TaskRepository.updateFormData(
       task.id,
       persistedFormData,
-      task.status,
+      TaskStatus.Completed,
     );
     await TaskRepository.updateVerificationOutcome(
       task.id,
