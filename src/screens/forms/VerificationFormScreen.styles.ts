@@ -193,9 +193,9 @@ export const styles = StyleSheet.create({
     opacity: 1,
   },
   submitText: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: 'bold',
-    marginLeft: 12,
+    marginLeft: 8,
   },
   loadingContainer: {
     padding: 20,
@@ -251,7 +251,7 @@ export const styles = StyleSheet.create({
     borderWidth: 1,
   },
   actionButtonPrimary: {
-    flex: 2,
+    flex: 1,
   },
   actionButtonDimmed: {
     opacity: 0.7,
