@@ -206,7 +206,7 @@ const COMMON_FLOOR_OPTIONS = [
 
 const RESIDENCE_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonType: COMMON_MET_PERSON_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
   addressStructureColor: COMMON_COLOR_OPTIONS,
   doorColor: COMMON_COLOR_OPTIONS,
@@ -214,14 +214,14 @@ const RESIDENCE_DICTIONARY: Record<string, string[]> = {
   workingPeriod: COMMON_PERIOD_OPTIONS,
   shiftedPeriod: COMMON_PERIOD_OPTIONS,
   totalFamilyMembers: COMMON_FAMILY_MEMBERS_OPTIONS,
-  totalEarning: COMMON_EARNING_OPTIONS,
+  totalEarningMember: COMMON_EARNING_OPTIONS,
   addressStructure: COMMON_ADDRESS_STRUCTURE_OPTIONS,
   applicantStayingFloor: COMMON_FLOOR_OPTIONS,
 };
 
 const OFFICE_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonType: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
   addressStructureColor: COMMON_COLOR_OPTIONS,
@@ -230,14 +230,14 @@ const OFFICE_DICTIONARY: Record<string, string[]> = {
   workingPeriod: COMMON_PERIOD_OPTIONS,
   shiftedPeriod: COMMON_PERIOD_OPTIONS,
   totalFamilyMembers: COMMON_FAMILY_MEMBERS_OPTIONS,
-  totalEarning: COMMON_EARNING_OPTIONS,
+  totalEarningMember: COMMON_EARNING_OPTIONS,
   addressStructure: COMMON_ADDRESS_STRUCTURE_OPTIONS,
   applicantStayingFloor: COMMON_FLOOR_OPTIONS,
 };
 
 const BUSINESS_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonType: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   businessType: COMMON_BUSINESS_TYPE_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
@@ -249,14 +249,14 @@ const BUSINESS_DICTIONARY: Record<string, string[]> = {
   workingPeriod: COMMON_PERIOD_OPTIONS,
   shiftedPeriod: COMMON_PERIOD_OPTIONS,
   totalFamilyMembers: COMMON_FAMILY_MEMBERS_OPTIONS,
-  totalEarning: COMMON_EARNING_OPTIONS,
+  totalEarningMember: COMMON_EARNING_OPTIONS,
   addressStructure: COMMON_ADDRESS_STRUCTURE_OPTIONS,
   applicantStayingFloor: COMMON_FLOOR_OPTIONS,
 };
 
 const RESIDENCE_CUM_OFFICE_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonType: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
   addressStructureColor: COMMON_COLOR_OPTIONS,
@@ -265,14 +265,14 @@ const RESIDENCE_CUM_OFFICE_DICTIONARY: Record<string, string[]> = {
   workingPeriod: COMMON_PERIOD_OPTIONS,
   shiftedPeriod: COMMON_PERIOD_OPTIONS,
   totalFamilyMembers: COMMON_FAMILY_MEMBERS_OPTIONS,
-  totalEarning: COMMON_EARNING_OPTIONS,
+  totalEarningMember: COMMON_EARNING_OPTIONS,
   addressStructure: COMMON_ADDRESS_STRUCTURE_OPTIONS,
   applicantStayingFloor: COMMON_FLOOR_OPTIONS,
 };
 
 const BUILDER_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonType: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   businessType: COMMON_BUSINESS_TYPE_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
@@ -284,14 +284,14 @@ const BUILDER_DICTIONARY: Record<string, string[]> = {
   workingPeriod: COMMON_PERIOD_OPTIONS,
   shiftedPeriod: COMMON_PERIOD_OPTIONS,
   totalFamilyMembers: COMMON_FAMILY_MEMBERS_OPTIONS,
-  totalEarning: COMMON_EARNING_OPTIONS,
+  totalEarningMember: COMMON_EARNING_OPTIONS,
   addressStructure: COMMON_ADDRESS_STRUCTURE_OPTIONS,
   applicantStayingFloor: COMMON_FLOOR_OPTIONS,
 };
 
 const NOC_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonType: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
@@ -301,14 +301,14 @@ const NOC_DICTIONARY: Record<string, string[]> = {
   workingPeriod: COMMON_PERIOD_OPTIONS,
   shiftedPeriod: COMMON_PERIOD_OPTIONS,
   totalFamilyMembers: COMMON_FAMILY_MEMBERS_OPTIONS,
-  totalEarning: COMMON_EARNING_OPTIONS,
+  totalEarningMember: COMMON_EARNING_OPTIONS,
   addressStructure: COMMON_ADDRESS_STRUCTURE_OPTIONS,
   applicantStayingFloor: COMMON_FLOOR_OPTIONS,
 };
 
 const DSA_CONNECTOR_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonType: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   businessType: COMMON_BUSINESS_TYPE_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
@@ -318,14 +318,14 @@ const DSA_CONNECTOR_DICTIONARY: Record<string, string[]> = {
   workingPeriod: COMMON_PERIOD_OPTIONS,
   shiftedPeriod: COMMON_PERIOD_OPTIONS,
   totalFamilyMembers: COMMON_FAMILY_MEMBERS_OPTIONS,
-  totalEarning: COMMON_EARNING_OPTIONS,
+  totalEarningMember: COMMON_EARNING_OPTIONS,
   addressStructure: COMMON_ADDRESS_STRUCTURE_OPTIONS,
   applicantStayingFloor: COMMON_FLOOR_OPTIONS,
 };
 
 const PROPERTY_INDIVIDUAL_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonType: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
   relationship: COMMON_RELATIONSHIP_OPTIONS,
@@ -335,14 +335,14 @@ const PROPERTY_INDIVIDUAL_DICTIONARY: Record<string, string[]> = {
   workingPeriod: COMMON_PERIOD_OPTIONS,
   shiftedPeriod: COMMON_PERIOD_OPTIONS,
   totalFamilyMembers: COMMON_FAMILY_MEMBERS_OPTIONS,
-  totalEarning: COMMON_EARNING_OPTIONS,
+  totalEarningMember: COMMON_EARNING_OPTIONS,
   addressStructure: COMMON_ADDRESS_STRUCTURE_OPTIONS,
   applicantStayingFloor: COMMON_FLOOR_OPTIONS,
 };
 
 const PROPERTY_APF_DICTIONARY: Record<string, string[]> = {
   metPerson: COMMON_MET_PERSON_OPTIONS,
-  nameOfMetPerson: COMMON_MET_PERSON_OPTIONS,
+  metPersonType: COMMON_MET_PERSON_OPTIONS,
   designation: COMMON_DESIGNATION_OPTIONS,
   businessType: COMMON_BUSINESS_TYPE_OPTIONS,
   ownershipType: COMMON_OWNERSHIP_TYPE_OPTIONS,
@@ -353,7 +353,7 @@ const PROPERTY_APF_DICTIONARY: Record<string, string[]> = {
   workingPeriod: COMMON_PERIOD_OPTIONS,
   shiftedPeriod: COMMON_PERIOD_OPTIONS,
   totalFamilyMembers: COMMON_FAMILY_MEMBERS_OPTIONS,
-  totalEarning: COMMON_EARNING_OPTIONS,
+  totalEarningMember: COMMON_EARNING_OPTIONS,
   addressStructure: COMMON_ADDRESS_STRUCTURE_OPTIONS,
   applicantStayingFloor: COMMON_FLOOR_OPTIONS,
 };

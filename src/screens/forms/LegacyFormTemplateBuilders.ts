@@ -244,7 +244,7 @@ const STANDARD_COLORS = [
 /** Common select options shared across all form types */
 const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
   totalFamilyMembers: NUMBERS_1_TO_20,
-  totalEarning: NUMBERS_1_TO_20,
+  totalEarningMember: NUMBERS_1_TO_20,
   stayingPeriodValue: NUMBERS_1_TO_50,
   stayingPeriodUnit: STAYING_PERIOD_UNITS,
   addressStructure: NUMBERS_1_TO_100,
@@ -586,7 +586,7 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
     requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
   },
   {
-    name: 'totalEarning',
+    name: 'totalEarningMember',
     label: 'Total Earning',
     type: 'select',
     conditional: legacyCondition('houseStatus', 'equals', 'Open'),
@@ -1135,14 +1135,14 @@ const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
     required: true,
   },
   {
-    name: 'nameOfMetPerson',
-    label: 'Name of Met Person',
+    name: 'metPersonName',
+    label: 'Met Person Name',
     type: 'text',
     required: true,
   },
   {
-    name: 'metPerson',
-    label: 'Met Person Name',
+    name: 'metPersonType',
+    label: 'Met Person',
     type: 'select',
     required: true,
   },
@@ -1179,7 +1179,7 @@ const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
   },
   {
     name: 'societyNamePlateStatus',
-    label: 'Society/Building Name Plate Visible?',
+    label: 'Society Name Plate',
     type: 'select',
     required: true,
   },
@@ -1519,7 +1519,7 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     requiredWhen: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
   },
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
@@ -1690,7 +1690,7 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     required: true,
   },
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
@@ -1876,7 +1876,7 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     required: true,
   },
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
@@ -2048,8 +2048,8 @@ const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     required: true,
   },
   {
-    name: 'nameOfMetPerson',
-    label: 'Name of Met Person',
+    name: 'metPersonName',
+    label: 'Met Person Name',
     type: 'text',
     required: true,
   },
@@ -2316,7 +2316,7 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -2555,7 +2555,7 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -2740,7 +2740,7 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -2867,8 +2867,8 @@ const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
     required: true,
   },
   {
-    name: 'nameOfMetPerson',
-    label: 'Name of Met Person',
+    name: 'metPersonName',
+    label: 'Met Person Name',
     type: 'text',
     required: true,
   },
@@ -3119,7 +3119,7 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -3329,7 +3329,7 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -3521,7 +3521,7 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -3658,8 +3658,8 @@ const legacyEntryRestrictedBusinessFields = withLegacyBusinessOrder([
     required: true,
   },
   {
-    name: 'nameOfMetPerson',
-    label: 'Name of Met Person',
+    name: 'metPersonName',
+    label: 'Met Person Name',
     type: 'text',
     required: true,
   },
@@ -3840,7 +3840,7 @@ const legacyPositiveBuilderFields = withLegacyBusinessOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -4050,7 +4050,7 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -4242,7 +4242,7 @@ const legacyNspBuilderFields = withLegacyBusinessOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -4378,8 +4378,8 @@ const legacyEntryRestrictedBuilderFields = withLegacyBusinessOrder([
     required: true,
   },
   {
-    name: 'nameOfMetPerson',
-    label: 'Name of Met Person',
+    name: 'metPersonName',
+    label: 'Met Person Name',
     type: 'text',
     required: true,
   },
@@ -4618,7 +4618,7 @@ const legacyPositiveNocFields = withLegacyNocOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -4725,7 +4725,7 @@ const legacyShiftedNocFields = withLegacyNocOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -4910,7 +4910,7 @@ const legacyNspNocFields = withLegacyNocOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -5047,8 +5047,8 @@ const legacyEntryRestrictedNocFields = withLegacyNocOrder([
     required: true,
   },
   {
-    name: 'nameOfMetPerson',
-    label: 'Name of Met Person',
+    name: 'metPersonName',
+    label: 'Met Person Name',
     type: 'text',
     required: true,
   },
@@ -5274,7 +5274,7 @@ const legacyPositiveDsaFields = withLegacyDsaOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -5484,7 +5484,7 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -5676,7 +5676,7 @@ const legacyNspDsaFields = withLegacyDsaOrder([
   },
   // --- Yellow fields (hidden when Closed) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -5813,8 +5813,8 @@ const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
     required: true,
   },
   {
-    name: 'nameOfMetPerson',
-    label: 'Name of Met Person',
+    name: 'metPersonName',
+    label: 'Met Person Name',
     type: 'text',
     required: true,
   },
@@ -6025,7 +6025,7 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
   },
   // --- SEEN-only fields (yellow) ---
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('constructionActivity', 'equals', 'SEEN'),
@@ -6318,8 +6318,8 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
     required: true,
   },
   {
-    name: 'nameOfMetPerson',
-    label: 'Name of Met Person',
+    name: 'metPersonName',
+    label: 'Met Person Name',
     type: 'text',
     required: true,
   },
@@ -6540,7 +6540,7 @@ const legacyPositivePropertyIndividualFields =
       required: true,
     },
     {
-      name: 'metPerson',
+      name: 'metPersonName',
       label: 'Met Person Name',
       type: 'text',
       conditional: legacyCondition('flatStatus', 'equals', 'Open'),
@@ -6724,7 +6724,7 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
   },
   { name: 'flatStatus', label: 'Flat Status', type: 'select', required: true },
   {
-    name: 'metPerson',
+    name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('flatStatus', 'equals', 'Open'),
@@ -6879,8 +6879,8 @@ const legacyEntryRestrictedPropertyIndividualFields =
       required: true,
     },
     {
-      name: 'nameOfMetPerson',
-      label: 'Name of Met Person',
+      name: 'metPersonName',
+      label: 'Met Person Name',
       type: 'text',
       required: true,
     },
