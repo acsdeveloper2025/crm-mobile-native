@@ -33,6 +33,13 @@ import { BackgroundSyncDaemon } from './src/sync/BackgroundSyncDaemon';
 import { MobileTelemetryService } from './src/telemetry/MobileTelemetryService';
 import { DatabaseKeyStore } from './src/services/DatabaseKeyStore';
 import { config } from './src/config';
+import { installUppercaseDefaults } from './src/utils/installUppercaseDefaults';
+
+// Install the global Text/TextInput uppercase render-patch once at
+// module load, before any component mounts. See the utility file for
+// rationale. Use <PreserveCase> to opt out for emails, URLs, hex/IDs,
+// timestamps with letters, GPS coord strings, etc.
+installUppercaseDefaults();
 
 const TAG = 'App';
 const STARTUP_PERMISSIONS_KEY = 'startup_permissions_requested_v1';

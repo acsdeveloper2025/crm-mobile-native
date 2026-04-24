@@ -13,6 +13,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { SyncLogsSkeleton } from '../../components/ui/Skeleton';
+import { PreserveCase } from '../../components/ui/PreserveCase';
 import { Logger } from '../../utils/logger';
 import { SyncQueueRepository } from '../../repositories/SyncQueueRepository';
 import type { SyncQueueItem } from '../../types/mobile';
@@ -149,14 +150,16 @@ export const SyncLogsScreen = () => {
         </View>
 
         <Text style={[styles.logMeta, { color: theme.colors.textSecondary }]}>
-          ID: {item.entityId}
+          ID: <PreserveCase>{item.entityId}</PreserveCase>
         </Text>
         <Text style={[styles.logMeta, { color: theme.colors.textSecondary }]}>
           Attempts: {item.attempts}
         </Text>
-        <Text style={[styles.logDate, { color: theme.colors.textMuted }]}>
+        <PreserveCase
+          style={[styles.logDate, { color: theme.colors.textMuted }]}
+        >
           {new Date(item.createdAt).toLocaleString()}
-        </Text>
+        </PreserveCase>
 
         {isError && item.lastError && (
           <View
@@ -171,9 +174,11 @@ export const SyncLogsScreen = () => {
             <Text style={[styles.errorTitle, { color: theme.colors.danger }]}>
               Error Message:
             </Text>
-            <Text style={[styles.errorText, { color: theme.colors.text }]}>
+            <PreserveCase
+              style={[styles.errorText, { color: theme.colors.text }]}
+            >
               {item.lastError}
-            </Text>
+            </PreserveCase>
           </View>
         )}
       </View>

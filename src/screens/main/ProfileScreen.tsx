@@ -8,6 +8,7 @@ import {
   Image,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { PreserveCase } from '../../components/ui/PreserveCase';
 import { useTheme, ThemePreference } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { ScreenHeader } from '../../components/ScreenHeader';
@@ -142,7 +143,10 @@ export const ProfileScreen = ({ navigation }: any) => {
               { color: theme.colors.textSecondary },
             ]}
           >
-            Agent ID: {user?.employeeId || user?.username || 'N/A'}
+            Agent ID:{' '}
+            <PreserveCase>
+              {user?.employeeId || user?.username || 'N/A'}
+            </PreserveCase>
           </Text>
         </View>
 
@@ -167,17 +171,17 @@ export const ProfileScreen = ({ navigation }: any) => {
             <Text style={[styles.label, { color: theme.colors.textMuted }]}>
               Agent ID
             </Text>
-            <Text style={[styles.value, { color: theme.colors.text }]}>
+            <PreserveCase style={[styles.value, { color: theme.colors.text }]}>
               {user?.employeeId || user?.username}
-            </Text>
+            </PreserveCase>
           </View>
           <View style={styles.detailRow}>
             <Text style={[styles.label, { color: theme.colors.textMuted }]}>
               Email
             </Text>
-            <Text style={[styles.value, { color: theme.colors.text }]}>
+            <PreserveCase style={[styles.value, { color: theme.colors.text }]}>
               {user?.email || 'N/A'}
-            </Text>
+            </PreserveCase>
           </View>
           <View style={styles.detailRow}>
             <Text style={[styles.label, { color: theme.colors.textMuted }]}>

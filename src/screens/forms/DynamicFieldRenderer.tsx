@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useTheme } from '../../context/ThemeContext';
+import { UppercaseTextInput } from '../../components/ui/UppercaseTextInput';
 
 export interface DynamicFieldProps {
   field: {
@@ -252,7 +253,9 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({
       case 'text':
       case 'number':
         return (
-          <TextInput
+          <UppercaseTextInput
+            name={field.name || field.id}
+            uppercase={field.type === 'number' ? false : undefined}
             style={[
               styles.input,
               {
@@ -289,7 +292,8 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({
 
       case 'textarea':
         return (
-          <TextInput
+          <UppercaseTextInput
+            name={field.name || field.id}
             style={[
               styles.input,
               styles.textArea,

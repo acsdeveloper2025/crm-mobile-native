@@ -12,7 +12,6 @@ import {
   FlatList,
   TouchableOpacity,
   ScrollView,
-  TextInput,
   Alert,
 } from 'react-native';
 import {
@@ -31,6 +30,7 @@ import {
   useSafeAreaInsets,
 } from 'react-native-safe-area-context';
 import { useTasks } from '../../hooks/useTasks';
+import { UppercaseTextInput } from '../../components/ui/UppercaseTextInput';
 import { Logger } from '../../utils/logger';
 import { TaskCard } from '../../components/tasks/TaskCard';
 import { TaskCardSkeleton } from '../../components/ui/Skeleton';
@@ -690,7 +690,8 @@ export const TaskListScreen = ({
             size={20}
             color={theme.colors.textMuted}
           />
-          <TextInput
+          <UppercaseTextInput
+            name="task-search"
             style={[styles.searchInput, { color: theme.colors.text }]}
             placeholder={metadata.searchPlaceholder}
             placeholderTextColor={theme.colors.textMuted}

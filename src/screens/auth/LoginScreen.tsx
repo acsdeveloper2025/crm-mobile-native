@@ -2,7 +2,6 @@ import React from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
@@ -13,6 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '../../context/AuthContext';
+import { UppercaseTextInput } from '../../components/ui/UppercaseTextInput';
 import { ApiClient } from '../../api/apiClient';
 import { ENDPOINTS } from '../../api/endpoints';
 import { validateResponse } from '../../api/schemas/runtime';
@@ -250,7 +250,9 @@ export const LoginScreen = () => {
                   *
                 </Text>
               </Text>
-              <TextInput
+              <UppercaseTextInput
+                name="username"
+                uppercase={false}
                 style={styles.input}
                 placeholder="Enter your username"
                 placeholderTextColor={theme.colors.textMuted}
@@ -271,7 +273,9 @@ export const LoginScreen = () => {
                   *
                 </Text>
               </Text>
-              <TextInput
+              <UppercaseTextInput
+                name="password"
+                uppercase={false}
                 style={styles.input}
                 placeholder="Enter your password"
                 placeholderTextColor={theme.colors.textMuted}
