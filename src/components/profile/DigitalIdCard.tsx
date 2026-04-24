@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Image, StyleSheet, Dimensions } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
+import { PreserveCase } from '../ui/PreserveCase';
 
 interface UserProfile {
   fullName: string;
@@ -116,11 +117,11 @@ export const DigitalIdCard: React.FC<DigitalIdCardProps> = ({
                 >
                   Employee ID:
                 </Text>
-                <Text
+                <PreserveCase
                   style={[styles.detailValue, { color: theme.colors.text }]}
                 >
                   {userProfile.employeeId}
-                </Text>
+                </PreserveCase>
               </View>
 
               {userProfile.designation && (
@@ -187,11 +188,11 @@ export const DigitalIdCard: React.FC<DigitalIdCardProps> = ({
                   >
                     Email:
                   </Text>
-                  <Text
+                  <PreserveCase
                     style={[styles.detailValue, { color: theme.colors.text }]}
                   >
                     {userProfile.email}
-                  </Text>
+                  </PreserveCase>
                 </View>
               )}
 

@@ -13,6 +13,7 @@ import {
   type ReStampJob,
 } from '../../services/WatermarkReStampQueue';
 import { Logger } from '../../utils/logger';
+import { PreserveCase } from '../ui/PreserveCase';
 
 const TAG = 'WatermarkReStamper';
 
@@ -162,33 +163,33 @@ export const WatermarkReStamper: React.FC = () => {
               <Icon name="navigate" size={14} color="#22d3ee" />
               <Text style={styles.gpsLabel}>GPS LOCATION</Text>
             </View>
-            <Text style={styles.gpsCoordDMS}>
+            <PreserveCase style={styles.gpsCoordDMS}>
               {formatDMS(location.lat, true)}
-            </Text>
-            <Text style={styles.gpsCoordDMS}>
+            </PreserveCase>
+            <PreserveCase style={styles.gpsCoordDMS}>
               {formatDMS(location.lng, false)}
-            </Text>
-            <Text style={styles.gpsDecimal}>
+            </PreserveCase>
+            <PreserveCase style={styles.gpsDecimal}>
               {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
-            </Text>
+            </PreserveCase>
             {location.accuracy != null && (
-              <Text
+              <PreserveCase
                 style={styles.gpsAccuracy}
-              >{`\u00B1${location.accuracy.toFixed(0)}m`}</Text>
+              >{`\u00B1${location.accuracy.toFixed(0)}m`}</PreserveCase>
             )}
           </View>
 
           <View style={styles.dataStack}>
             <View style={styles.dataRow}>
               <Icon name="calendar-outline" size={11} color="#94a3b8" />
-              <Text style={styles.dataLabel}>{dateStr}</Text>
+              <PreserveCase style={styles.dataLabel}>{dateStr}</PreserveCase>
               <Icon
                 name="time-outline"
                 size={11}
                 color="#94a3b8"
                 style={styles.iconSpacer}
               />
-              <Text style={styles.dataLabel}>{timeStr}</Text>
+              <PreserveCase style={styles.dataLabel}>{timeStr}</PreserveCase>
             </View>
 
             {location && (
