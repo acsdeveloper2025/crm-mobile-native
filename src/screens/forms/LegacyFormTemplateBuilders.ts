@@ -801,7 +801,7 @@ const legacyShiftedResidenceFields = withLegacyResidenceOrder([
   },
   {
     name: 'metPersonName',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('houseStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
@@ -988,7 +988,7 @@ const legacyNspResidenceFields = withLegacyResidenceOrder([
   },
   {
     name: 'metPersonName',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('houseStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
@@ -1140,7 +1140,12 @@ const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
     type: 'text',
     required: true,
   },
-  { name: 'metPerson', label: 'Met Person', type: 'select', required: true },
+  {
+    name: 'metPerson',
+    label: 'Met Person Name',
+    type: 'select',
+    required: true,
+  },
   {
     name: 'metPersonConfirmation',
     label: 'Met Person Confirmation',
@@ -1515,7 +1520,7 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   },
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
@@ -1686,7 +1691,7 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   },
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
@@ -1872,7 +1877,7 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
   },
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
@@ -2312,7 +2317,7 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -2551,7 +2556,7 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -2736,7 +2741,7 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -3115,7 +3120,7 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -3325,7 +3330,7 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -3517,7 +3522,7 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -3836,7 +3841,7 @@ const legacyPositiveBuilderFields = withLegacyBusinessOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -4046,7 +4051,7 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -4238,7 +4243,7 @@ const legacyNspBuilderFields = withLegacyBusinessOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -4614,7 +4619,7 @@ const legacyPositiveNocFields = withLegacyNocOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -4721,7 +4726,7 @@ const legacyShiftedNocFields = withLegacyNocOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -4906,7 +4911,7 @@ const legacyNspNocFields = withLegacyNocOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -5270,7 +5275,7 @@ const legacyPositiveDsaFields = withLegacyDsaOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -5480,7 +5485,7 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -5672,7 +5677,7 @@ const legacyNspDsaFields = withLegacyDsaOrder([
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -6021,7 +6026,7 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
   // --- SEEN-only fields (yellow) ---
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('constructionActivity', 'equals', 'SEEN'),
     requiredWhen: legacyCondition('constructionActivity', 'equals', 'SEEN'),
@@ -6536,7 +6541,7 @@ const legacyPositivePropertyIndividualFields =
     },
     {
       name: 'metPerson',
-      label: 'Met Person',
+      label: 'Met Person Name',
       type: 'text',
       conditional: legacyCondition('flatStatus', 'equals', 'Open'),
       requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
@@ -6720,7 +6725,7 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
   { name: 'flatStatus', label: 'Flat Status', type: 'select', required: true },
   {
     name: 'metPerson',
-    label: 'Met Person',
+    label: 'Met Person Name',
     type: 'text',
     conditional: legacyCondition('flatStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
