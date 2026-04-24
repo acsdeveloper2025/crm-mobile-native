@@ -178,7 +178,6 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         <Text style={styles.addressIcon}>📍</Text>
         <Text
           style={[styles.addressText, { color: theme.colors.textSecondary }]}
-          numberOfLines={2}
         >
           {task.addressStreet}, {task.addressCity}, {task.addressState}{' '}
           {task.addressPincode}

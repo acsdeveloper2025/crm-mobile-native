@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
 import { AttachmentRepository } from '../repositories/AttachmentRepository';
-import { DatabaseService } from '../database/DatabaseService';
 import { FormRepository } from '../repositories/FormRepository';
 // LocationRepository removed — GPS comes from photo attachments only
 import { SyncQueueRepository } from '../repositories/SyncQueueRepository';
@@ -227,70 +226,75 @@ export const SubmitVerificationUseCase = {
       await StorageService.cleanupSyncedData(1);
     }
 
-    // Wrap all DB writes + sync queue enqueue in a single transaction.
-    // If any step fails, everything rolls back — no orphaned forms.
-    await DatabaseService.transaction(async () => {
-      await FormRepository.createSubmission({
-        id: submissionId,
-        taskId: task.id,
-        caseId: String(task.caseId),
-        formType: backendFormType,
-        formData: mergedFormData,
-        submittedAt: now,
-      });
-
-      await FormRepository.updateSubmissionPayload(
-        submissionId,
-        submissionPayload.metadata as unknown as Record<string, unknown>,
-        submissionPayload.attachmentIds as string[],
-        submissionPayload.photos as unknown[],
-      );
-
-      await TaskRepository.updateFormData(
-        task.id,
-        persistedFormData,
-        task.status,
-      );
-      await TaskRepository.updateVerificationOutcome(
-        task.id,
-        input.verificationOutcome || null,
-      );
-
-      const pendingItems =
-        await SyncQueueRepository.listPendingAttachmentQueueItems(
-          task.id,
-          backendTaskId,
-        );
-      for (const queueItem of pendingItems) {
-        try {
-          const payload = JSON.parse(queueItem.payloadJson) as Record<
-            string,
-            unknown
-          >;
-          const nextPayload = {
-            ...payload,
-            taskId: backendTaskId,
-            localTaskId: task.id,
-            submissionId,
-            verificationType: payload.verificationType || backendFormType,
-            photoType:
-              payload.photoType ||
-              ((payload.componentType as string | undefined) === 'selfie'
-                ? 'selfie'
-                : 'verification'),
-          };
-          await SyncQueueRepository.updatePayload(
-            queueItem.id,
-            JSON.stringify(nextPayload),
-          );
-        } catch {
-          // best effort
-        }
-      }
-
-      await SyncGateway.enqueueFormSubmission(submissionId, submissionPayload);
-      // Don't delete autosave here — FormUploader deletes it only after successful backend sync
+    // The earlier wrap (`DatabaseService.transaction(...)`) deadlocked on
+    // op-sqlite. TaskRepository.updateFormData and .updateVerificationOutcome
+    // both call `await ProjectionUpdater.scheduleTaskRebuild(...)`, which
+    // schedules a `setTimeout(0)` that itself runs `DatabaseService.transaction`
+    // (rebuilding task projections). The inner transaction blocks on op-sqlite's
+    // single-writer lock queue (the outer tx still holds it), and the outer
+    // callback awaits the inner promise forever — Submit button stuck. Run the
+    // writes sequentially. The crash window between local writes and the queue
+    // enqueue is negligible; FormUploader / reconcile paths handle partials.
+    await FormRepository.createSubmission({
+      id: submissionId,
+      taskId: task.id,
+      caseId: String(task.caseId),
+      formType: backendFormType,
+      formData: mergedFormData,
+      submittedAt: now,
     });
+
+    await FormRepository.updateSubmissionPayload(
+      submissionId,
+      submissionPayload.metadata as unknown as Record<string, unknown>,
+      submissionPayload.attachmentIds as string[],
+      submissionPayload.photos as unknown[],
+    );
+
+    await TaskRepository.updateFormData(
+      task.id,
+      persistedFormData,
+      task.status,
+    );
+    await TaskRepository.updateVerificationOutcome(
+      task.id,
+      input.verificationOutcome || null,
+    );
+
+    const pendingItems =
+      await SyncQueueRepository.listPendingAttachmentQueueItems(
+        task.id,
+        backendTaskId,
+      );
+    for (const queueItem of pendingItems) {
+      try {
+        const payload = JSON.parse(queueItem.payloadJson) as Record<
+          string,
+          unknown
+        >;
+        const nextPayload = {
+          ...payload,
+          taskId: backendTaskId,
+          localTaskId: task.id,
+          submissionId,
+          verificationType: payload.verificationType || backendFormType,
+          photoType:
+            payload.photoType ||
+            ((payload.componentType as string | undefined) === 'selfie'
+              ? 'selfie'
+              : 'verification'),
+        };
+        await SyncQueueRepository.updatePayload(
+          queueItem.id,
+          JSON.stringify(nextPayload),
+        );
+      } catch {
+        // best effort
+      }
+    }
+
+    await SyncGateway.enqueueFormSubmission(submissionId, submissionPayload);
+    // Don't delete autosave here — FormUploader deletes it only after successful backend sync
 
     try {
       await SyncService.performSync();
