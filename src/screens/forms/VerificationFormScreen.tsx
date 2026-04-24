@@ -1033,7 +1033,7 @@ export const VerificationFormScreen = ({
                     <>
                       <Icon
                         name="cloud-upload-outline"
-                        size={18}
+                        size={20}
                         color={theme.colors.surface}
                       />
                       <Text
@@ -1042,9 +1042,8 @@ export const VerificationFormScreen = ({
                           { color: theme.colors.surface },
                         ]}
                         numberOfLines={1}
-                        adjustsFontSizeToFit
                       >
-                        Submit Verification
+                        Submit
                       </Text>
                     </>
                   )}
