@@ -33,13 +33,13 @@ import { BackgroundSyncDaemon } from './src/sync/BackgroundSyncDaemon';
 import { MobileTelemetryService } from './src/telemetry/MobileTelemetryService';
 import { DatabaseKeyStore } from './src/services/DatabaseKeyStore';
 import { config } from './src/config';
-import { installUppercaseDefaults } from './src/utils/installUppercaseDefaults';
 
-// Install the global Text/TextInput uppercase render-patch once at
-// module load, before any component mounts. See the utility file for
-// rationale. Use <PreserveCase> to opt out for emails, URLs, hex/IDs,
-// timestamps with letters, GPS coord strings, etc.
-installUppercaseDefaults();
+// NOTE: The global Text/TextInput UPPERCASE wrappers are installed in
+// `index.js` (the entry file) BEFORE any screen module is loaded. See
+// `src/utils/installUppercaseDefaults.ts` for the mechanism. Importing
+// or calling it here would be a no-op (already installed) but worse,
+// would shift install order to AFTER App's screen imports — defeating
+// the point. Use `<PreserveCase>` to opt out at any text site.
 
 const TAG = 'App';
 const STARTUP_PERMISSIONS_KEY = 'startup_permissions_requested_v1';

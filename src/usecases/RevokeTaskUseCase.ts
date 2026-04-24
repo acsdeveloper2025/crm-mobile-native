@@ -1,4 +1,3 @@
-import { DatabaseService } from '../database/DatabaseService';
 import { TaskRepository } from '../repositories/TaskRepository';
 import { SyncGateway } from '../services/SyncGateway';
 import { SYNC_PRIORITY } from '../services/SyncQueue';
@@ -26,16 +25,22 @@ export const RevokeTaskUseCase = {
       throw new Error('Task not found');
     }
 
-    // D4 (audit 2026-04-21 round 2): atomic local-write + enqueue.
-    await DatabaseService.transaction(async () => {
-      await TaskRepository.revokeTask(taskId, reason);
-      await SyncGateway.enqueueTaskStatus(
-        resolveBackendTaskId(task.id, task.verificationTaskId),
-        task.id,
-        'REVOKED',
-        { reason, revokeReason: reason },
-        SYNC_PRIORITY.CRITICAL,
-      );
-    });
+    // The earlier D4 wrap (`DatabaseService.transaction(...)`) deadlocked on
+    // op-sqlite (nested transaction via replaceLatestStatusItem + projection
+    // rebuild). Order matters: enqueue first, then local revoke. If enqueue
+    // throws, nothing locally changed — user retries cleanly. If the local
+    // revoke throws after enqueue, the queue still carries the REVOKED action
+    // and next sync-down converges via the conflict resolver. Reversing the
+    // order would leave the row locally REVOKED with no queue entry, and the
+    // conflict resolver (which prefers the fresher local timestamp) would
+    // permanently hide the revoke from the backend — ops would never know.
+    await SyncGateway.enqueueTaskStatus(
+      resolveBackendTaskId(task.id, task.verificationTaskId),
+      task.id,
+      'REVOKED',
+      { reason, revokeReason: reason },
+      SYNC_PRIORITY.CRITICAL,
+    );
+    await TaskRepository.revokeTask(taskId, reason);
   },
 };

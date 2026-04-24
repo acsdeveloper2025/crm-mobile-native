@@ -1,4 +1,3 @@
-import { DatabaseService } from '../database/DatabaseService';
 import { TaskRepository } from '../repositories/TaskRepository';
 import { SyncGateway } from '../services/SyncGateway';
 import { TaskStatus } from '../types/enums';
@@ -26,14 +25,19 @@ export const CompleteTaskUseCase = {
       throw new Error('Task not found');
     }
 
-    // D4 (audit 2026-04-21 round 2): atomic local-write + enqueue.
-    await DatabaseService.transaction(async () => {
-      await TaskRepository.updateTaskStatus(taskId, TaskStatus.Completed);
-      await SyncGateway.enqueueTaskStatus(
-        resolveBackendTaskId(task.id, task.verificationTaskId),
-        task.id,
-        TaskStatus.Completed,
-      );
-    });
+    // The earlier D4 wrap (`DatabaseService.transaction(...)`) deadlocked on
+    // op-sqlite (nested transactions via projection rebuild + replaceLatestStatusItem).
+    // Order matters: enqueue first, then local update. If enqueue throws,
+    // nothing locally changed — user retries cleanly. If the local update
+    // throws after enqueue, the queue still carries the COMPLETED action and
+    // next sync-down converges via the conflict resolver. Reversing the order
+    // would leave the row locally COMPLETED with no queue entry — backend
+    // never learns the task is done.
+    await SyncGateway.enqueueTaskStatus(
+      resolveBackendTaskId(task.id, task.verificationTaskId),
+      task.id,
+      TaskStatus.Completed,
+    );
+    await TaskRepository.updateTaskStatus(taskId, TaskStatus.Completed);
   },
 };

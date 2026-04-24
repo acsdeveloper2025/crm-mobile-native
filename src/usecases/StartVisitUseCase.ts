@@ -1,4 +1,3 @@
-import { DatabaseService } from '../database/DatabaseService';
 import { TaskRepository } from '../repositories/TaskRepository';
 import { SyncGateway } from '../services/SyncGateway';
 import { TaskStatus } from '../types/enums';
@@ -31,17 +30,25 @@ export const startVisitUseCase = async (
     throw new Error('Task not found');
   }
 
-  // D4 (audit 2026-04-21 round 2): wrap the local status write + queue
-  // enqueue in a single transaction so a crash between the two can't
-  // leave a `sync_status='PENDING'` row with no corresponding queue
-  // item (which no background path ever reconciles).
-  await DatabaseService.transaction(async () => {
-    await TaskRepository.updateTaskStatus(taskId, TaskStatus.InProgress);
-    await SyncGateway.enqueueTaskStatus(
-      resolveBackendTaskId(task.id, task.verificationTaskId),
-      task.id,
-      TaskStatus.InProgress,
-    );
-  });
+  // The earlier D4 wrap (`DatabaseService.transaction(...)`) deadlocked on
+  // op-sqlite: TaskRepository.updateTaskStatus + SyncGateway.enqueueTaskStatus
+  // both call DatabaseService.execute / DatabaseService.transaction internally,
+  // and the connection is single-writer — a nested transaction inside the
+  // outer callback never resolves, so the Accept spinner stuck forever.
+  //
+  // Order matters: enqueue first, then local update. If enqueue throws (e.g.
+  // device storage exhausted, SQLite BUSY), nothing local changed and the
+  // user retries cleanly. If the local update throws after the enqueue, the
+  // queue still carries the status change — next sync-down converges via the
+  // conflict resolver (server fresher than local). Reversing this order would
+  // mean a failed enqueue leaves the row locally mutated with no queue entry,
+  // causing permanent backend divergence (local IN_PROGRESS, server stays
+  // ASSIGNED forever — the conflict resolver keeps the fresher local row).
+  await SyncGateway.enqueueTaskStatus(
+    resolveBackendTaskId(task.id, task.verificationTaskId),
+    task.id,
+    TaskStatus.InProgress,
+  );
+  await TaskRepository.updateTaskStatus(taskId, TaskStatus.InProgress);
   return { success: true };
 };

@@ -1,9 +1,16 @@
 import React, { forwardRef, useCallback } from 'react';
-import {
+// Import the unwrapped TextInput via deep path so this wrapper composes
+// with the original native component, NOT with the upper-wrapped version
+// installed by `installUppercaseDefaults` on the public `react-native`
+// export. Without the deep import we'd double-wrap (UpperTextInput around
+// UpperTextInput) and uppercase user input twice + duplicate the style array.
+// eslint-disable-next-line @react-native/no-deep-imports
+import { TextInput as OriginalTextInput } from 'react-native/Libraries/Components/TextInput/TextInput';
+import type {
   TextInput,
-  type TextInputProps,
-  type NativeSyntheticEvent,
-  type TextInputChangeEventData,
+  TextInputProps,
+  NativeSyntheticEvent,
+  TextInputChangeEventData,
 } from 'react-native';
 import { shouldUppercaseField, toUpperCaseSafe } from '../../utils/uppercase';
 
@@ -64,7 +71,7 @@ export const UppercaseTextInput = forwardRef<
     : [rest.style, { textTransform: 'none' as const }];
 
   return (
-    <TextInput
+    <OriginalTextInput
       ref={ref}
       autoCapitalize={autoUpper ? 'characters' : rest.autoCapitalize ?? 'none'}
       autoCorrect={autoUpper ? false : rest.autoCorrect}
