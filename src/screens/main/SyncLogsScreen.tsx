@@ -119,7 +119,11 @@ export const SyncLogsScreen = () => {
         ]}
       >
         <View style={styles.logHeader}>
-          <Text style={[styles.logType, { color: theme.colors.text }]}>
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={[styles.logType, { color: theme.colors.text }]}
+          >
             {item.actionType} {item.entityType}
           </Text>
           <View
@@ -135,6 +139,7 @@ export const SyncLogsScreen = () => {
             ]}
           >
             <Text
+              numberOfLines={1}
               style={[
                 styles.badgeText,
                 { color: theme.colors.textMuted },
@@ -423,9 +428,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 8,
   },
   logType: {
+    flexShrink: 1,
     fontSize: 14,
     fontWeight: '700',
   },
@@ -433,6 +441,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
+    flexShrink: 0,
+    maxWidth: '50%',
   },
   badgeError: {},
   badgeDefault: {},

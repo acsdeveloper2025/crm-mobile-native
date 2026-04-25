@@ -348,7 +348,7 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
               color={theme.colors.textSecondary}
               style={styles.icon}
             />
-            <View>
+            <View style={styles.detailValueWrap}>
               <Text
                 style={[styles.detailLabel, { color: theme.colors.textMuted }]}
               >
@@ -405,7 +405,7 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
             Case Details
           </Text>
           <View style={styles.detailsGrid}>
-            <View style={styles.detailRow}>
+            <View style={styles.detailRowStacked}>
               <Text
                 style={[styles.detailLabel, { color: theme.colors.textMuted }]}
               >
@@ -415,7 +415,7 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
                 {task.verificationTypeName || task.verificationType || 'N/A'}
               </Text>
             </View>
-            <View style={styles.detailRow}>
+            <View style={styles.detailRowStacked}>
               <Text
                 style={[styles.detailLabel, { color: theme.colors.textMuted }]}
               >
@@ -425,7 +425,7 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
                 {task.productName || 'N/A'}
               </Text>
             </View>
-            <View style={styles.detailRow}>
+            <View style={styles.detailRowStacked}>
               <Text
                 style={[styles.detailLabel, { color: theme.colors.textMuted }]}
               >
@@ -435,7 +435,7 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
                 {task.applicantType || 'N/A'}
               </Text>
             </View>
-            <View style={styles.detailRow}>
+            <View style={styles.detailRowStacked}>
               <Text
                 style={[styles.detailLabel, { color: theme.colors.textMuted }]}
               >
@@ -445,7 +445,7 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
                 {task.createdByBackendUser || 'N/A'}
               </Text>
             </View>
-            <View style={styles.detailRow}>
+            <View style={styles.detailRowStacked}>
               <Text
                 style={[styles.detailLabel, { color: theme.colors.textMuted }]}
               >
@@ -455,7 +455,7 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
                 {task.backendContactNumber || 'N/A'}
               </Text>
             </View>
-            <View style={styles.detailRow}>
+            <View style={styles.detailRowStacked}>
               <Text
                 style={[styles.detailLabel, { color: theme.colors.textMuted }]}
               >
@@ -781,6 +781,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 12,
   },
   taskNumber: {
@@ -788,11 +790,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 1,
+    flexShrink: 1,
   },
   badge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+    flexShrink: 0,
+    maxWidth: '60%',
   },
   badgeText: {
     fontSize: 10,
@@ -827,6 +832,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  // Stacked variant for label-above-value rows that hold long, free-form
+  // values (notes, descriptions, full names). The standard `detailRow` is
+  // a horizontal layout that overflowed for long values; this variant
+  // gives the value the full row width to wrap naturally.
+  detailRowStacked: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  // Wrapper view inside `detailRow` (icon + label/value column) — the
+  // column needs flex:1 so long values wrap inside the available width
+  // instead of pushing past the card edge.
+  detailValueWrap: {
+    flex: 1,
   },
   phoneBlock: {
     flex: 1,

@@ -146,7 +146,15 @@ const MultiSelectOption = React.memo(
           { backgroundColor: rowBg, borderColor: rowBorder },
         ]}
       >
-        <Text style={[styles.switchLabel, { color: theme.colors.text }]}>
+        <Text
+          numberOfLines={2}
+          ellipsizeMode="tail"
+          style={[
+            styles.switchLabel,
+            styles.switchLabelFlex,
+            { color: theme.colors.text },
+          ]}
+        >
           {option.label}
         </Text>
         <View
@@ -589,6 +597,13 @@ const styles = StyleSheet.create({
   switchLabel: {
     fontSize: 16,
     fontWeight: '600',
+  },
+  // Multi-select option labels can be long checklist-style text; needs
+  // flexShrink + maxWidth so the right-side checkbox stays visible.
+  switchLabelFlex: {
+    flex: 1,
+    flexShrink: 1,
+    marginRight: 12,
   },
   pickerContainer: {
     borderWidth: 1,

@@ -34,11 +34,15 @@ const Modal: React.FC<ModalProps> = ({
         <View style={[styles.card, { backgroundColor: theme.colors.surface }]}>
           <View style={styles.header}>
             {title ? (
-              <Text style={[styles.title, { color: theme.colors.text }]}>
+              <Text
+                numberOfLines={2}
+                ellipsizeMode="tail"
+                style={[styles.title, { color: theme.colors.text }]}
+              >
                 {title}
               </Text>
             ) : (
-              <View />
+              <View style={styles.titleSpacer} />
             )}
             <TouchableOpacity
               onPress={onClose}
@@ -71,6 +75,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 12,
     marginBottom: 12,
   },
   // H18 (audit 2026-04-21): 44x44 min tap target.
@@ -79,10 +84,15 @@ const styles = StyleSheet.create({
     minHeight: 44,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   title: {
+    flex: 1,
     fontSize: 18,
     fontWeight: '700',
+  },
+  titleSpacer: {
+    flex: 1,
   },
 });
 
