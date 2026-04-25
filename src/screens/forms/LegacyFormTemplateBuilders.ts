@@ -250,7 +250,6 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
   addressStructure: NUMBERS_1_TO_100,
   applicantStayingFloor: NUMBERS_1_TO_100,
   addressFloor: NUMBERS_1_TO_100,
-  officeExistFloor: NUMBERS_1_TO_100,
   addressExistAt: NUMBERS_1_TO_100,
   designation: [
     'Applicant Self',
@@ -2238,6 +2237,7 @@ const buildLegacyResidenceCumOfficeTemplate = (
 
 const legacyOfficeSelectOptions: Record<string, string[]> = {
   ...COMMON_SELECT_OPTIONS,
+  tpcMetPerson: ['Neighbour', 'Security', 'Other Staff'],
   workingStatus: ['Company Payroll', 'Third Party Payroll', 'Contract Payroll'],
   officeStatus: ['Open', 'Closed', 'Shifted'],
   designationShiftedOffice: [
@@ -2446,7 +2446,7 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
@@ -2461,7 +2461,7 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
   },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
@@ -2630,7 +2630,7 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
@@ -2645,7 +2645,7 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
   },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
@@ -2778,7 +2778,7 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
@@ -2793,7 +2793,7 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
   },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
@@ -2903,8 +2903,8 @@ const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
     required: true,
   },
   {
-    name: 'officeExistFloor',
-    label: 'Office Exist Floor',
+    name: 'addressFloor',
+    label: 'Office Floor',
     type: 'select',
     required: true,
   },
