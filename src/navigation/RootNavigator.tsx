@@ -193,7 +193,7 @@ const MainTabs = () => {
       <Tab.Screen
         name="InProgress"
         component={InProgressTasksScreen}
-        options={{ title: 'In Progress Tasks', tabBarLabel: 'In Progress' }}
+        options={{ title: 'In Progress Tasks', tabBarLabel: 'Progress' }}
       />
       <Tab.Screen
         name="Saved"
