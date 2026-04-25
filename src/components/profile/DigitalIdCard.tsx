@@ -53,7 +53,13 @@ export const DigitalIdCard: React.FC<DigitalIdCardProps> = ({
               <Icon name="business" size={24} color={theme.colors.primary} />
             </View>
             <View style={styles.headerText}>
-              <Text style={styles.companyNameText}>{companyName}</Text>
+              <Text
+                numberOfLines={2}
+                ellipsizeMode="tail"
+                style={styles.companyNameText}
+              >
+                {companyName}
+              </Text>
               <Text style={styles.idCardTitle}>EMPLOYEE IDENTITY CARD</Text>
             </View>
           </View>
@@ -100,7 +106,11 @@ export const DigitalIdCard: React.FC<DigitalIdCardProps> = ({
                 </View>
               )}
             </View>
-            <Text style={[styles.userName, { color: theme.colors.text }]}>
+            <Text
+              numberOfLines={3}
+              ellipsizeMode="tail"
+              style={[styles.userName, { color: theme.colors.text }]}
+            >
               {userProfile.fullName.toUpperCase()}
             </Text>
           </View>
@@ -242,6 +252,8 @@ export const DigitalIdCard: React.FC<DigitalIdCardProps> = ({
           ]}
         >
           <Text
+            numberOfLines={3}
+            ellipsizeMode="tail"
             style={[styles.addressText, { color: theme.colors.textSecondary }]}
           >
             {companyAddress}

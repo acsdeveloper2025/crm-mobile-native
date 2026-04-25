@@ -424,6 +424,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 16,
     borderBottomWidth: 1,
@@ -431,21 +433,23 @@ const styles = StyleSheet.create({
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
+    flexShrink: 1,
   },
   headerTitle: {
     fontSize: 20,
     fontWeight: '700',
     marginRight: 8,
+    flexShrink: 1,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
   },
   headerButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginRight: 16,
+    marginRight: 12,
   },
   headerButtonText: {
     fontSize: 12,

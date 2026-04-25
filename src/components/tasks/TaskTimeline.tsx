@@ -213,6 +213,8 @@ export const TaskTimeline: React.FC<TaskTimelineProps> = ({
               <View style={styles.eventContent}>
                 <View style={styles.eventHeader}>
                   <Text
+                    numberOfLines={1}
+                    ellipsizeMode="tail"
                     style={[
                       styles.eventLabel,
                       {
@@ -232,6 +234,7 @@ export const TaskTimeline: React.FC<TaskTimelineProps> = ({
                       ]}
                     >
                       <Text
+                        numberOfLines={1}
                         style={[
                           styles.timeText,
                           { color: theme.colors.textSecondary },
@@ -349,20 +352,25 @@ const styles = StyleSheet.create({
   eventHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
+    flexWrap: 'wrap',
     marginBottom: 6,
+    gap: 8,
   },
   eventLabel: {
     fontSize: 16,
     fontWeight: 'bold',
+    flexShrink: 1,
   },
   timeBadge: {
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+    flexShrink: 0,
+    maxWidth: '100%',
   },
   timeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
   eventDescription: {

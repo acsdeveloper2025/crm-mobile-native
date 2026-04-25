@@ -144,6 +144,8 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
     >
       <View style={styles.header}>
         <Text
+          numberOfLines={1}
+          ellipsizeMode="tail"
           style={[styles.verificationType, { color: theme.colors.primary }]}
         >
           {task.verificationTypeName || task.verificationType || 'VERIFICATION'}
@@ -159,6 +161,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
             ]}
           >
             <Text
+              numberOfLines={1}
               style={[styles.savedBadgeText, { color: theme.colors.warning }]}
             >
               Draft Saved
@@ -167,10 +170,18 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         )}
       </View>
 
-      <Text style={[styles.caseId, { color: theme.colors.text }]}>
+      <Text
+        numberOfLines={1}
+        ellipsizeMode="tail"
+        style={[styles.caseId, { color: theme.colors.text }]}
+      >
         Case ID: #{task.caseId} | VT ID: {task.verificationTaskNumber || 'N/A'}
       </Text>
-      <Text style={[styles.customerName, { color: theme.colors.text }]}>
+      <Text
+        numberOfLines={2}
+        ellipsizeMode="tail"
+        style={[styles.customerName, { color: theme.colors.text }]}
+      >
         {task.customerName}
       </Text>
 
@@ -437,6 +448,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
     marginBottom: 8,
   },
   verificationType: {
@@ -444,12 +457,15 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textTransform: 'uppercase',
     letterSpacing: 1,
+    flexShrink: 1,
   },
   savedBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 12,
     borderWidth: 1,
+    flexShrink: 0,
+    maxWidth: '50%',
   },
   savedBadgeText: {
     fontSize: 10,
