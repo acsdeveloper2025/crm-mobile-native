@@ -327,6 +327,32 @@ class SyncQueueClass {
   }
 
   /**
+   * Park an item in the dead-letter state immediately (no retries).
+   * Use for permanent failures the retry loop cannot fix — body validation
+   * 4xx, missing-permission 403, etc. Server-state-conflict 409s should
+   * be absorbed by the per-uploader catch (treated as SUCCESS), not
+   * routed here.
+   */
+  async markDeadLetter(id: string, error: string): Promise<void> {
+    await SyncQueueRepository.markDeadLetter(id, error);
+
+    Logger.error(TAG, `Item ${id} parked in DLQ (non-retryable): ${error}`);
+
+    const snapshot = await SyncQueueRepository.getFailureSnapshot(id);
+    if (snapshot) {
+      MobileTelemetryService.trackSyncError('sync_dlq_transition', {
+        itemId: id,
+        actionType: snapshot.actionType,
+        entityType: snapshot.entityType,
+        entityId: snapshot.entityId,
+        attempts: snapshot.attempts,
+        maxAttempts: snapshot.maxAttempts,
+        lastError: snapshot.lastError ?? error,
+      });
+    }
+  }
+
+  /**
    * Mark an item as failed with error details
    * Sets a retry delay with exponential backoff
    */

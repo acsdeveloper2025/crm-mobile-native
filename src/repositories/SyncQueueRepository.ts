@@ -312,6 +312,31 @@ class SyncQueueRepositoryClass {
     );
   }
 
+  /**
+   * Park an item in the dead-letter state immediately. Used for failures
+   * that the retry loop cannot fix (4xx that aren't 409, body validation,
+   * permanent server rejection). Sets attempts to max_attempts so
+   * listProcessible filters the row out — the user can still recover it
+   * manually via retryAllFailed().
+   *
+   * Without this, "non-retryable" classification was cosmetic — every
+   * sync cycle re-fired the same hopeless request and toasted the user
+   * with the same error 10 times across a ~20-minute backoff window.
+   */
+  async markDeadLetter(id: string, error: string): Promise<void> {
+    await DatabaseService.execute(
+      `UPDATE sync_queue
+       SET status = 'FAILED',
+           last_error = ?,
+           attempts = max_attempts,
+           next_retry_at = NULL,
+           started_at = NULL,
+           lease_expires_at = NULL
+       WHERE id = ?`,
+      [error, id],
+    );
+  }
+
   async getPendingCount(): Promise<number> {
     return DatabaseService.count(
       'sync_queue',
