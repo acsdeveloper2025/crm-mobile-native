@@ -185,20 +185,22 @@ class SyncProcessorClass {
               ? `[RETRYABLE] ${errorMsg}`
               : `[NON-RETRYABLE] ${errorMsg}`;
 
-            await SyncQueue.markFailed(item.id, failReason);
+            // Network errors retry with backoff; non-network failures (auth,
+            // body validation, permanent server rejection) park immediately
+            // in DLQ. Without DLQ-on-non-retryable the retry loop hammers
+            // the same hopeless request 10× and toasts the user each cycle.
+            if (isNetworkError) {
+              await SyncQueue.markFailed(item.id, failReason);
+            } else {
+              await SyncQueue.markDeadLetter(item.id, failReason);
+            }
+
             MobileTelemetryService.trackUploadFailure(
               operation.type,
               operation.entityType,
               operation.entityId,
               failReason,
             );
-
-            if (!isNetworkError) {
-              Logger.error(
-                TAG,
-                `Non-retryable sync failure for ${operation.operationId}: ${errorMsg}`,
-              );
-            }
 
             errors.push(
               `${operation.type}/${operation.entityId}: ${failReason}`,
