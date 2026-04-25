@@ -737,7 +737,11 @@ export const TaskListScreen = ({
             size={48}
             color={theme.colors.danger}
           />
-          <Text style={[styles.errorText, { color: theme.colors.danger }]}>
+          <Text
+            numberOfLines={6}
+            ellipsizeMode="tail"
+            style={[styles.errorText, { color: theme.colors.danger }]}
+          >
             {error}
           </Text>
           <TouchableOpacity
@@ -761,6 +765,8 @@ export const TaskListScreen = ({
             color={theme.colors.textMuted}
           />
           <Text
+            numberOfLines={6}
+            ellipsizeMode="tail"
             style={[styles.emptyText, { color: theme.colors.textSecondary }]}
           >
             {searchQuery

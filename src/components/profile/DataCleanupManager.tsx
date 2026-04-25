@@ -192,7 +192,11 @@ export const DataCleanupManager = () => {
       >
         <View style={styles.buttonLeft}>
           <Icon name="trash-outline" size={20} color={theme.colors.warning} />
-          <Text style={[styles.buttonText, { color: theme.colors.text }]}>
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={[styles.buttonText, { color: theme.colors.text }]}
+          >
             Run Manual Cleanup
           </Text>
         </View>
@@ -224,7 +228,11 @@ export const DataCleanupManager = () => {
             size={20}
             color={theme.colors.info || '#3b82f6'}
           />
-          <Text style={[styles.buttonText, { color: theme.colors.text }]}>
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            style={[styles.buttonText, { color: theme.colors.text }]}
+          >
             Clear Attachment FS Cache
           </Text>
         </View>
@@ -250,6 +258,8 @@ export const DataCleanupManager = () => {
             color={theme.colors.danger}
           />
           <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
             style={[
               styles.buttonText,
               styles.dangerButtonText,
@@ -308,6 +318,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
     padding: 14,
     borderRadius: 8,
     borderWidth: 1,
@@ -316,11 +327,14 @@ const styles = StyleSheet.create({
   buttonLeft: {
     flexDirection: 'row',
     alignItems: 'center',
+    flex: 1,
+    flexShrink: 1,
     gap: 8,
   },
   buttonText: {
     fontSize: 14,
     fontWeight: '500',
+    flexShrink: 1,
   },
   dangerButton: {
     borderWidth: 1,

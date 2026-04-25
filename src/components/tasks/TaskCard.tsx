@@ -514,12 +514,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
     paddingTop: 12,
     borderTopWidth: 1,
   },
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 1,
+    flexWrap: 'wrap',
     gap: 8,
   },
   iconButton: {
@@ -555,6 +559,7 @@ const styles = StyleSheet.create({
   statusBadgeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexShrink: 0,
     gap: 8,
   },
   reorderButtons: {

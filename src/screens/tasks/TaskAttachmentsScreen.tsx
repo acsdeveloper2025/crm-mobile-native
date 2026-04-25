@@ -85,6 +85,8 @@ const AttachmentRow = React.memo(
             {attachment.name}
           </Text>
           <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
             style={[styles.attachmentInfo, { color: theme.colors.textMuted }]}
           >
             {formatBytes(attachment.size)} •{' '}
