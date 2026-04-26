@@ -1,6 +1,6 @@
 {
   "name": "CrmMobileNative",
-  "version": "1.0.23",
+  "version": "1.0.24",
   "private": true,
   "op-sqlite": {
     "sqlcipher": true
@@ -39,9 +39,11 @@
     "piexifjs": "^1.0.6",
     "react": "19.2.3",
     "react-native": "0.84.1",
+    "react-native-blob-util": "^0.24.7",
     "react-native-fs": "^2.20.0",
     "react-native-get-random-values": "^2.0.0",
     "react-native-keychain": "^10.0.0",
+    "react-native-pdf": "^7.0.4",
     "react-native-safe-area-context": "^5.7.0",
     "react-native-screens": "^4.24.0",
     "react-native-svg": "^15.15.3",

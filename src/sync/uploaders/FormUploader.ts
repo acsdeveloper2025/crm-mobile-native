@@ -245,24 +245,24 @@ class FormUploaderClass {
         idempotencyHeaders(operation.operationId),
       );
     } catch (uploadError: unknown) {
-      const axiosErr = uploadError as { response?: { status?: number } };
-      const status = axiosErr?.response?.status;
-
-      // 409: Form already submitted — treat as success (resubmission or duplicate)
-      if (status === 409) {
-        Logger.info(
-          TAG,
-          `Form 409 for ${taskId}: already submitted, marking as success`,
-        );
-        await this.updateLocalSubmissionState(
-          localTaskId,
-          'success',
-          null,
-          true,
-        );
-        return { outcome: 'SUCCESS' };
-      }
-
+      // 2026-04-26: removed blanket `if (status === 409) → SUCCESS` swallow.
+      //
+      // The previous logic assumed every 409 from a form-submission endpoint
+      // meant "your form is already on the server, safe to mark SYNCED."
+      // That invariant was false on every actual 409 source:
+      //   - controller TASK_SUPERSEDED_OR_REVOKED (4 sites in mobileFormController) — task was killed, no submission exists
+      //   - middleware IDEMPOTENCY_KEY_CONFLICT — same key, different body, real conflict
+      //   - middleware IDEMPOTENCY_KEY_IN_PROGRESS — orphan reservation from a prior 5xx (data NOT committed)
+      //
+      // Successful idempotent replays return 200 with the cached success
+      // body, NOT 409 — the success path is unaffected by removing this
+      // branch. See project_form_field_mapping_drift_audit.md for the
+      // case 1 incident (2026-04-25) where the swallow caused silent
+      // data loss + photo deletion.
+      //
+      // All non-2xx are now thrown to SyncProcessor's catch, which routes
+      // through markFailed → exponential backoff → eventual DLQ. The user
+      // sees "Upload Failed" badge on TaskDetail and can tap Resubmit.
       throw uploadError;
     }
 

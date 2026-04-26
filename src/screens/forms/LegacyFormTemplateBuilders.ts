@@ -322,7 +322,6 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
     'Brother in Law',
     'Other',
   ],
-  companyNameBoard: ['SIGHTED AS', 'NOT SIGHTED'],
   companyNamePlateStatus: ['SIGHTED AS', 'NOT SIGHTED'],
   societyNamePlateStatus: ['SIGHTED AS', 'NOT SIGHTED'],
   doorNamePlateStatus: ['SIGHTED AS', 'NOT SIGHTED'],
@@ -6212,7 +6211,7 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
   },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   {
-    name: 'companyNameBoard',
+    name: 'companyNamePlateStatus',
     label: 'Company Name Board',
     type: 'select',
     conditional: legacyCondition(
@@ -6225,8 +6224,16 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition('companyNameBoard', 'equals', 'SIGHTED AS'),
-    requiredWhen: legacyCondition('companyNameBoard', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text' },
@@ -6336,7 +6343,7 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
   { name: 'nameOfTpc2', label: 'TPC Name 2', type: 'text' },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   {
-    name: 'companyNameBoard',
+    name: 'companyNamePlateStatus',
     label: 'Company Name Board',
     type: 'select',
     required: true,
@@ -6345,8 +6352,16 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition('companyNameBoard', 'equals', 'SIGHTED AS'),
-    requiredWhen: legacyCondition('companyNameBoard', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
+    requiredWhen: legacyCondition(
+      'companyNamePlateStatus',
+      'equals',
+      'SIGHTED AS',
+    ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
   { name: 'landmark2', label: 'Landmark 2', type: 'text' },

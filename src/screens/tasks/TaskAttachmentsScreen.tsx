@@ -8,9 +8,10 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
-  Linking,
+  Dimensions,
 } from 'react-native';
 import { ZoomableImage } from '../../components/media/ZoomableImage';
+import Pdf from 'react-native-pdf';
 import RNFS from 'react-native-fs';
 import { useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -128,7 +129,7 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
     useState<RemoteTaskAttachment | null>(null);
   const [previewUri, setPreviewUri] = useState('');
   const [previewMode, setPreviewMode] = useState<
-    'image' | 'text' | 'unsupported'
+    'image' | 'text' | 'pdf' | 'unsupported'
   >('unsupported');
   const [previewText, setPreviewText] = useState('');
 
@@ -217,21 +218,14 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
     return 'unsupported';
   };
 
-  const openWithNativeViewer = useCallback(
-    async (uri: string, attachment: RemoteTaskAttachment) => {
-      const canOpen = await Linking.canOpenURL(uri);
-      if (!canOpen) {
-        Alert.alert(
-          'Preview Unavailable',
-          `${attachment.name} cannot be previewed inside the app. No compatible viewer was found on this device.`,
-        );
-        return;
-      }
-
-      await Linking.openURL(uri);
-    },
-    [],
-  );
+  // 2026-04-26: removed `openWithNativeViewer` (which delegated to
+  // `Linking.openURL('file://…')`). Per user directive, attachments must
+  // not be openable in external apps — view-in-app only, no download or
+  // share. Office docs and TIFF/HEIC are now normalized server-side to
+  // PDF/JPEG via `attachmentRenditionService.ts`, so every supported
+  // attachment fits one of the in-app viewers (`Pdf` or `ZoomableImage`).
+  // See `project_attachment_vs_photo_terminology.md` for the broader
+  // attachment data flow.
 
   // M8 (audit 2026-04-21): stable reference so memoized AttachmentRow
   // only re-renders when its own attachment / isOpening prop changes.
@@ -271,9 +265,8 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
           if (fileSize > 512 * 1024) {
             Alert.alert(
               'File Too Large',
-              'This text file is too large to preview. Opening with system viewer instead.',
+              'This text file is too large to preview in the app.',
             );
-            await openWithNativeViewer(normalizedUri, attachment);
             return;
           }
           const textData = await RNFS.readFile(filePath, 'utf8');
@@ -286,7 +279,14 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
         }
 
         if (kind === 'pdf' || kind === 'word' || kind === 'excel') {
-          await openWithNativeViewer(normalizedUri, attachment);
+          // Backend normalizes Office docs to PDF before serving the
+          // mobile content endpoint. The cached file on disk is therefore
+          // a PDF regardless of the source extension; react-native-pdf
+          // detects the format from the file's magic bytes, not the
+          // extension. See `attachmentRenditionService.ts`.
+          setPreviewAttachment(attachment);
+          setPreviewUri(normalizedUri);
+          setPreviewMode('pdf');
           return;
         }
 
@@ -308,7 +308,7 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
         }
       }
     },
-    [openWithNativeViewer],
+    [],
   );
 
   const watermarkText = taskNumber
@@ -493,6 +493,48 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
                   backgroundColor={theme.colors.surfaceAlt}
                   sliderTint={theme.colors.primary}
                 />
+              ) : previewMode === 'pdf' && previewUri ? (
+                // 2026-04-26: in-app PDF rendering via react-native-pdf.
+                // Replaces the prior `Linking.openURL('file://…')` path
+                // which Android 7+ blocks (FileUriExposedException) and
+                // which would also have allowed users to download/share
+                // the document — disallowed per attachment-security
+                // directive. The file at previewUri may have been
+                // converted from .doc/.docx/.xls/.xlsx/.ppt/.pptx by
+                // the backend rendition pipeline; react-native-pdf
+                // detects PDF format from magic bytes regardless of
+                // extension.
+                <Pdf
+                  source={{ uri: previewUri, cache: false }}
+                  style={styles.pdfViewer}
+                  trustAllCerts={false}
+                  // Pinch-to-zoom + pan-while-zoomed are handled natively
+                  // by Android's PDFView and iOS PDFKit — no JS gesture
+                  // glue needed (unlike the WebView-based ZoomableImage).
+                  // We just set the bounds so the user can pinch from 1×
+                  // up to 5× and pan freely within the zoomed page.
+                  minScale={1.0}
+                  maxScale={5.0}
+                  scale={1.0}
+                  // enablePaging:false → continuous vertical scroll with
+                  // free 2-axis pan when zoomed in. Page-paging mode
+                  // would intercept the horizontal pan gesture for page
+                  // navigation, which makes inspecting the right edge of
+                  // a zoomed page awkward. Page changes still work via
+                  // the page-jump controls.
+                  enablePaging={false}
+                  enableAnnotationRendering={false}
+                  // react-native-pdf already streams pages lazily so we
+                  // never load the full 20+ MB into memory at once.
+                  onError={error => {
+                    Alert.alert(
+                      'PDF Preview Error',
+                      error instanceof Error
+                        ? error.message
+                        : 'Failed to render PDF.',
+                    );
+                  }}
+                />
               ) : previewMode === 'text' ? (
                 <ScrollView
                   style={styles.previewTextWrap}
@@ -674,6 +716,11 @@ const styles = StyleSheet.create({
     // explicit height; removed because ZoomableImage is now the sole
     // image renderer here.
     height: 460,
+  },
+  pdfViewer: {
+    flex: 1,
+    width: Dimensions.get('window').width - 28,
+    backgroundColor: 'transparent',
   },
   previewTextWrap: {
     maxHeight: 520,
