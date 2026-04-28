@@ -275,19 +275,64 @@ class FormUploaderClass {
       return { outcome: 'FAILURE', error: 'Form upload returned failure' };
     }
 
-    // Wrap all post-upload DB updates in a transaction to prevent partial
-    // state if a crash occurs between marking synced and clearing autosave.
-    await DatabaseService.transaction(async () => {
+    // 2026-04-27 deep-audit fix (D1): the prior wrap looked atomic but
+    // wasn't — `updateLocalSubmissionState` and `SyncEngineRepository.execute`
+    // both route through `DatabaseService.execute` (the main pool), NOT
+    // through `tx.execute`, so the writes fired OUTSIDE the transaction
+    // context while the wrap waited (see DatabaseService.ts:493-498). A
+    // crash between the `tasks` UPDATE and the `form_submissions` UPDATE
+    // left the task COMPLETED but form_submissions still PENDING — exactly
+    // the cross-table state-machine divergence the wrap was supposed to
+    // prevent. Now uses `tx.execute` for both writes inside one real
+    // atomic transaction. The SELECT-then-UPDATE on `tasks.form_data_json`
+    // is inlined here because `tx.execute` returns op-sqlite raw column
+    // names (snake_case), while `updateLocalSubmissionState` consumed
+    // camelCased rows from `SyncEngineRepository.query`.
+    await DatabaseService.transaction(async tx => {
       if (localTaskId) {
-        await this.updateLocalSubmissionState(
-          localTaskId,
-          'success',
-          null,
-          true,
+        const existingResult = await tx.execute(
+          'SELECT form_data_json FROM tasks WHERE id = ?',
+          [localTaskId],
+        );
+        const existing =
+          existingResult.rows.length > 0
+            ? (
+                existingResult.rows[0] as {
+                  form_data_json: string | null;
+                }
+              ).form_data_json
+            : null;
+        let formData: Record<string, unknown> = {};
+        if (existing) {
+          try {
+            formData = JSON.parse(existing) as Record<string, unknown>;
+          } catch {
+            formData = {};
+          }
+        }
+        const nextFormData = {
+          ...formData,
+          __submission: {
+            status: 'success' as const,
+            error: null,
+            updatedAt: new Date().toISOString(),
+          },
+        };
+        const now = new Date().toISOString();
+        await tx.execute(
+          `UPDATE tasks
+             SET status = 'COMPLETED',
+                 completed_at = ?,
+                 sync_status = 'SYNCED',
+                 last_synced_at = ?,
+                 local_updated_at = ?,
+                 form_data_json = ?
+           WHERE id = ?`,
+          [now, now, now, JSON.stringify(nextFormData), localTaskId],
         );
       }
 
-      await SyncEngineRepository.execute(
+      await tx.execute(
         "UPDATE form_submissions SET sync_status = 'SYNCED', status = 'SYNCED' WHERE id = ?",
         [operation.entityId],
       );

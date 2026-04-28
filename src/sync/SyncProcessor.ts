@@ -1,3 +1,4 @@
+import { FormRepository } from '../repositories/FormRepository';
 import { NetworkService } from '../services/NetworkService';
 import { SyncQueue } from '../services/SyncQueue';
 import { MobileTelemetryService } from '../telemetry/MobileTelemetryService';
@@ -168,31 +169,73 @@ class SyncProcessorClass {
             );
             options.onProgress?.();
           } catch (error: unknown) {
-            // Classify errors: network errors are retryable, others may not be
+            // Classify errors: retryable = transport-level + transient server
+            // failures (5xx, 408, 429). Non-retryable = client-fatal (4xx
+            // validation, auth, etc.) which won't change on retry.
             const errorMsg =
               error instanceof Error
                 ? error.message
                 : String(error) || 'Operation crashed';
             const errorCode = (error as { code?: string })?.code;
-            const isNetworkError =
+            const httpStatus =
+              (error as { response?: { status?: number }; status?: number })
+                ?.response?.status ?? (error as { status?: number })?.status;
+
+            // 2026-04-27 audit fix F1: previously a single transient 5xx
+            // (e.g. backend 502 hiccup) was misclassified as NON-RETRYABLE
+            // and dead-lettered the submission permanently. Now: any 5xx,
+            // plus 408/429 (timeout/rate-limit), plus transport-level errors
+            // are RETRYABLE. Other 4xx remain NON-RETRYABLE.
+            const isTransportError =
               errorCode === 'ECONNABORTED' ||
               errorCode === 'ERR_NETWORK' ||
               errorMsg.includes('timeout') ||
               errorMsg.includes('Network Error') ||
               errorMsg.includes('ECONNREFUSED');
+            const isTransientServerError =
+              typeof httpStatus === 'number' &&
+              (httpStatus >= 500 || httpStatus === 408 || httpStatus === 429);
+            const isRetryable = isTransportError || isTransientServerError;
 
-            const failReason = isNetworkError
+            const failReason = isRetryable
               ? `[RETRYABLE] ${errorMsg}`
               : `[NON-RETRYABLE] ${errorMsg}`;
 
-            // Network errors retry with backoff; non-network failures (auth,
-            // body validation, permanent server rejection) park immediately
-            // in DLQ. Without DLQ-on-non-retryable the retry loop hammers
-            // the same hopeless request 10× and toasts the user each cycle.
-            if (isNetworkError) {
+            // Retryable errors retry with backoff; non-retryable failures
+            // (4xx auth, 4xx validation, permanent server rejection) park
+            // immediately in DLQ. Without DLQ-on-non-retryable the retry
+            // loop hammers the same hopeless request 10× and toasts the
+            // user each cycle.
+            if (isRetryable) {
               await SyncQueue.markFailed(item.id, failReason);
             } else {
               await SyncQueue.markDeadLetter(item.id, failReason);
+
+              // 2026-04-27 audit fix F3: keep form_submissions in lockstep
+              // with the queue's DLQ state. Without this, form_submissions
+              // stays sync_status='PENDING' forever while sync_queue says
+              // FAILED — TaskDetailScreen's getSubmissionSyncStatus() reads
+              // from form_submissions and would never reflect the failure.
+              if (operation.entityType === 'FORM_SUBMISSION') {
+                const localTaskId =
+                  typeof operation.payload?.localTaskId === 'string'
+                    ? operation.payload.localTaskId
+                    : null;
+                if (localTaskId) {
+                  try {
+                    await FormRepository.markSubmissionFailedByTaskId(
+                      localTaskId,
+                      failReason,
+                    );
+                  } catch (e) {
+                    Logger.warn(
+                      TAG,
+                      `markSubmissionFailedByTaskId failed for ${localTaskId}`,
+                      e,
+                    );
+                  }
+                }
+              }
             }
 
             MobileTelemetryService.trackUploadFailure(

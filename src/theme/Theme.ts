@@ -108,9 +108,18 @@ export const lightTheme: Theme = {
     surface: '#F9FAFB',
     surfaceAlt: '#F3F4F6',
 
-    text: '#111827',
-    textSecondary: '#6B7280',
-    textMuted: '#9CA3AF',
+    text: '#111827', // gray-900 — 17.7:1 on white, AAA
+    // 2026-04-27 deep-audit fix: original textSecondary '#6B7280' (gray-500)
+    // was 4.83:1 — passed AA, but on white that's the AA floor and felt
+    // visually faint. Bumped to gray-700 (11.6:1, AAA) so the 3-tier hierarchy
+    // (text → secondary → muted) stays visible AND every tier passes AA.
+    textSecondary: '#374151', // gray-700 — 11.6:1 on white, AAA
+    // 2026-04-27 deep-audit fix: was '#9CA3AF' (gray-400) = 2.85:1 — failed
+    // WCAG AA (needs 4.5:1 for normal text at xs:12 / sm:14 sizes used by
+    // timestamps + helper text). Bumped to gray-500 (4.83:1, AA). textMuted
+    // now occupies gray-500 (where textSecondary used to be); textSecondary
+    // moved up to gray-700 to preserve visible hierarchy.
+    textMuted: '#6B7280', // gray-500 — 4.83:1 on white, AA
 
     success: '#10B981', // emerald-500
     warning: '#F59E0B', // amber-500

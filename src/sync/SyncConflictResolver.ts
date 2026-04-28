@@ -49,11 +49,21 @@ class SyncConflictResolver {
    */
   async hasInFlightQueueItems(taskId: string): Promise<boolean> {
     try {
+      // 2026-04-27 audit fix F5: previously this counted ANY status='FAILED'
+      // as in-flight, including DLQ'd rows (FAILED + attempts >= max_attempts).
+      // That meant a task that hit DLQ would pin local state forever and refuse
+      // to reconcile from the server — agent's COMPLETED view stuck even after
+      // server has rolled the task back to ASSIGNED. Now: DLQ'd FAILED rows
+      // are excluded; only PENDING / IN_PROGRESS / actively-retrying FAILED
+      // (attempts < max_attempts) are considered in-flight.
       const rows = await DatabaseService.query<{ c: number }>(
         `SELECT 1 as c FROM sync_queue
          WHERE entity_type IN ('TASK', 'TASK_STATUS', 'FORM_SUBMISSION')
            AND entity_id = ?
-           AND status IN ('PENDING', 'IN_PROGRESS', 'FAILED')
+           AND (
+             status IN ('PENDING', 'IN_PROGRESS')
+             OR (status = 'FAILED' AND attempts < max_attempts)
+           )
          LIMIT 1`,
         [taskId],
       );

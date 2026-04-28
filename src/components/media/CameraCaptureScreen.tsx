@@ -8,6 +8,7 @@ import {
   Alert,
   Platform,
   AppState,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -55,11 +56,32 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
       Logger.info(TAG, `Camera permission: ${cameraPermission}`);
 
       if (!granted) {
+        // 2026-04-27 deep-audit fix (D16): if user has tapped "Don't ask
+        // again", future requestCameraPermission() returns 'denied' without
+        // re-prompting the user. Without a Settings deep-link the agent
+        // is stuck in a dead-end (kicked back to TaskDetail with no way
+        // forward). Two-button alert lets them open OS settings to flip
+        // the permission. Cancel still goes back as before.
         Alert.alert(
-          'Permission needed',
-          'Camera permission is required to take photos.',
+          'Camera permission needed',
+          'Camera access is required to take photos for verification. Please enable it in Settings.',
+          [
+            {
+              text: 'Cancel',
+              style: 'cancel',
+              onPress: () => navigation.goBack(),
+            },
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                Linking.openSettings().catch((e: unknown) => {
+                  Logger.warn(TAG, 'Linking.openSettings failed', e);
+                });
+                navigation.goBack();
+              },
+            },
+          ],
         );
-        navigation.goBack();
         return;
       }
 

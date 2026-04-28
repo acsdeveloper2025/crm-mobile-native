@@ -54,11 +54,20 @@ const OriginalTextInput =
 const UPPER_STYLE: StyleProp<TextStyle> = { textTransform: 'uppercase' };
 const PRESERVE_STYLE: StyleProp<TextStyle> = { textTransform: 'none' };
 
+// 2026-04-27 deep-audit fix (D12): cap font scaling to 1.5× to prevent
+// layouts from breaking at 200%+ system font scale (Android's "Largest"
+// + display zoom can exceed 2.0). Per-element `maxFontSizeMultiplier` prop
+// still wins because we spread `props` AFTER the default so caller props
+// shadow the default. allowFontScaling itself stays default-on so users
+// who scale up to 1.5× still get their preferred size.
+const DEFAULT_MAX_FONT_SCALE = 1.5;
+
 const UpperText = React.forwardRef<unknown, TextProps>(function UpperText(
   props,
   ref,
 ) {
   return React.createElement(OriginalText, {
+    maxFontSizeMultiplier: DEFAULT_MAX_FONT_SCALE,
     ...props,
     ref,
     style: [UPPER_STYLE, props.style],
@@ -129,6 +138,9 @@ const UpperTextInput = React.forwardRef<unknown, UpperTextInputProps>(
       : [rest.style, PRESERVE_STYLE];
 
     return React.createElement(OriginalTextInput, {
+      // 2026-04-27 deep-audit fix (D12): default font-scale cap; per-call
+      // override still wins because `...rest` spreads after.
+      maxFontSizeMultiplier: DEFAULT_MAX_FONT_SCALE,
       ...rest,
       ref,
       autoCapitalize: auto ? 'characters' : rest.autoCapitalize ?? 'none',

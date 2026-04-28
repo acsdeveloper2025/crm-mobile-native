@@ -1,7 +1,7 @@
 // SQLite Database Schema and Migrations
 // Offline-first schema for field verification data
 
-export const DB_VERSION = 12;
+export const DB_VERSION = 13;
 
 /**
  * All CREATE TABLE statements for the local SQLite database.
@@ -83,6 +83,10 @@ CREATE TABLE IF NOT EXISTS attachments (
   sync_attempts INTEGER NOT NULL DEFAULT 0,
   last_sync_attempt_at TEXT,
   sync_error TEXT,
+  -- 2026-04-28 (D6/D17 fix): SHA-256 hex digest of file bytes at capture
+  -- time. Sent in upload metadata; backend stores in verification_attachments
+  -- for tamper-detection across the upload boundary.
+  client_sha256 TEXT,
   FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
 );
 
@@ -569,6 +573,14 @@ export const MIGRATIONS: Migration[] = [
       DROP TABLE IF EXISTS audit_log;
       ALTER TABLE form_submissions DROP COLUMN last_sync_attempt_at;
       ALTER TABLE sync_metadata DROP COLUMN last_full_sync_at;
+    `,
+  },
+  {
+    version: 13,
+    description:
+      '2026-04-28 deep-audit fix (D6/D17): client-side SHA-256 hash on captured photos for evidence-grade tamper detection. Mobile computes hash of file bytes at capture, persists here, sends in upload meta; backend stores in verification_attachments.client_sha256 for audit trail.',
+    sql: `
+      ALTER TABLE attachments ADD COLUMN client_sha256 TEXT;
     `,
   },
 ];

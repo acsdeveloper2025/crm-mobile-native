@@ -25,6 +25,10 @@ export const RecoverOfflineStateUseCase = {
     lastRunAt = now;
     await SyncQueue.recoverExpiredLeases();
     await SyncQueue.reconcileOrphanAttachments();
+    // 2026-04-27 audit fix F4: closes the SubmitVerificationUseCase silent-
+    // loss window (form_submissions row written, then crash before queue
+    // enqueue). See SyncQueue.reconcileOrphanFormSubmissions.
+    await SyncQueue.reconcileOrphanFormSubmissions();
     await TaskRepository.repairTaskIdentity();
   },
 };

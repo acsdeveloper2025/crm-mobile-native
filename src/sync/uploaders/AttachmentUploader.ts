@@ -85,6 +85,17 @@ class AttachmentUploaderClass {
     );
     formData.append('operationId', operation.operationId);
 
+    // 2026-04-28 deep-audit fix (D6/D17): client-side SHA-256 hash for
+    // backend tamper detection. Sent only when present (compute may have
+    // failed at capture). Backend's `verification_attachments.client_sha256`
+    // column stores it; backend may also re-hash on receipt and compare.
+    if (
+      typeof payload.clientSha256 === 'string' &&
+      /^[0-9a-f]{64}$/.test(payload.clientSha256)
+    ) {
+      formData.append('clientSha256', payload.clientSha256);
+    }
+
     const lat =
       payload.geoLocation && typeof payload.geoLocation === 'object'
         ? (payload.geoLocation as Record<string, unknown>).latitude

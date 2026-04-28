@@ -11,8 +11,10 @@ import { DatabaseService } from '../database/DatabaseService';
 import { SyncGateway } from './SyncGateway';
 import { SYNC_PRIORITY } from './SyncQueue';
 import { LocationService } from './LocationService';
+import { StorageService } from './StorageService';
 import { Logger } from '../utils/logger';
 import { resolveFormTypeKey, toBackendFormType } from '../utils/formTypeKey';
+import { sha256OfFile } from '../utils/fileHash';
 
 const TAG = 'CameraService';
 
@@ -163,6 +165,20 @@ class CameraServiceClass {
     try {
       await this.initialize();
 
+      // 2026-04-27 deep-audit fix (D8/D9): pre-flight disk-space check
+      // BEFORE moveFile/thumbnail create. Without this, an out-of-space
+      // device fails with a cryptic RNFS error mid-write — agent's
+      // capture #15 dies opaquely. 50MB headroom matches the SyncQueue
+      // enqueue threshold; covers original (~5MB) + thumbnail + DB
+      // transaction journal + safety margin. Throws a user-actionable
+      // error so the UI can surface "Free up space and try again".
+      const hasSpace = await StorageService.hasEnoughSpace(50);
+      if (!hasSpace) {
+        throw new Error(
+          'Device storage is full. Please free up space (uninstall unused apps, clear cache, or delete media) and try again.',
+        );
+      }
+
       // Enforce maxFilesPerTask limit to prevent storage bloat
       const { config } = await import('../config');
       const existingCount = await AttachmentRepository.countByTaskId(taskId);
@@ -236,6 +252,15 @@ class CameraServiceClass {
         );
       }
 
+      // 2026-04-28 deep-audit fix (D6/D17): SHA-256 of file bytes for
+      // evidence-grade tamper detection. Computed AFTER GPS resolves
+      // (above) and BEFORE the DB insert below so the hash is sealed
+      // into the row from creation time. ~300ms on mid-Android for a
+      // 5MB photo; invisible inside the existing capture wait. Failure
+      // returns null and we still persist the row — better to keep the
+      // photo than to fail capture over a hash compute.
+      const clientSha256 = await sha256OfFile(finalDestPath);
+
       const taskMeta = await TaskRepository.getTaskIdentity(taskId);
       const formTypeKey = resolveFormTypeKey({
         verificationTypeCode: taskMeta?.verificationTypeCode || null,
@@ -292,6 +317,7 @@ class CameraServiceClass {
           accuracy: photo.accuracy,
           locationTimestamp: resolvedLocation?.timestamp || null,
           componentType,
+          clientSha256,
         });
 
         // GPS is captured in photo watermark — no separate location sync needed
@@ -309,6 +335,11 @@ class CameraServiceClass {
             componentType,
             photoType: componentType === 'selfie' ? 'selfie' : 'verification',
             ...(verificationType ? { verificationType } : {}),
+            // 2026-04-28 deep-audit fix (D6/D17): integrity hash for
+            // backend tamper-detection. May be null if compute failed
+            // (rare); backend treats null as "unverifiable, not a tamper
+            // signal".
+            clientSha256,
             geoLocation: resolvedLocation
               ? {
                   latitude: resolvedLocation.latitude,

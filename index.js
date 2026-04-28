@@ -2,6 +2,12 @@
  * @format
  */
 
+// 2026-04-27 deep-audit fix (D4): capture boot-start timestamp BEFORE any
+// other module loads so the splash → interactive metric reflects total
+// time from JS bundle entry to first render. App.tsx reads this when
+// isInitializing flips to false and ships the delta via MobileTelemetry.
+globalThis.__APP_BOOT_STARTED_AT = Date.now();
+
 import 'react-native-get-random-values';
 // Install the UPPERCASE wrappers on react-native's `Text` and `TextInput`
 // exports BEFORE any screen module is loaded by `import App`. The patch

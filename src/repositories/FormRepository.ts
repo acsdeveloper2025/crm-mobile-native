@@ -60,6 +60,33 @@ class FormRepositoryClass {
     );
   }
 
+  /**
+   * 2026-04-27 audit fix F3: keep `form_submissions.sync_status` in lockstep
+   * with the DLQ status of its sync_queue row. Previously, only the queue
+   * row flipped to FAILED; the form_submissions table was stuck on
+   * `sync_status='PENDING'` forever — two state machines disagreed and any
+   * reader trusting form_submissions alone never saw the failure.
+   *
+   * Looks up the latest form_submissions row for the given taskId
+   * (matches getSubmissionSyncStatus() ordering) and marks it FAILED.
+   */
+  async markSubmissionFailedByTaskId(
+    taskId: string,
+    syncError: string,
+  ): Promise<void> {
+    await DatabaseService.execute(
+      `UPDATE form_submissions
+         SET sync_status = 'FAILED', sync_error = ?
+         WHERE id = (
+           SELECT id FROM form_submissions
+            WHERE task_id = ?
+            ORDER BY submitted_at DESC
+            LIMIT 1
+         )`,
+      [syncError, taskId],
+    );
+  }
+
   async getSubmissionSyncStatus(taskId: string): Promise<{
     status: string;
     syncStatus: string;

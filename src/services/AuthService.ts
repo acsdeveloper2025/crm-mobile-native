@@ -13,6 +13,7 @@ import {
 } from '../utils/platform';
 import { PushTokenService } from './PushTokenService';
 import { SessionStore } from './SessionStore';
+import { StorageService } from './StorageService';
 import { KeyValueRepository } from '../repositories/KeyValueRepository';
 import { UserSessionRepository } from '../repositories/UserSessionRepository';
 import { ProjectionStore } from '../store/ProjectionStore';
@@ -24,6 +25,12 @@ const TAG = 'AuthService';
 const TOKEN_KEY = 'auth_access_token';
 const REFRESH_TOKEN_KEY = 'auth_refresh_token';
 const TOKEN_EXPIRY_KEY = 'auth_token_expiry';
+// 2026-04-27 deep-audit fix (D18): tracks the most-recent userId stored
+// on this device. On the next login(), if the new user.id differs, we
+// wipe local DB + photo files BEFORE writing the new session — closes
+// the cross-user disk leakage where User A's tasks/photos persisted
+// under User B's session for up to 45 days.
+const CURRENT_USER_ID_KEY = 'auth_current_user_id';
 const DEVICE_ID_KEY = 'device_id';
 
 class AuthServiceClass {
@@ -172,8 +179,45 @@ class AuthServiceClass {
       }
       await this.scrubLegacySqliteTokens();
 
+      // 2026-04-27 deep-audit fix (D18): cross-user disk leakage close-out.
+      // If the device previously logged in as a DIFFERENT user, wipe local
+      // DB tables + photo files BEFORE writing the new session. Without this,
+      // User A's tasks/attachments/photos persisted under User B's session
+      // until the 45-day cleanup sweep. The wipe targets the same tables
+      // that StorageService.clearAllData wipes (`sync_queue`,
+      // `form_submissions`, `attachments`, `locations`, `tasks`,
+      // `sync_metadata`, `user_session`, `key_value_store`) plus the
+      // photos directory. Tokens we just stored above live in keychain,
+      // not SQLite, so they survive the wipe.
+      // Edge case: if a User A had unsynced PENDING items in the queue and
+      // User B logs in here, A's pending work is destroyed. Per Q21
+      // ("1 agent = 1 device") this case is not expected; the wipe is the
+      // correct action when it does happen.
+      const previousUserId = await this.kvGet(CURRENT_USER_ID_KEY);
+      if (previousUserId && previousUserId !== user.id) {
+        Logger.warn(
+          TAG,
+          `User changed on this device (${previousUserId} → ${user.id}); wiping local data`,
+        );
+        try {
+          await StorageService.clearAllData();
+        } catch (wipeError) {
+          // Don't block login on wipe failure — log it and continue. A
+          // partial wipe is still better than no wipe; sync will reconcile.
+          Logger.error(
+            TAG,
+            'clearAllData failed during user-change wipe; continuing login',
+            wipeError,
+          );
+        }
+      }
+
       const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
       await this.kvSet(TOKEN_EXPIRY_KEY, expiresAt);
+      // Track the current userId so the next login() can detect a change.
+      // Must be written AFTER any clearAllData() above (which would wipe
+      // key_value_store).
+      await this.kvSet(CURRENT_USER_ID_KEY, user.id);
 
       // Store user in DB
       this.currentUser = user;
@@ -381,6 +425,19 @@ class AuthServiceClass {
    */
   getCurrentUser(): UserProfile | null {
     return this.currentUser;
+  }
+
+  /**
+   * 2026-04-28 deep-audit fix (D15): exposed for the Diagnostics screen.
+   * Returns the persisted ISO timestamp from key_value_store. Null if
+   * no session OR if the kv read fails.
+   */
+  async getTokenExpiry(): Promise<string | null> {
+    try {
+      return await this.kvGet(TOKEN_EXPIRY_KEY);
+    } catch {
+      return null;
+    }
   }
 
   /**
