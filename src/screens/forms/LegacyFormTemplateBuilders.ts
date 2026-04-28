@@ -493,7 +493,7 @@ const legacyResidenceSelectOptions: Record<string, string[]> = {
     'Other',
   ],
   workingStatus: ['Salaried', 'Self Employed', 'House Wife'],
-  documentShownStatus: ['Showed', 'Did Not Showed Any Document'],
+  documentShown: ['Showed', 'Did Not Showed Any Document'],
   documentType: [
     'Electricity Bill',
     'Aadhar Card',
@@ -637,7 +637,7 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
     requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
   },
   {
-    name: 'documentShownStatus',
+    name: 'documentShown',
     label: 'Document Shown Status',
     type: 'select',
     conditional: legacyCondition('houseStatus', 'equals', 'Open'),
@@ -647,8 +647,8 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
     name: 'documentType',
     label: 'Document Type',
     type: 'select',
-    conditional: legacyCondition('documentShownStatus', 'equals', 'Showed'),
-    requiredWhen: legacyCondition('documentShownStatus', 'equals', 'Showed'),
+    conditional: legacyCondition('documentShown', 'equals', 'Showed'),
+    requiredWhen: legacyCondition('documentShown', 'equals', 'Showed'),
   },
   { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select' },
   {
@@ -1339,7 +1339,7 @@ const legacyResiCumOfficeSelectOptions: Record<string, string[]> = {
     'Private Limited',
   ],
   businessLocation: ['At Same Address', 'From Different Address'],
-  documentShownStatus: ['Showed', 'Did Not Showed Any Document'],
+  documentShown: ['Showed', 'Did Not Showed Any Document'],
   documentType: [
     'Electricity Bill',
     'Aadhar Card',
@@ -1538,7 +1538,7 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
   },
   {
-    name: 'documentShownStatus',
+    name: 'documentShown',
     label: 'Document Shown Status',
     type: 'select',
     conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Open'),
@@ -1548,8 +1548,8 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     name: 'documentType',
     label: 'Document Type',
     type: 'select',
-    conditional: legacyCondition('documentShownStatus', 'equals', 'Showed'),
-    requiredWhen: legacyCondition('documentShownStatus', 'equals', 'Showed'),
+    conditional: legacyCondition('documentShown', 'equals', 'Showed'),
+    requiredWhen: legacyCondition('documentShown', 'equals', 'Showed'),
   },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   {
@@ -2070,8 +2070,8 @@ const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     required: true,
   },
   {
-    name: 'businessStatus',
-    label: 'Business Status',
+    name: 'businessExistsStatus',
+    label: 'Business Exists Status',
     type: 'select',
     required: true,
     options: toSelectOptions(
@@ -2274,6 +2274,7 @@ const legacyOfficeOptionAliases: Record<string, string> = {
   officeExistence: 'officeExistence',
   metPerson: 'metPersonErt',
   metPersonType: 'metPersonErt',
+  metPersonDesignation: 'designation',
 };
 
 const withLegacyOfficeOrder = (
@@ -2322,7 +2323,7 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -2561,7 +2562,7 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -2746,7 +2747,7 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -2884,8 +2885,8 @@ const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
     required: true,
   },
   {
-    name: 'officeStatus',
-    label: 'Office Status',
+    name: 'officeExistsStatus',
+    label: 'Office Exists Status',
     type: 'select',
     required: true,
     options: [
@@ -3075,8 +3076,10 @@ const legacyBusinessOptionAliases: Record<string, string> = {
   tpcConfirmation2: 'tpcConfirmation',
   businessExistance: 'businessExistence',
   applicantExistance: 'applicantExistence',
+  businessExistsStatus: 'businessExistStatus',
   metPerson: 'metPersonErt',
   metPersonType: 'metPersonErt',
+  metPersonDesignation: 'designation',
 };
 
 const withLegacyBusinessOrder = (
@@ -3111,8 +3114,8 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
     required: true,
   },
   {
-    name: 'officeStatus',
-    label: 'Office Status',
+    name: 'businessStatus',
+    label: 'Business Status',
     type: 'select',
     required: true,
   },
@@ -3121,43 +3124,43 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
     name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   {
     name: 'businessType',
     label: 'Business Type',
     type: 'select',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   {
     name: 'nameOfCompanyOwners',
     label: 'Name of Company Owners',
     type: 'text',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   {
     name: 'ownershipType',
     label: 'Ownership Type',
     type: 'select',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   {
     name: 'addressStatus',
     label: 'Address Status',
     type: 'select',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   {
     name: 'companyNatureOfBusiness',
@@ -3181,22 +3184,22 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
     name: 'officeApproxArea',
     label: 'Office Approx Area (Sq. Feet)',
     type: 'number',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   {
     name: 'staffStrength',
     label: 'Staff Strength',
     type: 'number',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   {
     name: 'staffSeen',
     label: 'Staff Seen',
     type: 'number',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   // --- Company plate + document ---
   {
@@ -3229,7 +3232,7 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
@@ -3244,7 +3247,7 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
   },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
@@ -3321,8 +3324,8 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
     required: true,
   },
   {
-    name: 'officeStatus',
-    label: 'Office Status',
+    name: 'businessStatus',
+    label: 'Business Status',
     type: 'select',
     required: true,
   },
@@ -3331,15 +3334,15 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
     name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   // --- Orange field (hidden when Vacant) ---
   {
@@ -3388,7 +3391,7 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
@@ -3403,7 +3406,7 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
   },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
@@ -3501,8 +3504,8 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
     required: true,
   },
   {
-    name: 'officeStatus',
-    label: 'Office Status',
+    name: 'businessStatus',
+    label: 'Business Status',
     type: 'select',
     required: true,
   },
@@ -3523,15 +3526,15 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
     name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   // --- Orange field (hidden when Vacant) ---
   {
@@ -3586,7 +3589,7 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
@@ -3601,7 +3604,7 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
   },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
@@ -3675,8 +3678,8 @@ const legacyEntryRestrictedBusinessFields = withLegacyBusinessOrder([
     required: true,
   },
   {
-    name: 'businessExistStatus',
-    label: 'Business Exist Status',
+    name: 'businessExistsStatus',
+    label: 'Business Exists Status',
     type: 'select',
     required: true,
   },
@@ -3846,7 +3849,7 @@ const legacyPositiveBuilderFields = withLegacyBusinessOrder([
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -3950,7 +3953,7 @@ const legacyPositiveBuilderFields = withLegacyBusinessOrder([
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
@@ -3965,7 +3968,7 @@ const legacyPositiveBuilderFields = withLegacyBusinessOrder([
   },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
@@ -4056,7 +4059,7 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -4109,7 +4112,7 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
@@ -4124,7 +4127,7 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
   },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
@@ -4248,7 +4251,7 @@ const legacyNspBuilderFields = withLegacyBusinessOrder([
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -4307,7 +4310,7 @@ const legacyNspBuilderFields = withLegacyBusinessOrder([
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
@@ -4322,7 +4325,7 @@ const legacyNspBuilderFields = withLegacyBusinessOrder([
   },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
@@ -4395,8 +4398,8 @@ const legacyEntryRestrictedBuilderFields = withLegacyBusinessOrder([
     required: true,
   },
   {
-    name: 'businessExistStatus',
-    label: 'Business Exist Status',
+    name: 'businessExistsStatus',
+    label: 'Business Exists Status',
     type: 'select',
     required: true,
   },
@@ -4572,6 +4575,7 @@ const legacyNocOptionAliases: Record<string, string> = {
   applicantExistance: 'applicantExistence',
   metPerson: 'metPersonErt',
   metPersonType: 'metPersonErt',
+  officeExistsStatus: 'officeStatus',
   tpcMetPerson1: 'tpcMetPerson',
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
@@ -4624,7 +4628,7 @@ const legacyPositiveNocFields = withLegacyNocOrder([
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
     options: toSelectOptions(legacyNocSelectOptions.designationNoc),
@@ -4731,7 +4735,7 @@ const legacyShiftedNocFields = withLegacyNocOrder([
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
     options: toSelectOptions(legacyNocSelectOptions.designationNoc),
@@ -4799,7 +4803,7 @@ const legacyShiftedNocFields = withLegacyNocOrder([
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
@@ -4814,7 +4818,7 @@ const legacyShiftedNocFields = withLegacyNocOrder([
   },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
@@ -4916,7 +4920,7 @@ const legacyNspNocFields = withLegacyNocOrder([
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -4975,7 +4979,7 @@ const legacyNspNocFields = withLegacyNocOrder([
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
@@ -4990,7 +4994,7 @@ const legacyNspNocFields = withLegacyNocOrder([
   },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
@@ -5058,8 +5062,8 @@ const legacyEntryRestrictedNocFields = withLegacyNocOrder([
     required: true,
   },
   {
-    name: 'officeStatus',
-    label: 'Office Status',
+    name: 'officeExistsStatus',
+    label: 'Office Exists Status',
     type: 'select',
     required: true,
     options: [
@@ -5231,7 +5235,8 @@ const legacyDsaOptionAliases: Record<string, string> = {
   applicantExistance: 'applicantExistence',
   metPerson: 'metPersonErt',
   metPersonType: 'metPersonErt',
-  businessExistStatus: 'officeStatusErtDsa',
+  businessExistsStatus: 'officeStatusErtDsa',
+  metPersonDesignation: 'designation',
 };
 
 const withLegacyDsaOrder = (
@@ -5280,7 +5285,7 @@ const legacyPositiveDsaFields = withLegacyDsaOrder([
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -5384,7 +5389,7 @@ const legacyPositiveDsaFields = withLegacyDsaOrder([
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
@@ -5399,7 +5404,7 @@ const legacyPositiveDsaFields = withLegacyDsaOrder([
   },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
@@ -5490,7 +5495,7 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -5543,7 +5548,7 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
@@ -5558,7 +5563,7 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
   },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
@@ -5682,7 +5687,7 @@ const legacyNspDsaFields = withLegacyDsaOrder([
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
@@ -5741,7 +5746,7 @@ const legacyNspDsaFields = withLegacyDsaOrder([
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson1', 'notIn', ['', null]),
@@ -5756,7 +5761,7 @@ const legacyNspDsaFields = withLegacyDsaOrder([
   },
   { name: 'tpcMetPerson2', label: 'TPC Met Person', type: 'select' },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'Name of TPC',
     type: 'text',
     conditional: legacyCondition('tpcMetPerson2', 'notIn', ['', null]),
@@ -5824,7 +5829,7 @@ const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
     required: true,
   },
   {
-    name: 'businessExistStatus',
+    name: 'businessExistsStatus',
     label: 'Office Status',
     type: 'select',
     required: true,
@@ -5983,6 +5988,7 @@ const legacyPropertyApfOptionAliases: Record<string, string> = {
   tpcConfirmation1: 'tpcConfirmation',
   tpcConfirmation2: 'tpcConfirmation',
   metPerson: 'metPersonErt',
+  metPersonDesignation: 'designation',
 };
 
 const withLegacyPropertyApfOrder = (
@@ -6031,7 +6037,7 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
     requiredWhen: legacyCondition('constructionActivity', 'equals', 'SEEN'),
   },
   {
-    name: 'designation',
+    name: 'metPersonDesignation',
     label: 'Designation',
     type: 'select',
     conditional: legacyCondition('constructionActivity', 'equals', 'SEEN'),
@@ -6160,7 +6166,7 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
     ),
   },
   {
-    name: 'nameOfTpc1',
+    name: 'tpcName1',
     label: 'TPC Met Person 1',
     type: 'text',
     conditional: legacyCondition(
@@ -6190,7 +6196,7 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
     ),
   },
   {
-    name: 'nameOfTpc2',
+    name: 'tpcName2',
     label: 'TPC Met Person 2',
     type: 'text',
     conditional: legacyCondition(
@@ -6338,9 +6344,9 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
     required: true,
   },
   { name: 'tpcMetPerson1', label: 'TPC Met Person 1', type: 'select' },
-  { name: 'nameOfTpc1', label: 'TPC Name 1', type: 'text' },
+  { name: 'tpcName1', label: 'TPC Name 1', type: 'text' },
   { name: 'tpcMetPerson2', label: 'TPC Met Person 2', type: 'select' },
-  { name: 'nameOfTpc2', label: 'TPC Name 2', type: 'text' },
+  { name: 'tpcName2', label: 'TPC Name 2', type: 'text' },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   {
     name: 'companyNamePlateStatus',
@@ -6572,8 +6578,7 @@ const legacyPositivePropertyIndividualFields =
       name: 'propertyOwnerName',
       label: 'Property Owner Name',
       type: 'text',
-      conditional: legacyCondition('flatStatus', 'equals', 'Open'),
-      requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
+      required: true,
     },
     {
       name: 'approxArea',
@@ -6589,7 +6594,7 @@ const legacyPositivePropertyIndividualFields =
       required: true,
     },
     {
-      name: 'nameOfTpc1',
+      name: 'tpcName1',
       label: 'Name of TPC 1',
       type: 'text',
       required: true,
@@ -6607,7 +6612,7 @@ const legacyPositivePropertyIndividualFields =
       required: true,
     },
     {
-      name: 'nameOfTpc2',
+      name: 'tpcName2',
       label: 'Name of TPC 2',
       type: 'text',
       required: true,
@@ -6756,8 +6761,7 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
     name: 'propertyOwnerName',
     label: 'Property Owner Name',
     type: 'text',
-    conditional: legacyCondition('flatStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('flatStatus', 'equals', 'Open'),
+    required: true,
   },
   {
     name: 'tpcMetPerson1',
@@ -6765,7 +6769,7 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
     type: 'select',
     required: true,
   },
-  { name: 'nameOfTpc1', label: 'Name of TPC 1', type: 'text', required: true },
+  { name: 'tpcName1', label: 'Name of TPC 1', type: 'text', required: true },
   {
     name: 'tpcConfirmation1',
     label: 'TPC Confirmation 1',
@@ -6778,7 +6782,7 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
     type: 'select',
     required: true,
   },
-  { name: 'nameOfTpc2', label: 'Name of TPC 2', type: 'text', required: true },
+  { name: 'tpcName2', label: 'Name of TPC 2', type: 'text', required: true },
   {
     name: 'tpcConfirmation2',
     label: 'TPC Confirmation 2',

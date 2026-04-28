@@ -354,6 +354,24 @@ class SyncQueueRepositoryClass {
     }, {});
   }
 
+  // 2026-04-28 deep-audit fix (D15): cross-tab queue stats for the
+  // Diagnostics screen. Single SELECT GROUP BY (cheap even at 5k rows).
+  async getStatsByEntityType(): Promise<
+    Array<{ entityType: string; status: string; count: number }>
+  > {
+    const rows = await DatabaseService.query<{
+      entityType: string;
+      status: string;
+      count: number;
+    }>(
+      `SELECT entity_type, status, COUNT(*) as count
+       FROM sync_queue
+       GROUP BY entity_type, status
+       ORDER BY entity_type, status`,
+    );
+    return rows;
+  }
+
   async getCountByType(entityType: string): Promise<Record<string, number>> {
     const rows = await DatabaseService.query<{ status: string; count: number }>(
       `SELECT status, COUNT(*) as count FROM sync_queue

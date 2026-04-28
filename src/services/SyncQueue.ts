@@ -178,6 +178,117 @@ class SyncQueueClass {
   }
 
   /**
+   * 2026-04-27 audit fix F4: detect form_submissions rows with sync_status='PENDING'
+   * that have no live FORM_SUBMISSION queue entry and re-enqueue them.
+   *
+   * Closes the silent-loss window in SubmitVerificationUseCase: between
+   * `FormRepository.createSubmission` and `SyncGateway.enqueueFormSubmission`
+   * (~5 sequential awaits over local DB writes) — if the app is killed by
+   * the OS or crashes, the form_submissions row exists with sync_status=PENDING
+   * but no queue entry, and nothing else would ever retry it.
+   *
+   * Mirrors `reconcileOrphanAttachments` semantics: scoped to the current
+   * logged-in user's tasks, INNER JOINed to `tasks` so cross-user contamination
+   * is impossible. Skips DLQ'd rows (sync_status='FAILED') — those are the
+   * agent's responsibility via the Resubmit button.
+   */
+  async reconcileOrphanFormSubmissions(): Promise<number> {
+    const userId = this.currentUserId();
+    if (!userId) {
+      return 0;
+    }
+
+    const rows = await SyncEngineRepository.query<{
+      id: string;
+      taskId: string;
+      backendTaskId: string | null;
+      caseId: string;
+      formType: string;
+      formDataJson: string;
+      metadataJson: string | null;
+      attachmentIdsJson: string | null;
+      photoDataJson: string | null;
+      submittedAt: string;
+    }>(
+      `SELECT s.id, s.task_id, t.verification_task_id AS backend_task_id,
+              s.case_id, s.form_type, s.form_data_json,
+              s.metadata_json, s.attachment_ids_json, s.photo_data_json,
+              s.submitted_at
+       FROM form_submissions s
+       INNER JOIN tasks t ON t.id = s.task_id
+       WHERE s.sync_status = 'PENDING'
+         AND t.assigned_to_field_user = ?
+         AND NOT EXISTS (
+           SELECT 1 FROM sync_queue q
+           WHERE q.entity_type = 'FORM_SUBMISSION'
+             AND q.entity_id = s.id
+             AND q.status IN ('PENDING', 'IN_PROGRESS', 'FAILED')
+         )`,
+      [userId],
+    );
+
+    if (rows.length === 0) {
+      return 0;
+    }
+
+    for (const row of rows) {
+      try {
+        const formData = row.formDataJson
+          ? (JSON.parse(row.formDataJson) as Record<string, unknown>)
+          : {};
+        const metadata = row.metadataJson
+          ? (JSON.parse(row.metadataJson) as Record<string, unknown>)
+          : {};
+        const attachmentIds = row.attachmentIdsJson
+          ? (JSON.parse(row.attachmentIdsJson) as string[])
+          : [];
+        const photos = row.photoDataJson
+          ? (JSON.parse(row.photoDataJson) as unknown[])
+          : [];
+
+        const payload: Record<string, unknown> = {
+          submissionId: row.id,
+          localTaskId: row.taskId,
+          taskId: row.backendTaskId || row.taskId,
+          visitId: row.backendTaskId || row.taskId,
+          caseId: String(row.caseId),
+          verificationTaskId: row.backendTaskId || row.taskId,
+          formType: row.formType,
+          formData,
+          attachmentIds,
+          photos,
+          metadata: {
+            ...metadata,
+            reconciledOrphan: true,
+            reconciledAt: new Date().toISOString(),
+          },
+        };
+
+        await this.enqueue(
+          'CREATE',
+          'FORM_SUBMISSION',
+          row.id,
+          payload,
+          SYNC_PRIORITY.HIGH,
+        );
+      } catch (err) {
+        Logger.warn(
+          TAG,
+          `reconcileOrphanFormSubmissions: failed to re-enqueue submission ${row.id}`,
+          err,
+        );
+      }
+    }
+
+    Logger.warn(
+      TAG,
+      `Reconciled ${rows.length} orphan PENDING form_submission(s) — re-enqueued for sync`,
+    );
+
+    return rows.length;
+  }
+
+  /**
    * Enqueue a new operation for sync
    */
   async enqueue(

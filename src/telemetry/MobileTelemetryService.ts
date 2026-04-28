@@ -5,7 +5,12 @@ import { Logger } from '../utils/logger';
 import axios from 'axios';
 
 type Severity = 'debug' | 'info' | 'warning' | 'error';
-type TelemetryCategory = 'sync' | 'queue' | 'upload' | 'background';
+type TelemetryCategory =
+  | 'sync'
+  | 'queue'
+  | 'upload'
+  | 'background'
+  | 'lifecycle';
 
 interface TelemetryEvent {
   id: string;
@@ -237,6 +242,26 @@ class MobileTelemetryServiceClass {
       category: 'background',
       name,
       severity,
+      payload,
+    });
+  }
+
+  // 2026-04-27 deep-audit fix (D4): startup TTI metric. `index.js` stamps
+  // `globalThis.__APP_BOOT_STARTED_AT` at JS bundle entry; App.tsx invokes
+  // this when `isInitializing` flips to false (DB key acquired + DB
+  // initialized + render gate cleared). The delta is the user-perceived
+  // splash → first-render latency. Severity is 'warning' if it crosses
+  // 5s (low-end device threshold).
+  trackAppStartup(payload: {
+    bootStartedAt: number;
+    appReadyAt: number;
+    durationMs: number;
+    coldStart: boolean;
+  }): void {
+    this.enqueue({
+      category: 'lifecycle',
+      name: 'app_startup',
+      severity: payload.durationMs > 5000 ? 'warning' : 'info',
       payload,
     });
   }

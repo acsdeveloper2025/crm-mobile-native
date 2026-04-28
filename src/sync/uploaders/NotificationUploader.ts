@@ -2,7 +2,7 @@ import { ApiClient } from '../../api/apiClient';
 import { ENDPOINTS } from '../../api/endpoints';
 import { Logger } from '../../utils/logger';
 import type { SyncOperation } from '../SyncOperationLog';
-import type { SyncUploadResult } from '../SyncUploadTypes';
+import { idempotencyHeaders, type SyncUploadResult } from '../SyncUploadTypes';
 
 const TAG = 'NotificationUploader';
 
@@ -21,6 +21,12 @@ class NotificationUploaderClass {
     const action = String(operation.payload.action || '').toUpperCase();
 
     try {
+      // 2026-04-27 deep-audit fix: every action now ships an Idempotency-Key
+      // header. MARK_READ retry was already idempotent server-side (read state
+      // is monotonic), but MARK_ALL_READ + CLEAR_ALL retried after a network
+      // drop on the response could clobber notifications received between the
+      // original call and the retry. Backend's `mobile_idempotency_keys`
+      // cache returns the cached 2xx body on replay, fully closing the race.
       if (action === 'MARK_READ') {
         const notificationId = String(
           operation.payload.notificationId || operation.entityId || '',
@@ -31,17 +37,28 @@ class NotificationUploaderClass {
             error: 'MARK_READ missing notificationId',
           };
         }
-        await ApiClient.put(ENDPOINTS.NOTIFICATIONS.MARK_READ(notificationId));
+        await ApiClient.put(
+          ENDPOINTS.NOTIFICATIONS.MARK_READ(notificationId),
+          undefined,
+          idempotencyHeaders(operation.operationId),
+        );
         return { outcome: 'SUCCESS' };
       }
 
       if (action === 'MARK_ALL_READ') {
-        await ApiClient.put(ENDPOINTS.NOTIFICATIONS.MARK_ALL_READ);
+        await ApiClient.put(
+          ENDPOINTS.NOTIFICATIONS.MARK_ALL_READ,
+          undefined,
+          idempotencyHeaders(operation.operationId),
+        );
         return { outcome: 'SUCCESS' };
       }
 
       if (action === 'CLEAR_ALL') {
-        await ApiClient.delete(ENDPOINTS.NOTIFICATIONS.CLEAR_ALL);
+        await ApiClient.delete(
+          ENDPOINTS.NOTIFICATIONS.CLEAR_ALL,
+          idempotencyHeaders(operation.operationId),
+        );
         return { outcome: 'SUCCESS' };
       }
 

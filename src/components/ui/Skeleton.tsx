@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 interface SkeletonProps {
   width?: number | string;
@@ -16,10 +17,18 @@ export const SkeletonBox: React.FC<SkeletonProps> = ({
   style,
 }) => {
   const { theme } = useTheme();
-  const opacity = useRef(new Animated.Value(0.3)).current;
+  // 2026-04-27 deep-audit fix (D12): respect Reduce Motion. When on, the
+  // shimmer pulse loop is replaced with a static mid-opacity tint so users
+  // sensitive to motion don't get a constantly-pulsing skeleton.
+  const reduceMotion = useReducedMotion();
+  const opacity = useRef(new Animated.Value(reduceMotion ? 0.5 : 0.3)).current;
 
   useEffect(() => {
-    Animated.loop(
+    if (reduceMotion) {
+      opacity.setValue(0.5);
+      return;
+    }
+    const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
           toValue: 0.7,
@@ -32,8 +41,12 @@ export const SkeletonBox: React.FC<SkeletonProps> = ({
           useNativeDriver: true,
         }),
       ]),
-    ).start();
-  }, [opacity]);
+    );
+    loop.start();
+    return () => {
+      loop.stop();
+    };
+  }, [opacity, reduceMotion]);
 
   return (
     <Animated.View

@@ -22,6 +22,8 @@ import { DashboardScreen } from '../screens/main/DashboardScreen';
 import { ProfileScreen } from '../screens/main/ProfileScreen';
 import { ProfilePhotoCaptureScreen } from '../screens/main/ProfilePhotoCaptureScreen';
 import { DigitalIdCardScreen } from '../screens/main/DigitalIdCardScreen';
+import { PrivacyPolicyScreen } from '../screens/main/PrivacyPolicyScreen';
+import { DiagnosticsScreen } from '../screens/main/DiagnosticsScreen';
 import { AssignedTasksScreen } from '../screens/tasks/AssignedTasksScreen';
 import { InProgressTasksScreen } from '../screens/tasks/InProgressTasksScreen';
 import { SavedTasksScreen } from '../screens/tasks/SavedTasksScreen';
@@ -37,6 +39,76 @@ import { DataCleanupScreen } from '../screens/main/DataCleanupScreen';
 import { VersionService, UpdateInfo } from '../services/VersionService';
 import { useTheme } from '../context/ThemeContext';
 import { TaskRepository } from '../repositories/TaskRepository';
+import { withScreenErrorBoundary } from '../components/ScreenErrorBoundary';
+
+// 2026-04-27 deep-audit fix (D9): per-screen error boundaries. A render
+// crash in any one screen no longer tears down the whole nav tree. Wrap
+// at module load so each Stack.Screen / Tab.Screen `component=` reference
+// is stable across renders (avoids remount-on-every-RootNavigator-render).
+const SafeLoginScreen = withScreenErrorBoundary(LoginScreen, 'Auth');
+const SafeDashboardScreen = withScreenErrorBoundary(
+  DashboardScreen,
+  'Dashboard',
+);
+const SafeAssignedTasksScreen = withScreenErrorBoundary(
+  AssignedTasksScreen,
+  'Assigned',
+);
+const SafeInProgressTasksScreen = withScreenErrorBoundary(
+  InProgressTasksScreen,
+  'InProgress',
+);
+const SafeSavedTasksScreen = withScreenErrorBoundary(SavedTasksScreen, 'Saved');
+const SafeCompletedTasksScreen = withScreenErrorBoundary(
+  CompletedTasksScreen,
+  'Completed',
+);
+const SafeTaskDetailScreen = withScreenErrorBoundary(
+  TaskDetailScreen,
+  'TaskDetail',
+);
+const SafeTaskAttachmentsScreen = withScreenErrorBoundary(
+  TaskAttachmentsScreen,
+  'TaskAttachments',
+);
+const SafeCameraCaptureScreen = withScreenErrorBoundary(
+  CameraCaptureScreen,
+  'CameraCapture',
+);
+const SafeWatermarkPreviewScreen = withScreenErrorBoundary(
+  WatermarkPreviewScreen,
+  'WatermarkPreview',
+);
+const SafeVerificationFormScreen = withScreenErrorBoundary(
+  VerificationFormScreen,
+  'VerificationForm',
+);
+const SafeSyncLogsScreen = withScreenErrorBoundary(SyncLogsScreen, 'SyncLogs');
+const SafeProfileScreen = withScreenErrorBoundary(ProfileScreen, 'Profile');
+const SafeDigitalIdCardScreen = withScreenErrorBoundary(
+  DigitalIdCardScreen,
+  'DigitalIdCard',
+);
+const SafeDataCleanupScreen = withScreenErrorBoundary(
+  DataCleanupScreen,
+  'DataCleanup',
+);
+const SafeProfilePhotoCaptureScreen = withScreenErrorBoundary(
+  ProfilePhotoCaptureScreen,
+  'ProfilePhotoCapture',
+);
+const SafePrivacyPolicyScreen = withScreenErrorBoundary(
+  PrivacyPolicyScreen,
+  'PrivacyPolicy',
+);
+const SafeDiagnosticsScreen = withScreenErrorBoundary(
+  DiagnosticsScreen,
+  'Diagnostics',
+);
+const SafeForceUpdateScreen = withScreenErrorBoundary(
+  ForceUpdateScreen,
+  'ForceUpdate',
+);
 
 // M6: shape-check a taskId from an FCM push before it drives
 // navigation. FCM data fields are strings by spec but nothing stops
@@ -87,6 +159,8 @@ export type RootStackParamList = {
   DigitalIdCard: undefined;
   DataCleanup: undefined;
   ProfilePhotoCapture: undefined;
+  PrivacyPolicy: undefined;
+  Diagnostics: undefined;
 };
 
 export type TabParamList = {
@@ -182,27 +256,27 @@ const MainTabs = () => {
     >
       <Tab.Screen
         name="Dashboard"
-        component={DashboardScreen}
+        component={SafeDashboardScreen}
         options={{ title: 'Dashboard', tabBarLabel: 'Dashboard' }}
       />
       <Tab.Screen
         name="Assigned"
-        component={AssignedTasksScreen}
+        component={SafeAssignedTasksScreen}
         options={{ title: 'Assigned Tasks', tabBarLabel: 'Assigned' }}
       />
       <Tab.Screen
         name="InProgress"
-        component={InProgressTasksScreen}
+        component={SafeInProgressTasksScreen}
         options={{ title: 'In Progress Tasks', tabBarLabel: 'Progress' }}
       />
       <Tab.Screen
         name="Saved"
-        component={SavedTasksScreen}
+        component={SafeSavedTasksScreen}
         options={{ title: 'Saved for Offline', tabBarLabel: 'Saved' }}
       />
       <Tab.Screen
         name="Completed"
-        component={CompletedTasksScreen}
+        component={SafeCompletedTasksScreen}
         options={{ title: 'Completed Tasks', tabBarLabel: 'Completed' }}
       />
     </Tab.Navigator>
@@ -351,7 +425,7 @@ export const RootNavigator = () => {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen
             name="ForceUpdate"
-            component={ForceUpdateScreen}
+            component={SafeForceUpdateScreen}
             initialParams={{
               downloadUrl: versionResult.downloadUrl,
               releaseNotes: versionResult.releaseNotes,
@@ -374,13 +448,15 @@ export const RootNavigator = () => {
         screenOptions={{ headerShown: false, animation: 'none' }}
       >
         {!isAuthenticated ? (
-          <Stack.Screen name="Auth" component={LoginScreen} />
+          <Stack.Screen name="Auth" component={SafeLoginScreen} />
         ) : (
           <>
+            {/* MainTabs is itself a navigator; each Tab.Screen inside is
+                already wrapped above. No need to also wrap MainTabs. */}
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen
               name="TaskDetail"
-              component={TaskDetailScreen}
+              component={SafeTaskDetailScreen}
               options={{
                 headerShown: false,
                 title: 'Task Details',
@@ -389,7 +465,7 @@ export const RootNavigator = () => {
             />
             <Stack.Screen
               name="TaskAttachments"
-              component={TaskAttachmentsScreen}
+              component={SafeTaskAttachmentsScreen}
               options={{
                 headerShown: false,
                 title: 'Attachments',
@@ -398,22 +474,22 @@ export const RootNavigator = () => {
             />
             <Stack.Screen
               name="CameraCapture"
-              component={CameraCaptureScreen}
+              component={SafeCameraCaptureScreen}
               options={getCameraScreenOptions()}
             />
             <Stack.Screen
               name="WatermarkPreview"
-              component={WatermarkPreviewScreen}
+              component={SafeWatermarkPreviewScreen}
               options={getCameraScreenOptions()}
             />
             <Stack.Screen
               name="VerificationForm"
-              component={VerificationFormScreen}
+              component={SafeVerificationFormScreen}
               options={{ headerShown: false, title: 'Verification Form' }}
             />
             <Stack.Screen
               name="SyncLogs"
-              component={SyncLogsScreen}
+              component={SafeSyncLogsScreen}
               options={{
                 headerShown: false,
                 title: 'Sync Diagnostics',
@@ -422,7 +498,7 @@ export const RootNavigator = () => {
             />
             <Stack.Screen
               name="Profile"
-              component={ProfileScreen}
+              component={SafeProfileScreen}
               options={{
                 headerShown: false,
                 title: 'Profile',
@@ -431,7 +507,7 @@ export const RootNavigator = () => {
             />
             <Stack.Screen
               name="DigitalIdCard"
-              component={DigitalIdCardScreen}
+              component={SafeDigitalIdCardScreen}
               options={{
                 headerShown: false,
                 title: 'Digital ID Card',
@@ -440,13 +516,23 @@ export const RootNavigator = () => {
             />
             <Stack.Screen
               name="DataCleanup"
-              component={DataCleanupScreen}
+              component={SafeDataCleanupScreen}
               options={{ headerShown: false }}
             />
             <Stack.Screen
               name="ProfilePhotoCapture"
-              component={ProfilePhotoCaptureScreen}
+              component={SafeProfilePhotoCaptureScreen}
               options={getCameraScreenOptions()}
+            />
+            <Stack.Screen
+              name="PrivacyPolicy"
+              component={SafePrivacyPolicyScreen}
+              options={{ headerShown: false, title: 'Privacy Policy' }}
+            />
+            <Stack.Screen
+              name="Diagnostics"
+              component={SafeDiagnosticsScreen}
+              options={{ headerShown: false, title: 'Diagnostics' }}
             />
           </>
         )}

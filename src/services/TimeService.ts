@@ -23,8 +23,24 @@
 // timestamps.
 
 import { Logger } from '../utils/logger';
+import { KeyValueRepository } from '../repositories/KeyValueRepository';
 
 const TAG = 'TimeService';
+
+// 2026-04-28 deep-audit fix (D2): persist offset across cold starts so
+// the FIRST conflict-resolution decision after boot already accounts for
+// known clock drift, instead of waiting for the first HTTP response to
+// resample. Two keys: the offset itself, and the device-time when it
+// was sampled (used to TTL-out old samples — see RESTORED_OFFSET_TTL_MS).
+const PERSIST_OFFSET_KEY = 'time_service_offset_ms';
+const PERSIST_SAMPLED_AT_KEY = 'time_service_offset_sampled_at';
+
+// Don't trust an offset older than 7 days. Beyond that horizon the
+// device clock could have been intentionally adjusted (DST change,
+// timezone travel, manual reset) and the persisted offset is no
+// longer a useful prior. Cold starts within this window restore the
+// estimate; older samples fall back to offsetMs=0 same as before.
+const RESTORED_OFFSET_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 /**
  * Hard ceiling on server↔device clock skew. Beyond this we treat the
@@ -73,6 +89,70 @@ class TimeServiceClass {
         Logger.info(TAG, 'Device clock skew back within tolerance');
       }
       this.unreliable = false;
+    }
+
+    // 2026-04-28 deep-audit fix (D2): fire-and-forget persistence so the
+    // next cold start can restore this offset before the first HTTP call
+    // returns. Wrapped in catch — DB may not be open yet on the very
+    // first call (early boot before DatabaseService.initialize finishes),
+    // and a failed persist is non-fatal: we still have the in-memory
+    // offset for the rest of this session, just lose it on next boot.
+    // eslint-disable-next-line no-void
+    void this.persistOffset(offset, deviceNow);
+  }
+
+  private async persistOffset(
+    offset: number,
+    sampledAt: number,
+  ): Promise<void> {
+    try {
+      await KeyValueRepository.set(PERSIST_OFFSET_KEY, String(offset));
+      await KeyValueRepository.set(PERSIST_SAMPLED_AT_KEY, String(sampledAt));
+    } catch {
+      // Best-effort. DB may not be initialized yet on first boot call.
+      // Next sample (any successful HTTP response) tries again.
+    }
+  }
+
+  /**
+   * 2026-04-28 deep-audit fix (D2): restore the most recent offset
+   * sample from key_value_store. Call once during App boot AFTER
+   * DatabaseService.initialize() has resolved.
+   *
+   * - Returns silently if no persisted value exists (fresh install).
+   * - Returns silently if the persisted sample is older than
+   *   RESTORED_OFFSET_TTL_MS (device clock may have changed since).
+   * - Otherwise restores both `offsetMs` and `lastSampleAt` so the very
+   *   first conflict-resolution at boot already accounts for known drift.
+   */
+  async init(): Promise<void> {
+    try {
+      const offsetStr = await KeyValueRepository.get(PERSIST_OFFSET_KEY);
+      const sampledAtStr = await KeyValueRepository.get(PERSIST_SAMPLED_AT_KEY);
+      if (!offsetStr || !sampledAtStr) {
+        return;
+      }
+      const offset = Number(offsetStr);
+      const sampledAt = Number(sampledAtStr);
+      if (!Number.isFinite(offset) || !Number.isFinite(sampledAt)) {
+        return;
+      }
+      const ageMs = Date.now() - sampledAt;
+      if (ageMs < 0 || ageMs > RESTORED_OFFSET_TTL_MS) {
+        // Device clock moved backwards (suspicious) or sample too old.
+        return;
+      }
+      this.offsetMs = offset;
+      this.lastSampleAt = sampledAt;
+      this.unreliable = Math.abs(offset) > MAX_ACCEPTABLE_SKEW_MS;
+      Logger.info(
+        TAG,
+        `Restored persisted offset: ${offset}ms (age=${Math.round(
+          ageMs / 1000,
+        )}s, unreliable=${this.unreliable})`,
+      );
+    } catch (e) {
+      Logger.warn(TAG, 'TimeService.init() failed; starting with offset=0', e);
     }
   }
 

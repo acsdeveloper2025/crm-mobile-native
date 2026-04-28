@@ -4,6 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NetworkService } from '../../services/NetworkService';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import type { Theme } from '../../theme/Theme';
 
 /**
@@ -20,6 +21,9 @@ export const NetworkStatusBanner: React.FC = () => {
   const [showOnlineBanner, setShowOnlineBanner] = useState(false);
   const wasOfflineRef = useRef(false);
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  // 2026-04-27 deep-audit fix (D12): respect Reduce Motion. When on,
+  // the back-online banner snaps to visible/hidden instead of fading.
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
     const unsubscribe = NetworkService.onNetworkChange(online => {
@@ -28,20 +32,28 @@ export const NetworkStatusBanner: React.FC = () => {
       if (online && wasOfflineRef.current) {
         // Just came back online — show brief success banner
         setShowOnlineBanner(true);
-        Animated.timing(fadeAnim, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true,
-        }).start();
-        setTimeout(() => {
-          Animated.timing(fadeAnim, {
-            toValue: 0,
-            duration: 500,
-            useNativeDriver: true,
-          }).start(() => {
+        if (reduceMotion) {
+          fadeAnim.setValue(1);
+          setTimeout(() => {
+            fadeAnim.setValue(0);
             setShowOnlineBanner(false);
-          });
-        }, 3000);
+          }, 3000);
+        } else {
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 300,
+            useNativeDriver: true,
+          }).start();
+          setTimeout(() => {
+            Animated.timing(fadeAnim, {
+              toValue: 0,
+              duration: 500,
+              useNativeDriver: true,
+            }).start(() => {
+              setShowOnlineBanner(false);
+            });
+          }, 3000);
+        }
       }
 
       wasOfflineRef.current = !online;
@@ -51,7 +63,7 @@ export const NetworkStatusBanner: React.FC = () => {
     wasOfflineRef.current = !NetworkService.getIsOnline();
 
     return unsubscribe;
-  }, [fadeAnim]);
+  }, [fadeAnim, reduceMotion]);
 
   if (!isOnline) {
     return (

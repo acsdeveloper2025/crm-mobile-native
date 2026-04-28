@@ -11,6 +11,7 @@ import {
 import { LocalTask } from '../../types/mobile';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
 
 interface TaskCardProps {
@@ -42,12 +43,25 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
   onMoveTask,
 }) => {
   const { theme } = useTheme();
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
+  // 2026-04-27 deep-audit fix (D12): respect OS-level Reduce Motion. Initial
+  // values are set to the *final* state when reduce-motion is on, so the
+  // card simply appears instead of fade+slide. The values are still Animated
+  // refs so the JSX render path doesn't change.
+  const reduceMotion = useReducedMotion();
+  const fadeAnim = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+  const slideAnim = useRef(new Animated.Value(reduceMotion ? 0 : 20)).current;
 
   const [isAccepting, setIsAccepting] = useState(false);
 
   useEffect(() => {
+    if (reduceMotion) {
+      // Skip animation; ensure values are at final state in case the
+      // setting was toggled mid-session (the initial `useRef` only runs
+      // on first mount).
+      fadeAnim.setValue(1);
+      slideAnim.setValue(0);
+      return;
+    }
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -60,7 +74,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         useNativeDriver: true,
       }),
     ]).start();
-  }, [fadeAnim, slideAnim]);
+  }, [fadeAnim, slideAnim, reduceMotion]);
 
   const getStatusColor = (status: string) => {
     if (!status) return theme.colors.textMuted;
@@ -165,6 +179,32 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
               style={[styles.savedBadgeText, { color: theme.colors.warning }]}
             >
               Draft Saved
+            </Text>
+          </View>
+        )}
+        {/*
+         * 2026-04-27 audit fix F2: surface sync state on completed cards.
+         * Without this badge, a DLQ'd / pending submission looks identical
+         * to a successfully synced one — agent never sees the failure
+         * unless they tap into TaskDetailScreen.
+         */}
+        {task.status === 'COMPLETED' && task.syncStatus !== 'SYNCED' && (
+          <View
+            style={[
+              styles.savedBadge,
+              {
+                backgroundColor: theme.colors.danger + '20',
+                borderColor: theme.colors.danger + '50',
+              },
+            ]}
+          >
+            <Text
+              numberOfLines={1}
+              style={[styles.savedBadgeText, { color: theme.colors.danger }]}
+            >
+              {task.syncStatus === 'CONFLICT'
+                ? 'Sync Conflict'
+                : 'Pending Upload'}
             </Text>
           </View>
         )}

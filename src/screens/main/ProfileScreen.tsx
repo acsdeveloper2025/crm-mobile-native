@@ -239,6 +239,39 @@ export const ProfileScreen = ({ navigation }: any) => {
             />
           </TouchableOpacity>
 
+          {/* 2026-04-28 deep-audit fix (D15): split prior "Diagnostics &
+              Sync Logs" tile into two — Diagnostics (full snapshot +
+              "Send logs to support") opens DiagnosticsScreen; Sync Logs
+              keeps the focused queue-row viewer for advanced triage. */}
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            onPress={() => navigation.navigate('Diagnostics' as never)}
+            accessibilityRole="button"
+            accessibilityLabel="Open diagnostics"
+          >
+            <Icon
+              name="pulse-outline"
+              size={22}
+              color={theme.colors.textSecondary}
+            />
+            <Text
+              style={[styles.actionText, { color: theme.colors.textSecondary }]}
+            >
+              Diagnostics
+            </Text>
+            <Icon
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
+          </TouchableOpacity>
+
           <TouchableOpacity
             style={[
               styles.actionButton,
@@ -249,7 +282,7 @@ export const ProfileScreen = ({ navigation }: any) => {
             ]}
             onPress={() => navigation.navigate('SyncLogs')}
             accessibilityRole="button"
-            accessibilityLabel="Open diagnostics and sync logs"
+            accessibilityLabel="Open sync logs"
           >
             <Icon
               name="bug-outline"
@@ -259,7 +292,38 @@ export const ProfileScreen = ({ navigation }: any) => {
             <Text
               style={[styles.actionText, { color: theme.colors.textSecondary }]}
             >
-              Diagnostics & Sync Logs
+              Sync Logs
+            </Text>
+            <Icon
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
+          </TouchableOpacity>
+
+          {/* 2026-04-27 deep-audit fix (D16): in-app privacy notice tile —
+              required by India's DPDP Act 2023. */}
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            onPress={() => navigation.navigate('PrivacyPolicy' as never)}
+            accessibilityRole="button"
+            accessibilityLabel="Open privacy policy"
+          >
+            <Icon
+              name="shield-checkmark-outline"
+              size={22}
+              color={theme.colors.textSecondary}
+            />
+            <Text
+              style={[styles.actionText, { color: theme.colors.textSecondary }]}
+            >
+              Privacy Policy
             </Text>
             <Icon
               name="chevron-forward"

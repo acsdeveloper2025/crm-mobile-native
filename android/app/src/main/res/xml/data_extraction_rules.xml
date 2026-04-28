@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  2026-04-27 deep-audit fix: explicit opt-out of cloud backup AND
+  device-to-device transfer (Smart Switch / Google Quick Setup) on
+  Android 12+ (API 31+).
+
+  Rationale: the app stores an encrypted SQLCipher database whose key
+  lives in the per-device Android Keystore. Smart Switch transfers app
+  files but NOT keystore entries, so a transferred install would have
+  the encrypted DB but no key → SQLITE_CORRUPT on first read. This is
+  exactly the v1.0.3 outage class (`project_mobile_local_db_and_photos.md`).
+
+  AndroidManifest's `android:allowBackup="false"` covers cloud auto-
+  backup only on API < 31. From API 31 the authoritative source is
+  this file, referenced via `android:dataExtractionRules`. Excluding
+  every domain in BOTH cloud-backup and device-transfer means the
+  app's data is non-transferable by any built-in mechanism.
+-->
+<data-extraction-rules>
+  <cloud-backup>
+    <exclude domain="root" />
+    <exclude domain="database" />
+    <exclude domain="sharedpref" />
+    <exclude domain="external" />
+    <exclude domain="file" />
+  </cloud-backup>
+  <device-transfer>
+    <exclude domain="root" />
+    <exclude domain="database" />
+    <exclude domain="sharedpref" />
+    <exclude domain="external" />
+    <exclude domain="file" />
+  </device-transfer>
+</data-extraction-rules>

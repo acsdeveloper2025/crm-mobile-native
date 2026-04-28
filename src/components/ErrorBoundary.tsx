@@ -11,6 +11,7 @@ import {
   type NativeEventSubscription,
 } from 'react-native';
 import { Logger } from '../utils/logger';
+import { RemoteLogService } from '../services/RemoteLogService';
 
 interface Props {
   children: ReactNode;
@@ -71,6 +72,13 @@ class ErrorBoundary extends Component<Props, State> {
       stack: error.stack,
       componentStack: errorInfo.componentStack,
     });
+
+    // 2026-04-27 deep-audit fix: ship the local log ring buffer to the
+    // backend telemetry endpoint so crash data actually leaves the device.
+    // RemoteLogService.upload is non-blocking and swallows its own errors —
+    // see file header. Cannot await here (componentDidCatch is sync).
+    // eslint-disable-next-line no-void
+    void RemoteLogService.upload({ source: 'crash' });
 
     this.setState({
       error,

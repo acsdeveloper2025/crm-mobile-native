@@ -1,6 +1,6 @@
 {
   "name": "CrmMobileNative",
-  "version": "1.0.25",
+  "version": "1.0.26",
   "private": true,
   "op-sqlite": {
     "sqlcipher": true
@@ -10,6 +10,7 @@
     "ios": "react-native run-ios",
     "lint": "eslint .",
     "lint:src": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "start": "react-native start",
     "typecheck": "tsc --noEmit",
     "check:ssl-pins": "bash scripts/check-ssl-pins.sh",
@@ -36,6 +37,7 @@
     "@react-navigation/native-stack": "^7.14.2",
     "@types/react-native-vector-icons": "^6.4.18",
     "axios": "^1.13.6",
+    "crypto-js": "^4.2.0",
     "piexifjs": "^1.0.6",
     "react": "19.2.3",
     "react-native": "0.84.1",
@@ -65,6 +67,7 @@
     "@react-native/eslint-config": "0.84.1",
     "@react-native/metro-config": "0.84.1",
     "@react-native/typescript-config": "0.84.1",
+    "@types/crypto-js": "^4.2.2",
     "@types/jest": "^30.0.0",
     "@types/react": "^19.2.0",
     "@types/uuid": "^10.0.0",

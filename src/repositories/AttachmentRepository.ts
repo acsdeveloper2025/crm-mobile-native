@@ -17,13 +17,21 @@ class AttachmentRepositoryClass {
     accuracy?: number;
     locationTimestamp?: string | null;
     componentType: 'photo' | 'selfie' | 'document';
+    /**
+     * 2026-04-28 (D6/D17 fix): SHA-256 hex of file bytes at capture.
+     * Optional: callers can pass `null` if hash compute failed (we still
+     * persist the row — better to have a row without hash than to lose
+     * the photo). Backend integrity audit treats NULL as "client could
+     * not hash" (unverifiable, but not a tamper signal).
+     */
+    clientSha256?: string | null;
   }): Promise<void> {
     await DatabaseService.execute(
       `INSERT INTO attachments
         (id, task_id, filename, original_name, mime_type, size,
          local_path, thumbnail_path, uploaded_at, latitude, longitude, accuracy,
-         location_timestamp, component_type, sync_status, sync_attempts)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 0)`,
+         location_timestamp, component_type, client_sha256, sync_status, sync_attempts)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING', 0)`,
       [
         input.id,
         input.taskId,
@@ -39,6 +47,7 @@ class AttachmentRepositoryClass {
         input.accuracy ?? null,
         input.locationTimestamp ?? null,
         input.componentType,
+        input.clientSha256 ?? null,
       ],
     );
   }

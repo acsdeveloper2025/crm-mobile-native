@@ -21,6 +21,20 @@ interface ZoomableImageProps {
   sliderTint?: string;
 }
 
+// 2026-04-27 deep-audit fix (D7): HTML-attribute escape so `uri` cannot
+// break out of `src="..."` and inject onerror/script handlers. URIs come
+// from backend (filenames are server-controlled today) but defense-in-
+// depth — a malicious filename "x\" onerror=\"alert(1)" would otherwise
+// execute. Escapes the 5 chars that can terminate or alter a quoted
+// attribute value.
+const escapeHtmlAttr = (s: string): string =>
+  s
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
 const buildHtml = (
   uri: string,
   bg: string,
@@ -121,7 +135,9 @@ const buildHtml = (
 </head>
 <body>
   <div id="stage">
-    <img id="img" src="${uri}" alt="attachment" draggable="false" />
+    <img id="img" src="${escapeHtmlAttr(
+      uri,
+    )}" alt="attachment" draggable="false" />
   </div>
   <div id="sliderWrap" aria-label="Zoom slider">
     <div id="zoomLabel">1.0×</div>
@@ -301,7 +317,11 @@ export const ZoomableImage: React.FC<ZoomableImageProps> = ({
   return (
     <View style={styles.container}>
       <WebView
-        originWhitelist={['*']}
+        // 2026-04-27 deep-audit fix (D7): was '*' (everything allowed,
+        // including data:/javascript: schemes). Confirmed callers
+        // (TaskAttachmentsScreen) only feed file:// (local cache) or
+        // https:// (backend) URIs — narrow to those two schemes.
+        originWhitelist={['file://*', 'https://*']}
         source={{ html, baseUrl: 'about:blank' }}
         style={styles.webview}
         // Allow loading local file:// URIs on Android — needed because

@@ -23,8 +23,10 @@ import { RootNavigator } from './src/navigation/RootNavigator';
 import { NetworkStatusBanner } from './src/components/ui/NetworkStatusBanner';
 import { DatabaseService } from './src/database/DatabaseService';
 import { NetworkService } from './src/services/NetworkService';
+import { TimeService } from './src/services/TimeService';
 import { CameraService } from './src/services/CameraService';
 import { Logger } from './src/utils/logger';
+import { RemoteLogService } from './src/services/RemoteLogService';
 import { notificationService } from './src/services/NotificationService';
 import { SyncQueue } from './src/services/SyncQueue';
 import ErrorBoundary from './src/components/ErrorBoundary';
@@ -69,6 +71,10 @@ if (g.ErrorUtils) {
       message: error?.message,
       stack: error?.stack,
     });
+    // 2026-04-27 deep-audit fix: ship the log ring buffer to backend on
+    // every global error (fatal + non-fatal). Non-blocking; swallows its
+    // own failures.
+    void RemoteLogService.upload({ source: 'crash' });
     // Call the default handler so React Native still shows the red screen in dev
     if (defaultHandler) {
       defaultHandler(error, isFatal);
@@ -181,11 +187,42 @@ function App(): React.JSX.Element {
         await DatabaseService.initialize({ deferMigrations: true });
         Logger.info(TAG, 'Database opened (migrations deferred)');
 
+        // 2026-04-28 deep-audit fix (D2): restore the persisted server-
+        // clock offset BEFORE the first network call so the very first
+        // conflict-resolution decision uses a recent offset estimate
+        // (prior session's sample, capped at 7d age) instead of 0.
+        // Non-blocking — failure leaves offsetMs=0 and the next HTTP
+        // response resamples normally.
+        try {
+          await TimeService.init();
+        } catch (e) {
+          Logger.warn(TAG, 'TimeService.init failed', e);
+        }
+
         NetworkService.initialize();
         Logger.info(TAG, 'Network monitoring started');
 
         if (mounted) {
           setIsInitializing(false);
+          // 2026-04-27 deep-audit fix (D4): emit splash → interactive
+          // metric. `index.js` stamps __APP_BOOT_STARTED_AT at JS entry;
+          // this fires when DB+key+network init are done and the
+          // RootNavigator is about to render. Cold-start = no prior
+          // session/projection cache (proxy: __DEV__ is false → release).
+          try {
+            const bootStartedAt =
+              (globalThis as { __APP_BOOT_STARTED_AT?: number })
+                .__APP_BOOT_STARTED_AT ?? Date.now();
+            const appReadyAt = Date.now();
+            MobileTelemetryService.trackAppStartup({
+              bootStartedAt,
+              appReadyAt,
+              durationMs: appReadyAt - bootStartedAt,
+              coldStart: !__DEV__,
+            });
+          } catch (e) {
+            Logger.warn(TAG, 'trackAppStartup failed', e);
+          }
         }
 
         // Run pending migrations in the background. Anything that
