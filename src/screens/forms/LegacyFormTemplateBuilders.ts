@@ -79,6 +79,11 @@ const getOutcomeLabel = (
   formTypeKey: FormTypeKey | null,
   outcome: AllOutcome,
 ): string => {
+  // F2.7.1: server-synced display label wins when present.
+  if (formTypeKey) {
+    const synced = syncedLabelByOutcome.get(`${formTypeKey}:${outcome}`);
+    if (synced) return synced;
+  }
   if (formTypeKey === 'property-apf') {
     const apfLabelByOutcome: Record<PropertyApfOutcome, string> = {
       POSITIVE: 'Positive & Negative',
@@ -119,6 +124,9 @@ const getOutcomeLabel = (
   return labelByOutcome[outcome];
 };
 
+// F2.7.1: embedded fallback for first-install-offline. Hydrated from
+// `verification_type_outcomes` server table on each sync via
+// `setOutcomesFromSync()` below. Sync data wins when populated.
 const LEGACY_OUTCOMES_BY_FORM_TYPE: Record<FormTypeKey, readonly AllOutcome[]> =
   {
     residence: COMMON_LEGACY_OUTCOMES,
@@ -136,6 +144,58 @@ const LEGACY_OUTCOMES_BY_FORM_TYPE: Record<FormTypeKey, readonly AllOutcome[]> =
     ],
     'property-apf': ['UNTRACEABLE', 'ENTRY_RESTRICTED', 'POSITIVE'],
   };
+
+// Runtime override populated from sync. Empty until first sync (or after
+// app reboot before `loadOutcomesCacheFromDb` runs).
+const syncedOutcomesByFormType = new Map<FormTypeKey, AllOutcome[]>();
+// Synced label override (e.g. server-edited "No Such Person" → "Person Absent").
+const syncedLabelByOutcome = new Map<string, string>();
+
+const FORM_TYPE_KEY_BY_VTYPE_CODE: Record<string, FormTypeKey> = {
+  RV: 'residence',
+  RC: 'residence-cum-office',
+  OV: 'office',
+  EV: 'business',
+  BV: 'builder',
+  NV: 'noc',
+  DV: 'dsa-connector',
+  PIV: 'property-individual',
+  PAV: 'property-apf',
+};
+
+interface OutcomeSyncRow {
+  verificationTypeCode: string;
+  outcomeCode: string;
+  displayLabel: string;
+  sortOrder: number;
+}
+
+/**
+ * F2.7.1: replace the local override map with rows synced from the server.
+ * Called by SyncDownloadService after each successful download cycle, and
+ * at app boot from local SQLite via `loadOutcomesCacheFromDb()`.
+ */
+export function setOutcomesFromSync(rows: OutcomeSyncRow[]): void {
+  syncedOutcomesByFormType.clear();
+  syncedLabelByOutcome.clear();
+  // Group + sort by sort_order
+  const grouped = new Map<FormTypeKey, OutcomeSyncRow[]>();
+  for (const r of rows) {
+    const key = FORM_TYPE_KEY_BY_VTYPE_CODE[r.verificationTypeCode];
+    if (!key) continue;
+    const arr = grouped.get(key) ?? [];
+    arr.push(r);
+    grouped.set(key, arr);
+    syncedLabelByOutcome.set(`${key}:${r.outcomeCode}`, r.displayLabel);
+  }
+  for (const [key, list] of grouped) {
+    list.sort((a, b) => a.sortOrder - b.sortOrder);
+    syncedOutcomesByFormType.set(
+      key,
+      list.map(r => r.outcomeCode as AllOutcome),
+    );
+  }
+}
 
 const PREFERRED_DEFAULT_OUTCOME_BY_FORM_TYPE: Partial<
   Record<FormTypeKey, AllOutcome>
@@ -156,6 +216,11 @@ const getAllowedOutcomes = (
 ): readonly AllOutcome[] => {
   if (!formTypeKey) {
     return COMMON_LEGACY_OUTCOMES;
+  }
+  // F2.7.1: server-synced override wins; fallback to embedded defaults.
+  const synced = syncedOutcomesByFormType.get(formTypeKey);
+  if (synced && synced.length > 0) {
+    return synced;
   }
   return LEGACY_OUTCOMES_BY_FORM_TYPE[formTypeKey];
 };

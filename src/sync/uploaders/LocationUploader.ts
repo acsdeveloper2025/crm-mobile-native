@@ -1,11 +1,29 @@
 import { ApiClient } from '../../api/apiClient';
 import { ENDPOINTS } from '../../api/endpoints';
 import { SyncEngineRepository } from '../../repositories/SyncEngineRepository';
+import { Logger } from '../../utils/logger';
 import type { SyncOperation } from '../SyncOperationLog';
 import { idempotencyHeaders, type SyncUploadResult } from '../SyncUploadTypes';
 
+const TAG = 'LocationUploader';
+
 class LocationUploaderClass {
   async upload(operation: SyncOperation): Promise<SyncUploadResult> {
+    // 2026-05-01 retention v2: pre-upload existence guard. If the
+    // local locations row was cascade-deleted by tier-2 task cleanup
+    // between enqueue and dequeue, drop the queue item cleanly
+    // instead of generating false-success or DLQ noise.
+    const exists = await SyncEngineRepository.query<{ id: string }>(
+      'SELECT id FROM locations WHERE id = ? LIMIT 1',
+      [operation.entityId],
+    );
+    if (exists.length === 0) {
+      Logger.info(
+        TAG,
+        `Location row ${operation.entityId} cleanup-deleted; dropping sync_queue item`,
+      );
+      return { outcome: 'SUCCESS' };
+    }
     try {
       const response = await ApiClient.post<{ success: boolean }>(
         ENDPOINTS.LOCATION.CAPTURE,

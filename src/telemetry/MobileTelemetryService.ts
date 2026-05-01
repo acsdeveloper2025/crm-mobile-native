@@ -205,6 +205,25 @@ class MobileTelemetryServiceClass {
     });
   }
 
+  /**
+   * F-MD3 (audit 2026-04-28 deeper): per-agent DLQ depth, for fleet
+   * aggregation. Backend rolls up across all agents — a systemic
+   * bug (one bad endpoint = thousands of agents stuck) shows up as
+   * an aggregate DLQ spike that one agent's DiagnosticsScreen can't
+   * surface alone.
+   */
+  trackDeadLetterDepth(count: number, source: string): void {
+    if (count <= 0) {
+      return;
+    }
+    this.enqueue({
+      category: 'queue',
+      name: 'dead_letter_depth',
+      severity: count > 10 ? 'warning' : 'info',
+      payload: { count, source },
+    });
+  }
+
   trackQueueBacklog(queueLength: number, source: string): void {
     const now = Date.now();
     if (now - this.lastBacklogAt < BACKLOG_THROTTLE_MS) {

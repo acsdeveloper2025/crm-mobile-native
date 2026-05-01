@@ -255,6 +255,21 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
         }
 
         if (kind === 'text') {
+          // 2026-05-01 retention v2: tier-1 file cleanup (15d) blanks
+          // local_path for synced attachments; the file may be gone
+          // even though the DB row remains. Guard stat/readFile with
+          // an exists check so the screen doesn't crash with ENOENT.
+          // attachmentService.getAttachmentContent already attempts a
+          // re-download; a missing file here means the re-download
+          // also failed (offline + no local copy).
+          if (!(await RNFS.exists(filePath))) {
+            if (!isMountedRef.current) return;
+            Alert.alert(
+              'Attachment Unavailable',
+              'This file is no longer cached on this device. Reconnect to the network and try again.',
+            );
+            return;
+          }
           // Limit text preview to 500KB to prevent UI freeze on large files
           const stat = await RNFS.stat(filePath);
           if (!isMountedRef.current) return;

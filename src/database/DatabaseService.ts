@@ -310,6 +310,12 @@ class DatabaseServiceClass {
       Logger.info('DatabaseService', 'Database encryption enabled (SQLCipher)');
     }
 
+    // F-MD5 (audit 2026-04-28 deeper): incremental auto-vacuum.
+    // Must be set BEFORE any table creation to take effect on a fresh
+    // DB; on already-existing DBs the mode change requires a full
+    // `VACUUM` afterwards. For existing devices we accept the slow
+    // first-vacuum convergence in `runIncrementalVacuum()` below.
+    await this.db.execute('PRAGMA auto_vacuum = INCREMENTAL;');
     // Enable WAL mode for better concurrent read/write performance
     await this.db.execute('PRAGMA journal_mode = WAL;');
     // FULL synchronous ensures data survives device crashes during WAL checkpoints
@@ -333,14 +339,30 @@ class DatabaseServiceClass {
     // (fewer indexes than expected), which the next open would silently
     // accept. Atomic setup means we either have the full schema or
     // roll all the way back.
-    const statements = SCHEMA_SQL.split(';').filter(s => s.trim().length > 0);
-    const indexes = INDEX_SQL.split(';').filter(s => s.trim().length > 0);
+    // 2026-05-01 hardening: use the shared splitter (strips leading
+    // `--` comments per chunk) and wrap each execute with chunk
+    // diagnostics, so the next "incomplete input" / parse-error in the
+    // wild names the exact statement (chunk index + first 200 chars)
+    // instead of a bare op-sqlite message. Static analysis of the
+    // current schema is clean, but this defends against future
+    // template-literal whitespace edge cases and gives field debugging
+    // a fighting chance.
+    const statements = DatabaseServiceClass.splitSqlStatements(SCHEMA_SQL);
+    const indexes = DatabaseServiceClass.splitSqlStatements(INDEX_SQL);
     await this.db.transaction(async tx => {
-      for (const statement of statements) {
-        await tx.execute(statement + ';');
+      for (let i = 0; i < statements.length; i++) {
+        await DatabaseServiceClass.executeWithDiagnostics(
+          tx,
+          statements[i],
+          `SCHEMA_SQL[${i}]`,
+        );
       }
-      for (const index of indexes) {
-        await tx.execute(index + ';');
+      for (let i = 0; i < indexes.length; i++) {
+        await DatabaseServiceClass.executeWithDiagnostics(
+          tx,
+          indexes[i],
+          `INDEX_SQL[${i}]`,
+        );
       }
     });
 
@@ -429,14 +451,18 @@ class DatabaseServiceClass {
         'DatabaseService',
         `Running migration v${migration.version}: ${migration.description}`,
       );
-      const migrationStatements = migration.sql
-        .split(';')
-        .filter(s => s.trim().length > 0);
+      const migrationStatements = DatabaseServiceClass.splitSqlStatements(
+        migration.sql,
+      );
       // op-sqlite's transaction helper handles BEGIN/COMMIT/ROLLBACK
       // automatically — throwing from the callback rolls back.
       await this.db.transaction(async tx => {
-        for (const stmt of migrationStatements) {
-          await tx.execute(stmt + ';');
+        for (let i = 0; i < migrationStatements.length; i++) {
+          await DatabaseServiceClass.executeWithDiagnostics(
+            tx,
+            migrationStatements[i],
+            `migration[v${migration.version}][${i}]`,
+          );
         }
         await tx.execute(`PRAGMA user_version = ${migration.version};`);
       });
@@ -524,6 +550,40 @@ class DatabaseServiceClass {
   }
 
   /**
+   * Reclaim free pages from the DB file. F-MD5 (audit 2026-04-28).
+   *
+   * Call after a bulk delete (e.g. DataCleanupService.manualCleanup) to
+   * shrink the DB file. Behavior:
+   *   - If auto_vacuum is INCREMENTAL (mode 2), runs `PRAGMA
+   *     incremental_vacuum(pages)` which is fast and non-blocking.
+   *   - Otherwise, runs a full `VACUUM` once to also flip the mode for
+   *     subsequent calls. On a 200MB DB this can take several seconds,
+   *     so only invoke from idle paths (cleanup tick, not request path).
+   */
+  async runIncrementalVacuum(pages: number = 1000): Promise<void> {
+    const db = this.getDb();
+    const result = await db.execute('PRAGMA auto_vacuum;');
+    const mode = (result.rows[0]?.auto_vacuum as number | undefined) ?? 0;
+    if (mode === 2) {
+      await db.execute(`PRAGMA incremental_vacuum(${pages});`);
+    } else {
+      // First-run convergence: full VACUUM both reclaims free space and
+      // applies the auto_vacuum mode set in openAndSetup.
+      await db.execute('VACUUM;');
+    }
+    // F-MD4 (audit 2026-04-28 deeper): refresh planner statistics. At
+    // 45-day accumulation (~22K sync_queue rows, ~6.7K attachments per
+    // active agent) outdated stats cause the planner to pick wrong
+    // indexes. ANALYZE is fast on this scale (sub-second) and the
+    // post-cleanup tick is the right idle window for it.
+    try {
+      await db.execute('ANALYZE;');
+    } catch (analyzeErr) {
+      Logger.warn('DatabaseService', 'ANALYZE failed (non-fatal)', analyzeErr);
+    }
+  }
+
+  /**
    * Close the database connection
    */
   async close(): Promise<void> {
@@ -549,6 +609,70 @@ class DatabaseServiceClass {
    */
   private static isValidEncryptionKey(key: string): boolean {
     return /^[A-Fa-f0-9]{64}$/.test(key);
+  }
+
+  /**
+   * Split a multi-statement SQL string by `;` and prepare each chunk
+   * for op-sqlite. Each chunk:
+   *   - has leading `--` line comments stripped (defensive against the
+   *     "incomplete input" error class on devices that surfaced parse
+   *     errors when a chunk reduced to comment-only after split)
+   *   - has surrounding whitespace trimmed
+   *   - has a single trailing `;` re-appended
+   * Empty chunks (whitespace + comment only) are filtered out.
+   *
+   * NOTE: this does NOT respect string-literal `;` or trigger BEGIN/END
+   * blocks. Our schema deliberately avoids both. If a future migration
+   * introduces a trigger, switch that migration to a sqlite3-aware
+   * statement walker (e.g. op-sqlite's prepareStatement loop).
+   */
+  private static splitSqlStatements(sql: string): string[] {
+    return sql
+      .split(';')
+      .map(chunk => DatabaseServiceClass.stripLeadingLineComments(chunk).trim())
+      .filter(chunk => chunk.length > 0)
+      .map(chunk => chunk + ';');
+  }
+
+  private static stripLeadingLineComments(chunk: string): string {
+    // Repeatedly strip leading whitespace + `-- ...` lines until the
+    // first non-comment, non-whitespace token appears.
+    let i = 0;
+    while (i < chunk.length) {
+      // Skip whitespace
+      while (i < chunk.length && /\s/.test(chunk[i])) {
+        i++;
+      }
+      if (chunk[i] === '-' && chunk[i + 1] === '-') {
+        // Skip to end of line
+        while (i < chunk.length && chunk[i] !== '\n') {
+          i++;
+        }
+      } else {
+        break;
+      }
+    }
+    return chunk.slice(i);
+  }
+
+  private static async executeWithDiagnostics(
+    tx: Transaction,
+    sql: string,
+    context: string,
+  ): Promise<void> {
+    try {
+      await tx.execute(sql);
+    } catch (error) {
+      const preview = sql.length > 200 ? sql.slice(0, 200) + '…' : sql;
+      const message = error instanceof Error ? error.message : String(error);
+      // Re-throw with the chunk context preserved. Logger.error here
+      // is intentionally NOT used (the transaction is about to roll
+      // back; the outer initialize() catch + RemoteLogService drain
+      // will surface the enriched message into telemetry).
+      throw new Error(
+        `SQL setup failed at ${context}: ${message} | sql: ${preview}`,
+      );
+    }
   }
 
   /** Whitelist of known table names to prevent SQL injection via dynamic table refs */

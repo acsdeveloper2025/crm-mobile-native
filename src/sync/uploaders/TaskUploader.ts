@@ -16,10 +16,32 @@ const isAlreadyDoneError = (err: unknown): boolean => {
   return status === 409;
 };
 
+// 2026-05-01 retention v2: pre-upload existence guard. If the local
+// task row was cleanup-deleted (45-day tier-2) between enqueue and
+// dequeue, hitting the API for that ghost ID just generates a 4xx
+// DLQ entry with no real recovery. Treat the queue row as done.
+const taskRowExists = async (taskId: string | null): Promise<boolean> => {
+  if (!taskId) return true; // nothing to guard against
+  const rows = await SyncEngineRepository.query<{ id: string }>(
+    'SELECT id FROM tasks WHERE id = ? LIMIT 1',
+    [taskId],
+  );
+  return rows.length > 0;
+};
+
 class TaskUploaderClass {
   async uploadTaskUpdate(operation: SyncOperation): Promise<SyncUploadResult> {
     const payload = operation.payload;
     const action = String(payload.action || '').toLowerCase();
+    const localTaskId =
+      typeof payload.localTaskId === 'string' ? payload.localTaskId : null;
+    if (localTaskId && !(await taskRowExists(localTaskId))) {
+      Logger.info(
+        TAG,
+        `Task row ${localTaskId} cleanup-deleted; dropping sync_queue item`,
+      );
+      return { outcome: 'SUCCESS' };
+    }
     let response: { success: boolean } | null = null;
 
     try {
@@ -79,6 +101,13 @@ class TaskUploaderClass {
     const status = String(payload.status || payload.action || '').toUpperCase();
     const localTaskId =
       typeof payload.localTaskId === 'string' ? payload.localTaskId : null;
+    if (localTaskId && !(await taskRowExists(localTaskId))) {
+      Logger.info(
+        TAG,
+        `Task row ${localTaskId} cleanup-deleted; dropping sync_queue item`,
+      );
+      return { outcome: 'SUCCESS' };
+    }
     const now = new Date().toISOString();
     let response: { success: boolean } | null = null;
 

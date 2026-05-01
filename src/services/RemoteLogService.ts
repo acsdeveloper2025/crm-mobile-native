@@ -14,19 +14,32 @@
 // telemetry receiver) and a logger that throws from its own drain
 // is worse than a silent drop.
 
+import RNFS from 'react-native-fs';
 import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import { Logger, type LogBufferEntry } from '../utils/logger';
 
 const TAG = 'RemoteLogService';
 
+// F-MD11 (audit 2026-04-28 deeper): degraded-state thresholds. When
+// any one is breached, fire an automatic log upload so the support
+// team has context before the agent submits a ticket.
+const QUEUE_DEPTH_TRIGGER = 100;
+const FREE_STORAGE_TRIGGER_BYTES = 200 * 1024 * 1024; // 200 MB
+// 6 h cooldown between auto-uploads. Prevents the same degraded state
+// (e.g. a stuck queue) from spamming the telemetry endpoint every tick.
+const AUTO_UPLOAD_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+
 export interface RemoteLogPayload {
-  source: 'crash' | 'user' | 'manual';
+  source: 'crash' | 'user' | 'manual' | 'auto_degraded';
   entries: LogBufferEntry[];
   capturedAt: string;
+  reason?: string;
 }
 
 class RemoteLogServiceClass {
+  private lastAutoUploadAt = 0;
+
   /**
    * Upload the most recent `count` log entries (default 100)
    * filtered to `minLevel` and above. Non-blocking — errors are
@@ -36,6 +49,7 @@ class RemoteLogServiceClass {
     source: RemoteLogPayload['source'];
     count?: number;
     minLevel?: Parameters<typeof Logger.getRecentLogs>[1];
+    reason?: string;
   }): Promise<boolean> {
     const count = options.count ?? 100;
     const minLevel = options.minLevel ?? 'DEBUG';
@@ -49,6 +63,7 @@ class RemoteLogServiceClass {
       source: options.source,
       entries,
       capturedAt: new Date().toISOString(),
+      reason: options.reason,
     };
 
     try {
@@ -70,6 +85,44 @@ class RemoteLogServiceClass {
       console.warn(`[${TAG}] upload failed`);
       return false;
     }
+  }
+
+  /**
+   * F-MD11 (audit 2026-04-28 deeper): inspect runtime state and trigger
+   * an upload if any degraded threshold is breached. Caller (background
+   * sync tick, app foreground, periodic timer) does not need to know
+   * the thresholds — it just calls this. Cooldown prevents spam from
+   * a sustained degradation.
+   *
+   * `queueDepth` is provided by the caller (sync engine) to avoid a
+   * circular DatabaseService dependency from this service. Pass `null`
+   * if the caller doesn't have it; only the storage check runs.
+   */
+  async checkDegradedAndUpload(queueDepth: number | null): Promise<void> {
+    const now = Date.now();
+    if (now - this.lastAutoUploadAt < AUTO_UPLOAD_COOLDOWN_MS) {
+      return;
+    }
+    const reasons: string[] = [];
+    if (queueDepth !== null && queueDepth > QUEUE_DEPTH_TRIGGER) {
+      reasons.push(`queue_depth=${queueDepth}`);
+    }
+    try {
+      const fs = await RNFS.getFSInfo();
+      if (fs.freeSpace < FREE_STORAGE_TRIGGER_BYTES) {
+        reasons.push(`free_space=${Math.round(fs.freeSpace / 1024 / 1024)}MB`);
+      }
+    } catch {
+      // FS probe failure is non-fatal; just skip the storage signal.
+    }
+    if (reasons.length === 0) {
+      return;
+    }
+    this.lastAutoUploadAt = now;
+    await this.upload({
+      source: 'auto_degraded',
+      reason: reasons.join(','),
+    });
   }
 }
 

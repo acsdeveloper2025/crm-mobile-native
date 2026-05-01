@@ -34,6 +34,10 @@ class LocationServiceClass {
   private lastLocation: LocationResult | null = null;
   private adaptiveTimerId: ReturnType<typeof setInterval> | null = null;
   private currentIntervalMs = MOVING_INTERVAL_MS;
+  // F-MD9 (audit 2026-04-28 deeper): high-accuracy GPS burns 5-10%
+  // battery/hour. Tracking defaults to coarse; capture sites flip via
+  // setHighAccuracyMode(true) for the duration of an active capture.
+  private highAccuracyMode = false;
 
   /**
    * Request location permissions for both platforms
@@ -212,13 +216,19 @@ class LocationServiceClass {
    * - 120s interval when stationary
    * - 100m distance filter to reduce unnecessary GPS wake-ups
    */
-  startTracking(intervalMs: number = MOVING_INTERVAL_MS): void {
+  startTracking(
+    intervalMs: number = MOVING_INTERVAL_MS,
+    options: { enableHighAccuracy?: boolean } = {},
+  ): void {
     if (this.watchId !== null) {
       Logger.warn(TAG, 'Already tracking');
       return;
     }
 
     this.currentIntervalMs = intervalMs;
+    // Default to coarse accuracy for sustained tracking. Capture sites
+    // call setHighAccuracyMode(true) when fine accuracy is required.
+    this.highAccuracyMode = options.enableHighAccuracy ?? false;
 
     // Use watchPosition with larger distance filter for movement-based updates
     this.watchId = Geolocation.watchPosition(
@@ -272,7 +282,7 @@ class LocationServiceClass {
         Logger.error(TAG, 'Tracking error', error);
       },
       {
-        enableHighAccuracy: true,
+        enableHighAccuracy: this.highAccuracyMode,
         distanceFilter: DISTANCE_FILTER_METERS,
         interval: this.currentIntervalMs,
         fastestInterval: MOVING_INTERVAL_MS / 2,
@@ -296,6 +306,27 @@ class LocationServiceClass {
   }
 
   /**
+   * F-MD9 (audit 2026-04-28 deeper): toggle high-accuracy mode for the
+   * active watchPosition. When enabled, re-issues the watch with
+   * `enableHighAccuracy: true` (~5-10% battery/hr). Call before camera
+   * capture / form fill, then clear after.
+   */
+  setHighAccuracyMode(enable: boolean): void {
+    if (this.highAccuracyMode === enable) {
+      return;
+    }
+    this.highAccuracyMode = enable;
+    if (this.watchId === null) {
+      return;
+    }
+    // Re-watch with the new accuracy. watchPosition options are bound
+    // at start time — only way to change is clearWatch + watchPosition.
+    Geolocation.clearWatch(this.watchId);
+    this.watchId = null;
+    this.startTracking(this.currentIntervalMs, { enableHighAccuracy: enable });
+  }
+
+  /**
    * Stop continuous location tracking and clean up adaptive timer
    */
   stopTracking(): void {
@@ -309,6 +340,7 @@ class LocationServiceClass {
     }
     this.lastLocation = null;
     this.currentIntervalMs = MOVING_INTERVAL_MS;
+    this.highAccuracyMode = false;
     Logger.info(TAG, 'Location tracking stopped');
   }
 
