@@ -297,10 +297,21 @@ class DatabaseServiceClass {
     // happens on the first query, which is why the sanity-SELECT below
     // is critical for catching a wrong-key pairing (or a leftover
     // plaintext DB from v1.0.4) at init time rather than deep into boot.
-    this.db = open({
+    //
+    // 2026-05-01 v1.0.28 fix: op-sqlite v15+ rejects `encryptionKey:
+    // undefined` at the native bridge ("Value is undefined, expected a
+    // String") rather than treating undefined as "no key". Omit the
+    // field entirely when no key is configured (dev builds without
+    // Keychain) so the native bridge sees a missing-property and falls
+    // through to the unencrypted path, instead of seeing
+    // explicit-undefined and rejecting.
+    const openOpts: { name: string; encryptionKey?: string } = {
       name: config.dbName,
-      encryptionKey: encryptionKey ?? undefined,
-    });
+    };
+    if (encryptionKey) {
+      openOpts.encryptionKey = encryptionKey;
+    }
+    this.db = open(openOpts);
 
     // Touch the schema page now. A wrong key or a legacy plaintext file
     // surfaces here as "file is not a database" / SQLITE_NOTADB, which
@@ -612,26 +623,101 @@ class DatabaseServiceClass {
   }
 
   /**
-   * Split a multi-statement SQL string by `;` and prepare each chunk
-   * for op-sqlite. Each chunk:
-   *   - has leading `--` line comments stripped (defensive against the
-   *     "incomplete input" error class on devices that surfaced parse
-   *     errors when a chunk reduced to comment-only after split)
-   *   - has surrounding whitespace trimmed
-   *   - has a single trailing `;` re-appended
-   * Empty chunks (whitespace + comment only) are filtered out.
+   * Split a multi-statement SQL string into individual statements.
    *
-   * NOTE: this does NOT respect string-literal `;` or trigger BEGIN/END
-   * blocks. Our schema deliberately avoids both. If a future migration
-   * introduces a trigger, switch that migration to a sqlite3-aware
-   * statement walker (e.g. op-sqlite's prepareStatement loop).
+   * 2026-05-01 v1.0.27 hotfix: the prior implementation used a naive
+   * `.split(';')` which matched semicolons inside `--` line comments
+   * and `'...'` string literals. The attachments CREATE TABLE has an
+   * inline comment "...Sent in upload metadata; backend stores..."
+   * whose `;` truncated chunk[1] mid-comment, causing op-sqlite to
+   * see a CREATE TABLE missing its closing `)` and throw "incomplete
+   * input" at every cold app launch.
+   *
+   * This walker is a tiny SQL tokenizer:
+   *   - inside `--` line comments → skip until `\n`
+   *   - inside `'...'` string literals (with `''` escape) → skip
+   *     until matching close quote
+   *   - inside `"..."` quoted identifiers → skip until matching close
+   *   - otherwise treat `;` as a real statement terminator
+   * Each emitted statement has leading whitespace + `--` comments
+   * stripped and a single trailing `;` appended.
    */
   private static splitSqlStatements(sql: string): string[] {
-    return sql
-      .split(';')
-      .map(chunk => DatabaseServiceClass.stripLeadingLineComments(chunk).trim())
-      .filter(chunk => chunk.length > 0)
-      .map(chunk => chunk + ';');
+    const stmts: string[] = [];
+    let buf = '';
+    let i = 0;
+    const n = sql.length;
+    while (i < n) {
+      const c = sql[i];
+      const next = sql[i + 1];
+      // -- line comment: copy through to end of line (or EOF)
+      if (c === '-' && next === '-') {
+        while (i < n && sql[i] !== '\n') {
+          buf += sql[i];
+          i++;
+        }
+        continue;
+      }
+      // '...' string literal (handles '' escape)
+      if (c === "'") {
+        buf += c;
+        i++;
+        while (i < n) {
+          if (sql[i] === "'" && sql[i + 1] === "'") {
+            buf += "''";
+            i += 2;
+            continue;
+          }
+          if (sql[i] === "'") {
+            buf += "'";
+            i++;
+            break;
+          }
+          buf += sql[i];
+          i++;
+        }
+        continue;
+      }
+      // "..." quoted identifier (handles "" escape)
+      if (c === '"') {
+        buf += c;
+        i++;
+        while (i < n) {
+          if (sql[i] === '"' && sql[i + 1] === '"') {
+            buf += '""';
+            i += 2;
+            continue;
+          }
+          if (sql[i] === '"') {
+            buf += '"';
+            i++;
+            break;
+          }
+          buf += sql[i];
+          i++;
+        }
+        continue;
+      }
+      // Real statement terminator
+      if (c === ';') {
+        const cleaned =
+          DatabaseServiceClass.stripLeadingLineComments(buf).trim();
+        if (cleaned.length > 0) {
+          stmts.push(cleaned + ';');
+        }
+        buf = '';
+        i++;
+        continue;
+      }
+      buf += c;
+      i++;
+    }
+    // Trailing chunk (no terminating `;` at end of file)
+    const cleaned = DatabaseServiceClass.stripLeadingLineComments(buf).trim();
+    if (cleaned.length > 0) {
+      stmts.push(cleaned + ';');
+    }
+    return stmts;
   }
 
   private static stripLeadingLineComments(chunk: string): string {
