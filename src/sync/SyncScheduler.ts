@@ -1,5 +1,6 @@
 import { NetworkService } from '../services/NetworkService';
 import { Logger } from '../utils/logger';
+import { applyJitter } from '../utils/syncJitter';
 
 const TAG = 'SyncScheduler';
 
@@ -15,17 +16,21 @@ class SyncScheduler {
     this.networkChangeUnsubscribe = NetworkService.onNetworkChange(isOnline => {
       if (isOnline) {
         Logger.info(TAG, 'Network restored - triggering sync');
-        runSync().catch(error => {
-          Logger.warn(TAG, 'Failed to run sync on network restore', error);
-        });
+        applyJitter()
+          .then(() => runSync())
+          .catch(error => {
+            Logger.warn(TAG, 'Failed to run sync on network restore', error);
+          });
       }
     });
 
     this.syncTimer = setInterval(() => {
       if (NetworkService.getIsOnline()) {
-        runSync().catch(error => {
-          Logger.warn(TAG, 'Periodic sync tick failed', error);
-        });
+        applyJitter()
+          .then(() => runSync())
+          .catch(error => {
+            Logger.warn(TAG, 'Periodic sync tick failed', error);
+          });
       }
     }, intervalMs);
 

@@ -10,6 +10,12 @@ import { Logger } from '../utils/logger';
 const TAG = 'NetworkService';
 
 type NetworkChangeCallback = (isOnline: boolean) => void;
+type CaptivePortalCallback = () => void;
+
+// F-MD7 (audit 2026-04-28 deeper): NetInfo cellular generations that
+// agents in rural India still encounter. 2g/3g warrant a "slow network"
+// UI warning — a 1MB photo upload over 2G EDGE takes ~20s.
+type CellularGeneration = '2g' | '3g' | '4g' | '5g' | undefined;
 
 // Debounce network state changes to prevent rapid sync triggers
 // from WiFi/cellular handoffs (common on field devices)
@@ -27,7 +33,9 @@ class NetworkServiceClass {
   private isOnline = false;
   private hasObservedNetworkState = false;
   private connectionType: string = 'unknown';
+  private cellularGeneration: CellularGeneration;
   private subscribers: NetworkChangeCallback[] = [];
+  private captivePortalSubscribers: CaptivePortalCallback[] = [];
   private unsubscribeNetInfo: NetInfoSubscription | null = null;
   private netInfoUnavailable = false;
   private debounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -80,6 +88,8 @@ class NetworkServiceClass {
             normalizedState.isConnected === true &&
             normalizedState.isInternetReachable !== false;
           this.connectionType = normalizedState.type;
+          this.cellularGeneration =
+            NetworkServiceClass.extractCellularGeneration(normalizedState);
 
           if (wasOnline !== this.isOnline) {
             Logger.info(
@@ -130,6 +140,62 @@ class NetworkServiceClass {
       return 'OFFLINE';
     }
     return this.connectionType === 'wifi' ? 'WIFI' : 'CELLULAR';
+  }
+
+  /**
+   * F-MD7 (audit 2026-04-28 deeper): cellular generation, used by UI
+   * to warn agents on 2G/3G that uploads will be slow.
+   */
+  getCellularGeneration(): CellularGeneration {
+    return this.cellularGeneration;
+  }
+
+  /**
+   * F-MD7: returns true on cellular 2G/3G. UI surfaces a "slow network,
+   * uploads may take several minutes" banner; sync queue can use it
+   * to defer non-critical pushes.
+   */
+  isLowBandwidth(): boolean {
+    return this.cellularGeneration === '2g' || this.cellularGeneration === '3g';
+  }
+
+  private static extractCellularGeneration(
+    state: NetInfoState,
+  ): CellularGeneration {
+    if (state.type !== 'cellular') {
+      return undefined;
+    }
+    const details = state.details as { cellularGeneration?: string } | null;
+    const gen = details?.cellularGeneration;
+    if (gen === '2g' || gen === '3g' || gen === '4g' || gen === '5g') {
+      return gen;
+    }
+    return undefined;
+  }
+
+  /**
+   * F-MD7: subscribe to captive-portal detection events. ApiClient
+   * notifies via `notifyCaptivePortal()` when a /api/* response returns
+   * `text/html` (Wi-Fi sign-in page intercepting the call).
+   */
+  onCaptivePortal(callback: CaptivePortalCallback): () => void {
+    this.captivePortalSubscribers.push(callback);
+    return () => {
+      this.captivePortalSubscribers = this.captivePortalSubscribers.filter(
+        sub => sub !== callback,
+      );
+    };
+  }
+
+  notifyCaptivePortal(): void {
+    Logger.warn(TAG, 'Captive portal detected (HTML response on /api/*)');
+    this.captivePortalSubscribers.forEach(cb => {
+      try {
+        cb();
+      } catch (error) {
+        Logger.error(TAG, 'Captive portal subscriber callback error', error);
+      }
+    });
   }
 
   /**

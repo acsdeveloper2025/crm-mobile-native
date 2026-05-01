@@ -583,4 +583,23 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE attachments ADD COLUMN client_sha256 TEXT;
     `,
   },
+  {
+    version: 14,
+    description:
+      'F2.7.1: local mirror of verification_type_outcomes lookup table. Hydrated by SyncDownloadService from /api/verification-type-outcomes. Used by LegacyFormTemplateBuilders + VerificationFormScreen for per-type valid outcomes.',
+    sql: `
+      CREATE TABLE IF NOT EXISTS verification_type_outcomes (
+        id INTEGER PRIMARY KEY,
+        verification_type_id INTEGER NOT NULL,
+        verification_type_code TEXT NOT NULL,
+        outcome_code TEXT NOT NULL,
+        display_label TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        synced_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_vto_type_code
+        ON verification_type_outcomes(verification_type_code, sort_order);
+    `,
+  },
 ];

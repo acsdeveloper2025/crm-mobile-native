@@ -33,8 +33,10 @@ export interface UserProfile {
   email: string;
   role: string;
   employeeId: string;
-  designation: string;
-  department: string;
+  // 2026-04-28 F1.1.2: nullable — derived from designations FK on backend.
+  designation: string | null;
+  // 2026-04-28 F1.1.3: nullable — derived from departments FK on backend.
+  department: string | null;
   profilePhotoUrl?: string;
   assignedPincodes?: number[];
   assignedAreas?: number[];

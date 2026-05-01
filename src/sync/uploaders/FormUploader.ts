@@ -134,6 +134,23 @@ class FormUploaderClass {
     const localTaskId =
       typeof payload.localTaskId === 'string' ? payload.localTaskId : null;
 
+    // 2026-05-01 retention v2: pre-upload existence guard. If the
+    // form_submissions row was cascade-deleted by tier-2 task cleanup
+    // between enqueue and dequeue, the queue item points at a ghost
+    // entity. Drop it cleanly; the user-visible work the form
+    // represented is already gone with its parent task.
+    const formExists = await SyncEngineRepository.query<{ id: string }>(
+      'SELECT id FROM form_submissions WHERE id = ? LIMIT 1',
+      [operation.entityId],
+    );
+    if (formExists.length === 0) {
+      Logger.info(
+        TAG,
+        `form_submission ${operation.entityId} cleanup-deleted; dropping sync_queue item`,
+      );
+      return { outcome: 'SUCCESS' };
+    }
+
     if (localTaskId) {
       // Track defer count to prevent infinite blocking when photos permanently fail
       const deferCount =

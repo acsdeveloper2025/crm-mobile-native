@@ -13,8 +13,10 @@ on:
         required: true
         type: string
 
+# 2026-05-01 pre-AWS hardening: minimum default; only publish-release
+# job overrides to `contents: write` to create the GitHub release.
 permissions:
-  contents: write
+  contents: read
 
 env:
   RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
@@ -213,6 +215,17 @@ jobs:
             release-artifacts/crm-mobile-native-v${{ needs.detect.outputs.version_name }}.apk
             release-artifacts/crm-mobile-native-v${{ needs.detect.outputs.version_name }}.apk.sha256
 
+      # 2026-05-01 pre-AWS hardening: scrub signing material + Firebase
+      # config from the runner workspace. Runners are ephemeral so this
+      # is defense-in-depth — protects against any future step that
+      # accidentally uploads working dir as artifact.
+      - name: Scrub signing material
+        if: always()
+        run: |
+          rm -f android/keystore.properties
+          rm -f android/app/release.keystore
+          rm -f android/app/google-services.json
+
   build-aab:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
@@ -301,8 +314,18 @@ jobs:
             release-artifacts/crm-mobile-native-v${{ needs.detect.outputs.version_name }}.aab
             release-artifacts/crm-mobile-native-v${{ needs.detect.outputs.version_name }}.aab.sha256
 
+      # 2026-05-01 pre-AWS hardening: same scrub as build-apk above.
+      - name: Scrub signing material
+        if: always()
+        run: |
+          rm -f android/keystore.properties
+          rm -f android/app/release.keystore
+          rm -f android/app/google-services.json
+
   publish-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # only this job creates GH releases
     if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
     needs:
       - detect

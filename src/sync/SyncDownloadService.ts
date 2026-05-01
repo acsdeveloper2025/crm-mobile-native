@@ -7,6 +7,11 @@ import { config } from '../config';
 import { DatabaseService } from '../database/DatabaseService';
 import { ProjectionUpdater } from '../projections/ProjectionUpdater';
 import { SyncEngineRepository } from '../repositories/SyncEngineRepository';
+import {
+  VerificationTypeOutcomesRepository,
+  type VerificationTypeOutcomeRow,
+} from '../repositories/VerificationTypeOutcomesRepository';
+import { DataCleanupService } from '../services/DataCleanupService';
 import { notificationService } from '../services/NotificationService';
 import { Logger } from '../utils/logger';
 import { syncConflictResolver } from './SyncConflictResolver';
@@ -63,12 +68,26 @@ class SyncDownloadServiceClass {
           endpoint: 'GET /sync/download',
         });
 
+        // 2026-05-01 retention v2 anti-flap: skip re-hydrating tasks
+        // that local cleanup recently purged. Without this, a task we
+        // deleted at 45d gets re-pushed by backend on the next sync
+        // cycle (backend has its own retention) and the cleanup never
+        // takes effect. Window is 30 days (CLEANED_TASK_TTL_MS in
+        // DataCleanupService).
+        const recentlyCleaned = new Set(
+          await DataCleanupService.listRecentlyCleanedTaskIds(),
+        );
+
         for (const task of payload.cases) {
           const canonicalTaskId = (
             task.verificationTaskId ||
             task.id ||
             ''
           ).trim();
+          if (canonicalTaskId && recentlyCleaned.has(canonicalTaskId)) {
+            // Skip — local cleanup purged this within the TTL window.
+            continue;
+          }
           const existingRows = canonicalTaskId
             ? await SyncEngineRepository.query<{ id: string }>(
                 'SELECT id FROM tasks WHERE id = ? LIMIT 1',
@@ -148,6 +167,20 @@ class SyncDownloadServiceClass {
         [latestSyncTimestamp],
       );
 
+      // F2.7.1: refresh local verification_type_outcomes mirror.
+      // Non-fatal — if this fails (e.g. server hiccup), keep the previous
+      // local rows; LegacyFormTemplateBuilders will fall back to embedded
+      // defaults if the table is empty (e.g. fresh install offline).
+      try {
+        await this.refreshVerificationTypeOutcomes();
+      } catch (refErr) {
+        Logger.warn(
+          TAG,
+          'Reference data refresh failed (verification_type_outcomes); using last-synced rows',
+          refErr,
+        );
+      }
+
       await ProjectionUpdater.rebuildDashboard();
 
       return { tasksDownloaded, conflicts, errors };
@@ -173,6 +206,38 @@ class SyncDownloadServiceClass {
         Logger.error(TAG, 'Failed to clear sync_in_progress flag', flagError);
       }
     }
+  }
+
+  /**
+   * F2.7.1: fetch verification_type_outcomes from backend and replace the
+   * local mirror atomically. Called once per successful download cycle.
+   * Endpoint shape: { success: boolean, data: VerificationTypeOutcomeRow[] }.
+   */
+  private async refreshVerificationTypeOutcomes(): Promise<void> {
+    const response = await ApiClient.get<{
+      success: boolean;
+      data?: VerificationTypeOutcomeRow[];
+    }>(ENDPOINTS.REFERENCE.VERIFICATION_TYPE_OUTCOMES);
+    if (!response.success || !Array.isArray(response.data)) {
+      throw new Error('Invalid verification-type-outcomes response');
+    }
+    await VerificationTypeOutcomesRepository.replaceAll(response.data);
+    // Push into the in-memory cache used by LegacyFormTemplateBuilders
+    // so the dropdown reflects synced data without an app reboot.
+    const { setOutcomesFromSync } = await import(
+      '../screens/forms/LegacyFormTemplateBuilders'
+    );
+    setOutcomesFromSync(
+      response.data.map(r => ({
+        verificationTypeCode: r.verificationTypeCode,
+        outcomeCode: r.outcomeCode,
+        displayLabel: r.displayLabel,
+        sortOrder: r.sortOrder,
+      })),
+    );
+    Logger.info(TAG, 'verification_type_outcomes mirror refreshed', {
+      count: response.data.length,
+    });
   }
 
   /**

@@ -20,6 +20,7 @@ import { config } from '../config';
 import { Logger } from '../utils/logger';
 import { SessionStore } from '../services/SessionStore';
 import { TimeService } from '../services/TimeService';
+import { NetworkService } from '../services/NetworkService';
 import { buildTraceparent } from './tracing';
 
 type RefreshHandler = () => Promise<string | null>;
@@ -123,6 +124,26 @@ class ApiClientClass {
         );
         if (serverMs != null) {
           TimeService.recordServerTime(serverMs);
+        }
+        // F-MD7 (audit 2026-04-28 deeper): captive-portal detection.
+        // /api/* responses MUST be JSON. A `text/html` content-type
+        // means a Wi-Fi captive portal intercepted the call and
+        // returned a sign-in page; the response body parses as junk
+        // and breaks every downstream consumer. Notify NetworkService
+        // subscribers so the UI can surface "open browser to sign in
+        // to Wi-Fi" instead of a generic parse error.
+        const contentType =
+          (headers as Record<string, unknown>)['content-type'] ??
+          (headers as Record<string, unknown>)['Content-Type'];
+        const ctValue = Array.isArray(contentType)
+          ? contentType[0]
+          : contentType;
+        if (
+          typeof ctValue === 'string' &&
+          ctValue.toLowerCase().startsWith('text/html') &&
+          (response.config?.url || '').includes('/api/')
+        ) {
+          NetworkService.notifyCaptivePortal();
         }
         return response;
       },

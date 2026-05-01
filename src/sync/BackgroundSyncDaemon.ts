@@ -5,8 +5,10 @@ import {
   Platform,
 } from 'react-native';
 import { NetworkService } from '../services/NetworkService';
+import { RemoteLogService } from '../services/RemoteLogService';
 import { MobileTelemetryService } from '../telemetry/MobileTelemetryService';
 import { Logger } from '../utils/logger';
+import { applyJitter } from '../utils/syncJitter';
 import SyncEngine from './SyncEngine';
 
 const TAG = 'BackgroundSyncDaemon';
@@ -67,6 +69,24 @@ class BackgroundSyncDaemonClass {
         status.pendingItems,
         'background_tick',
       );
+      // F-MD3: also report DLQ depth for fleet-aggregate alerting.
+      try {
+        const { SyncQueueRepository } = await import(
+          '../repositories/SyncQueueRepository'
+        );
+        const dlqCount = await SyncQueueRepository.getDeadLetterCount();
+        MobileTelemetryService.trackDeadLetterDepth(
+          dlqCount,
+          'background_tick',
+        );
+      } catch {
+        /* DLQ probe is best-effort */
+      }
+      // F-MD11: opportunistic degraded-state log shipping. Non-fatal,
+      // cooldown-throttled inside RemoteLogService.
+      RemoteLogService.checkDegradedAndUpload(status.pendingItems).catch(() => {
+        /* never let telemetry errors kill the sync tick */
+      });
       if (status.pendingItems <= 0 || SyncEngine.isSyncing()) {
         MobileTelemetryService.trackBackgroundSyncStat(
           'background_tick_skipped',
@@ -78,6 +98,7 @@ class BackgroundSyncDaemonClass {
         );
         return;
       }
+      await applyJitter();
       const result = await SyncEngine.performSync();
       MobileTelemetryService.trackBackgroundSyncStat(
         'background_sync_completed',

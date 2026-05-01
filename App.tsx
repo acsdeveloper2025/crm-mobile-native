@@ -236,6 +236,29 @@ function App(): React.JSX.Element {
             return SyncQueue.recoverExpiredLeases();
           })
           .then(() => Logger.info(TAG, 'Queue lease recovery completed'))
+          .then(async () => {
+            // F2.7.1: hydrate the in-memory outcomes cache from local
+            // SQLite (last-synced rows survive offline). Sync then refreshes
+            // it from server. Non-fatal — embedded fallback covers first
+            // install with no network.
+            try {
+              const { VerificationTypeOutcomesRepository } = await import(
+                './src/repositories/VerificationTypeOutcomesRepository'
+              );
+              const { setOutcomesFromSync } = await import(
+                './src/screens/forms/LegacyFormTemplateBuilders'
+              );
+              const rows = await VerificationTypeOutcomesRepository.listAll();
+              if (rows.length > 0) {
+                setOutcomesFromSync(rows);
+                Logger.info(TAG, 'Outcomes cache hydrated from local DB', {
+                  count: rows.length,
+                });
+              }
+            } catch (err) {
+              Logger.warn(TAG, 'Outcomes cache hydration failed', err);
+            }
+          })
           .catch(error =>
             Logger.warn(
               TAG,

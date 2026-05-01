@@ -416,6 +416,18 @@ class SyncQueueRepositoryClass {
   }
 
   /**
+   * F-MD3 (audit 2026-04-28 deeper): count of dead-lettered items, for
+   * fleet-aggregate telemetry. Backend can alert when aggregate DLQ
+   * across all agents crosses a threshold (e.g. 10K = systemic bug).
+   */
+  async getDeadLetterCount(): Promise<number> {
+    return DatabaseService.count(
+      'sync_queue',
+      "status = 'FAILED' AND attempts >= max_attempts",
+    );
+  }
+
+  /**
    * Dead-letter queue view: items that have hit their retry cap and will
    * no longer be picked up by listProcessible. The rows are preserved so
    * retryAllFailed() can recover them on explicit user action (C11,

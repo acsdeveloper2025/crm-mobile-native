@@ -34,6 +34,8 @@ import { CameraCaptureScreen } from '../components/media/CameraCaptureScreen';
 import { WatermarkPreviewScreen } from '../components/media/WatermarkPreviewScreen';
 import { VerificationFormScreen } from '../screens/forms/VerificationFormScreen';
 import { ForceUpdateScreen } from '../screens/auth/ForceUpdateScreen';
+import { PrivacyConsentScreen } from '../screens/auth/PrivacyConsentScreen';
+import { PrivacyConsentService } from '../services/PrivacyConsentService';
 import { SyncLogsScreen } from '../screens/main/SyncLogsScreen';
 import { DataCleanupScreen } from '../screens/main/DataCleanupScreen';
 import { VersionService, UpdateInfo } from '../services/VersionService';
@@ -316,6 +318,11 @@ export const RootNavigator = () => {
   const isNavigationReady = useRef(false);
 
   const [versionResult, setVersionResult] = useState<UpdateInfo | null>(null);
+  // F-MD12 (audit 2026-04-28 deeper): undefined = checking, true =
+  // accepted, false = needs consent. Re-checked on every login flip.
+  const [privacyConsented, setPrivacyConsented] = useState<boolean | null>(
+    null,
+  );
 
   // Handle push notification taps — navigate to TaskDetail when user taps a notification.
   //
@@ -401,6 +408,33 @@ export const RootNavigator = () => {
     };
   }, []);
 
+  // F-MD12: re-check privacy consent on every login flip. Cleared on
+  // logout so a different agent on the same device gets a fresh prompt
+  // when CURRENT_PRIVACY_POLICY_VERSION bumps.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setPrivacyConsented(null);
+      return;
+    }
+    let cancelled = false;
+    PrivacyConsentService.hasAcceptedCurrent()
+      .then(accepted => {
+        if (!cancelled) {
+          setPrivacyConsented(accepted);
+        }
+      })
+      .catch(err => {
+        Logger.warn('RootNavigator', 'privacy consent check failed', err);
+        if (!cancelled) {
+          // Fail-open: don't block the app on a KV read failure.
+          setPrivacyConsented(true);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated]);
+
   if (authLoading) {
     return (
       <View
@@ -433,6 +467,24 @@ export const RootNavigator = () => {
           />
         </Stack.Navigator>
       </NavigationContainer>
+    );
+  }
+
+  // F-MD12: privacy consent gate. After login, before main app, agents
+  // who have not yet accepted the current policy version see the
+  // consent screen. Stays in-place until accepted; declining means
+  // staying logged out (logout button is exposed via accept-or-cancel
+  // pattern only if needed — for now, accept is the only forward path).
+  if (isAuthenticated && privacyConsented === false) {
+    return (
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: theme.colors.background },
+        ]}
+      >
+        <PrivacyConsentScreen onAccepted={() => setPrivacyConsented(true)} />
+      </View>
     );
   }
 

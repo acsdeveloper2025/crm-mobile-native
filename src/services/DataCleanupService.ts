@@ -3,12 +3,29 @@ import RNFS from 'react-native-fs';
 import { KeyValueRepository } from '../repositories/KeyValueRepository';
 import { DataCleanupRepository } from '../repositories/DataCleanupRepository';
 import { ProjectionUpdater } from '../projections/ProjectionUpdater';
+import { DatabaseService } from '../database/DatabaseService';
 
 const TAG = 'DataCleanupService';
 const AUTO_CLEANUP_ENABLED_KEY = 'auto_cleanup_enabled';
 const LAST_CLEANUP_DATE_KEY = 'last_cleanup_date';
+const LAST_FILE_CLEANUP_DATE_KEY = 'last_file_cleanup_date';
 const RETENTION_DAYS = 45;
+// 2026-05-01 retention v2 tier-1: per-user request, photo/attachment
+// FILES (not DB rows) are reclaimed at 15 days. Backend is the
+// authoritative store; UI re-fetches from server when an old
+// attachment is opened. Applies to all attachment kinds — captured
+// photos, selfies, backend-pushed attachments. Mobile-only — never
+// touches backend DB or /uploads folder.
+const FILE_RETENTION_DAYS = 15;
 const ATTACHMENT_CACHE_DIR = `${RNFS.CachesDirectoryPath}/attachments`;
+
+// 2026-05-01 retention v2 tier-2 anti-flap: record cleaned task IDs in
+// KV with a 30-day TTL window. SyncDownloadService consults this list
+// before re-hydrating a task that backend still has assigned. Without
+// this guard, backend would re-push a freshly-cleaned task on the next
+// sync cycle, defeating the cleanup.
+const CLEANED_TASK_IDS_KEY = 'cleaned_task_ids_v1';
+const CLEANED_TASK_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 // H5 orphan-sweep follow-up (2026-04-21): paths mirror CameraService's
 // constants. Duplicated rather than imported to avoid pulling Camera
@@ -42,25 +59,161 @@ export class DataCleanupService {
   }
 
   /**
-   * Initialize auto-cleanup on app start
+   * Initialize auto-cleanup on app start. Runs both tiers once per day:
+   *   - tier 1 at 15d: blank attachment local files (DB rows kept)
+   *   - tier 2 at 45d: hard-delete tasks (hybrid 2C predicate)
    */
   static async initializeAutoCleanup(): Promise<void> {
     try {
       const isEnabled = await this.getConfig(AUTO_CLEANUP_ENABLED_KEY);
-      if (isEnabled === 'true') {
-        const lastCleanup = await this.getConfig(LAST_CLEANUP_DATE_KEY);
-        const today = new Date().toISOString().split('T')[0];
+      if (isEnabled !== 'true') {
+        return;
+      }
+      const today = new Date().toISOString().split('T')[0];
 
-        // Run once per day
-        if (lastCleanup !== today) {
-          Logger.info(TAG, 'Running scheduled auto-cleanup');
-          await this.manualCleanup();
-          await this.setConfig(LAST_CLEANUP_DATE_KEY, today);
-        }
+      // Tier 1: 15d file cleanup
+      const lastFileCleanup = await this.getConfig(LAST_FILE_CLEANUP_DATE_KEY);
+      if (lastFileCleanup !== today) {
+        Logger.info(TAG, 'Running scheduled tier-1 file cleanup');
+        await this.cleanupOldAttachmentFiles();
+        await this.setConfig(LAST_FILE_CLEANUP_DATE_KEY, today);
+      }
+
+      // Tier 2: 45d task cleanup
+      const lastCleanup = await this.getConfig(LAST_CLEANUP_DATE_KEY);
+      if (lastCleanup !== today) {
+        Logger.info(TAG, 'Running scheduled tier-2 task cleanup');
+        await this.manualCleanup();
+        await this.setConfig(LAST_CLEANUP_DATE_KEY, today);
       }
     } catch (e) {
       Logger.error(TAG, 'Failed to run auto-cleanup', e);
     }
+  }
+
+  /**
+   * 2026-05-01 retention v2 tier-1: at 15 days, reclaim disk space by
+   * unlinking the local FILE for attachments where the backend has the
+   * authoritative copy (sync_status = 'SYNCED' AND
+   * backend_attachment_id IS NOT NULL). The DB row stays so the UI can
+   * route reads to backend on demand. NEVER touches backend DB or
+   * /uploads folder — mobile-local filesystem only.
+   */
+  static async cleanupOldAttachmentFiles(
+    days: number = FILE_RETENTION_DAYS,
+  ): Promise<{
+    blankedRows: number;
+    deletedFiles: number;
+    reclaimedBytes: number;
+    errors: string[];
+  }> {
+    const out = {
+      blankedRows: 0,
+      deletedFiles: 0,
+      reclaimedBytes: 0,
+      errors: [] as string[],
+    };
+    try {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      const cutoffIso = cutoffDate.toISOString();
+      const candidates =
+        await DataCleanupRepository.listOldDispensableAttachments(cutoffIso);
+      if (candidates.length === 0) {
+        return out;
+      }
+      const blankedIds: string[] = [];
+      for (const att of candidates) {
+        try {
+          if (att.localPath && (await RNFS.exists(att.localPath))) {
+            const stat = await RNFS.stat(att.localPath);
+            await RNFS.unlink(att.localPath);
+            out.deletedFiles++;
+            out.reclaimedBytes += stat.size;
+          }
+          if (att.thumbnailPath && (await RNFS.exists(att.thumbnailPath))) {
+            await RNFS.unlink(att.thumbnailPath);
+            out.deletedFiles++;
+          }
+          blankedIds.push(att.id);
+        } catch (err) {
+          out.errors.push(
+            `Failed unlinking attachment ${att.id}: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        }
+      }
+      if (blankedIds.length > 0) {
+        // Blank path columns in a single UPDATE so reads route to
+        // backend instead of trying a missing local file.
+        await DataCleanupRepository.clearAttachmentLocalPaths(blankedIds);
+        out.blankedRows = blankedIds.length;
+      }
+      Logger.info(
+        TAG,
+        `tier-1 file cleanup: blanked ${out.blankedRows} rows, reclaimed ${out.deletedFiles} files (${out.reclaimedBytes} bytes)`,
+      );
+    } catch (err) {
+      out.errors.push(err instanceof Error ? err.message : String(err));
+      Logger.error(TAG, 'tier-1 file cleanup failed', err);
+    }
+    return out;
+  }
+
+  /**
+   * 2026-05-01 retention v2 tier-2 anti-flap: record cleaned task IDs
+   * with their cleaned-at timestamp in KV. SyncDownloadService consults
+   * this list to skip re-pulling a task within the 30-day window.
+   * Stored as JSON: { [taskId]: cleanedAtMs }.
+   */
+  private static async recordCleanedTaskIds(taskIds: string[]): Promise<void> {
+    if (taskIds.length === 0) {
+      return;
+    }
+    try {
+      const existing = await this.loadCleanedTaskIdMap();
+      const now = Date.now();
+      for (const id of taskIds) {
+        existing[id] = now;
+      }
+      await KeyValueRepository.set(
+        CLEANED_TASK_IDS_KEY,
+        JSON.stringify(existing),
+      );
+    } catch (err) {
+      Logger.warn(TAG, 'Failed to record cleaned task ids', err);
+    }
+  }
+
+  private static async loadCleanedTaskIdMap(): Promise<Record<string, number>> {
+    const raw = await KeyValueRepository.get(CLEANED_TASK_IDS_KEY);
+    if (!raw) {
+      return {};
+    }
+    try {
+      const parsed = JSON.parse(raw) as Record<string, number>;
+      // Prune entries past TTL on every read; keeps the JSON blob small.
+      const now = Date.now();
+      const fresh: Record<string, number> = {};
+      for (const [id, ts] of Object.entries(parsed)) {
+        if (typeof ts === 'number' && now - ts < CLEANED_TASK_TTL_MS) {
+          fresh[id] = ts;
+        }
+      }
+      return fresh;
+    } catch {
+      return {};
+    }
+  }
+
+  /**
+   * Public read used by SyncDownloadService to skip re-hydration of
+   * tasks that local cleanup recently purged.
+   */
+  static async listRecentlyCleanedTaskIds(): Promise<string[]> {
+    const map = await this.loadCleanedTaskIdMap();
+    return Object.keys(map);
   }
 
   static async setAutoCleanupEnabled(enabled: boolean): Promise<void> {
@@ -91,8 +244,14 @@ export class DataCleanupService {
       cutoffDate.setDate(cutoffDate.getDate() - days);
       const cutoffIso = cutoffDate.toISOString();
 
-      // Find old COMPLETED/REVOKED cases (don't delete ASSIGNED/IN_PROGRESS)
-      const oldTaskIds = await DataCleanupRepository.listOldTerminalTaskIds(
+      // 2026-05-01 retention v2 tier-2 (option 2C hybrid): list ALL
+      // tasks past 45d across all 4 tab states (assigned/in-progress/
+      // saved/completed/revoked), but ONLY when no pending sync work
+      // remains. Tasks with PENDING/FAILED forms or attachments stay
+      // visible so the agent can resolve. Backend keeps the
+      // authoritative copy regardless — local cleanup is filesystem-
+      // only and never touches backend DB or /uploads folder.
+      const oldTaskIds = await DataCleanupRepository.listOldTaskIdsHybrid(
         cutoffIso,
       );
 
@@ -143,6 +302,12 @@ export class DataCleanupService {
       if (result.errors.length > 0) result.success = false;
       await ProjectionUpdater.rebuildDashboard();
 
+      // 2026-05-01 retention v2 anti-flap: record the IDs we just
+      // cleaned so SyncDownloadService skips re-pulling them within the
+      // 30-day TTL window. Without this, backend (which still has the
+      // task) would re-push it on next sync and re-flap the cleanup.
+      await this.recordCleanedTaskIds(oldTaskIds);
+
       // H5 follow-up (2026-04-21): piggyback an orphan-file sweep on
       // the auto/manual cleanup run. H5 reversed the old order so the
       // DB is deleted before the files; a crash between the two leaves
@@ -155,6 +320,15 @@ export class DataCleanupService {
         result.deletedSize += sweep.reclaimedBytes;
       } catch (sweepErr) {
         Logger.warn(TAG, 'Orphan-file sweep failed', sweepErr);
+      }
+
+      // F-MD5 (audit 2026-04-28): reclaim SQLite free pages after the
+      // bulk delete. Idle path — keeps the DB file from drifting up
+      // over 45 days of churn. Failures are non-fatal.
+      try {
+        await DatabaseService.runIncrementalVacuum();
+      } catch (vacuumErr) {
+        Logger.warn(TAG, 'Incremental vacuum failed', vacuumErr);
       }
     } catch (err: unknown) {
       result.success = false;
