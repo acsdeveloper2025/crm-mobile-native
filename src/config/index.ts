@@ -67,12 +67,20 @@ const BASE_CONFIG: Omit<AppConfig, 'apiBaseUrl' | 'wsUrl' | 'environment'> = {
   dbEncryptionKey: null, // Set at runtime from Keychain — see DatabaseService.initialize()
 };
 
-// Environment-specific API URLs
-// Development/staging URLs should be set via build-time config or .env
+// Environment-specific API URLs.
+//
+// 2026-05-01 v1.0.28: development now points at the deployed dev
+// server instead of `localhost:3000`. The prior localhost config
+// only worked when the developer ran the backend on their laptop —
+// on Android emulator `localhost` is the emulator itself (not the
+// host), so version-check / telemetry / auth all failed with
+// network errors. Using the deployed URL lets debug APKs talk to a
+// real backend out-of-the-box. Same URL as staging/production until
+// AWS migration introduces an environment split.
 const ENV_CONFIGS = {
   development: {
-    apiBaseUrl: 'http://localhost:3000/api/mobile',
-    wsUrl: 'ws://localhost:3000',
+    apiBaseUrl: 'https://crm.allcheckservices.com/api/mobile',
+    wsUrl: 'wss://crm.allcheckservices.com',
   },
   staging: {
     apiBaseUrl: 'https://crm.allcheckservices.com/api/mobile',
