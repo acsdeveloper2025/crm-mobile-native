@@ -42,6 +42,8 @@ import {
   TaskRepository,
   type TaskListCounts,
 } from '../../repositories/TaskRepository';
+import { SubmitVerificationUseCase } from '../../usecases/SubmitVerificationUseCase';
+import { resolveFormTypeKey } from '../../utils/formTypeKey';
 import { TaskInfoModal } from '../../components/tasks/TaskInfoModal';
 import { TaskRevokeModal } from '../../components/tasks/TaskRevokeModal';
 import { RevokeReason } from '../../types/api';
@@ -371,6 +373,77 @@ export const TaskListScreen = ({
 
   const handleTaskPress = useCallback(
     (task: LocalTask) => {
+      // 2026-05-02: saved tasks are LOCKED — tapping does not open the
+      // form (preventing accidental edits to a draft the user already
+      // committed). Instead show a Submit confirmation dialog. On
+      // confirm, run SubmitVerificationUseCase using the form data
+      // already persisted to the local task row + auto-save store.
+      // Check this BEFORE the IN_PROGRESS branch because saved tasks
+      // keep status='IN_PROGRESS' (Saved tab filter is by `is_saved=1`,
+      // not status).
+      if (task.isSaved === 1 && task.status !== 'COMPLETED') {
+        Alert.alert(
+          'Submit Saved Task',
+          `Submit verification for ${task.customerName || `#${task.caseId}`}?`,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Submit',
+              onPress: async () => {
+                try {
+                  const fresh = await TaskRepository.getTaskById(task.id);
+                  if (!fresh) {
+                    Alert.alert('Submit Failed', 'Task not found locally.');
+                    return;
+                  }
+                  const formData = fresh.formDataJson
+                    ? (JSON.parse(fresh.formDataJson) as Record<
+                        string,
+                        unknown
+                      >)
+                    : {};
+                  // resolveFormTypeKey returns one of the canonical keys
+                  // ('residence', 'office', etc) by introspecting any
+                  // task field that carries verification-type info.
+                  // SubmitVerificationUseCase.execute also re-resolves
+                  // internally, so passing the verificationType value
+                  // here is fine even if it's not the canonical key.
+                  const formType =
+                    resolveFormTypeKey({
+                      formType: '',
+                      verificationTypeCode: fresh.verificationTypeCode || null,
+                      verificationTypeName: fresh.verificationTypeName || null,
+                      verificationType: fresh.verificationType || null,
+                    }) ||
+                    fresh.verificationType ||
+                    '';
+                  await SubmitVerificationUseCase.execute({
+                    taskId: fresh.id,
+                    formType,
+                    formData,
+                    verificationOutcome: fresh.verificationOutcome,
+                  });
+                  Alert.alert(
+                    'Submitted',
+                    'Verification submitted successfully.',
+                  );
+                } catch (err) {
+                  Logger.error(
+                    'TaskListScreen',
+                    'Submit saved task failed',
+                    err,
+                  );
+                  Alert.alert(
+                    'Submit Failed',
+                    err instanceof Error ? err.message : String(err),
+                  );
+                }
+              },
+            },
+          ],
+        );
+        return;
+      }
       if (task.status === 'IN_PROGRESS' || task.status === 'REVISIT') {
         navigation.navigate('VerificationForm', { taskId: task.id });
         return;
@@ -380,10 +453,6 @@ export const TaskListScreen = ({
         return;
       }
       if (task.status === 'ASSIGNED' || task.status === 'REVOKED') {
-        return;
-      }
-      if (task.isSaved === 1) {
-        navigation.navigate('VerificationForm', { taskId: task.id });
         return;
       }
       navigation.navigate('TaskDetail', { taskId: task.id });

@@ -20,61 +20,72 @@ class NotificationUploaderClass {
   async upload(operation: SyncOperation): Promise<SyncUploadResult> {
     const action = String(operation.payload.action || '').toUpperCase();
 
-    try {
-      // 2026-04-27 deep-audit fix: every action now ships an Idempotency-Key
-      // header. MARK_READ retry was already idempotent server-side (read state
-      // is monotonic), but MARK_ALL_READ + CLEAR_ALL retried after a network
-      // drop on the response could clobber notifications received between the
-      // original call and the retry. Backend's `mobile_idempotency_keys`
-      // cache returns the cached 2xx body on replay, fully closing the race.
-      if (action === 'MARK_READ') {
-        const notificationId = String(
-          operation.payload.notificationId || operation.entityId || '',
-        );
-        if (!notificationId) {
-          return {
-            outcome: 'FAILURE',
-            error: 'MARK_READ missing notificationId',
-          };
-        }
+    // 2026-04-27 deep-audit fix: every action now ships an Idempotency-Key
+    // header. MARK_READ retry was already idempotent server-side (read state
+    // is monotonic), but MARK_ALL_READ + CLEAR_ALL retried after a network
+    // drop on the response could clobber notifications received between the
+    // original call and the retry. Backend's `mobile_idempotency_keys`
+    // cache returns the cached 2xx body on replay, fully closing the race.
+    //
+    // 2026-05-02: removed wrap-and-return-FAILURE catch. SyncProcessor only
+    // classifies errors as RETRYABLE/NON-RETRYABLE when the uploader THROWS;
+    // returning {outcome:'FAILURE'} skipped that classifier and made every
+    // 4xx (incl. 404 on a server-deleted notification) retry 10× before DLQ.
+    // Now: 404 on MARK_READ is treated as SUCCESS (the notification is gone
+    // server-side; marking it read is a no-op), and all other errors propagate
+    // so SyncProcessor's 4xx→DLQ / 5xx→retry policy runs.
+    if (action === 'MARK_READ') {
+      const notificationId = String(
+        operation.payload.notificationId || operation.entityId || '',
+      );
+      if (!notificationId) {
+        return {
+          outcome: 'FAILURE',
+          error: 'MARK_READ missing notificationId',
+        };
+      }
+      try {
         await ApiClient.put(
           ENDPOINTS.NOTIFICATIONS.MARK_READ(notificationId),
           undefined,
           idempotencyHeaders(operation.operationId),
         );
-        return { outcome: 'SUCCESS' };
+      } catch (err) {
+        const status = (err as { response?: { status?: number } })?.response
+          ?.status;
+        if (status === 404) {
+          Logger.info(
+            TAG,
+            `MARK_READ ${notificationId} → 404 (notification gone server-side); treating as success`,
+          );
+          return { outcome: 'SUCCESS' };
+        }
+        throw err;
       }
-
-      if (action === 'MARK_ALL_READ') {
-        await ApiClient.put(
-          ENDPOINTS.NOTIFICATIONS.MARK_ALL_READ,
-          undefined,
-          idempotencyHeaders(operation.operationId),
-        );
-        return { outcome: 'SUCCESS' };
-      }
-
-      if (action === 'CLEAR_ALL') {
-        await ApiClient.delete(
-          ENDPOINTS.NOTIFICATIONS.CLEAR_ALL,
-          idempotencyHeaders(operation.operationId),
-        );
-        return { outcome: 'SUCCESS' };
-      }
-
-      return {
-        outcome: 'FAILURE',
-        error: `Unknown NOTIFICATION_ACTION: ${action}`,
-      };
-    } catch (err) {
-      const errorMsg =
-        err instanceof Error ? err.message : String(err) || 'Unknown error';
-      Logger.warn(TAG, `Notification action ${action} failed`, err);
-      return {
-        outcome: 'FAILURE',
-        error: `Notification action ${action} failed: ${errorMsg}`,
-      };
+      return { outcome: 'SUCCESS' };
     }
+
+    if (action === 'MARK_ALL_READ') {
+      await ApiClient.put(
+        ENDPOINTS.NOTIFICATIONS.MARK_ALL_READ,
+        undefined,
+        idempotencyHeaders(operation.operationId),
+      );
+      return { outcome: 'SUCCESS' };
+    }
+
+    if (action === 'CLEAR_ALL') {
+      await ApiClient.delete(
+        ENDPOINTS.NOTIFICATIONS.CLEAR_ALL,
+        idempotencyHeaders(operation.operationId),
+      );
+      return { outcome: 'SUCCESS' };
+    }
+
+    return {
+      outcome: 'FAILURE',
+      error: `Unknown NOTIFICATION_ACTION: ${action}`,
+    };
   }
 }
 

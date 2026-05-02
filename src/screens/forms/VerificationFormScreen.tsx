@@ -1,5 +1,5 @@
 // cspell:words Pagadi Accomodation Adhar Neighbour Bunglow Chawl Patra Resi Existance authorised Authorised
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -29,6 +29,7 @@ import { FormTemplateService } from '../../services/forms/FormTemplateService';
 import { FormSubmissionService } from '../../services/forms/FormSubmissionService';
 import { useFormAutosave } from '../../hooks/forms/useFormAutosave';
 import { NetworkService } from '../../services/NetworkService';
+import { TaskRepository } from '../../repositories/TaskRepository';
 import { styles } from './VerificationFormScreen.styles';
 import {
   buildLegacyTemplateForFormType,
@@ -84,6 +85,12 @@ export const VerificationFormScreen = ({
   // keyboard and the Save/Submit buttons stayed off-screen — user had
   // to dismiss the keyboard first to reach them.
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // 2026-05-02: flag set by handleSave success path. The beforeRemove
+  // navigation guard checks this so the "Unsaved Changes" alert does
+  // NOT fire after a successful Save (the user just persisted; there
+  // are no UNsaved changes to warn about). Using useRef so the flip
+  // is visible to the listener closure without re-registering it.
+  const justSavedRef = useRef(false);
   useEffect(() => {
     const showEvent =
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -390,8 +397,15 @@ export const VerificationFormScreen = ({
   // Navigation guard — warn user before leaving with unsaved changes
   useEffect(() => {
     const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
-      if (Object.keys(formValues).length === 0 || isSubmitting) {
-        return; // No unsaved data or already submitting
+      // 2026-05-02: skip the "Unsaved Changes" alert if the user just
+      // pressed Save (justSavedRef). After Save, formValues still has
+      // data but it's all PERSISTED — there are no unsaved changes.
+      if (
+        justSavedRef.current ||
+        Object.keys(formValues).length === 0 ||
+        isSubmitting
+      ) {
+        return; // No unsaved data, just-saved, or already submitting
       }
       e.preventDefault();
       Alert.alert(
@@ -437,6 +451,15 @@ export const VerificationFormScreen = ({
         formType: taskFormTypeKey || 'DEFAULT',
         formData: formValues,
       });
+      // 2026-05-02: move task to Saved tab via is_saved=1. Status stays
+      // IN_PROGRESS (Saved tab filter is `is_saved=1 AND status !=
+      // 'COMPLETED'`). After this, the task list shows it in the Saved
+      // tab and TaskListScreen.handleTaskPress blocks form re-entry,
+      // routing through a Submit confirmation dialog instead.
+      await TaskRepository.toggleSavedState(task.id, true, task.status);
+      // Flag for beforeRemove guard: skip the "Unsaved Changes" alert
+      // because everything in formValues is now persisted.
+      justSavedRef.current = true;
       Alert.alert(
         'Saved',
         'Your form has been saved locally. You can continue filling it later.',

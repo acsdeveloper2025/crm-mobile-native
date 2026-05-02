@@ -72,8 +72,19 @@ class TaskListProjectionClass {
     let sql = `SELECT * FROM task_list_projection WHERE (is_revoked IS NULL OR is_revoked = 0)`;
     const params: Array<string | number | null> = [];
 
+    // 2026-05-02: tab partitioning fix. Previously a task with
+    // `status='IN_PROGRESS' AND is_saved=1` matched BOTH the
+    // IN_PROGRESS filter (status only) and the SAVED filter (is_saved
+    // only) → appeared in both tabs. Match the count logic
+    // (getCounts at line ~146) which is already correctly mutually
+    // exclusive: saved tasks are excluded from ASSIGNED/IN_PROGRESS
+    // lists. COMPLETED is intentionally NOT exclusive on is_saved
+    // because markCompleted clears is_saved to 0 anyway.
     if (statusFilter === 'SAVED') {
       sql += ` AND is_saved = 1 AND status != 'COMPLETED'`;
+    } else if (statusFilter === 'ASSIGNED' || statusFilter === 'IN_PROGRESS') {
+      sql += ` AND status = ? AND (is_saved IS NULL OR is_saved = 0)`;
+      params.push(statusFilter);
     } else if (statusFilter) {
       sql += ` AND status = ?`;
       params.push(statusFilter);
