@@ -254,6 +254,22 @@ class FormUploaderClass {
       );
     }
 
+    // 2026-05-02 diagnostic: log the form payload keys before posting
+    // to surface the empty-formData bug we're chasing.
+    const fdKeys = payload.formData
+      ? Object.keys(payload.formData as Record<string, unknown>)
+      : [];
+    Logger.info(
+      TAG,
+      `🔍 POST formData keys (count=${fdKeys.length}): ${fdKeys.join(',')}`,
+    );
+    Logger.info(
+      TAG,
+      `🔍 POST finalStatus: ${JSON.stringify(
+        (payload.formData as Record<string, unknown> | undefined)?.finalStatus,
+      )}`,
+    );
+
     let response: { success: boolean };
     try {
       response = await ApiClient.post<{ success: boolean }>(

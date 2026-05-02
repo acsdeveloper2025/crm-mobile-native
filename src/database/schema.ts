@@ -267,6 +267,28 @@ CREATE TABLE IF NOT EXISTS dashboard_projection (
   last_sync_at TEXT,
   updated_at TEXT NOT NULL
 );
+
+-- F2.7.1: local mirror of verification_type_outcomes lookup table.
+-- Hydrated by SyncDownloadService from
+-- /api/mobile/reference/verification-type-outcomes. Used by
+-- LegacyFormTemplateBuilders + VerificationFormScreen for per-type
+-- valid outcomes.
+--
+-- Originally added as migration v14 only, but the runMigrations
+-- short-circuit on currentVersion === 0 (fresh install path) skipped
+-- all migrations including v14, leaving fresh installs without this
+-- table. Promoting to SCHEMA_SQL (CREATE TABLE IF NOT EXISTS so
+-- existing v14-migrated installs are no-op).
+CREATE TABLE IF NOT EXISTS verification_type_outcomes (
+  id INTEGER PRIMARY KEY,
+  verification_type_id INTEGER NOT NULL,
+  verification_type_code TEXT NOT NULL,
+  outcome_code TEXT NOT NULL,
+  display_label TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  synced_at TEXT NOT NULL
+);
 `;
 
 /**
@@ -307,6 +329,11 @@ CREATE INDEX IF NOT EXISTS idx_sync_queue_pending_window ON sync_queue(status, n
 CREATE INDEX IF NOT EXISTS idx_task_list_projection_status_saved ON task_list_projection(status, is_saved, is_revoked, assigned_at);
 CREATE INDEX IF NOT EXISTS idx_task_list_projection_search ON task_list_projection(search_text);
 CREATE INDEX IF NOT EXISTS idx_task_detail_projection_updated ON task_detail_projection(updated_at);
+
+-- F2.7.1: lookup index for VerificationTypeOutcomesRepository (filter by
+-- verification_type_code + sort by sort_order).
+CREATE INDEX IF NOT EXISTS idx_vto_type_code
+  ON verification_type_outcomes(verification_type_code, sort_order);
 `;
 
 /**
