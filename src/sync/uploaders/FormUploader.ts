@@ -134,6 +134,62 @@ class FormUploaderClass {
     const localTaskId =
       typeof payload.localTaskId === 'string' ? payload.localTaskId : null;
 
+    // 2026-05-03 (bug 38): re-hydrate formData from `tasks.form_data_json`
+    // on every upload attempt. The queue's `payload_json` is a snapshot
+    // captured at enqueue time — if the snapshot was empty (e.g. the
+    // submission was queued before the user had finished filling/saving,
+    // or via the bug 37 race), every retry sends the same empty payload
+    // forever and DLQs at attempt 10. This guard always uses the latest
+    // tasks.form_data_json so retries pick up data the user added later.
+    if (localTaskId) {
+      const taskRows = await SyncEngineRepository.query<{
+        formDataJson: string | null;
+        verificationOutcome: string | null;
+      }>(
+        'SELECT form_data_json, verification_outcome FROM tasks WHERE id = ? LIMIT 1',
+        [localTaskId],
+      );
+      const freshFormDataRaw = taskRows[0]?.formDataJson;
+      if (freshFormDataRaw) {
+        try {
+          const freshFormData = JSON.parse(freshFormDataRaw) as Record<
+            string,
+            unknown
+          >;
+          // Strip our internal `__submission` marker — that's bookkeeping,
+          // not user data, and the backend doesn't expect it.
+          delete freshFormData.__submission;
+          const payloadFormData =
+            (payload.formData as Record<string, unknown> | undefined) || {};
+          // Only use fresh if it has more keys than the stale snapshot
+          // (defensive: don't downgrade a hand-crafted payload).
+          if (
+            Object.keys(freshFormData).length >
+            Object.keys(payloadFormData).length
+          ) {
+            payload.formData = {
+              ...freshFormData,
+              ...payloadFormData,
+            };
+            Logger.info(
+              TAG,
+              `Re-hydrated formData from tasks.form_data_json (snapshot=${
+                Object.keys(payloadFormData).length
+              } keys → fresh=${Object.keys(freshFormData).length} keys)`,
+            );
+          }
+        } catch (err) {
+          Logger.warn(TAG, 'Failed to parse fresh form_data_json', err);
+        }
+      }
+      // Also refresh verificationOutcome from the task row if the queued
+      // payload lacks it.
+      const freshOutcome = taskRows[0]?.verificationOutcome;
+      if (freshOutcome && !payload.verificationOutcome) {
+        payload.verificationOutcome = freshOutcome;
+      }
+    }
+
     // 2026-05-01 retention v2: pre-upload existence guard. If the
     // form_submissions row was cascade-deleted by tier-2 task cleanup
     // between enqueue and dequeue, the queue item points at a ghost

@@ -158,8 +158,20 @@ export const SubmitVerificationUseCase = {
     ) as MobileFormSubmissionRequest['formType'];
     // Only send form field values — outcome and verificationType are sent as separate top-level fields
     const mergedFormData = { ...input.formData };
+    // 2026-05-03 (bug 39): never let an empty `input.formData` clobber the
+    // existing `tasks.form_data_json`. Previously the AutoSubmit-on-sync
+    // path (bug 37 cascade) called this usecase with empty formData; the
+    // line below was `...parseFormData(task.formDataJson), ...mergedFormData`
+    // which works correctly when input has data, but also writes
+    // `persistedFormData` (which becomes effectively empty) back to the
+    // tasks row at line ~262. That CORRUPTED the user's saved data. Now:
+    // if mergedFormData is empty, fall back to the persisted form data —
+    // the snapshot of user values stays intact.
+    const existingFormData = parseFormData(task.formDataJson);
+    const submissionFormData =
+      Object.keys(mergedFormData).length > 0 ? mergedFormData : existingFormData;
     const persistedFormData = {
-      ...parseFormData(task.formDataJson),
+      ...existingFormData,
       ...mergedFormData,
       __submission: {
         status: 'pending',
@@ -178,7 +190,9 @@ export const SubmitVerificationUseCase = {
       caseId: String(task.caseId),
       verificationTaskId: backendTaskId,
       formType: backendFormType,
-      formData: mergedFormData,
+      // Use submissionFormData — falls back to existing tasks.form_data_json
+      // if input.formData was empty (auto-submit race protection per bug 39).
+      formData: submissionFormData,
       attachmentIds: attachments.map(attachment => attachment.id),
       geoLocation,
       photos,
