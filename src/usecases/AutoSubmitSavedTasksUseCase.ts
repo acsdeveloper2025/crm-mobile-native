@@ -2,6 +2,8 @@ import { Logger } from '../utils/logger';
 import { TaskRepository } from '../repositories/TaskRepository';
 import { SubmitVerificationUseCase } from './SubmitVerificationUseCase';
 import { resolveFormTypeKey } from '../utils/formTypeKey';
+import { DatabaseService } from '../database/DatabaseService';
+import { mapSqliteTask } from '../utils/mapSqliteTask';
 
 const TAG = 'AutoSubmitSavedTasksUseCase';
 
@@ -50,7 +52,19 @@ export const AutoSubmitSavedTasksUseCase = {
 
     for (const task of savedTasks) {
       try {
-        const fresh = await TaskRepository.getTaskById(task.id);
+        // 2026-05-03 (bug 37): bypass `TaskRepository.getTaskById` which
+        // reads from `task_detail_projection` — that projection is rebuilt
+        // ASYNCHRONOUSLY (`scheduleTaskRebuild`) after `updateTaskFormData`,
+        // so on Sync-fired right after Save, the projection still has
+        // empty `formDataJson`. Read directly from the source-of-truth
+        // `tasks` table to guarantee we see the user's saved values.
+        const rawRows = await DatabaseService.query<Record<string, unknown>>(
+          'SELECT * FROM tasks WHERE id = ? LIMIT 1',
+          [task.id],
+        );
+        const fresh = rawRows[0]
+          ? mapSqliteTask(rawRows[0] as never)
+          : null;
         if (!fresh) {
           continue;
         }
