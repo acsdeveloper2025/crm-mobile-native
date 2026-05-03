@@ -23,6 +23,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { TaskRepository } from '../../repositories/TaskRepository';
 import { SyncTasksUseCase } from '../../usecases/SyncTasksUseCase';
+import { AutoSubmitSavedTasksUseCase } from '../../usecases/AutoSubmitSavedTasksUseCase';
 import { DashboardProjection } from '../../projections/DashboardProjection';
 
 export const DashboardScreen = () => {
@@ -120,13 +121,33 @@ export const DashboardScreen = () => {
     try {
       setIsSyncing(true);
       const { result } = await SyncTasksUseCase.execute();
+
+      // 2026-05-03: after the normal sync (download + upload-queue drain),
+      // auto-submit fully-filled saved tasks. Drafts (incomplete forms)
+      // stay saved — SubmitVerificationUseCase enforces validation and
+      // throws on incomplete data; we catch + skip silently. The manual
+      // submit-from-saved-tab path (TaskListScreen.handleTaskPress) is
+      // unaffected — both options remain open to the user.
+      const autoSubmit = await AutoSubmitSavedTasksUseCase.execute();
+
       const activeTasks = await getActiveTaskCount();
 
       if (result.success) {
-        Alert.alert(
-          'Sync Complete',
-          `Task Status Uploaded: ${result.uploadedStatusItems}\nPending Data Uploaded: ${result.uploadedItems}\nDownloaded Updates: ${result.downloadedTasks}\nAvailable Tasks: ${activeTasks}`,
-        );
+        const lines = [
+          `Task Status Uploaded: ${result.uploadedStatusItems}`,
+          `Pending Data Uploaded: ${result.uploadedItems}`,
+          `Downloaded Updates: ${result.downloadedTasks}`,
+          `Available Tasks: ${activeTasks}`,
+        ];
+        if (autoSubmit.submitted > 0 || autoSubmit.skippedDrafts > 0) {
+          lines.push(`Saved Tasks Submitted: ${autoSubmit.submitted}`);
+          if (autoSubmit.skippedDrafts > 0) {
+            lines.push(
+              `Drafts Skipped (incomplete): ${autoSubmit.skippedDrafts}`,
+            );
+          }
+        }
+        Alert.alert('Sync Complete', lines.join('\n'));
       } else {
         Alert.alert(
           'Sync Failed',
