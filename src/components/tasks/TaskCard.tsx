@@ -306,26 +306,32 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
             </>
           )}
 
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={() => onInfoPress?.(task)}
-            accessibilityRole="button"
-            accessibilityLabel="Task info"
-          >
-            <Icon
-              name="information-circle"
-              size={32}
-              color={theme.colors.info || '#3b82f6'}
-            />
-            <Text
-              style={[
-                styles.actionLabel,
-                { color: theme.colors.info || '#3b82f6' },
-              ]}
+          {/* 2026-05-03: hide Info button on COMPLETED tasks (same UX
+              rationale as Attachments below — once submitted the task is
+              read-only and the Info detail page adds no value). Keep on
+              ASSIGNED / IN_PROGRESS / SAVED / REVOKED. */}
+          {task.status !== 'COMPLETED' && (
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => onInfoPress?.(task)}
+              accessibilityRole="button"
+              accessibilityLabel="Task info"
             >
-              Info
-            </Text>
-          </TouchableOpacity>
+              <Icon
+                name="information-circle"
+                size={32}
+                color={theme.colors.info || '#3b82f6'}
+              />
+              <Text
+                style={[
+                  styles.actionLabel,
+                  { color: theme.colors.info || '#3b82f6' },
+                ]}
+              >
+                Info
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* UX (2026-04-21): hide the Attachments button on COMPLETED
               tasks — once the agent submits, the verification is closed

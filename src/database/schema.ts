@@ -555,8 +555,10 @@ export const MIGRATIONS: Migration[] = [
       INSERT OR REPLACE INTO dashboard_projection
       SELECT
         1,
-        COALESCE(SUM(CASE WHEN status = 'ASSIGNED' AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
-        COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
+        -- Bug 31: exclude is_saved=1 from ASSIGNED + IN_PROGRESS counts
+        -- so saved tasks count ONLY in SAVED, mirroring TaskListProjection.list.
+        COALESCE(SUM(CASE WHEN status = 'ASSIGNED' AND (is_revoked IS NULL OR is_revoked = 0) AND (is_saved IS NULL OR is_saved = 0) THEN 1 ELSE 0 END), 0),
+        COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' AND (is_revoked IS NULL OR is_revoked = 0) AND (is_saved IS NULL OR is_saved = 0) THEN 1 ELSE 0 END), 0),
         COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END), 0),
         COALESCE(SUM(CASE WHEN is_saved = 1 AND status != 'COMPLETED' THEN 1 ELSE 0 END), 0),
         COALESCE(SUM(CASE WHEN (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),

@@ -94,6 +94,16 @@ class TaskRepositoryClass {
     return TaskListProjection.list();
   }
 
+  // 2026-05-03: list locally-saved tasks (is_saved=1) that aren't already
+  // completed/revoked. Used by AutoSubmitSavedTasksUseCase on Sync to
+  // auto-submit fully-filled saved tasks. Drafts (incomplete forms) are
+  // included here too — the submit usecase itself enforces validation
+  // (≥5 verification photos, ≥1 selfie, geo on every photo, valid outcome)
+  // and throws on incomplete forms, so they stay saved.
+  async listSavedTasks(): Promise<LocalTask[]> {
+    return TaskListProjection.list('SAVED');
+  }
+
   async getTaskById(taskId: string): Promise<LocalTask | null> {
     const projected = await TaskDetailProjection.getTaskById(taskId);
     if (projected) {
