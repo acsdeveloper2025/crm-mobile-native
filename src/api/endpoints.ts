@@ -92,6 +92,19 @@ export const ENDPOINTS = {
       `/notifications/${notificationId}/read`,
     MARK_ALL_READ: '/notifications/mark-all-read',
     CLEAR_ALL: '/notifications',
+    // Phase 2.3 (2026-05-04): backend mounts preferences GET/PUT on
+    // both /api/notifications/preferences AND
+    // /api/mobile/notifications/preferences (same controller methods,
+    // same auth). Mobile apiBaseUrl = `/api/mobile`, so a plain relative
+    // path works.
+    PREFERENCES: '/notifications/preferences',
+    // Phase 3.2 (2026-05-04): WhatsApp-style mute. Mobile only mutes
+    // by taskId (UUID is available locally as verification_task_id).
+    // Case-level mute is web-only because mobile stores case_id as
+    // integer display number, not UUID.
+    MUTE: '/notifications/mute',
+    UNMUTE_TASK: (taskId: string) => `/notifications/mute/task/${taskId}`,
+    LIST_MUTES: '/notifications/mutes',
   },
 
   // Profile photo (field agent self-upload).

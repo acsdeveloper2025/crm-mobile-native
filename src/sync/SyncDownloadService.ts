@@ -12,7 +12,6 @@ import {
   type VerificationTypeOutcomeRow,
 } from '../repositories/VerificationTypeOutcomesRepository';
 import { DataCleanupService } from '../services/DataCleanupService';
-import { notificationService } from '../services/NotificationService';
 import { Logger } from '../utils/logger';
 import { syncConflictResolver } from './SyncConflictResolver';
 import type {
@@ -88,22 +87,21 @@ class SyncDownloadServiceClass {
             // Skip — local cleanup purged this within the TTL window.
             continue;
           }
-          const existingRows = canonicalTaskId
-            ? await SyncEngineRepository.query<{ id: string }>(
-                'SELECT id FROM tasks WHERE id = ? LIMIT 1',
-                [canonicalTaskId],
-              )
-            : [];
-          const isNewTaskAssignment =
-            canonicalTaskId && existingRows.length === 0;
 
           await this.upsertTaskFromServer(task);
           await ProjectionUpdater.rebuildTask(canonicalTaskId);
           tasksDownloaded++;
 
-          if (isNewTaskAssignment && canonicalTaskId) {
-            await this.createLocalAssignmentNotification(task, canonicalTaskId);
-          }
+          // Bug 43 (2026-05-04): self-generation of "New Task Assigned"
+          // notifications removed. Previously this branch fired whenever the
+          // local `tasks` table had no row for `canonicalTaskId` — which
+          // re-fired EVERY active/completed/revoked task as "new" any time
+          // local SQLite was wiped (recovery, retention, fresh-install).
+          // Notifications now flow exclusively from backend
+          // `notifications` table via NotificationService.refreshFromBackend
+          // → GET /api/mobile/notifications. Server-keyed, dedupe by id,
+          // is_read state survives local wipes. Backend writer landed in
+          // casesController.createCase (bug 42).
         }
 
         // C10 + DB2 (round 2): both delete loops use purgeTaskTransactional
@@ -376,45 +374,6 @@ class SyncDownloadServiceClass {
       'Bulk template download skipped: backend exposes per-form templates only.',
     );
     return { downloaded: 0, errors: [] };
-  }
-
-  private async createLocalAssignmentNotification(
-    task: MobileCaseResponse,
-    taskId: string,
-  ): Promise<void> {
-    try {
-      const existing = await SyncEngineRepository.query<{ id: string }>(
-        "SELECT id FROM notifications WHERE type = 'CASE_ASSIGNED' AND task_id = ? LIMIT 1",
-        [taskId],
-      );
-      if (existing.length > 0) {
-        return;
-      }
-
-      const taskNumber =
-        (task.verificationTaskNumber || '').trim() || taskId.slice(0, 8);
-      const customerName = (task.customerName || '').trim() || 'Customer';
-      const caseNumber =
-        task.caseId !== undefined && task.caseId !== null
-          ? String(task.caseId)
-          : undefined;
-
-      await notificationService.addNotification({
-        type: 'CASE_ASSIGNED',
-        title: 'New Task Assigned',
-        message: `${taskNumber} - ${customerName}`,
-        priority: 'HIGH',
-        taskId,
-        caseNumber,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      Logger.warn(
-        TAG,
-        `Failed to create local assignment notification for task ${taskId}`,
-        error,
-      );
-    }
   }
 
   private async upsertTaskFromServer(task: MobileCaseResponse): Promise<void> {

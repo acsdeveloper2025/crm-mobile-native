@@ -62,9 +62,7 @@ export const AutoSubmitSavedTasksUseCase = {
           'SELECT * FROM tasks WHERE id = ? LIMIT 1',
           [task.id],
         );
-        const fresh = rawRows[0]
-          ? mapSqliteTask(rawRows[0] as never)
-          : null;
+        const fresh = rawRows[0] ? mapSqliteTask(rawRows[0] as never) : null;
         if (!fresh) {
           continue;
         }
@@ -103,13 +101,12 @@ export const AutoSubmitSavedTasksUseCase = {
           message.includes('Invalid task identifier')
         ) {
           result.skippedDrafts += 1;
-          Logger.info(
-            TAG,
-            `Skipped saved task ${task.id} (draft): ${message}`,
-          );
+          Logger.info(TAG, `Skipped saved task ${task.id} (draft): ${message}`);
         } else {
           result.failed += 1;
-          result.errors.push(`${task.verificationTaskNumber || task.id}: ${message}`);
+          result.errors.push(
+            `${task.verificationTaskNumber || task.id}: ${message}`,
+          );
           Logger.warn(TAG, `Auto-submit failed for ${task.id}`, err);
         }
       }

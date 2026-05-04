@@ -13,6 +13,7 @@ import { Logger } from '../utils/logger';
 import { SyncService } from '../services/SyncService';
 import { SyncQueue } from '../services/SyncQueue';
 import { notificationService } from '../services/NotificationService';
+import { mobileSocketService } from '../services/MobileSocketService';
 import { DataCleanupService } from '../services/DataCleanupService';
 
 const TAG = 'AuthContext';
@@ -104,6 +105,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             error,
           );
         });
+        // Phase 2.1: open WS for restored session (e.g. app re-launch
+        // with cached token). Same fail-soft behaviour as login.
+        mobileSocketService.connect().catch(error => {
+          Logger.warn(
+            TAG,
+            'WebSocket connect after auth restore failed',
+            error,
+          );
+        });
         SyncService.performSync().catch(syncError => {
           Logger.warn(TAG, 'Initial sync after auth restore failed', syncError);
         });
@@ -158,6 +168,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             error,
           );
         });
+        // Phase 2.1 (2026-05-04): also open the realtime WebSocket for
+        // sub-second push of new notifications while the app is open.
+        // Push (FCM) remains the background fallback. Best-effort —
+        // failure to connect shouldn't fail login.
+        mobileSocketService.connect().catch(error => {
+          Logger.warn(TAG, 'WebSocket connect after login failed', error);
+        });
         SyncService.performSync().catch(syncError => {
           Logger.warn(TAG, 'Initial sync after login failed', syncError);
         });
@@ -173,6 +190,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       await AuthService.logout();
       SyncService.stopPeriodicSync();
+      // Phase 2.1: close WebSocket on logout — otherwise the previous
+      // user's session keeps a live channel open until the OS kills
+      // the connection, which leaks notifications meant for them
+      // across user switches on shared devices.
+      mobileSocketService.disconnect();
       setIsAuthenticated(false);
       setUser(null);
     } catch (e) {

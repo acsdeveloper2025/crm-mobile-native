@@ -38,6 +38,7 @@ import { PrivacyConsentScreen } from '../screens/auth/PrivacyConsentScreen';
 import { PrivacyConsentService } from '../services/PrivacyConsentService';
 import { SyncLogsScreen } from '../screens/main/SyncLogsScreen';
 import { DataCleanupScreen } from '../screens/main/DataCleanupScreen';
+import { NotificationSettingsScreen } from '../screens/main/NotificationSettingsScreen';
 import { VersionService, UpdateInfo } from '../services/VersionService';
 import { useTheme } from '../context/ThemeContext';
 import { TaskRepository } from '../repositories/TaskRepository';
@@ -94,6 +95,10 @@ const SafeDigitalIdCardScreen = withScreenErrorBoundary(
 const SafeDataCleanupScreen = withScreenErrorBoundary(
   DataCleanupScreen,
   'DataCleanup',
+);
+const SafeNotificationSettingsScreen = withScreenErrorBoundary(
+  NotificationSettingsScreen,
+  'NotificationSettings',
 );
 const SafeProfilePhotoCaptureScreen = withScreenErrorBoundary(
   ProfilePhotoCaptureScreen,
@@ -163,6 +168,7 @@ export type RootStackParamList = {
   ProfilePhotoCapture: undefined;
   PrivacyPolicy: undefined;
   Diagnostics: undefined;
+  NotificationSettings: undefined;
 };
 
 export type TabParamList = {
@@ -570,6 +576,11 @@ export const RootNavigator = () => {
               name="DataCleanup"
               component={SafeDataCleanupScreen}
               options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="NotificationSettings"
+              component={SafeNotificationSettingsScreen}
+              options={{ headerShown: false, title: 'Notification Settings' }}
             />
             <Stack.Screen
               name="ProfilePhotoCapture"

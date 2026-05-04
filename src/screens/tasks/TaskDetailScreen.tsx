@@ -20,6 +20,7 @@ import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
 import { FormRepository } from '../../repositories/FormRepository';
 import { Logger } from '../../utils/logger';
 import { SyncService } from '../../services/SyncService';
+import { notificationService } from '../../services/NotificationService';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'TaskDetail'>;
@@ -35,6 +36,13 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
     syncStatus: string;
     syncError?: string;
   } | null>(null);
+  // Phase 3.2 (2026-05-04): WhatsApp-style task mute. Read once on mount,
+  // toggle via mute/unmute API. Backend's getScopedNotificationRows
+  // filter silences the bell on the next refresh; mute is online-only
+  // (no offline queue) — agents in the field rarely hit this anyway.
+  const [isMuted, setIsMuted] = useState(false);
+  const [isMuteToggling, setIsMuteToggling] = useState(false);
+  const muteTaskUuid = task?.verificationTaskId || task?.id || null;
 
   // H16 (audit 2026-04-21): guard setState calls in async handlers
   // against unmount. Without this, `handleStartVisit`'s finally
@@ -48,6 +56,48 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
       isMountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    // Phase 3.2: hydrate mute state from backend on mount + when task changes.
+    // Cheap + best-effort — failure leaves the toggle in "muted=false" which
+    // matches the silent default (notifications still flow as usual).
+    if (!muteTaskUuid) return;
+    let cancelled = false;
+    notificationService
+      .listMutes()
+      .then(mutes => {
+        if (cancelled) return;
+        setIsMuted(mutes.some(m => m.taskId === muteTaskUuid));
+      })
+      .catch(err => {
+        Logger.warn('TaskDetailScreen', 'Failed to hydrate mute state', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [muteTaskUuid]);
+
+  const handleToggleMute = async () => {
+    if (!muteTaskUuid || isMuteToggling) return;
+    setIsMuteToggling(true);
+    try {
+      if (isMuted) {
+        await notificationService.unmuteTask(muteTaskUuid);
+        if (isMountedRef.current) setIsMuted(false);
+      } else {
+        await notificationService.muteTask(muteTaskUuid);
+        if (isMountedRef.current) setIsMuted(true);
+      }
+    } catch (err) {
+      Logger.warn('TaskDetailScreen', 'Mute toggle failed', err);
+      Alert.alert(
+        'Mute Failed',
+        'Could not update notifications for this task. Try again.',
+      );
+    } finally {
+      if (isMountedRef.current) setIsMuteToggling(false);
+    }
+  };
 
   useEffect(() => {
     if (task?.status === 'COMPLETED' && task?.id) {
@@ -240,15 +290,66 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
             >
               {task.verificationTaskNumber || `Case #${task.caseId}`}
             </Text>
-            <View
-              style={[
-                styles.badge,
-                { backgroundColor: getStatusColor(task.status) },
-              ]}
-            >
-              <Text style={[styles.badgeText, { color: theme.colors.surface }]}>
-                {task.status.replace('_', ' ')}
-              </Text>
+            <View style={styles.headerTopRight}>
+              {muteTaskUuid && (
+                <TouchableOpacity
+                  onPress={handleToggleMute}
+                  disabled={isMuteToggling}
+                  style={[
+                    styles.muteButton,
+                    {
+                      backgroundColor: isMuted
+                        ? theme.colors.warning + '22'
+                        : 'transparent',
+                      borderColor: isMuted
+                        ? theme.colors.warning
+                        : theme.colors.border,
+                    },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityLabel={
+                    isMuted
+                      ? 'Unmute notifications for this task'
+                      : 'Mute notifications for this task'
+                  }
+                >
+                  <Icon
+                    name={
+                      isMuted
+                        ? 'notifications-off-outline'
+                        : 'notifications-outline'
+                    }
+                    size={16}
+                    color={
+                      isMuted ? theme.colors.warning : theme.colors.textMuted
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.muteButtonText,
+                      {
+                        color: isMuted
+                          ? theme.colors.warning
+                          : theme.colors.textMuted,
+                      },
+                    ]}
+                  >
+                    {isMuted ? 'Muted' : 'Mute'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <View
+                style={[
+                  styles.badge,
+                  { backgroundColor: getStatusColor(task.status) },
+                ]}
+              >
+                <Text
+                  style={[styles.badgeText, { color: theme.colors.surface }]}
+                >
+                  {task.status.replace('_', ' ')}
+                </Text>
+              </View>
             </View>
           </View>
           <Text style={[styles.title, { color: theme.colors.text }]}>
@@ -791,6 +892,25 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     flexShrink: 1,
+  },
+  headerTopRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexShrink: 0,
+  },
+  muteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  muteButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
   badge: {
     paddingHorizontal: 8,

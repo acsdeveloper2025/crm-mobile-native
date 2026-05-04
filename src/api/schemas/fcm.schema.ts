@@ -60,6 +60,12 @@ export const FcmDataSchema = z
     notificationType: z.string().optional(),
     taskId: z.string().optional(),
     verificationTaskId: z.string().optional(),
+    // Phase 1.2e (2026-05-04): human-readable task identifier (e.g.
+    // "VT-000017") for display in the NotificationCenter row label.
+    // Backend pushes it as `data.taskNumber`; legacy / mobile pushes
+    // may use `data.verificationTaskNumber`.
+    taskNumber: z.string().optional(),
+    verificationTaskNumber: z.string().optional(),
     caseId: z.union([z.string(), z.number()]).optional(),
     caseNumber: z.union([z.string(), z.number()]).optional(),
     title: z.string().optional(),

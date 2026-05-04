@@ -1,7 +1,7 @@
 // SQLite Database Schema and Migrations
 // Offline-first schema for field verification data
 
-export const DB_VERSION = 13;
+export const DB_VERSION = 15;
 
 /**
  * All CREATE TABLE statements for the local SQLite database.
@@ -202,6 +202,9 @@ CREATE TABLE IF NOT EXISTS user_session (
 -- upgrade from older DB_VERSIONs.
 
 -- Notifications
+-- Phase 1.2e (2026-05-04): task_number column added so the UI can show
+-- "Task: VT-000017" alongside "Case: 4". Backend already stores
+-- notifications.task_number; mobile now mirrors it.
 CREATE TABLE IF NOT EXISTS notifications (
   id TEXT PRIMARY KEY,
   type TEXT NOT NULL,
@@ -210,6 +213,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   priority TEXT,
   is_read INTEGER DEFAULT 0,
   task_id TEXT,
+  task_number TEXT,
   case_number TEXT,
   action_url TEXT,
   timestamp TEXT NOT NULL
@@ -629,6 +633,14 @@ export const MIGRATIONS: Migration[] = [
       );
       CREATE INDEX IF NOT EXISTS idx_vto_type_code
         ON verification_type_outcomes(verification_type_code, sort_order);
+    `,
+  },
+  {
+    version: 15,
+    description:
+      'Phase 1.2e (2026-05-04): add task_number column to notifications so mobile can show "Task: VT-000017" alongside "Case: 4". Backend already stores it; mobile now mirrors the field so users can distinguish notifications across multiple tasks within the same case (FIELD verification + KYC + reassignments).',
+    sql: `
+      ALTER TABLE notifications ADD COLUMN task_number TEXT;
     `,
   },
 ];

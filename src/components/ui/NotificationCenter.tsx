@@ -23,17 +23,45 @@ interface NotificationCenterProps {
   visible: boolean;
   onClose: () => void;
   onNavigateToCase?: (taskId: string) => void;
+  // Phase 1.2c (2026-05-04): per-case / per-task scope. When set, the
+  // NotificationCenter renders ONLY notifications matching that case
+  // or task. Useful for opening from TaskDetailScreen header to show
+  // "notifications for this task". Match is OR semantics: if both
+  // taskId and caseNumber are passed, EITHER match wins.
+  filterByTaskId?: string | null;
+  filterByCaseNumber?: string | null;
 }
 
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   visible,
   onClose,
   onNavigateToCase,
+  filterByTaskId,
+  filterByCaseNumber,
 }) => {
   const { theme } = useTheme();
-  const [notifications, setNotifications] = useState<NotificationData[]>([]);
+  const [allNotifications, setAllNotifications] = useState<NotificationData[]>(
+    [],
+  );
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Apply scope filter when caller passes filterByTaskId or
+  // filterByCaseNumber. Without filters, behaves as before (full feed).
+  const notifications = React.useMemo(() => {
+    if (!filterByTaskId && !filterByCaseNumber) {
+      return allNotifications;
+    }
+    return allNotifications.filter(n => {
+      const taskMatch =
+        filterByTaskId && n.taskId && n.taskId === filterByTaskId;
+      const caseMatch =
+        filterByCaseNumber &&
+        n.caseNumber &&
+        n.caseNumber === filterByCaseNumber;
+      return Boolean(taskMatch) || Boolean(caseMatch);
+    });
+  }, [allNotifications, filterByTaskId, filterByCaseNumber]);
 
   useEffect(() => {
     if (visible) {
@@ -44,7 +72,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   useEffect(() => {
     const unsubscribe = notificationService.subscribe(updatedNotifications => {
-      setNotifications(updatedNotifications);
+      setAllNotifications(updatedNotifications);
       setLoading(false);
     });
     return unsubscribe;
@@ -86,8 +114,22 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     }
   };
 
+  const isScoped = Boolean(filterByTaskId || filterByCaseNumber);
+
   const handleMarkAllAsRead = async () => {
     try {
+      // Phase 1.2c: when filtered by case/task, only mark notifications
+      // visible in the current scope. Calling notificationService
+      // .markAllAsRead() globally would also clear the user's unread
+      // notifications for OTHER cases — confusing UX. Mark each visible
+      // unread one individually (idempotent + queue-tracked).
+      if (isScoped) {
+        const visibleUnread = notifications.filter(n => !n.isRead);
+        await Promise.allSettled(
+          visibleUnread.map(n => notificationService.markAsRead(n.id)),
+        );
+        return;
+      }
       await notificationService.markAllAsRead();
     } catch (error) {
       Logger.error('NotificationCenter', 'Failed to mark all as read', error);
@@ -224,11 +266,29 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             >
               {item.message}
             </Text>
-            {item.caseNumber && (
+            {/* Phase 1.2e (re-audit 2026-05-04): show task identifier
+                alongside case number so users can distinguish multiple
+                notifications for the same case but different tasks
+                (FIELD verification + KYC + reassignments). The label
+                line is "Case: 4 · Task: VT-000017"; if only one is
+                present it shows just that side. taskNumber preferred
+                over taskId UUID for readability. */}
+            {(item.caseNumber || item.taskNumber || item.taskId) && (
               <Text
                 style={[styles.caseNumber, { color: theme.colors.primary }]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
               >
-                Case: {item.caseNumber}
+                {[
+                  item.caseNumber ? `Case: ${item.caseNumber}` : null,
+                  item.taskNumber
+                    ? `Task: ${item.taskNumber}`
+                    : item.taskId
+                    ? `Task: ${item.taskId.slice(0, 8)}`
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
               </Text>
             )}
           </View>
@@ -343,20 +403,26 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 </Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity
-              style={styles.headerButton}
-              onPress={handleClearAll}
-            >
-              <Icon name="trash" size={20} color={theme.colors.danger} />
-              <Text
-                style={[
-                  styles.headerButtonText,
-                  { color: theme.colors.danger },
-                ]}
+            {/* Phase 1.2c: hide global Clear button when filtered by case
+                or task. Per-id delete isn't wired on mobile yet, so a
+                scoped Clear that deletes everything would surprise the
+                user. Mark all read above still works in scoped mode. */}
+            {!isScoped && (
+              <TouchableOpacity
+                style={styles.headerButton}
+                onPress={handleClearAll}
               >
-                Clear
-              </Text>
-            </TouchableOpacity>
+                <Icon name="trash" size={20} color={theme.colors.danger} />
+                <Text
+                  style={[
+                    styles.headerButtonText,
+                    { color: theme.colors.danger },
+                  ]}
+                >
+                  Clear
+                </Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity style={styles.closeButton} onPress={onClose}>
               <Icon name="close" size={24} color={theme.colors.textSecondary} />
             </TouchableOpacity>

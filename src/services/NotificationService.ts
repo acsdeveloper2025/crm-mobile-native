@@ -24,6 +24,13 @@ export interface NotificationData {
   priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
   isRead: boolean;
   taskId?: string;
+  /**
+   * Phase 1.2e (2026-05-04): human-readable task identifier (e.g.
+   * "VT-000017") shown alongside `caseNumber` in NotificationCenter
+   * row label. Both FIELD verification and KYC tasks share the same
+   * `verification_tasks.task_number` sequence on backend.
+   */
+  taskNumber?: string;
   caseNumber?: string;
   actionUrl?: string;
   timestamp: string;
@@ -39,8 +46,30 @@ type AssignmentSyncHandler = (
   trigger: AssignmentSyncTrigger,
 ) => Promise<void> | void;
 
+// Phase 1.1 (2026-05-04): foreground-banner observer. Distinct from the
+// `subscribers` set above, which fires on EVERY cache change (including
+// mark-read). Foreground listeners fire ONLY when an FCM push arrives
+// while the app is in foreground — that's the trigger for the
+// WhatsApp-style toast banner.
+export interface ForegroundNotificationPayload {
+  id: string;
+  type: NotificationData['type'];
+  title: string;
+  message: string;
+  priority: NotificationData['priority'];
+  taskId?: string;
+  taskNumber?: string;
+  caseNumber?: string;
+  actionUrl?: string;
+  timestamp: string;
+}
+export type ForegroundNotificationListener = (
+  payload: ForegroundNotificationPayload,
+) => void;
+
 class NotificationServiceImpl {
   private subscribers: Set<NotificationSubscriber> = new Set();
+  private foregroundListeners: Set<ForegroundNotificationListener> = new Set();
   private cache: NotificationData[] = [];
   private loaded = false;
   private listenersInitialized = false;
@@ -75,6 +104,42 @@ class NotificationServiceImpl {
     await this.loadFromDb();
   }
 
+  /**
+   * Phase 2.1 (2026-05-04): public hook for the WebSocket service to
+   * persist a single incoming notification using the same sticky-read
+   * upsert path as `refreshFromBackend`. Distinct from
+   * `addNotification` (which generates a new uuid) — the WS payload
+   * already has a server-issued id we must preserve so dedupe with
+   * FCM works.
+   */
+  async upsertSingleFromRealtime(notification: {
+    id: string;
+    type: string;
+    title: string;
+    message: string;
+    priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
+    isRead?: boolean;
+    taskId?: string | null;
+    taskNumber?: string | null;
+    caseNumber?: string | null;
+    actionUrl?: string | null;
+    createdAt?: string;
+    updatedAt?: string;
+  }): Promise<void> {
+    await this.upsertBackendNotifications([notification]);
+  }
+
+  /**
+   * Phase 2.1: public hook for the WebSocket service to fire the
+   * foreground banner. Mirrors the FCM 'foreground' branch in
+   * handleIncomingRemoteMessage.
+   */
+  emitForegroundNotificationFromRealtime(
+    payload: ForegroundNotificationPayload,
+  ): void {
+    this.emitForegroundNotification(payload);
+  }
+
   getNotifications(): NotificationData[] {
     return this.cache;
   }
@@ -87,6 +152,34 @@ class NotificationServiceImpl {
     this.subscribers.add(callback);
     callback(this.getNotifications());
     return () => this.subscribers.delete(callback);
+  }
+
+  /**
+   * Subscribe to foreground push arrivals. Fires ONLY when an FCM push
+   * (or backend WebSocket if/when wired) arrives while the app is in
+   * foreground. Returns unsubscribe function.
+   *
+   * Used by ForegroundNotificationBanner to slide down a toast on
+   * incoming notification — WhatsApp-style. Distinct from `subscribe`
+   * (which fires on every cache change incl. mark-read / refresh).
+   */
+  onForegroundNotification(
+    listener: ForegroundNotificationListener,
+  ): () => void {
+    this.foregroundListeners.add(listener);
+    return () => this.foregroundListeners.delete(listener);
+  }
+
+  private emitForegroundNotification(
+    payload: ForegroundNotificationPayload,
+  ): void {
+    this.foregroundListeners.forEach(listener => {
+      try {
+        listener(payload);
+      } catch (error) {
+        Logger.warn(TAG, 'Foreground notification listener crashed', error);
+      }
+    });
   }
 
   private notifySubscribers() {
@@ -172,6 +265,7 @@ class NotificationServiceImpl {
       priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
       isRead?: boolean;
       taskId?: string | null;
+      taskNumber?: string | null;
       caseNumber?: string | null;
       actionUrl?: string | null;
       createdAt?: string;
@@ -188,6 +282,7 @@ class NotificationServiceImpl {
         priority: this.toNotificationPriority(notification.priority),
         isRead: Boolean(notification.isRead),
         taskId: notification.taskId || undefined,
+        taskNumber: notification.taskNumber || undefined,
         caseNumber: notification.caseNumber || undefined,
         actionUrl: notification.actionUrl || undefined,
         timestamp:
@@ -225,6 +320,15 @@ class NotificationServiceImpl {
       // 'CASE_ASSIGNED_ADMIN' that bypasses the dedupe check.
       const type = normalizeFcmType(data.type ?? data.notificationType);
       const taskId = data.taskId ?? data.verificationTaskId ?? null;
+      // Phase 1.2e: capture human-readable task identifier (e.g.
+      // VT-000017). Backend pushes it in `data.taskNumber`; legacy
+      // payloads may use `data.verificationTaskNumber` instead.
+      const taskNumber =
+        data.taskNumber != null
+          ? String(data.taskNumber)
+          : data.verificationTaskNumber != null
+          ? String(data.verificationTaskNumber)
+          : null;
       const caseNumber =
         data.caseNumber != null
           ? String(data.caseNumber)
@@ -261,16 +365,39 @@ class NotificationServiceImpl {
         shouldInsertNotification = !alreadyExists;
       }
 
+      const insertedTimestamp = new Date().toISOString();
+      let insertedId: string | null = null;
       if (shouldInsertNotification) {
-        await this.addNotification({
+        insertedId = await this.addNotification({
           type,
           title,
           message,
           priority,
           taskId: taskId ?? undefined,
+          taskNumber: taskNumber ?? undefined,
           caseNumber: caseNumber ?? undefined,
           actionUrl: actionUrl ?? undefined,
-          timestamp: new Date().toISOString(),
+          timestamp: insertedTimestamp,
+        });
+      }
+
+      // Phase 1.1 (2026-05-04): emit foreground banner ONLY when source is
+      // 'foreground' (i.e. push arrived while app was open). 'opened' and
+      // 'initial' come from the user already tapping the OS-level
+      // notification, so the system banner already showed and we should
+      // NOT re-banner. Listener is best-effort (no listeners = no-op).
+      if (source === 'foreground') {
+        this.emitForegroundNotification({
+          id: insertedId || `${type}-${Date.now()}`,
+          type,
+          title,
+          message,
+          priority,
+          taskId: taskId ?? undefined,
+          taskNumber: taskNumber ?? undefined,
+          caseNumber: caseNumber ?? undefined,
+          actionUrl: actionUrl ?? undefined,
+          timestamp: insertedTimestamp,
         });
       }
 
@@ -498,6 +625,68 @@ class NotificationServiceImpl {
     }
   }
 
+  /**
+   * Phase 3.2 (2026-05-04): WhatsApp-style mute for the current task.
+   * Mute is online-only — no offline queue, no SQLite persistence.
+   * Backend's `getScopedNotificationRows` filter takes effect on the
+   * next /notifications fetch, so the bell badge silences within
+   * one refresh cycle. Re-muting an active mute refreshes
+   * `expires_at` server-side (UPSERT) — idempotent.
+   */
+  async muteTask(taskId: string, expiresAt?: string | null): Promise<void> {
+    try {
+      await ApiClient.post(ENDPOINTS.NOTIFICATIONS.MUTE, {
+        taskId,
+        expiresAt: expiresAt ?? null,
+      });
+    } catch (e) {
+      Logger.warn(TAG, 'Failed to mute task', e);
+      throw e;
+    }
+  }
+
+  async unmuteTask(taskId: string): Promise<void> {
+    try {
+      await ApiClient.delete(ENDPOINTS.NOTIFICATIONS.UNMUTE_TASK(taskId));
+    } catch (e) {
+      Logger.warn(TAG, 'Failed to unmute task', e);
+      throw e;
+    }
+  }
+
+  /**
+   * Returns the active mute records for the current user. Used by
+   * TaskDetailScreen header to render the right Mute / Unmute icon
+   * state. Cached in-memory by the caller (~30s) to avoid round-trip
+   * on every render.
+   */
+  async listMutes(): Promise<
+    Array<{
+      id: string;
+      caseId: string | null;
+      taskId: string | null;
+      createdAt: string;
+      expiresAt: string | null;
+    }>
+  > {
+    try {
+      const res = await ApiClient.get<{
+        success: boolean;
+        data: Array<{
+          id: string;
+          caseId: string | null;
+          taskId: string | null;
+          createdAt: string;
+          expiresAt: string | null;
+        }>;
+      }>(ENDPOINTS.NOTIFICATIONS.LIST_MUTES);
+      return res?.data ?? [];
+    } catch (e) {
+      Logger.warn(TAG, 'Failed to list mutes', e);
+      return [];
+    }
+  }
+
   async registerCurrentDevice(enabled: boolean = true): Promise<void> {
     try {
       const deviceInfo = await AuthService.getDeviceInfo();
@@ -538,6 +727,7 @@ class NotificationServiceImpl {
       priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
       isRead?: boolean;
       taskId?: string | null;
+      taskNumber?: string | null;
       caseNumber?: string | null;
       actionUrl?: string | null;
       createdAt?: string;

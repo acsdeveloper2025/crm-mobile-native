@@ -21,6 +21,7 @@ import { AuthProvider } from './src/context/AuthContext';
 import { TaskProvider } from './src/context/TaskContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { NetworkStatusBanner } from './src/components/ui/NetworkStatusBanner';
+import { ForegroundNotificationBanner } from './src/components/ui/ForegroundNotificationBanner';
 import { DatabaseService } from './src/database/DatabaseService';
 import { NetworkService } from './src/services/NetworkService';
 import { TimeService } from './src/services/TimeService';
@@ -373,6 +374,7 @@ function App(): React.JSX.Element {
             <ErrorBoundary>
               <NetworkStatusBanner />
               <RootNavigator />
+              <ForegroundNotificationBanner />
               <WatermarkReStamper />
             </ErrorBoundary>
           </TaskProvider>

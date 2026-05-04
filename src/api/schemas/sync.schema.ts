@@ -76,6 +76,9 @@ export const MobileNotificationSchema = z
     priority: z.string().optional(),
     isRead: z.boolean().optional(),
     taskId: z.string().nullable().optional(),
+    // Phase 1.2e (2026-05-04): camelCase mirror of `task_number`. Backend
+    // adds it via `camelizeRow` in CRM-BACKEND/src/utils/rowTransform.ts.
+    taskNumber: z.string().nullable().optional(),
     caseNumber: z.union([z.string(), z.number()]).nullable().optional(),
     actionUrl: z.string().nullable().optional(),
     createdAt: z.string().optional(),
