@@ -8,6 +8,7 @@ export interface NotificationRecord {
   priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
   isRead: boolean;
   taskId?: string;
+  taskNumber?: string;
   caseNumber?: string;
   actionUrl?: string;
   timestamp: string;
@@ -21,6 +22,7 @@ type DbNotification = {
   priority: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
   isRead: number;
   taskId: string | null;
+  taskNumber: string | null;
   caseNumber: string | null;
   actionUrl: string | null;
   timestamp: string;
@@ -44,6 +46,7 @@ class NotificationRepositoryClass {
       priority: row.priority,
       isRead: Boolean(row.isRead),
       taskId: row.taskId || undefined,
+      taskNumber: row.taskNumber || undefined,
       caseNumber: row.caseNumber || undefined,
       actionUrl: row.actionUrl || undefined,
       timestamp: row.timestamp,
@@ -67,6 +70,7 @@ class NotificationRepositoryClass {
       priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
       isRead?: boolean;
       taskId?: string | null;
+      taskNumber?: string | null;
       caseNumber?: string | null;
       actionUrl?: string | null;
       createdAt?: string;
@@ -95,8 +99,8 @@ class NotificationRepositoryClass {
 
         await tx.execute(
           `INSERT OR REPLACE INTO notifications
-           (id, type, title, message, priority, is_read, task_id, case_number, action_url, timestamp)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           (id, type, title, message, priority, is_read, task_id, task_number, case_number, action_url, timestamp)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             notification.id,
             notification.type,
@@ -105,6 +109,7 @@ class NotificationRepositoryClass {
             notification.priority || 'NORMAL',
             effectiveIsRead,
             notification.taskId || null,
+            notification.taskNumber || null,
             notification.caseNumber || null,
             notification.actionUrl || null,
             notification.updatedAt ||
@@ -122,8 +127,8 @@ class NotificationRepositoryClass {
   ): Promise<void> {
     await DatabaseService.execute(
       `INSERT INTO notifications
-      (id, type, title, message, priority, is_read, task_id, case_number, action_url, timestamp)
-      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
+      (id, type, title, message, priority, is_read, task_id, task_number, case_number, action_url, timestamp)
+      VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
       [
         id,
         notification.type,
@@ -131,6 +136,7 @@ class NotificationRepositoryClass {
         notification.message,
         notification.priority || 'NORMAL',
         notification.taskId || null,
+        notification.taskNumber || null,
         notification.caseNumber || null,
         notification.actionUrl || null,
         notification.timestamp || new Date().toISOString(),

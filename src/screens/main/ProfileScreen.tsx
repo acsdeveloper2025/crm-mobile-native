@@ -360,6 +360,35 @@ export const ProfileScreen = ({ navigation }: any) => {
               color={theme.colors.textMuted}
             />
           </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            onPress={() => navigation.navigate('NotificationSettings' as never)}
+            accessibilityRole="button"
+            accessibilityLabel="Open notification settings"
+          >
+            <Icon
+              name="notifications-outline"
+              size={22}
+              color={theme.colors.textSecondary}
+            />
+            <Text
+              style={[styles.actionText, { color: theme.colors.textSecondary }]}
+            >
+              Notification Settings
+            </Text>
+            <Icon
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity

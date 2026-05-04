@@ -169,7 +169,9 @@ export const SubmitVerificationUseCase = {
     // the snapshot of user values stays intact.
     const existingFormData = parseFormData(task.formDataJson);
     const submissionFormData =
-      Object.keys(mergedFormData).length > 0 ? mergedFormData : existingFormData;
+      Object.keys(mergedFormData).length > 0
+        ? mergedFormData
+        : existingFormData;
     const persistedFormData = {
       ...existingFormData,
       ...mergedFormData,
