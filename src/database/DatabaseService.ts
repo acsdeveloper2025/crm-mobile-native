@@ -483,6 +483,39 @@ class DatabaseServiceClass {
     if (pendingMigrations.length === 0 && currentVersion < DB_VERSION) {
       await this.db.execute(`PRAGMA user_version = ${DB_VERSION};`);
     }
+
+    // Phase 1.2e self-heal (2026-05-05): some devices got user_version=15
+    // bumped without the v15 ALTER actually applying (transaction rolled
+    // back mid-migration on a different statement, or pre-v15 fresh-install
+    // under an even-older SCHEMA_SQL without task_number). Idempotently
+    // ensure the column exists every boot. Cheap (~1 PRAGMA + maybe 1
+    // ALTER) and saves a "uninstall app to reset DB" support cycle.
+    try {
+      const cols = await this.db.execute('PRAGMA table_info(notifications);');
+      const hasTaskNumber = (cols.rows as Array<{ name?: string }>).some(
+        r => r.name === 'task_number',
+      );
+      if (!hasTaskNumber) {
+        await this.db.execute(
+          'ALTER TABLE notifications ADD COLUMN task_number TEXT;',
+        );
+        Logger.warn(
+          'DatabaseService',
+          'Self-heal: added missing notifications.task_number column',
+        );
+      }
+    } catch (e) {
+      // Notifications table missing entirely (e.g. pre-v3 install) —
+      // SCHEMA_SQL re-execution at boot is the bigger lift; for now,
+      // just log so we notice. Migration v3 + SCHEMA_SQL together cover
+      // the create path; this self-heal only needs to handle the
+      // "table exists, column doesn't" case.
+      Logger.warn(
+        'DatabaseService',
+        'Notifications self-heal skipped (table may not exist yet)',
+        e,
+      );
+    }
   }
 
   /**

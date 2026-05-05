@@ -317,8 +317,29 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
             )}
           </View>
 
-          {/* Right: Data Stack */}
           <View style={styles.dataStack}>
+            {/* Bug 66 (2026-05-05): customer/case header line — added
+                to mirror the web composite's City/State/Country slot.
+                Mobile can't reverse-geocode (would slow capture), so we
+                use the customer + task identifier from taskMeta which
+                is already in memory. */}
+            {(meta.customerName || meta.caseId || meta.taskNumber) && (
+              <PreserveCase style={styles.headerLine}>
+                {[
+                  meta.customerName,
+                  meta.taskNumber || (meta.caseId ? `Case ${meta.caseId}` : ''),
+                ]
+                  .filter(Boolean)
+                  .join(' · ')
+                  .toUpperCase()}
+              </PreserveCase>
+            )}
+            {/* Lat / Long line in the same format as the web composite */}
+            {location && (
+              <PreserveCase style={styles.latLongLine}>
+                Lat {location.lat.toFixed(7)} / Long {location.lng.toFixed(7)}
+              </PreserveCase>
+            )}
             {/* Row 1: Date & Time */}
             <View style={styles.dataRow}>
               <Icon name="calendar-outline" size={11} color="#94a3b8" />
@@ -332,9 +353,12 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
               <PreserveCase style={styles.dataLabel}>{timeStr}</PreserveCase>
             </View>
 
-            {/* Address row removed — the human-readable address is resolved
-                on the CRM web frontend at view time from the stored GPS
-                coords, so field capture stays instant and offline-safe. */}
+            {/* Address row intentionally omitted from the mobile
+                watermark — capture path must stay fast + offline-safe.
+                Address is resolved + displayed only on the CRM web view
+                from the stored geo_location coords (see
+                project_geocoding_and_watermark.md). Don't re-add a
+                reverse-geocode fetch here. */}
 
             {/* Row 6: Altitude / Speed / Compass */}
             {location && (
@@ -437,9 +461,9 @@ const styles = StyleSheet.create({
 
   /* GPS Card (left) */
   gpsCard: {
-    width: 110,
-    marginRight: 10,
-    paddingRight: 10,
+    width: 140,
+    marginRight: 12,
+    paddingRight: 12,
     borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: 'rgba(255,255,255,0.2)',
   },
@@ -448,34 +472,54 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 4,
   },
+  // 2026-05-05 (bug 59): bumped all watermark text +3-4pt across the
+  // strip so the burned-in evidence is readable at thumbnail size and
+  // when the JPG is opened in any external viewer. Strip card width
+  // also widened (110 → 130) to keep the GPS DMS lines on a single
+  // row at the larger size.
   gpsLabel: {
     color: '#22d3ee',
-    fontSize: 8,
+    fontSize: 11,
     fontWeight: '800',
     letterSpacing: 1.2,
     marginLeft: 4,
   },
+  // Bug 66 (2026-05-05): match the FE composite's header/lat-long styles.
+  headerLine: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+    marginBottom: 3,
+  },
+  latLongLine: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '700',
+    fontFamily: 'Courier',
+    marginBottom: 2,
+  },
   gpsCoordDMS: {
     color: '#ffffff',
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '700',
-    lineHeight: 14,
+    lineHeight: 17,
   },
   gpsDecimal: {
-    color: '#94a3b8',
-    fontSize: 8,
-    fontWeight: '500',
+    color: '#cbd5e1',
+    fontSize: 11,
+    fontWeight: '600',
     marginTop: 2,
   },
   gpsAccuracy: {
     color: '#4ade80',
-    fontSize: 8,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
     marginTop: 1,
   },
   gpsLocating: {
     color: '#fbbf24',
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '600',
     marginTop: 4,
   },
@@ -488,33 +532,24 @@ const styles = StyleSheet.create({
   dataRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 2,
+    marginBottom: 3,
   },
   iconSpacer: {
     marginLeft: 8,
   },
   dataLabel: {
-    color: '#cbd5e1',
-    fontSize: 10,
-    fontWeight: '500',
+    color: '#e2e8f0',
+    fontSize: 13,
+    fontWeight: '600',
     marginLeft: 4,
   },
   dataValue: {
     color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 13,
+    fontWeight: '700',
     marginLeft: 4,
     flexShrink: 1,
   },
-  addressText: {
-    color: '#fde68a',
-    fontSize: 9,
-    fontWeight: '600',
-    marginLeft: 4,
-    flexShrink: 1,
-    lineHeight: 13,
-  },
-
   /* Branding Row */
   brandRow: {
     flexDirection: 'row',

@@ -111,14 +111,28 @@ class AttachmentUploaderClass {
     // Idempotency-Key with a drifting body returns HTTP 409
     // IDEMPOTENCY_KEY_CONFLICT on every retry, trapping the upload in
     // the DLQ loop even though the first attempt may have succeeded.
+    //
+    // Bug 53 (2026-05-05): SyncGateway.enqueueAttachment from CameraService
+    // writes the timestamp at `payload.geoLocation.timestamp`, NOT at
+    // top-level `payload.locationTimestamp`. The earlier key-only lookup
+    // missed the nested path → fell through to `new Date(0).toISOString()`
+    // → every photo persisted in DB with `1970-01-01T00:00:00.000Z`
+    // shown on case-detail "Capture Time". Try nested first, then top-level
+    // legacy keys, then fallback.
+    const nestedGeoTs =
+      payload.geoLocation && typeof payload.geoLocation === 'object'
+        ? (payload.geoLocation as Record<string, unknown>).timestamp
+        : undefined;
     const locationTimestamp =
-      typeof payload.locationTimestamp === 'string' &&
-      payload.locationTimestamp.length > 0
+      typeof nestedGeoTs === 'string' && nestedGeoTs.length > 0
+        ? nestedGeoTs
+        : typeof payload.locationTimestamp === 'string' &&
+          payload.locationTimestamp.length > 0
         ? payload.locationTimestamp
         : typeof payload.capturedAt === 'string' &&
           payload.capturedAt.length > 0
         ? payload.capturedAt
-        : // Last-resort fallback when neither timestamp is on the
+        : // Last-resort fallback when no timestamp is on the
           // payload. Stable within an attempt but could still drift
           // across retries — log so we can pin it down if it fires.
           new Date(0).toISOString();
