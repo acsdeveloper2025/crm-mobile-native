@@ -312,6 +312,12 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
   totalEarningMember: NUMBERS_1_TO_20,
   stayingPeriodValue: NUMBERS_1_TO_50,
   stayingPeriodUnit: STAYING_PERIOD_UNITS,
+  // 2026-05-06 bug 72: residence SHIFTED + RCO SHIFTED forms reference these as
+  // type:'select' (LegacyFormTemplateBuilders.ts:880,886 + 1770,1776) but the
+  // options dict was missing entries → dropdown sheets opened empty, blocking submit.
+  // Use the same NUMBERS_1_TO_50 + STAYING_PERIOD_UNITS shape as every other period family.
+  shiftedPeriodValue: NUMBERS_1_TO_50,
+  shiftedPeriodUnit: STAYING_PERIOD_UNITS,
   addressStructure: NUMBERS_1_TO_100,
   applicantStayingFloor: NUMBERS_1_TO_100,
   addressFloor: NUMBERS_1_TO_100,
@@ -570,7 +576,12 @@ const legacyResidenceSelectOptions: Record<string, string[]> = {
 };
 
 const legacyResidenceOptionAliases: Record<string, string> = {
+  // 2026-05-06 bug 75: Residence ERT canonical field is `metPersonType` post the
+  // 2026-04-24 met-person unification (project_met_person_unification.md).
+  // Without this alias, the ERT MET PERSON select renders empty (Security/Receptionist
+  // never resolved). Legacy `metPerson` kept for pre-v1.0.17 client grace.
   metPerson: 'metPersonErt',
+  metPersonType: 'metPersonErt',
   tpcMetPerson1: 'tpcMetPerson',
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
@@ -6052,7 +6063,9 @@ const legacyPropertyApfOptionAliases: Record<string, string> = {
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
   tpcConfirmation2: 'tpcConfirmation',
+  // 2026-05-06 bug 75: APF ERT canonical field name is `metPersonType` post-unification.
   metPerson: 'metPersonErt',
+  metPersonType: 'metPersonErt',
   metPersonDesignation: 'designation',
 };
 
@@ -6577,7 +6590,9 @@ const legacyPropertyIndividualOptionAliases: Record<string, string> = {
   tpcMetPerson2: 'tpcMetPerson',
   tpcConfirmation1: 'tpcConfirmation',
   tpcConfirmation2: 'tpcConfirmation',
+  // 2026-05-06 bug 75: PropInd ERT canonical field name is `metPersonType` post-unification.
   metPerson: 'metPersonErt',
+  metPersonType: 'metPersonErt',
 };
 
 const withLegacyPropertyIndividualOrder = (
