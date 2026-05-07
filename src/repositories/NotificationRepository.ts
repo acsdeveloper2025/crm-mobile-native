@@ -160,6 +160,12 @@ class NotificationRepositoryClass {
   async clearAll(): Promise<void> {
     await DatabaseService.execute('DELETE FROM notifications');
   }
+
+  async deleteById(id: string): Promise<void> {
+    await DatabaseService.execute('DELETE FROM notifications WHERE id = ?', [
+      id,
+    ]);
+  }
 }
 
 export const NotificationRepository = new NotificationRepositoryClass();

@@ -215,6 +215,10 @@ class NotificationServiceImpl {
     this.replaceCache(Array.from(map.values()));
   }
 
+  private removeFromCache(id: string): void {
+    this.replaceCache(this.cache.filter(item => item.id !== id));
+  }
+
   private markCacheAsRead(id: string): void {
     this.replaceCache(
       this.cache.map(notification =>
@@ -770,6 +774,44 @@ class NotificationServiceImpl {
       }
 
       await this.upsertBackendNotifications(collected);
+
+      // Mobile sync gap fix (2026-05-07): backend filters reads with
+      // `is_deleted=false` per Phase 2.2 soft-delete (project_whatsapp_notification_parity_2026_05_03.md).
+      // Mobile previously kept stale rows in local SQLite from before the
+      // soft-delete; tap → 404 on `/notifications/:id/read`. Reconcile by
+      // dropping local rows that backend stopped returning, bounded to the
+      // synced window so a >1000-notif backlog isn't truncated.
+      if (collected.length > 0) {
+        const collectedIds = new Set(collected.map(n => n.id));
+        const oldestCollectedTs = collected
+          .map(n => n.updatedAt || n.createdAt || '')
+          .filter(t => t)
+          .sort()[0];
+        if (oldestCollectedTs) {
+          const localRows = await NotificationRepository.listAll();
+          const stale = localRows.filter(
+            r => r.timestamp >= oldestCollectedTs && !collectedIds.has(r.id),
+          );
+          for (const row of stale) {
+            try {
+              await NotificationRepository.deleteById(row.id);
+              this.removeFromCache(row.id);
+            } catch (err) {
+              Logger.warn(
+                TAG,
+                `Failed to drop stale notification ${row.id}`,
+                err,
+              );
+            }
+          }
+          if (stale.length > 0) {
+            Logger.info(
+              TAG,
+              `Reconciled ${stale.length} stale notifications (backend soft-deleted)`,
+            );
+          }
+        }
+      }
 
       const assignment = collected.find(
         item =>
