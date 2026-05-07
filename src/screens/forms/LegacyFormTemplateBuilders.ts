@@ -264,9 +264,11 @@ const coerceOutcomeForFormType = (
   };
 };
 
-const NUMBERS_1_TO_20 = Array.from({ length: 20 }, (_, i) => String(i + 1));
-const NUMBERS_1_TO_50 = Array.from({ length: 50 }, (_, i) => String(i + 1));
-const NUMBERS_1_TO_100 = Array.from({ length: 100 }, (_, i) => String(i + 1));
+// Bug 83 (2026-05-07): all numeric dropdowns include 0 as first option.
+// Range 0..N (length N+1). Upper bound preserved.
+const NUMBERS_0_TO_20 = Array.from({ length: 21 }, (_, i) => String(i));
+const NUMBERS_0_TO_50 = Array.from({ length: 51 }, (_, i) => String(i));
+const NUMBERS_0_TO_100 = Array.from({ length: 101 }, (_, i) => String(i));
 const STAYING_PERIOD_UNITS = ['Day', 'Month', 'Year'];
 const STANDARD_COLORS = [
   'White',
@@ -308,20 +310,20 @@ const STANDARD_COLORS = [
 
 /** Common select options shared across all form types */
 const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
-  totalFamilyMembers: NUMBERS_1_TO_20,
-  totalEarningMember: NUMBERS_1_TO_20,
-  stayingPeriodValue: NUMBERS_1_TO_50,
+  totalFamilyMembers: NUMBERS_0_TO_20,
+  totalEarningMember: NUMBERS_0_TO_20,
+  stayingPeriodValue: NUMBERS_0_TO_50,
   stayingPeriodUnit: STAYING_PERIOD_UNITS,
   // 2026-05-06 bug 72: residence SHIFTED + RCO SHIFTED forms reference these as
   // type:'select' (LegacyFormTemplateBuilders.ts:880,886 + 1770,1776) but the
   // options dict was missing entries → dropdown sheets opened empty, blocking submit.
-  // Use the same NUMBERS_1_TO_50 + STAYING_PERIOD_UNITS shape as every other period family.
-  shiftedPeriodValue: NUMBERS_1_TO_50,
+  // Use the same NUMBERS_0_TO_50 + STAYING_PERIOD_UNITS shape as every other period family.
+  shiftedPeriodValue: NUMBERS_0_TO_50,
   shiftedPeriodUnit: STAYING_PERIOD_UNITS,
-  addressStructure: NUMBERS_1_TO_100,
-  applicantStayingFloor: NUMBERS_1_TO_100,
-  addressFloor: NUMBERS_1_TO_100,
-  addressExistAt: NUMBERS_1_TO_100,
+  addressStructure: NUMBERS_0_TO_100,
+  applicantStayingFloor: NUMBERS_0_TO_100,
+  addressFloor: NUMBERS_0_TO_100,
+  addressExistAt: NUMBERS_0_TO_100,
   designation: [
     'Applicant Self',
     'Reception',
@@ -481,15 +483,15 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
   finalStatusShifted: ['Positive', 'Negative', 'Refer', 'Fraud'],
   finalStatusErt: ['Positive', 'Negative', 'Refer', 'Fraud'],
   finalStatusUntraceable: ['Positive', 'Negative', 'Refer', 'Fraud'],
-  businessPeriodValue: NUMBERS_1_TO_50,
+  businessPeriodValue: NUMBERS_0_TO_50,
   businessPeriodUnit: STAYING_PERIOD_UNITS,
-  workingPeriodValue: NUMBERS_1_TO_50,
+  workingPeriodValue: NUMBERS_0_TO_50,
   workingPeriodUnit: STAYING_PERIOD_UNITS,
-  establishmentPeriodValue: NUMBERS_1_TO_50,
+  establishmentPeriodValue: NUMBERS_0_TO_50,
   establishmentPeriodUnit: STAYING_PERIOD_UNITS,
-  currentCompanyPeriodValue: NUMBERS_1_TO_50,
+  currentCompanyPeriodValue: NUMBERS_0_TO_50,
   currentCompanyPeriodUnit: STAYING_PERIOD_UNITS,
-  oldOfficeShiftedPeriodValue: NUMBERS_1_TO_50,
+  oldOfficeShiftedPeriodValue: NUMBERS_0_TO_50,
   oldOfficeShiftedPeriodUnit: STAYING_PERIOD_UNITS,
   houseStatus: ['Open', 'Closed'],
   metPersonErt: ['Security', 'Receptionist'],
@@ -676,16 +678,18 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
     name: 'companyName',
     label: 'Company Name',
     type: 'text',
-    conditional: legacyCondition('workingStatus', 'notIn', [
-      '',
-      null,
-      'House Wife',
-    ]),
-    requiredWhen: legacyCondition('workingStatus', 'notIn', [
-      '',
-      null,
-      'House Wife',
-    ]),
+    // Bug 82 (2026-05-07): gate on houseStatus=Open AND workingStatus is set
+    // and not 'House Wife'. Without the houseStatus gate, switching door
+    // Open→Closed left workingStatus value lingering and companyName stayed
+    // visible+required. Engine now AND-combines array conditions.
+    conditional: [
+      legacyCondition('houseStatus', 'equals', 'Open'),
+      legacyCondition('workingStatus', 'notIn', ['', null, 'House Wife']),
+    ],
+    requiredWhen: [
+      legacyCondition('houseStatus', 'equals', 'Open'),
+      legacyCondition('workingStatus', 'notIn', ['', null, 'House Wife']),
+    ],
   },
   {
     name: 'stayingPeriodValue',

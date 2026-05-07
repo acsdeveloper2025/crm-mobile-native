@@ -408,7 +408,7 @@ export interface FormFieldTemplate {
     pattern?: string;
     custom?: string;
   };
-  conditional?: FormFieldCondition;
+  conditional?: FormFieldCondition | FormFieldCondition[];
   requiredWhen?: FormFieldCondition | FormFieldCondition[];
 }
 

@@ -69,7 +69,14 @@ const isFieldVisible = (
   values: Record<string, unknown>,
 ): boolean => {
   if (!field.conditional) return true;
-  return evaluateCondition(field.conditional, values);
+  // Bug 82 (2026-05-07): support array conditional (AND-combined),
+  // mirrors isFieldRequired contract at L80-93. Empty array means
+  // "no extra gating" → visible.
+  const conditions = Array.isArray(field.conditional)
+    ? field.conditional
+    : [field.conditional];
+  if (conditions.length === 0) return true;
+  return conditions.every(condition => evaluateCondition(condition, values));
 };
 
 const isFieldRequired = (

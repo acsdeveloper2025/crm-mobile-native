@@ -69,19 +69,25 @@ export const validateTemplateRequiredFields = (
     fieldType === 'radio' ||
     fieldType === 'multiselect';
 
+  // Bug 82 (2026-05-07): conditional may be a single FormFieldCondition OR
+  // an array (AND-combined, mirrors requiredWhen contract). Empty array means
+  // "no extra gating".
+  const conditionVisible = (
+    cond: FormFieldCondition | FormFieldCondition[] | undefined,
+  ): boolean => {
+    if (!cond) return true;
+    const list = Array.isArray(cond) ? cond : [cond];
+    if (list.length === 0) return true;
+    return list.every(c => evaluateFieldCondition(c, values));
+  };
+
   for (const section of currentTemplate.sections) {
-    if (
-      section.conditional &&
-      !evaluateFieldCondition(section.conditional, values)
-    ) {
+    if (!conditionVisible(section.conditional)) {
       continue;
     }
 
     for (const field of section.fields) {
-      if (
-        field.conditional &&
-        !evaluateFieldCondition(field.conditional, values)
-      ) {
+      if (!conditionVisible(field.conditional)) {
         continue;
       }
 
