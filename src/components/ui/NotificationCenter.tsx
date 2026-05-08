@@ -11,6 +11,9 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../../navigation/RootNavigator';
 import { useTheme } from '../../context/ThemeContext';
 import { Logger } from '../../utils/logger';
 import {
@@ -40,11 +43,20 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   filterByCaseNumber,
 }) => {
   const { theme } = useTheme();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const [allNotifications, setAllNotifications] = useState<NotificationData[]>(
     [],
   );
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
+  // T1.1 (Phase 1, 2026-05-08): selection mode for multi-select.
+  // Long-press on a row enters selection mode + selects that row.
+  // In selection mode: tap toggles selection (instead of mark-read);
+  // header switches to Cancel / "N selected" / Mark Read / Delete.
+  // Cancel or completed action exits selection mode + clears selectedIds.
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // Apply scope filter when caller passes filterByTaskId or
   // filterByCaseNumber. Without filters, behaves as before (full feed).
@@ -96,6 +108,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   };
 
   const handleNotificationPress = async (notification: NotificationData) => {
+    // T1.1: in selection mode, tap toggles selection instead of mark-read.
+    if (selectionMode) {
+      handleToggleSelect(notification.id);
+      return;
+    }
     try {
       if (!notification.isRead) {
         await notificationService.markAsRead(notification.id);
@@ -112,6 +129,84 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         error,
       );
     }
+  };
+
+  // T1.1: long-press enters selection mode + selects that row.
+  const handleLongPress = (notification: NotificationData) => {
+    if (!selectionMode) {
+      setSelectionMode(true);
+      setSelectedIds(new Set([notification.id]));
+    } else {
+      handleToggleSelect(notification.id);
+    }
+  };
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      // Auto-exit selection mode when last row deselected.
+      if (next.size === 0) {
+        setSelectionMode(false);
+      }
+      return next;
+    });
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const handleMarkSelectedRead = async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    try {
+      await notificationService.markSelectedAsRead(ids);
+    } catch (error) {
+      Logger.error(
+        'NotificationCenter',
+        'Failed to mark selected as read',
+        error,
+      );
+    } finally {
+      exitSelectionMode();
+    }
+  };
+
+  const handleDeleteSelected = () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    Alert.alert(
+      'Delete Selected',
+      `Delete ${ids.length} selected notification${
+        ids.length === 1 ? '' : 's'
+      }? This action cannot be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await notificationService.deleteSelected(ids);
+            } catch (error) {
+              Logger.error(
+                'NotificationCenter',
+                'Failed to delete selected',
+                error,
+              );
+            } finally {
+              exitSelectionMode();
+            }
+          },
+        },
+      ],
+    );
   };
 
   const isScoped = Boolean(filterByTaskId || filterByCaseNumber);
@@ -222,22 +317,46 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     }
   };
 
-  const renderNotificationItem = ({ item }: { item: NotificationData }) => (
+  const renderNotificationItem = ({ item }: { item: NotificationData }) => {
+    const isSelected = selectedIds.has(item.id);
+    return (
     <TouchableOpacity
       style={[
         styles.notificationItem,
         {
-          backgroundColor: theme.colors.surface,
+          backgroundColor: isSelected
+            ? theme.colors.primary + '15'
+            : theme.colors.surface,
           borderBottomColor: theme.colors.border,
         },
         !item.isRead && styles.unreadNotification,
         !item.isRead && { borderLeftColor: theme.colors.primary },
       ]}
       onPress={() => handleNotificationPress(item)}
+      onLongPress={() => handleLongPress(item)}
       activeOpacity={0.7}
     >
       <View style={styles.notificationContent}>
         <View style={styles.notificationHeader}>
+          {/* T1.1: checkbox replaces icon when in selection mode */}
+          {selectionMode ? (
+            <View
+              style={[
+                styles.iconContainer,
+                styles.checkboxBorder,
+                {
+                  backgroundColor: isSelected
+                    ? theme.colors.primary
+                    : theme.colors.background,
+                  borderColor: theme.colors.primary,
+                },
+              ]}
+            >
+              {isSelected && (
+                <Icon name="checkmark" size={18} color="#ffffff" />
+              )}
+            </View>
+          ) : (
           <View
             style={[
               styles.iconContainer,
@@ -250,6 +369,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               color={getNotificationColor(item.type, item.priority)}
             />
           </View>
+          )}
           <View style={styles.notificationInfo}>
             <Text
               style={[styles.notificationTitle, { color: theme.colors.text }]}
@@ -342,7 +462,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         </Text>
       </View>
     </TouchableOpacity>
-  );
+    );
+  };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -369,9 +490,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         >
           <View style={styles.headerLeft}>
             <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-              Notifications
+              {selectionMode
+                ? `${selectedIds.size} selected`
+                : 'Notifications'}
             </Text>
-            {unreadCount > 0 && (
+            {!selectionMode && unreadCount > 0 && (
               <View
                 style={[
                   styles.unreadBadge,
@@ -383,49 +506,130 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             )}
           </View>
           <View style={styles.headerRight}>
-            {unreadCount > 0 && (
-              <TouchableOpacity
-                style={styles.headerButton}
-                onPress={handleMarkAllAsRead}
-              >
-                <Icon
-                  name="checkmark-done"
-                  size={20}
-                  color={theme.colors.info}
-                />
-                <Text
-                  style={[
-                    styles.headerButtonText,
-                    { color: theme.colors.info },
-                  ]}
+            {/* T1.1: selection mode header — Mark Read / Delete / Cancel */}
+            {selectionMode ? (
+              <>
+                <TouchableOpacity
+                  style={styles.headerButton}
+                  onPress={handleMarkSelectedRead}
+                  disabled={selectedIds.size === 0}
                 >
-                  Mark All Read
-                </Text>
-              </TouchableOpacity>
-            )}
-            {/* Phase 1.2c: hide global Clear button when filtered by case
-                or task. Per-id delete isn't wired on mobile yet, so a
-                scoped Clear that deletes everything would surprise the
-                user. Mark all read above still works in scoped mode. */}
-            {!isScoped && (
-              <TouchableOpacity
-                style={styles.headerButton}
-                onPress={handleClearAll}
-              >
-                <Icon name="trash" size={20} color={theme.colors.danger} />
-                <Text
-                  style={[
-                    styles.headerButtonText,
-                    { color: theme.colors.danger },
-                  ]}
+                  <Icon
+                    name="checkmark-done"
+                    size={20}
+                    color={theme.colors.info}
+                  />
+                  <Text
+                    style={[
+                      styles.headerButtonText,
+                      { color: theme.colors.info },
+                    ]}
+                  >
+                    Mark Read
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.headerButton}
+                  onPress={handleDeleteSelected}
+                  disabled={selectedIds.size === 0}
                 >
-                  Clear
-                </Text>
-              </TouchableOpacity>
+                  <Icon name="trash" size={20} color={theme.colors.danger} />
+                  <Text
+                    style={[
+                      styles.headerButtonText,
+                      { color: theme.colors.danger },
+                    ]}
+                  >
+                    Delete
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.closeButton}
+                  onPress={exitSelectionMode}
+                >
+                  <Icon
+                    name="close"
+                    size={24}
+                    color={theme.colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                {unreadCount > 0 && (
+                  <TouchableOpacity
+                    style={styles.headerButton}
+                    onPress={handleMarkAllAsRead}
+                  >
+                    <Icon
+                      name="checkmark-done"
+                      size={20}
+                      color={theme.colors.info}
+                    />
+                    <Text
+                      style={[
+                        styles.headerButtonText,
+                        { color: theme.colors.info },
+                      ]}
+                    >
+                      Mark All Read
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {/* Phase 1.2c: hide global Clear button when filtered by
+                    case or task. Per-id delete is now available via
+                    long-press → multi-select. */}
+                {!isScoped && (
+                  <TouchableOpacity
+                    style={styles.headerButton}
+                    onPress={handleClearAll}
+                  >
+                    <Icon name="trash" size={20} color={theme.colors.danger} />
+                    <Text
+                      style={[
+                        styles.headerButtonText,
+                        { color: theme.colors.danger },
+                      ]}
+                    >
+                      Clear
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {/* Phase 3 (2026-05-08): open Trash screen showing
+                    soft-deleted notifications (last 30 days) for restore. */}
+                {!isScoped && (
+                  <TouchableOpacity
+                    style={styles.headerButton}
+                    onPress={() => {
+                      onClose();
+                      navigation.navigate('NotificationTrash');
+                    }}
+                    accessibilityLabel="Open notification trash"
+                  >
+                    <Icon
+                      name="trash-bin-outline"
+                      size={20}
+                      color={theme.colors.textSecondary}
+                    />
+                    <Text
+                      style={[
+                        styles.headerButtonText,
+                        { color: theme.colors.textSecondary },
+                      ]}
+                    >
+                      Trash
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+                  <Icon
+                    name="close"
+                    size={24}
+                    color={theme.colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              </>
             )}
-            <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-              <Icon name="close" size={24} color={theme.colors.textSecondary} />
-            </TouchableOpacity>
           </View>
         </View>
 
@@ -585,6 +789,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+  },
+  checkboxBorder: {
+    borderWidth: 2,
   },
   notificationInfo: {
     flex: 1,

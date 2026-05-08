@@ -92,6 +92,14 @@ export const ENDPOINTS = {
       `/notifications/${notificationId}/read`,
     MARK_ALL_READ: '/notifications/mark-all-read',
     CLEAR_ALL: '/notifications',
+    // T1.3 (Phase 1, 2026-05-08): per-row delete for multi-select UI.
+    DELETE_ONE: (notificationId: string) => `/notifications/${notificationId}`,
+    // Phase 3 Trash UI (2026-05-08): list soft-deleted notifications +
+    // restore single / batch (server flips `is_deleted=false`).
+    TRASH: '/notifications/trash',
+    RESTORE_ONE: (notificationId: string) =>
+      `/notifications/${notificationId}/restore`,
+    RESTORE_BATCH: '/notifications/restore',
     // Phase 2.3 (2026-05-04): backend mounts preferences GET/PUT on
     // both /api/notifications/preferences AND
     // /api/mobile/notifications/preferences (same controller methods,

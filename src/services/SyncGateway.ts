@@ -72,7 +72,7 @@ class SyncGatewayClass {
    */
   async enqueueNotificationAction(
     entityId: string,
-    action: 'MARK_READ' | 'MARK_ALL_READ' | 'CLEAR_ALL',
+    action: 'MARK_READ' | 'MARK_ALL_READ' | 'CLEAR_ALL' | 'DELETE_ONE',
     payload: Record<string, unknown> = {},
     priority: number = SYNC_PRIORITY.LOW,
   ): Promise<void> {

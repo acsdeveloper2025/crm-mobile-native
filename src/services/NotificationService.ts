@@ -5,6 +5,9 @@ import { PushTokenService } from './PushTokenService';
 import { Logger } from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
 import { NotificationRepository } from '../repositories/NotificationRepository';
+import { KeyValueRepository } from '../repositories/KeyValueRepository';
+import { DatabaseService } from '../database/DatabaseService';
+import { KV_LAST_CLEAR_ALL_AT } from '../sync/uploaders/NotificationUploader';
 import { SyncGateway } from './SyncGateway';
 import { validateResponse } from '../api/schemas/runtime';
 import { MobileNotificationListSchema } from '../api/schemas/sync.schema';
@@ -276,23 +279,62 @@ class NotificationServiceImpl {
       updatedAt?: string;
     }>,
   ): Promise<void> {
-    await NotificationRepository.upsertBatch(notifications);
-    this.mergeIntoCache(
-      (notifications || []).map(notification => ({
-        id: notification.id,
-        type: notification.type,
-        title: notification.title,
-        message: notification.message,
-        priority: this.toNotificationPriority(notification.priority),
-        isRead: Boolean(notification.isRead),
-        taskId: notification.taskId || undefined,
-        taskNumber: notification.taskNumber || undefined,
-        caseNumber: notification.caseNumber || undefined,
-        actionUrl: notification.actionUrl || undefined,
-        timestamp:
-          notification.updatedAt ||
-          notification.createdAt ||
-          new Date().toISOString(),
+    // Phase 2 TIER 4 (2026-05-08): defense-in-depth ledger filter.
+    // KeyValueRepository['notifications.last_clear_all_at'] is set by
+    // NotificationUploader after a CLEAR_ALL action drains successfully.
+    // Filter out any backend row whose created_at predates that ledger —
+    // catches the edge case where T0.2 local sticky-cleared marker is
+    // lost (DB recreated / fresh install picking up stale backend state
+    // before backend's own CLEAR_ALL processing lands).
+    let filtered = notifications;
+    try {
+      const lastClearAtRaw = await KeyValueRepository.get(
+        KV_LAST_CLEAR_ALL_AT,
+      );
+      if (lastClearAtRaw) {
+        const cutoff = new Date(lastClearAtRaw).getTime();
+        if (Number.isFinite(cutoff)) {
+          filtered = notifications.filter(n => {
+            const created = n.createdAt || n.updatedAt;
+            if (!created) return true; // no ts → can't compare → keep
+            return new Date(created).getTime() > cutoff;
+          });
+          if (filtered.length < notifications.length) {
+            Logger.info(
+              TAG,
+              `last_clear_all_at filter dropped ${
+                notifications.length - filtered.length
+              } stale rows (cutoff=${lastClearAtRaw})`,
+            );
+          }
+        }
+      }
+    } catch (e) {
+      // KV read failure is non-fatal — fall through with full set.
+      Logger.warn(TAG, 'last_clear_all_at ledger read failed', e);
+    }
+
+    await NotificationRepository.upsertBatch(filtered);
+    // T0.3 fix (2026-05-08): rebuild cache from DB after upsert so sticky-
+    // cleared rows (is_deleted=1 in SQLite via T0.2) are excluded.
+    // mergeIntoCache used to spread the raw backend payload into the
+    // in-memory cache, bypassing sticky and resurrecting cleared rows
+    // even though the DB correctly kept them hidden — UI showed them on
+    // every refresh while CLEAR_ALL/DELETE_ONE drained.
+    const fresh = await NotificationRepository.listAll();
+    this.replaceCache(
+      fresh.map(row => ({
+        id: row.id,
+        type: row.type,
+        title: row.title,
+        message: row.message,
+        priority: this.toNotificationPriority(row.priority),
+        isRead: row.isRead,
+        taskId: row.taskId,
+        taskNumber: row.taskNumber,
+        caseNumber: row.caseNumber,
+        actionUrl: row.actionUrl,
+        timestamp: row.timestamp,
       })),
     );
   }
@@ -626,6 +668,127 @@ class NotificationServiceImpl {
       );
     } catch (e) {
       Logger.warn(TAG, 'Failed to enqueue CLEAR_ALL', e);
+    }
+  }
+
+  // T1.2 (Phase 1, 2026-05-08): per-id delete used by multi-select UI.
+  // Soft-deletes locally (sticky-cleared) + enqueues backend DELETE via
+  // SyncGateway. Mirrors markAsRead pattern.
+  async deleteNotification(id: string): Promise<void> {
+    try {
+      await NotificationRepository.deleteById(id);
+      this.removeFromCache(id);
+    } catch (e) {
+      Logger.error(TAG, `Failed to delete notification ${id} locally`, e);
+      return;
+    }
+
+    try {
+      await SyncGateway.enqueueNotificationAction(id, 'DELETE_ONE', {
+        notificationId: id,
+      });
+    } catch (e) {
+      Logger.warn(TAG, `Failed to enqueue DELETE_ONE for notification ${id}`, e);
+    }
+  }
+
+  // T1.2 (Phase 1, 2026-05-08): batch wrappers for multi-select UI.
+  // Loops via existing single-id methods to keep retry/sync semantics
+  // identical (each id gets its own queue entry → independent retry/DLQ).
+  async markSelectedAsRead(ids: string[]): Promise<void> {
+    for (const id of ids) {
+      await this.markAsRead(id);
+    }
+  }
+
+  async deleteSelected(ids: string[]): Promise<void> {
+    for (const id of ids) {
+      await this.deleteNotification(id);
+    }
+  }
+
+  // Phase 3 Trash UI (2026-05-08): list soft-deleted notifications from
+  // backend (last 30 days). Pure read; no local mutation.
+  async fetchTrash(): Promise<
+    Array<{
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      priority?: string;
+      isRead?: boolean;
+      taskId?: string | null;
+      taskNumber?: string | null;
+      caseNumber?: string | null;
+      actionUrl?: string | null;
+      createdAt?: string;
+      updatedAt?: string;
+      deletedAt?: string;
+    }>
+  > {
+    type TrashRow = {
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      priority?: string;
+      isRead?: boolean;
+      taskId?: string | null;
+      taskNumber?: string | null;
+      caseNumber?: string | null;
+      actionUrl?: string | null;
+      createdAt?: string;
+      updatedAt?: string;
+      deletedAt?: string;
+    };
+    const response = await ApiClient.get<{
+      success: boolean;
+      data?: TrashRow[];
+    }>(ENDPOINTS.NOTIFICATIONS.TRASH);
+    if (!response.success || !response.data) {
+      throw new Error('Invalid trash response');
+    }
+    return response.data;
+  }
+
+  // Phase 3 Trash UI (2026-05-08): restore one or many soft-deleted
+  // notifications. Backend flips `is_deleted=false`. Locally we hard-
+  // DELETE the sticky-cleared row so the next refresh INSERTs the
+  // restored row fresh from backend (with is_deleted=0). Also clears
+  // the TIER 4 `last_clear_all_at` ledger — user explicitly restored,
+  // so the defense-in-depth filter no longer applies (would otherwise
+  // immediately re-block the restored row on next refresh because its
+  // createdAt is older than the ledger).
+  async restoreNotifications(ids: string[]): Promise<void> {
+    if (!ids || ids.length === 0) return;
+    if (ids.length === 1) {
+      await ApiClient.put(ENDPOINTS.NOTIFICATIONS.RESTORE_ONE(ids[0]));
+    } else {
+      await ApiClient.put(ENDPOINTS.NOTIFICATIONS.RESTORE_BATCH, { ids });
+    }
+    // Clear local sticky markers for the restored ids so the next
+    // refreshFromBackend INSERTs them fresh.
+    try {
+      for (const id of ids) {
+        await DatabaseService.execute(
+          'DELETE FROM notifications WHERE id = ? AND is_deleted = 1',
+          [id],
+        );
+      }
+    } catch (e) {
+      Logger.warn(TAG, 'Failed to clear local sticky for restored ids', e);
+    }
+    // Clear the TIER 4 ledger so restored rows aren't filtered out.
+    try {
+      await KeyValueRepository.remove(KV_LAST_CLEAR_ALL_AT);
+    } catch (e) {
+      Logger.warn(TAG, 'Failed to clear KV_LAST_CLEAR_ALL_AT ledger', e);
+    }
+    // Refresh active feed so caller sees the restored row.
+    try {
+      await this.refreshFromBackend();
+    } catch (e) {
+      Logger.warn(TAG, 'Failed to refresh after restore', e);
     }
   }
 

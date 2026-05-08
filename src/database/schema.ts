@@ -1,7 +1,7 @@
 // SQLite Database Schema and Migrations
 // Offline-first schema for field verification data
 
-export const DB_VERSION = 15;
+export const DB_VERSION = 16;
 
 /**
  * All CREATE TABLE statements for the local SQLite database.
@@ -216,8 +216,12 @@ CREATE TABLE IF NOT EXISTS notifications (
   task_number TEXT,
   case_number TEXT,
   action_url TEXT,
-  timestamp TEXT NOT NULL
+  timestamp TEXT NOT NULL,
+  is_deleted INTEGER NOT NULL DEFAULT 0,
+  deleted_at TEXT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_notifications_visible
+  ON notifications(timestamp DESC) WHERE is_deleted = 0;
 
 -- Key-value store (replaces AsyncStorage)
 CREATE TABLE IF NOT EXISTS key_value_store (
@@ -641,6 +645,17 @@ export const MIGRATIONS: Migration[] = [
       'Phase 1.2e (2026-05-04): add task_number column to notifications so mobile can show "Task: VT-000017" alongside "Case: 4". Backend already stores it; mobile now mirrors the field so users can distinguish notifications across multiple tasks within the same case (FIELD verification + KYC + reassignments).',
     sql: `
       ALTER TABLE notifications ADD COLUMN task_number TEXT;
+    `,
+  },
+  {
+    version: 16,
+    description:
+      'Phase 1 TIER 0 (2026-05-08): mirror backend soft-delete on mobile. Adds is_deleted + deleted_at columns + filtered visibility index. Closes the "Clear All reappears on reopen" race: previously hard-DELETE locally + queued backend DELETE meant a quick refresh re-fetched the not-yet-cleared rows. Now Clear All marks rows is_deleted=1 locally; upsertBatch skips re-insert of already-cleared rows; periodic purge hard-DELETEs after 7 days.',
+    sql: `
+      ALTER TABLE notifications ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE notifications ADD COLUMN deleted_at TEXT NULL;
+      CREATE INDEX IF NOT EXISTS idx_notifications_visible
+        ON notifications(timestamp DESC) WHERE is_deleted = 0;
     `,
   },
 ];

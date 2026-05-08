@@ -395,10 +395,10 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
     'Brother in Law',
     'Other',
   ],
-  companyNamePlateStatus: ['SIGHTED AS', 'NOT SIGHTED'],
-  societyNamePlateStatus: ['SIGHTED AS', 'NOT SIGHTED'],
-  doorNamePlateStatus: ['SIGHTED AS', 'NOT SIGHTED'],
-  sightStatus: ['SIGHTED AS', 'NOT SIGHTED'],
+  companyNamePlateStatus: ['SIGHTED', 'NOT SIGHTED'],
+  societyNamePlateStatus: ['SIGHTED', 'NOT SIGHTED'],
+  doorNamePlateStatus: ['SIGHTED', 'NOT SIGHTED'],
+  sightStatus: ['SIGHTED', 'NOT SIGHTED'],
   addressLocatable: ['Easy to Locate', 'Difficult to Locate'],
   addressRating: ['Good', 'Shabby', 'Poor'],
   tpcMetPerson: ['Neighbour', 'Security'],
@@ -790,11 +790,11 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
     name: 'nameOnDoorPlate',
     label: 'Name on Door Plate',
     type: 'text',
-    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'doorNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   {
@@ -810,12 +810,12 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
     conditional: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -978,11 +978,11 @@ const legacyShiftedResidenceFields = withLegacyResidenceOrder([
     name: 'nameOnDoorPlate',
     label: 'Name on Door Plate',
     type: 'text',
-    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'doorNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   {
@@ -998,12 +998,12 @@ const legacyShiftedResidenceFields = withLegacyResidenceOrder([
     conditional: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -1145,11 +1145,11 @@ const legacyNspResidenceFields = withLegacyResidenceOrder([
     name: 'nameOnDoorPlate',
     label: 'Name on Door Plate',
     type: 'text',
-    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'doorNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   {
@@ -1165,12 +1165,12 @@ const legacyNspResidenceFields = withLegacyResidenceOrder([
     conditional: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -1268,12 +1268,12 @@ const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
     conditional: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -1661,11 +1661,11 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     name: 'nameOnDoorPlate',
     label: 'Name on Door Plate',
     type: 'text',
-    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'doorNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   {
@@ -1681,12 +1681,12 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     conditional: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   {
@@ -1702,12 +1702,12 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -1861,11 +1861,11 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     name: 'nameOnDoorPlate',
     label: 'Name on Door Plate',
     type: 'text',
-    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'doorNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   {
@@ -1881,12 +1881,12 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     conditional: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -2056,11 +2056,11 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     name: 'nameOnDoorPlate',
     label: 'Name on Door Plate',
     type: 'text',
-    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'doorNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   {
@@ -2076,12 +2076,12 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     conditional: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -2171,12 +2171,12 @@ const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     conditional: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
@@ -2508,12 +2508,12 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   {
@@ -2699,12 +2699,12 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   // --- TPC ---
@@ -2847,12 +2847,12 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   // --- TPC ---
@@ -3295,12 +3295,12 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   {
@@ -3527,12 +3527,12 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -3658,12 +3658,12 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   // --- TPC ---
@@ -4016,12 +4016,12 @@ const legacyPositiveBuilderFields = withLegacyBusinessOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   {
@@ -4248,12 +4248,12 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -4379,12 +4379,12 @@ const legacyNspBuilderFields = withLegacyBusinessOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   // --- TPC ---
@@ -4872,12 +4872,12 @@ const legacyShiftedNocFields = withLegacyNocOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   // --- TPC ---
@@ -5048,12 +5048,12 @@ const legacyNspNocFields = withLegacyNocOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   // --- TPC ---
@@ -5458,12 +5458,12 @@ const legacyPositiveDsaFields = withLegacyDsaOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   // --- TPC ---
@@ -5684,12 +5684,12 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -5815,12 +5815,12 @@ const legacyNspDsaFields = withLegacyDsaOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   // --- TPC ---
@@ -6315,12 +6315,12 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -6443,12 +6443,12 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
     conditional: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -6740,12 +6740,12 @@ const legacyPositivePropertyIndividualFields =
       conditional: legacyCondition(
         'doorNamePlateStatus',
         'equals',
-        'SIGHTED AS',
+        'SIGHTED',
       ),
       requiredWhen: legacyCondition(
         'doorNamePlateStatus',
         'equals',
-        'SIGHTED AS',
+        'SIGHTED',
       ),
     },
     {
@@ -6761,12 +6761,12 @@ const legacyPositivePropertyIndividualFields =
       conditional: legacyCondition(
         'societyNamePlateStatus',
         'equals',
-        'SIGHTED AS',
+        'SIGHTED',
       ),
       requiredWhen: legacyCondition(
         'societyNamePlateStatus',
         'equals',
-        'SIGHTED AS',
+        'SIGHTED',
       ),
     },
     { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -6897,11 +6897,11 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
     name: 'nameOnDoorPlate',
     label: 'Name on Door Plate',
     type: 'text',
-    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED AS'),
+    conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'doorNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   {
@@ -6917,12 +6917,12 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
     conditional: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
-      'SIGHTED AS',
+      'SIGHTED',
     ),
   },
   { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
@@ -7028,12 +7028,12 @@ const legacyEntryRestrictedPropertyIndividualFields =
       conditional: legacyCondition(
         'societyNamePlateStatus',
         'equals',
-        'SIGHTED AS',
+        'SIGHTED',
       ),
       requiredWhen: legacyCondition(
         'societyNamePlateStatus',
         'equals',
-        'SIGHTED AS',
+        'SIGHTED',
       ),
     },
     { name: 'landmark1', label: 'Landmark 1', type: 'text', required: true },
