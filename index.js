@@ -6,6 +6,7 @@
 // other module loads so the splash → interactive metric reflects total
 // time from JS bundle entry to first render. App.tsx reads this when
 // isInitializing flips to false and ships the delta via MobileTelemetry.
+// eslint-disable-next-line no-undef
 globalThis.__APP_BOOT_STARTED_AT = Date.now();
 
 import 'react-native-get-random-values';

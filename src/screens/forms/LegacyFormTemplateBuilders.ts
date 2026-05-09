@@ -791,11 +791,7 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
     label: 'Name on Door Plate',
     type: 'text',
     conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
-    requiredWhen: legacyCondition(
-      'doorNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
   },
   {
     name: 'societyNamePlateStatus',
@@ -807,11 +803,7 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
     type: 'text',
-    conditional: legacyCondition(
-      'societyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
@@ -979,11 +971,7 @@ const legacyShiftedResidenceFields = withLegacyResidenceOrder([
     label: 'Name on Door Plate',
     type: 'text',
     conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
-    requiredWhen: legacyCondition(
-      'doorNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
   },
   {
     name: 'societyNamePlateStatus',
@@ -995,11 +983,7 @@ const legacyShiftedResidenceFields = withLegacyResidenceOrder([
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
     type: 'text',
-    conditional: legacyCondition(
-      'societyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
@@ -1146,11 +1130,7 @@ const legacyNspResidenceFields = withLegacyResidenceOrder([
     label: 'Name on Door Plate',
     type: 'text',
     conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
-    requiredWhen: legacyCondition(
-      'doorNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
   },
   {
     name: 'societyNamePlateStatus',
@@ -1162,11 +1142,7 @@ const legacyNspResidenceFields = withLegacyResidenceOrder([
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
     type: 'text',
-    conditional: legacyCondition(
-      'societyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
@@ -1234,7 +1210,16 @@ const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
     name: 'applicantStayingStatus',
     label: 'Applicant Staying Status',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   {
@@ -1265,11 +1250,7 @@ const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
     type: 'text',
-    conditional: legacyCondition(
-      'societyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
@@ -1282,7 +1263,16 @@ const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
     name: 'politicalConnection',
     label: 'Political Connection',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'dominatedArea',
@@ -1294,7 +1284,16 @@ const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
     name: 'feedbackFromNeighbour',
     label: 'Feedback from Met Person',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'otherObservation',
@@ -1662,11 +1661,7 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     label: 'Name on Door Plate',
     type: 'text',
     conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
-    requiredWhen: legacyCondition(
-      'doorNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
   },
   {
     name: 'societyNamePlateStatus',
@@ -1678,11 +1673,7 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
     type: 'text',
-    conditional: legacyCondition(
-      'societyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
@@ -1699,11 +1690,7 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -1862,11 +1849,7 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     label: 'Name on Door Plate',
     type: 'text',
     conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
-    requiredWhen: legacyCondition(
-      'doorNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
   },
   {
     name: 'societyNamePlateStatus',
@@ -1878,11 +1861,7 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
     type: 'text',
-    conditional: legacyCondition(
-      'societyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
@@ -2057,11 +2036,7 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     label: 'Name on Door Plate',
     type: 'text',
     conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
-    requiredWhen: legacyCondition(
-      'doorNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
   },
   {
     name: 'societyNamePlateStatus',
@@ -2073,11 +2048,7 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
     type: 'text',
-    conditional: legacyCondition(
-      'societyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
@@ -2141,13 +2112,31 @@ const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     name: 'applicantWorkingStatus',
     label: 'Applicant Working Status',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'applicantStayingStatus',
     label: 'Applicant Staying Status',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'businessExistsStatus',
@@ -2168,11 +2157,7 @@ const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
     type: 'text',
-    conditional: legacyCondition(
-      'societyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
@@ -2198,7 +2183,16 @@ const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     name: 'politicalConnection',
     label: 'Political Connection',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'dominatedArea',
@@ -2210,7 +2204,16 @@ const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     name: 'feedbackFromNeighbour',
     label: 'Feedback from Met Person',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'otherObservation',
@@ -2505,11 +2508,7 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -2696,11 +2695,7 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -2844,11 +2839,7 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -2962,7 +2953,16 @@ const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
     name: 'applicantWorkingStatus',
     label: 'Applicant Working Status',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'officeExistsStatus',
@@ -3000,7 +3000,16 @@ const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
     name: 'politicalConnection',
     label: 'Political Connection',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'dominatedArea',
@@ -3012,7 +3021,16 @@ const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
     name: 'feedbackFromNeighbour',
     label: 'Feedback from Met Person',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
   {
@@ -3160,6 +3178,12 @@ const legacyBusinessOptionAliases: Record<string, string> = {
   metPerson: 'metPersonErt',
   metPersonType: 'metPersonErt',
   metPersonDesignation: 'designation',
+  // Bug 106 (e2e 2026-05-08): Business form field renamed to
+  // `businessStatus` (post office→business unification) but options
+  // dict still keys the Open/Closed/Shifted list under `officeStatus`.
+  // Without this alias the dropdown falls back to undefined → empty.
+  // Same pattern as bugs 72/75 met-person aliases.
+  businessStatus: 'officeStatus',
 };
 
 const withLegacyBusinessOrder = (
@@ -3292,11 +3316,7 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -3442,13 +3462,15 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
     name: 'currentCompanyPeriodValue',
     label: 'Current Company Period',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
   },
   {
     name: 'currentCompanyPeriodUnit',
     label: 'Period Unit (Month/Year)',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
   },
   {
     name: 'oldOfficeShiftedPeriodValue',
@@ -3466,7 +3488,8 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
     name: 'approxArea',
     label: 'Approx Area (Sq. Feet)',
     type: 'number',
-    required: true,
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
@@ -3524,11 +3547,7 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -3655,11 +3674,7 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -3755,7 +3770,16 @@ const legacyEntryRestrictedBusinessFields = withLegacyBusinessOrder([
     name: 'applicantWorkingStatus',
     label: 'Applicant Working Status',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'businessExistsStatus',
@@ -3782,7 +3806,16 @@ const legacyEntryRestrictedBusinessFields = withLegacyBusinessOrder([
     name: 'politicalConnection',
     label: 'Political Connection',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'dominatedArea',
@@ -3794,7 +3827,16 @@ const legacyEntryRestrictedBusinessFields = withLegacyBusinessOrder([
     name: 'feedbackFromNeighbour',
     label: 'Feedback from Met Person',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
   {
@@ -4013,11 +4055,7 @@ const legacyPositiveBuilderFields = withLegacyBusinessOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -4163,13 +4201,15 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
     name: 'currentCompanyPeriodValue',
     label: 'Current Company Period',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
   },
   {
     name: 'currentCompanyPeriodUnit',
     label: 'Period Unit (Month/Year)',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
   },
   {
     name: 'oldOfficeShiftedPeriodValue',
@@ -4187,7 +4227,8 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
     name: 'approxArea',
     label: 'Approx Area (Sq. Feet)',
     type: 'number',
-    required: true,
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
@@ -4245,11 +4286,7 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -4376,11 +4413,7 @@ const legacyNspBuilderFields = withLegacyBusinessOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -4475,7 +4508,16 @@ const legacyEntryRestrictedBuilderFields = withLegacyBusinessOrder([
     name: 'applicantWorkingStatus',
     label: 'Applicant Working Status',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'businessExistsStatus',
@@ -4502,7 +4544,16 @@ const legacyEntryRestrictedBuilderFields = withLegacyBusinessOrder([
     name: 'politicalConnection',
     label: 'Political Connection',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'dominatedArea',
@@ -4514,7 +4565,16 @@ const legacyEntryRestrictedBuilderFields = withLegacyBusinessOrder([
     name: 'feedbackFromNeighbour',
     label: 'Feedback from Met Person',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
   {
@@ -4856,7 +4916,8 @@ const legacyShiftedNocFields = withLegacyNocOrder([
     name: 'officeApproxArea',
     label: 'Office Approx Area (Sq. Feet)',
     type: 'number',
-    required: true,
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   // --- Company plate ---
   {
@@ -4869,11 +4930,7 @@ const legacyShiftedNocFields = withLegacyNocOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -5045,11 +5102,7 @@ const legacyNspNocFields = withLegacyNocOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -5171,7 +5224,16 @@ const legacyEntryRestrictedNocFields = withLegacyNocOrder([
     name: 'politicalConnection',
     label: 'Political Connection',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'dominatedArea',
@@ -5183,7 +5245,16 @@ const legacyEntryRestrictedNocFields = withLegacyNocOrder([
     name: 'feedbackFromNeighbour',
     label: 'Feedback from Met Person',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
   {
@@ -5455,11 +5526,7 @@ const legacyPositiveDsaFields = withLegacyDsaOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -5599,13 +5666,15 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
     name: 'currentCompanyPeriodValue',
     label: 'Current Company Period',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
   },
   {
     name: 'currentCompanyPeriodUnit',
     label: 'Period Unit (Month/Year)',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
   },
   {
     name: 'oldOfficeShiftedPeriodValue',
@@ -5623,7 +5692,8 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
     name: 'approxArea',
     label: 'Approx Area (Sq. Feet)',
     type: 'number',
-    required: true,
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
@@ -5681,11 +5751,7 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -5812,11 +5878,7 @@ const legacyNspDsaFields = withLegacyDsaOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -5939,7 +6001,16 @@ const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
     name: 'politicalConnection',
     label: 'Political Connection',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'dominatedArea',
@@ -5951,7 +6022,16 @@ const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
     name: 'feedbackFromNeighbour',
     label: 'Feedback from Met Person',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
   {
@@ -6312,11 +6392,7 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -6440,11 +6516,7 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
     name: 'nameOnBoard',
     label: 'Name on Board',
     type: 'text',
-    conditional: legacyCondition(
-      'companyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('companyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'companyNamePlateStatus',
       'equals',
@@ -6457,7 +6529,16 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
     name: 'politicalConnection',
     label: 'Political Connection',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   {
     name: 'dominatedArea',
@@ -6469,7 +6550,16 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
     name: 'feedbackFromNeighbour',
     label: 'Feedback from Met Person',
     type: 'select',
-    required: true,
+    conditional: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
+    requiredWhen: legacyCondition(
+      'metPersonConfirmation',
+      'notEquals',
+      'Not Confirmed',
+    ),
   },
   { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
   {
@@ -6737,16 +6827,8 @@ const legacyPositivePropertyIndividualFields =
       name: 'nameOnDoorPlate',
       label: 'Name on Door Plate',
       type: 'text',
-      conditional: legacyCondition(
-        'doorNamePlateStatus',
-        'equals',
-        'SIGHTED',
-      ),
-      requiredWhen: legacyCondition(
-        'doorNamePlateStatus',
-        'equals',
-        'SIGHTED',
-      ),
+      conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
+      requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
     },
     {
       name: 'societyNamePlateStatus',
@@ -6898,11 +6980,7 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
     label: 'Name on Door Plate',
     type: 'text',
     conditional: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
-    requiredWhen: legacyCondition(
-      'doorNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    requiredWhen: legacyCondition('doorNamePlateStatus', 'equals', 'SIGHTED'),
   },
   {
     name: 'societyNamePlateStatus',
@@ -6914,11 +6992,7 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
     name: 'nameOnSocietyBoard',
     label: 'Name on Society Board',
     type: 'text',
-    conditional: legacyCondition(
-      'societyNamePlateStatus',
-      'equals',
-      'SIGHTED',
-    ),
+    conditional: legacyCondition('societyNamePlateStatus', 'equals', 'SIGHTED'),
     requiredWhen: legacyCondition(
       'societyNamePlateStatus',
       'equals',
@@ -7048,7 +7122,16 @@ const legacyEntryRestrictedPropertyIndividualFields =
       name: 'politicalConnection',
       label: 'Political Connection',
       type: 'select',
-      required: true,
+      conditional: legacyCondition(
+        'metPersonConfirmation',
+        'notEquals',
+        'Not Confirmed',
+      ),
+      requiredWhen: legacyCondition(
+        'metPersonConfirmation',
+        'notEquals',
+        'Not Confirmed',
+      ),
     },
     {
       name: 'dominatedArea',
@@ -7060,7 +7143,16 @@ const legacyEntryRestrictedPropertyIndividualFields =
       name: 'feedbackFromNeighbour',
       label: 'Feedback from Met Person',
       type: 'select',
-      required: true,
+      conditional: legacyCondition(
+        'metPersonConfirmation',
+        'notEquals',
+        'Not Confirmed',
+      ),
+      requiredWhen: legacyCondition(
+        'metPersonConfirmation',
+        'notEquals',
+        'Not Confirmed',
+      ),
     },
     { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
     {

@@ -320,148 +320,148 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const renderNotificationItem = ({ item }: { item: NotificationData }) => {
     const isSelected = selectedIds.has(item.id);
     return (
-    <TouchableOpacity
-      style={[
-        styles.notificationItem,
-        {
-          backgroundColor: isSelected
-            ? theme.colors.primary + '15'
-            : theme.colors.surface,
-          borderBottomColor: theme.colors.border,
-        },
-        !item.isRead && styles.unreadNotification,
-        !item.isRead && { borderLeftColor: theme.colors.primary },
-      ]}
-      onPress={() => handleNotificationPress(item)}
-      onLongPress={() => handleLongPress(item)}
-      activeOpacity={0.7}
-    >
-      <View style={styles.notificationContent}>
-        <View style={styles.notificationHeader}>
-          {/* T1.1: checkbox replaces icon when in selection mode */}
-          {selectionMode ? (
-            <View
-              style={[
-                styles.iconContainer,
-                styles.checkboxBorder,
-                {
-                  backgroundColor: isSelected
-                    ? theme.colors.primary
-                    : theme.colors.background,
-                  borderColor: theme.colors.primary,
-                },
-              ]}
-            >
-              {isSelected && (
-                <Icon name="checkmark" size={18} color="#ffffff" />
-              )}
-            </View>
-          ) : (
-          <View
-            style={[
-              styles.iconContainer,
-              { backgroundColor: theme.colors.background },
-            ]}
-          >
-            <Icon
-              name={getNotificationIconName(item.type)}
-              size={20}
-              color={getNotificationColor(item.type, item.priority)}
-            />
-          </View>
-          )}
-          <View style={styles.notificationInfo}>
-            <Text
-              style={[styles.notificationTitle, { color: theme.colors.text }]}
-              numberOfLines={2}
-            >
-              {item.title}
-            </Text>
-            <Text
-              style={[
-                styles.notificationMessage,
-                { color: theme.colors.textSecondary },
-              ]}
-              numberOfLines={3}
-            >
-              {item.message}
-            </Text>
-            {/* Phase 1.2e (re-audit 2026-05-04): show task identifier
+      <TouchableOpacity
+        style={[
+          styles.notificationItem,
+          {
+            backgroundColor: isSelected
+              ? theme.colors.primary + '15'
+              : theme.colors.surface,
+            borderBottomColor: theme.colors.border,
+          },
+          !item.isRead && styles.unreadNotification,
+          !item.isRead && { borderLeftColor: theme.colors.primary },
+        ]}
+        onPress={() => handleNotificationPress(item)}
+        onLongPress={() => handleLongPress(item)}
+        activeOpacity={0.7}
+      >
+        <View style={styles.notificationContent}>
+          <View style={styles.notificationHeader}>
+            {/* T1.1: checkbox replaces icon when in selection mode */}
+            {selectionMode ? (
+              <View
+                style={[
+                  styles.iconContainer,
+                  styles.checkboxBorder,
+                  {
+                    backgroundColor: isSelected
+                      ? theme.colors.primary
+                      : theme.colors.background,
+                    borderColor: theme.colors.primary,
+                  },
+                ]}
+              >
+                {isSelected && (
+                  <Icon name="checkmark" size={18} color="#ffffff" />
+                )}
+              </View>
+            ) : (
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: theme.colors.background },
+                ]}
+              >
+                <Icon
+                  name={getNotificationIconName(item.type)}
+                  size={20}
+                  color={getNotificationColor(item.type, item.priority)}
+                />
+              </View>
+            )}
+            <View style={styles.notificationInfo}>
+              <Text
+                style={[styles.notificationTitle, { color: theme.colors.text }]}
+                numberOfLines={2}
+              >
+                {item.title}
+              </Text>
+              <Text
+                style={[
+                  styles.notificationMessage,
+                  { color: theme.colors.textSecondary },
+                ]}
+                numberOfLines={3}
+              >
+                {item.message}
+              </Text>
+              {/* Phase 1.2e (re-audit 2026-05-04): show task identifier
                 alongside case number so users can distinguish multiple
                 notifications for the same case but different tasks
                 (FIELD verification + KYC + reassignments). The label
                 line is "Case: 4 · Task: VT-000017"; if only one is
                 present it shows just that side. taskNumber preferred
                 over taskId UUID for readability. */}
-            {(item.caseNumber || item.taskNumber || item.taskId) && (
-              <Text
-                style={[styles.caseNumber, { color: theme.colors.primary }]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {[
-                  item.caseNumber ? `Case: ${item.caseNumber}` : null,
-                  item.taskNumber
-                    ? `Task: ${item.taskNumber}`
-                    : item.taskId
-                    ? `Task: ${item.taskId.slice(0, 8)}`
-                    : null,
-                ]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </Text>
-            )}
-          </View>
-          <View style={styles.notificationMeta}>
-            {item.priority === 'URGENT' && (
-              <View
-                style={[
-                  styles.urgentBadge,
-                  {
-                    backgroundColor: theme.colors.danger + '20',
-                    borderColor: theme.colors.danger,
-                  },
-                ]}
-              >
+              {(item.caseNumber || item.taskNumber || item.taskId) && (
                 <Text
-                  style={[styles.urgentText, { color: theme.colors.danger }]}
+                  style={[styles.caseNumber, { color: theme.colors.primary }]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
                 >
-                  URGENT
+                  {[
+                    item.caseNumber ? `Case: ${item.caseNumber}` : null,
+                    item.taskNumber
+                      ? `Task: ${item.taskNumber}`
+                      : item.taskId
+                      ? `Task: ${item.taskId.slice(0, 8)}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
                 </Text>
-              </View>
-            )}
-            {item.priority === 'HIGH' && (
-              <View
-                style={[
-                  styles.highBadge,
-                  {
-                    backgroundColor: theme.colors.warning + '20',
-                    borderColor: theme.colors.warning,
-                  },
-                ]}
-              >
-                <Text
-                  style={[styles.highText, { color: theme.colors.warning }]}
+              )}
+            </View>
+            <View style={styles.notificationMeta}>
+              {item.priority === 'URGENT' && (
+                <View
+                  style={[
+                    styles.urgentBadge,
+                    {
+                      backgroundColor: theme.colors.danger + '20',
+                      borderColor: theme.colors.danger,
+                    },
+                  ]}
                 >
-                  HIGH
-                </Text>
-              </View>
-            )}
-            {!item.isRead && (
-              <View
-                style={[
-                  styles.unreadDot,
-                  { backgroundColor: theme.colors.primary },
-                ]}
-              />
-            )}
+                  <Text
+                    style={[styles.urgentText, { color: theme.colors.danger }]}
+                  >
+                    URGENT
+                  </Text>
+                </View>
+              )}
+              {item.priority === 'HIGH' && (
+                <View
+                  style={[
+                    styles.highBadge,
+                    {
+                      backgroundColor: theme.colors.warning + '20',
+                      borderColor: theme.colors.warning,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[styles.highText, { color: theme.colors.warning }]}
+                  >
+                    HIGH
+                  </Text>
+                </View>
+              )}
+              {!item.isRead && (
+                <View
+                  style={[
+                    styles.unreadDot,
+                    { backgroundColor: theme.colors.primary },
+                  ]}
+                />
+              )}
+            </View>
           </View>
+          <Text style={[styles.timestamp, { color: theme.colors.textMuted }]}>
+            {formatDate(item.timestamp)}
+          </Text>
         </View>
-        <Text style={[styles.timestamp, { color: theme.colors.textMuted }]}>
-          {formatDate(item.timestamp)}
-        </Text>
-      </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
     );
   };
 
@@ -490,9 +490,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         >
           <View style={styles.headerLeft}>
             <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-              {selectionMode
-                ? `${selectedIds.size} selected`
-                : 'Notifications'}
+              {selectionMode ? `${selectedIds.size} selected` : 'Notifications'}
             </Text>
             {!selectionMode && unreadCount > 0 && (
               <View

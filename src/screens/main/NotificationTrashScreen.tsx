@@ -227,11 +227,7 @@ export const NotificationTrashScreen: React.FC = () => {
             style={styles.restoreBtn}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Icon
-              name="arrow-undo"
-              size={20}
-              color={theme.colors.info}
-            />
+            <Icon name="arrow-undo" size={20} color={theme.colors.info} />
             <Text style={[styles.restoreText, { color: theme.colors.info }]}>
               Restore
             </Text>
