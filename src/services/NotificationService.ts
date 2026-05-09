@@ -288,9 +288,7 @@ class NotificationServiceImpl {
     // before backend's own CLEAR_ALL processing lands).
     let filtered = notifications;
     try {
-      const lastClearAtRaw = await KeyValueRepository.get(
-        KV_LAST_CLEAR_ALL_AT,
-      );
+      const lastClearAtRaw = await KeyValueRepository.get(KV_LAST_CLEAR_ALL_AT);
       if (lastClearAtRaw) {
         const cutoff = new Date(lastClearAtRaw).getTime();
         if (Number.isFinite(cutoff)) {
@@ -688,7 +686,11 @@ class NotificationServiceImpl {
         notificationId: id,
       });
     } catch (e) {
-      Logger.warn(TAG, `Failed to enqueue DELETE_ONE for notification ${id}`, e);
+      Logger.warn(
+        TAG,
+        `Failed to enqueue DELETE_ONE for notification ${id}`,
+        e,
+      );
     }
   }
 

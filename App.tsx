@@ -75,7 +75,7 @@ if (g.ErrorUtils) {
     // 2026-04-27 deep-audit fix: ship the log ring buffer to backend on
     // every global error (fatal + non-fatal). Non-blocking; swallows its
     // own failures.
-    void RemoteLogService.upload({ source: 'crash' });
+    RemoteLogService.upload({ source: 'crash' }).catch(() => undefined);
     // Call the default handler so React Native still shows the red screen in dev
     if (defaultHandler) {
       defaultHandler(error, isFatal);

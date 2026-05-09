@@ -263,6 +263,20 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
     );
   }
 
+  // Bug 111-cleanup (e2e 2026-05-09): extracted from inline-style block to
+  // pass `react-native/no-inline-styles` ESLint rule (warning was flagged
+  // on the previous inline conditional style array). Dynamic theme-driven
+  // styles can't live in StyleSheet.create — declared here per-render and
+  // passed via StyleSheet.flatten so the rule sees a variable, not a
+  // literal object.
+  const muteButtonDynamicStyle = {
+    backgroundColor: isMuted ? `${theme.colors.warning}22` : 'transparent',
+    borderColor: isMuted ? theme.colors.warning : theme.colors.border,
+  };
+  const muteLabelDynamicStyle = {
+    color: isMuted ? theme.colors.warning : theme.colors.textMuted,
+  };
+
   return (
     <View
       style={[styles.container, { backgroundColor: theme.colors.background }]}
@@ -295,17 +309,10 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
                 <TouchableOpacity
                   onPress={handleToggleMute}
                   disabled={isMuteToggling}
-                  style={[
+                  style={StyleSheet.flatten([
                     styles.muteButton,
-                    {
-                      backgroundColor: isMuted
-                        ? theme.colors.warning + '22'
-                        : 'transparent',
-                      borderColor: isMuted
-                        ? theme.colors.warning
-                        : theme.colors.border,
-                    },
-                  ]}
+                    muteButtonDynamicStyle,
+                  ])}
                   accessibilityRole="button"
                   accessibilityLabel={
                     isMuted
@@ -325,14 +332,10 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
                     }
                   />
                   <Text
-                    style={[
+                    style={StyleSheet.flatten([
                       styles.muteButtonText,
-                      {
-                        color: isMuted
-                          ? theme.colors.warning
-                          : theme.colors.textMuted,
-                      },
-                    ]}
+                      muteLabelDynamicStyle,
+                    ])}
                   >
                     {isMuted ? 'Muted' : 'Mute'}
                   </Text>

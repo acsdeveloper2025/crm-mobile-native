@@ -106,7 +106,7 @@ export const NotificationSettingsScreen = ({ navigation }: any) => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    void loadPreferences();
+    loadPreferences().catch(() => undefined);
   }, []);
 
   const loadPreferences = async () => {
@@ -320,7 +320,8 @@ export const NotificationSettingsScreen = ({ navigation }: any) => {
         <Text
           style={[
             styles.sectionTitle,
-            { color: theme.colors.textSecondary, marginTop: 18 },
+            styles.quietHoursTitle,
+            { color: theme.colors.textSecondary },
           ]}
         >
           Quiet hours
@@ -482,6 +483,9 @@ const makeStyles = (theme: Theme) =>
       textTransform: 'uppercase',
       letterSpacing: 0.5,
       marginBottom: 8,
+    },
+    quietHoursTitle: {
+      marginTop: 18,
     },
     eventCard: {
       borderWidth: 1,
