@@ -937,8 +937,8 @@ const legacyShiftedResidenceFields = withLegacyResidenceOrder([
     name: 'premisesStatus',
     label: 'Premises Status',
     type: 'select',
-    conditional: legacyCondition('houseStatus', 'equals', 'Closed'),
-    requiredWhen: legacyCondition('houseStatus', 'equals', 'Closed'),
+    conditional: legacyCondition('houseStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Open'),
   },
   { name: 'locality', label: 'Locality', type: 'select', required: true },
   {
@@ -3435,33 +3435,52 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
     conditional: legacyCondition('businessStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
-  // --- Orange field (hidden when Vacant) ---
+  // --- Orange field (hidden when Vacant; only shown when businessStatus=Open) ---
   {
     name: 'premisesStatus',
     label: 'Premises Status',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   {
     name: 'currentCompanyName',
     label: 'Current Company Name',
     type: 'text',
-    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
-    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    conditional: [
+      legacyCondition('businessStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
+    requiredWhen: [
+      legacyCondition('businessStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
   },
   {
     name: 'currentCompanyPeriodValue',
     label: 'Current Company Period',
     type: 'select',
-    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
-    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    conditional: [
+      legacyCondition('businessStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
+    requiredWhen: [
+      legacyCondition('businessStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
   },
   {
     name: 'currentCompanyPeriodUnit',
     label: 'Period Unit (Month/Year)',
     type: 'select',
-    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
-    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    conditional: [
+      legacyCondition('businessStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
+    requiredWhen: [
+      legacyCondition('businessStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
   },
   {
     name: 'oldOfficeShiftedPeriodValue',
@@ -3613,19 +3632,26 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
     conditional: legacyCondition('businessStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
-  // --- Orange field (hidden when Vacant) ---
+  // --- Orange field (hidden when Vacant; only shown when businessStatus=Open) ---
   {
     name: 'premisesStatus',
     label: 'Premises Status',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   {
     name: 'currentCompanyName',
     label: 'Current Company Name',
     type: 'text',
-    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
-    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    conditional: [
+      legacyCondition('businessStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
+    requiredWhen: [
+      legacyCondition('businessStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
   },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
@@ -4161,33 +4187,52 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
-  // --- Orange field (hidden when Vacant) ---
+  // --- Orange field (hidden when Vacant; only shown when officeStatus=Open) ---
   {
     name: 'premisesStatus',
     label: 'Premises Status',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
     name: 'currentCompanyName',
     label: 'Current Company Name',
     type: 'text',
-    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
-    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    conditional: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
+    requiredWhen: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
   },
   {
     name: 'currentCompanyPeriodValue',
     label: 'Current Company Period',
     type: 'select',
-    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
-    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    conditional: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
+    requiredWhen: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
   },
   {
     name: 'currentCompanyPeriodUnit',
     label: 'Period Unit (Month/Year)',
     type: 'select',
-    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
-    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    conditional: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
+    requiredWhen: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
   },
   {
     name: 'oldOfficeShiftedPeriodValue',
@@ -4339,19 +4384,26 @@ const legacyNspBuilderFields = withLegacyBusinessOrder([
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
-  // --- Orange field (hidden when Vacant) ---
+  // --- Orange field (hidden when Vacant; only shown when officeStatus=Open) ---
   {
     name: 'premisesStatus',
     label: 'Premises Status',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
     name: 'currentCompanyName',
     label: 'Current Company Name',
     type: 'text',
-    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
-    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    conditional: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
+    requiredWhen: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
   },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
@@ -5013,19 +5065,26 @@ const legacyNspNocFields = withLegacyNocOrder([
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
-  // --- Orange field (hidden when Vacant) ---
+  // --- Orange field (hidden when Vacant; only shown when officeStatus=Open) ---
   {
     name: 'premisesStatus',
     label: 'Premises Status',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
     name: 'currentCompanyName',
     label: 'Current Company Name',
     type: 'text',
-    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
-    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    conditional: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
+    requiredWhen: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
   },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
@@ -5596,33 +5655,52 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
-  // --- Orange field (hidden when Vacant) ---
+  // --- Orange field (hidden when Vacant; only shown when officeStatus=Open) ---
   {
     name: 'premisesStatus',
     label: 'Premises Status',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
     name: 'currentCompanyName',
     label: 'Current Company Name',
     type: 'text',
-    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
-    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    conditional: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
+    requiredWhen: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
   },
   {
     name: 'currentCompanyPeriodValue',
     label: 'Current Company Period',
     type: 'select',
-    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
-    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    conditional: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
+    requiredWhen: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
   },
   {
     name: 'currentCompanyPeriodUnit',
     label: 'Period Unit (Month/Year)',
     type: 'select',
-    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
-    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    conditional: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
+    requiredWhen: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
   },
   {
     name: 'oldOfficeShiftedPeriodValue',
@@ -5774,19 +5852,26 @@ const legacyNspDsaFields = withLegacyDsaOrder([
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
-  // --- Orange field (hidden when Vacant) ---
+  // --- Orange field (hidden when Vacant; only shown when officeStatus=Open) ---
   {
     name: 'premisesStatus',
     label: 'Premises Status',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
     name: 'currentCompanyName',
     label: 'Current Company Name',
     type: 'text',
-    conditional: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
-    requiredWhen: legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    conditional: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
+    requiredWhen: [
+      legacyCondition('officeStatus', 'equals', 'Open'),
+      legacyCondition('premisesStatus', 'notEquals', 'Vacant'),
+    ],
   },
   // --- Common ---
   { name: 'locality', label: 'Locality', type: 'select', required: true },
