@@ -2677,13 +2677,6 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
     type: 'select',
     required: true,
   },
-  {
-    name: 'officeApproxArea',
-    label: 'Office Approx Area (Sq. Feet)',
-    type: 'number',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
-  },
   // --- Company plate ---
   {
     name: 'companyNamePlateStatus',
@@ -3154,7 +3147,6 @@ const legacyBusinessSelectOptions: Record<string, string[]> = {
     'Other',
   ],
   businessExistence: ['Exist', 'Does Not Exist'],
-  applicantExistence: ['Exist', 'Does Not Exist'],
   officeStatusErtBusiness: [
     'Business Exist At',
     'Business Does Not Exist At',
@@ -3173,7 +3165,6 @@ const legacyBusinessOptionAliases: Record<string, string> = {
   tpcConfirmation1: 'tpcConfirmation',
   tpcConfirmation2: 'tpcConfirmation',
   businessExistance: 'businessExistence',
-  applicantExistance: 'applicantExistence',
   businessExistsStatus: 'businessExistStatus',
   metPerson: 'metPersonErt',
   metPersonType: 'metPersonErt',
@@ -3484,13 +3475,6 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
     type: 'select',
     required: true,
   },
-  {
-    name: 'approxArea',
-    label: 'Approx Area (Sq. Feet)',
-    type: 'number',
-    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
-  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
@@ -3611,12 +3595,6 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
   {
     name: 'businessExistance',
     label: 'Business Existence',
-    type: 'select',
-    required: true,
-  },
-  {
-    name: 'applicantExistance',
-    label: 'Applicant Existence',
     type: 'select',
     required: true,
   },
@@ -4223,13 +4201,6 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
     type: 'select',
     required: true,
   },
-  {
-    name: 'approxArea',
-    label: 'Approx Area (Sq. Feet)',
-    type: 'number',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
-  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
@@ -4350,12 +4321,6 @@ const legacyNspBuilderFields = withLegacyBusinessOrder([
   {
     name: 'businessExistance',
     label: 'Business Existence',
-    type: 'select',
-    required: true,
-  },
-  {
-    name: 'applicantExistance',
-    label: 'Applicant Existence',
     type: 'select',
     required: true,
   },
@@ -4702,7 +4667,6 @@ const legacyNocSelectOptions: Record<string, string[]> = {
     'Other',
   ],
   businessExistence: ['Exist', 'Does Not Exist'],
-  applicantExistence: ['Exist', 'Does Not Exist'],
   officeStatusErtNoc: [
     'Office Exist At',
     'Office Does Not Exist At',
@@ -4712,7 +4676,6 @@ const legacyNocSelectOptions: Record<string, string[]> = {
 
 const legacyNocOptionAliases: Record<string, string> = {
   businessExistance: 'businessExistence',
-  applicantExistance: 'applicantExistence',
   metPerson: 'metPersonErt',
   metPersonType: 'metPersonErt',
   officeExistsStatus: 'officeStatus',
@@ -4912,13 +4875,6 @@ const legacyShiftedNocFields = withLegacyNocOrder([
     type: 'select',
     required: true,
   },
-  {
-    name: 'officeApproxArea',
-    label: 'Office Approx Area (Sq. Feet)',
-    type: 'number',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
-  },
   // --- Company plate ---
   {
     name: 'companyNamePlateStatus',
@@ -5039,12 +4995,6 @@ const legacyNspNocFields = withLegacyNocOrder([
   {
     name: 'businessExistance',
     label: 'Business Existence',
-    type: 'select',
-    required: true,
-  },
-  {
-    name: 'applicantExistance',
-    label: 'Applicant Existence',
     type: 'select',
     required: true,
   },
@@ -5369,7 +5319,6 @@ const legacyDsaSelectOptions: Record<string, string[]> = {
     'Other',
   ],
   businessExistence: ['Exist', 'Does Not Exist'],
-  applicantExistence: ['Exist', 'Does Not Exist'],
   officeStatusErtDsa: [
     'Business Exist At',
     'Business Does Not Exist At',
@@ -5383,7 +5332,6 @@ const legacyDsaOptionAliases: Record<string, string> = {
   tpcConfirmation1: 'tpcConfirmation',
   tpcConfirmation2: 'tpcConfirmation',
   businessExistance: 'businessExistence',
-  applicantExistance: 'applicantExistence',
   metPerson: 'metPersonErt',
   metPersonType: 'metPersonErt',
   businessExistsStatus: 'officeStatusErtDsa',
@@ -5688,13 +5636,6 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
     type: 'select',
     required: true,
   },
-  {
-    name: 'approxArea',
-    label: 'Approx Area (Sq. Feet)',
-    type: 'number',
-    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
-    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
-  },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
   {
@@ -5815,12 +5756,6 @@ const legacyNspDsaFields = withLegacyDsaOrder([
   {
     name: 'businessExistance',
     label: 'Business Existence',
-    type: 'select',
-    required: true,
-  },
-  {
-    name: 'applicantExistance',
-    label: 'Applicant Existence',
     type: 'select',
     required: true,
   },
