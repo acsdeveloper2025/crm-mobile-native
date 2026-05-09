@@ -2518,7 +2518,7 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
   {
     name: 'documentShown',
     label: 'Document Shown',
-    type: 'text',
+    type: 'select',
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
@@ -3317,7 +3317,7 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
   {
     name: 'documentShown',
     label: 'Document Shown',
-    type: 'text',
+    type: 'select',
     required: true,
   },
   // --- TPC ---
@@ -4069,7 +4069,7 @@ const legacyPositiveBuilderFields = withLegacyBusinessOrder([
   {
     name: 'documentShown',
     label: 'Document Shown',
-    type: 'text',
+    type: 'select',
     required: true,
   },
   // --- TPC ---
