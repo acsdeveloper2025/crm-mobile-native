@@ -9,6 +9,7 @@ import {
   Platform,
   AppState,
   Linking,
+  InteractionManager,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -49,6 +50,17 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
     // Android devices silently fails if isActive=true before permission grant.
     setIsActive(false);
     try {
+      // Bug 137 sibling: defer the system permission dialog until the
+      // navigation transition + any pending JS-driven animations settle.
+      // Without this, the Activity's input-event dispatcher can race with
+      // the view-teardown happening during the screen mount, causing an
+      // uncaught `ViewGroup.dispatchCancelPendingInputEvents(null)` NPE
+      // bubbling out of Camera.requestCameraPermission() and crashing
+      // the requestPermissions try/catch into the error path. The system
+      // dialog is wholly safe to show after interactions complete.
+      await new Promise<void>(resolve =>
+        InteractionManager.runAfterInteractions(() => resolve()),
+      );
       const cameraPermission = await Camera.requestCameraPermission();
       const granted = cameraPermission === 'granted';
       setHasPermission(granted);

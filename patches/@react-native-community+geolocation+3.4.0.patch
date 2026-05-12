@@ -1,0 +1,25 @@
+diff --git a/node_modules/@react-native-community/geolocation/android/src/main/java/com/reactnativecommunity/geolocation/PlayServicesLocationManager.java b/node_modules/@react-native-community/geolocation/android/src/main/java/com/reactnativecommunity/geolocation/PlayServicesLocationManager.java
+index 423f7a5..ab297b5 100644
+--- a/node_modules/@react-native-community/geolocation/android/src/main/java/com/reactnativecommunity/geolocation/PlayServicesLocationManager.java
++++ b/node_modules/@react-native-community/geolocation/android/src/main/java/com/reactnativecommunity/geolocation/PlayServicesLocationManager.java
+@@ -167,8 +167,18 @@ public class PlayServicesLocationManager extends BaseLocationManager {
+
+                 callbackHolder.success(location);
+
+-                mFusedLocationClient.removeLocationUpdates(mSingleLocationCallback);
+-                mSingleLocationCallback = null;
++                // Bug 137 (CRM-APP-MONOREPO-PROD patch): null-check before
++                // removeLocationUpdates. Concurrent getCurrentPosition + watch
++                // can race: first onLocationResult nulls mSingleLocationCallback
++                // on the line below; a second onLocationResult then passes null
++                // into removeLocationUpdates → GMS Preconditions.checkNotNull
++                // throws "Listener must not be null" as an UNCAUGHT NPE,
++                // crashing the host app. Snapshot + null-guard fixes it.
++                LocationCallback toRemove = mSingleLocationCallback;
++                if (toRemove != null) {
++                    mFusedLocationClient.removeLocationUpdates(toRemove);
++                    mSingleLocationCallback = null;
++                }
+             }
+
+             @Override

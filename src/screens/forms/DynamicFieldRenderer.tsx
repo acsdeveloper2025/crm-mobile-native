@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../../context/ThemeContext';
 import { UppercaseTextInput } from '../../components/ui/UppercaseTextInput';
 
@@ -235,6 +236,9 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({
   const [localValidationError, setLocalValidationError] = useState<
     string | null
   >(null);
+  // Bug 134b: native date picker visibility state. The Android picker is a
+  // modal that opens on user tap, returns once, and auto-dismisses.
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const placeholder = `Enter ${field.label.toLowerCase()}`;
   // M9 (audit 2026-04-21): stabilise the options reference so downstream
   // children (select rows, multi-select chips) see the same array
@@ -332,36 +336,66 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({
           />
         );
 
-      case 'date':
+      case 'date': {
+        // Bug 134b: native date picker replaces the plain TextInput. The
+        // tap-to-open Pressable shows YYYY-MM-DD (or placeholder); on tap,
+        // Android opens the native calendar/spinner dialog. On select, we
+        // format to YYYY-MM-DD and pass to onChange. On cancel, no change.
+        const currentStr = value?.toString() || '';
+        const parsed = currentStr && /^\d{4}-\d{2}-\d{2}/.test(currentStr)
+          ? new Date(currentStr)
+          : new Date();
         return (
-          <TextInput
-            style={[
-              styles.input,
-              {
-                backgroundColor: theme.colors.surface,
-                borderColor: displayError
-                  ? theme.colors.danger
-                  : theme.colors.border,
-                color: theme.colors.text,
-              },
-              displayError && [
-                styles.inputError,
+          <View>
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              accessibilityLabel={field.label}
+              accessibilityRole="button"
+              style={[
+                styles.input,
                 {
-                  borderColor: theme.colors.danger,
-                  backgroundColor: theme.colors.danger + '10',
+                  backgroundColor: theme.colors.surface,
+                  borderColor: displayError
+                    ? theme.colors.danger
+                    : theme.colors.border,
+                  justifyContent: 'center',
                 },
-              ],
-            ]}
-            value={value?.toString() || ''}
-            onChangeText={text => onChange(field.id, text)}
-            onBlur={handleBlur}
-            placeholder="YYYY-MM-DD"
-            placeholderTextColor={theme.colors.textMuted}
-            autoCapitalize="none"
-            autoCorrect={false}
-            maxLength={10}
-          />
+                displayError && [
+                  styles.inputError,
+                  {
+                    borderColor: theme.colors.danger,
+                    backgroundColor: theme.colors.danger + '10',
+                  },
+                ],
+              ]}
+            >
+              <Text
+                style={{
+                  color: currentStr ? theme.colors.text : theme.colors.textMuted,
+                }}
+              >
+                {currentStr || 'YYYY-MM-DD (tap to pick)'}
+              </Text>
+            </TouchableOpacity>
+            {showDatePicker && (
+              <DateTimePicker
+                value={Number.isNaN(parsed.getTime()) ? new Date() : parsed}
+                mode="date"
+                display="default"
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (event.type === 'set' && selectedDate) {
+                    const yyyy = selectedDate.getFullYear();
+                    const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                    const dd = String(selectedDate.getDate()).padStart(2, '0');
+                    onChange(field.id, `${yyyy}-${mm}-${dd}`);
+                  }
+                }}
+              />
+            )}
+          </View>
         );
+      }
 
       case 'boolean':
       case 'checkbox':
