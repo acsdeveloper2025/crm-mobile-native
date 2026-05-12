@@ -104,6 +104,13 @@ class AttachmentUploaderClass {
       payload.geoLocation && typeof payload.geoLocation === 'object'
         ? (payload.geoLocation as Record<string, unknown>).longitude
         : payload.longitude;
+    // Same nested-vs-top-level fix as lat/lng/timestamp (bug 53 sibling):
+    // CameraService.savePhoto writes accuracy inside payload.geoLocation,
+    // not at the top level. Reading top-level fell to 0 on every upload.
+    const acc =
+      payload.geoLocation && typeof payload.geoLocation === 'object'
+        ? (payload.geoLocation as Record<string, unknown>).accuracy
+        : payload.accuracy;
 
     // D3 (audit 2026-04-21 round 2): use the capture-time timestamp
     // stored on the attachment row rather than `new Date()` at upload
@@ -142,7 +149,7 @@ class AttachmentUploaderClass {
       JSON.stringify({
         latitude: lat ?? null,
         longitude: lng ?? null,
-        accuracy: payload.accuracy ?? 0,
+        accuracy: typeof acc === 'number' ? acc : 0,
         timestamp: locationTimestamp,
       }),
     );

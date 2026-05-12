@@ -1,6 +1,6 @@
 {
   "name": "CrmMobileNative",
-  "version": "1.0.40",
+  "version": "1.0.41",
   "private": true,
   "op-sqlite": {
     "sqlcipher": true
@@ -27,6 +27,7 @@
     "@opentelemetry/resources": "^2.6.1",
     "@opentelemetry/sdk-node": "^0.214.0",
     "@opentelemetry/semantic-conventions": "^1.40.0",
+    "@react-native-community/datetimepicker": "^7.7.0",
     "@react-native-community/geolocation": "^3.4.0",
     "@react-native-community/netinfo": "^12.0.1",
     "@react-native-firebase/app": "^23.8.6",
@@ -74,6 +75,7 @@
     "@types/uuid": "^10.0.0",
     "eslint": "^8.19.0",
     "patch-package": "^8.0.1",
+    "postinstall-postinstall": "^2.1.0",
     "prettier": "2.8.8",
     "typescript": "^5.8.3"
   },

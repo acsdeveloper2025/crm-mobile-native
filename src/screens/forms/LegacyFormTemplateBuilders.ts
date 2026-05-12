@@ -4728,6 +4728,14 @@ const legacyNocSelectOptions: Record<string, string[]> = {
 
 const legacyNocOptionAliases: Record<string, string> = {
   businessExistance: 'businessExistence',
+  // Bug 132: NSP form had `metPersonDesignation` without explicit options;
+  // withLegacyNocOrder fell through to legacyNocSelectOptions[fieldName]
+  // which doesn't exist (options keyed as 'designationNoc'). Adding the
+  // alias mirrors Office/Business/DSA/PropertyAPF maps and future-proofs
+  // any NOC form using metPersonDesignation without inline options.
+  // NOC POSITIVE (4789) + SHIFTED (4896) set explicit options so they
+  // short-circuit this lookup; they're unaffected.
+  metPersonDesignation: 'designationNoc',
   metPerson: 'metPersonErt',
   metPersonType: 'metPersonErt',
   officeExistsStatus: 'officeStatus',
@@ -4897,35 +4905,46 @@ const legacyShiftedNocFields = withLegacyNocOrder([
     conditional: legacyCondition('officeStatus', 'equals', 'Open'),
     requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
+  // Bug 131: 5 SHIFTED-only "what's there now" + "how long ago" fields
+  // not capturable when door is locked. Hide on officeStatus=Closed;
+  // template SHIFTED_DOOR_LOCKED is trimmed in parallel to drop the
+  // {Old_Office_Shifted_Period} token; currentCompanyOperatingSentence
+  // helper at TemplateReportService.ts:2345 already renders empty when
+  // currentCompanyName is null.
   {
     name: 'currentCompanyName',
     label: 'Current Company Name',
     type: 'text',
-    required: true,
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
     name: 'currentCompanyPeriodValue',
     label: 'Current Company Period',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
     name: 'currentCompanyPeriodUnit',
     label: 'Period Unit (Month/Year)',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
     name: 'oldOfficeShiftedPeriodValue',
     label: 'Old Office Shifted Period',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   {
     name: 'oldOfficeShiftedPeriodUnit',
     label: 'Period Unit (Month/Year)',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   // --- Company plate ---
   {
@@ -6286,10 +6305,13 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
       'CONSTRUCTION IS STOP',
     ),
   },
+  // Bug 134a: type was 'text' (free-text keyboard); should be 'number' to
+  // match sibling staffStrength / staffSeen / projectCompletionPercent —
+  // forces numeric keypad on mobile.
   {
     name: 'totalWing',
     label: 'Total Wing',
-    type: 'text',
+    type: 'number',
     conditional: legacyCondition(
       'constructionActivity',
       'equals',
@@ -6299,7 +6321,7 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
   {
     name: 'totalFlats',
     label: 'Total Flats',
-    type: 'text',
+    type: 'number',
     conditional: legacyCondition(
       'constructionActivity',
       'equals',
@@ -6439,7 +6461,21 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
     type: 'select',
     required: true,
   },
-  { name: 'otherObservation', label: 'Other Observation', type: 'textarea' },
+  // Bug 133: APF verdict-vs-activity coherence. When verdict mismatches
+  // activity-implied natural outcome, agent MUST justify (so report can
+  // render coherently). Mobile expresses the SEEN+non-Positive branch via
+  // AND-only legacyCondition; STOP/VACANT+Positive inverse is enforced
+  // server-side in propertyApfFormValidator. Label hint added.
+  {
+    name: 'otherObservation',
+    label: 'Other Observation',
+    type: 'textarea',
+    placeholder: 'Required when verdict differs from observed construction activity',
+    requiredWhen: [
+      legacyCondition('constructionActivity', 'equals', 'SEEN'),
+      legacyCondition('finalStatus', 'in', ['Negative', 'Refer', 'Fraud']),
+    ],
+  },
   // Property APF uses constructionActivity-driven Final Status:
   //   SEEN                                         → [Positive, Refer]
   //   CONSTRUCTION IS STOP  |  PLOT IS VACANT      → [Negative, Refer]
