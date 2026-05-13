@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
+  Linking,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { PreserveCase } from '../../components/ui/PreserveCase';
@@ -14,6 +15,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { ScreenHeader } from '../../components/ScreenHeader';
 // DataCleanupManager moved to separate screen
 import { config } from '../../config';
+import { Logger } from '../../utils/logger';
 
 export const ProfileScreen = ({ navigation }: any) => {
   const { user, logout } = useAuth();
@@ -324,6 +326,52 @@ export const ProfileScreen = ({ navigation }: any) => {
               style={[styles.actionText, { color: theme.colors.textSecondary }]}
             >
               Privacy Policy
+            </Text>
+            <Icon
+              name="chevron-forward"
+              size={20}
+              color={theme.colors.textMuted}
+            />
+          </TouchableOpacity>
+
+          {/* 2026-05-13: Anti-bribery / ethics reporting tile. Field
+              Executive Acknowledgement §2 mandates immediate reporting
+              of any bribe offer/demand/attempt to
+              ethics@allcheckservices.com. This tile is the in-app
+              shortcut so an agent can flag from anywhere without
+              having to type the address. */}
+          <TouchableOpacity
+            style={[
+              styles.actionButton,
+              {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border,
+              },
+            ]}
+            onPress={() => {
+              const subject = 'Ethics report — bribery / misconduct';
+              const body =
+                'I would like to report the following concern:\n\n[Please describe what happened, when, where, and any names of people involved.]\n\nThis report is confidential and will be reviewed by ACS Ethics.';
+              Linking.openURL(
+                `mailto:ethics@allcheckservices.com?subject=${encodeURIComponent(
+                  subject,
+                )}&body=${encodeURIComponent(body)}`,
+              ).catch((err: unknown) =>
+                Logger.warn('ProfileScreen', 'Linking.openURL failed', err),
+              );
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Report ethics concern"
+          >
+            <Icon
+              name="warning-outline"
+              size={22}
+              color={theme.colors.textSecondary}
+            />
+            <Text
+              style={[styles.actionText, { color: theme.colors.textSecondary }]}
+            >
+              Report Ethics Concern
             </Text>
             <Icon
               name="chevron-forward"
