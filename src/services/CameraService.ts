@@ -86,6 +86,9 @@ interface SavePhotoOptions {
     latitude?: number;
     longitude?: number;
     accuracy?: number;
+    altitude?: number;
+    speed?: number;
+    heading?: number;
     timestamp?: string;
   } | null;
 }
@@ -225,6 +228,9 @@ class CameraServiceClass {
               latitude: override.latitude,
               longitude: override.longitude,
               accuracy: override.accuracy ?? 0,
+              altitude: override.altitude,
+              speed: override.speed,
+              heading: override.heading,
               timestamp: override.timestamp || new Date().toISOString(),
               source: 'GPS' as const,
             }
@@ -345,6 +351,9 @@ class CameraServiceClass {
                   latitude: resolvedLocation.latitude,
                   longitude: resolvedLocation.longitude,
                   accuracy: resolvedLocation.accuracy,
+                  altitude: resolvedLocation.altitude,
+                  speed: resolvedLocation.speed,
+                  heading: resolvedLocation.heading,
                   timestamp: resolvedLocation.timestamp,
                 }
               : null,
