@@ -90,6 +90,33 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
   const [dateStr, setDateStr] = useState('');
   const [timeStr, setTimeStr] = useState('');
 
+  // Read the captured photo's intrinsic dimensions so the ViewShot
+  // (which becomes the saved JPEG with watermark composited) matches the
+  // photo's aspect. Without this, a landscape capture inside the
+  // portrait-locked Activity gets `resizeMode:'cover'` cropped — the
+  // sides of the original frame are silently lost.
+  //
+  // Default 3/4 (portrait) so first render has a sensible shape; the
+  // real value usually arrives <50ms later for local file URIs.
+  const [photoAspect, setPhotoAspect] = useState<number>(3 / 4);
+  useEffect(() => {
+    if (!photoPath) {
+      return;
+    }
+    Image.getSize(
+      `file://${photoPath}`,
+      (w, h) => {
+        if (w > 0 && h > 0) {
+          setPhotoAspect(w / h);
+        }
+      },
+      () => {
+        // getSize failure (rare for local files) — keep the default
+        // portrait aspect; nothing to do.
+      },
+    );
+  }, [photoPath]);
+
   const dynamicStyles = useMemo(
     () =>
       StyleSheet.create({
@@ -277,117 +304,126 @@ export const WatermarkPreviewScreen = ({ route, navigation }: any) => {
 
   return (
     <View style={styles.container}>
-      <ViewShot
-        ref={viewShotRef}
-        style={styles.viewShotContainer}
-        options={{ format: 'jpg', quality: 0.85 }}
-      >
-        <Image
-          source={{ uri: `file://${photoPath}` }}
-          style={StyleSheet.absoluteFillObject}
-          resizeMode="cover"
-        />
+      {/* viewShotCentered: centers the aspect-matched ViewShot vertically
+          when the photo's aspect is narrower than the (portrait-locked)
+          Activity. The ViewShot itself sizes by `width:'100%'` +
+          inline `aspectRatio:photoAspect`, so landscape photos render
+          as wide rectangles letterboxed top/bottom and the saved JPEG
+          retains the original landscape aspect — no center-crop. */}
+      <View style={styles.viewShotCentered}>
+        <ViewShot
+          ref={viewShotRef}
+          style={[styles.viewShotContainer, { aspectRatio: photoAspect }]}
+          options={{ format: 'jpg', quality: 0.85 }}
+        >
+          <Image
+            source={{ uri: `file://${photoPath}` }}
+            style={StyleSheet.absoluteFillObject}
+            resizeMode="cover"
+          />
 
-        {/* ── Bottom Watermark Strip ── */}
-        <View style={styles.watermarkStrip}>
-          {/* Left: GPS Coordinates Card */}
-          <View style={styles.gpsCard}>
-            <View style={styles.gpsIconRow}>
-              <Icon name="navigate" size={14} color="#22d3ee" />
-              <Text style={styles.gpsLabel}>GPS LOCATION</Text>
+          {/* ── Bottom Watermark Strip ── */}
+          <View style={styles.watermarkStrip}>
+            {/* Left: GPS Coordinates Card */}
+            <View style={styles.gpsCard}>
+              <View style={styles.gpsIconRow}>
+                <Icon name="navigate" size={14} color="#22d3ee" />
+                <Text style={styles.gpsLabel}>GPS LOCATION</Text>
+              </View>
+              {location ? (
+                <>
+                  <PreserveCase style={styles.gpsCoordDMS}>
+                    {formatDMS(location.lat, true)}
+                  </PreserveCase>
+                  <PreserveCase style={styles.gpsCoordDMS}>
+                    {formatDMS(location.lng, false)}
+                  </PreserveCase>
+                  <PreserveCase style={styles.gpsDecimal}>
+                    {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
+                  </PreserveCase>
+                  {location.accuracy != null && (
+                    <PreserveCase
+                      style={styles.gpsAccuracy}
+                    >{`\u00B1${location.accuracy.toFixed(0)}m`}</PreserveCase>
+                  )}
+                </>
+              ) : (
+                <Text style={styles.gpsLocating}>
+                  {isLocating ? 'Locating...' : 'No GPS'}
+                </Text>
+              )}
             </View>
-            {location ? (
-              <>
-                <PreserveCase style={styles.gpsCoordDMS}>
-                  {formatDMS(location.lat, true)}
-                </PreserveCase>
-                <PreserveCase style={styles.gpsCoordDMS}>
-                  {formatDMS(location.lng, false)}
-                </PreserveCase>
-                <PreserveCase style={styles.gpsDecimal}>
-                  {location.lat.toFixed(6)}, {location.lng.toFixed(6)}
-                </PreserveCase>
-                {location.accuracy != null && (
-                  <PreserveCase
-                    style={styles.gpsAccuracy}
-                  >{`\u00B1${location.accuracy.toFixed(0)}m`}</PreserveCase>
-                )}
-              </>
-            ) : (
-              <Text style={styles.gpsLocating}>
-                {isLocating ? 'Locating...' : 'No GPS'}
-              </Text>
-            )}
-          </View>
 
-          <View style={styles.dataStack}>
-            {/* Bug 66 (2026-05-05): customer/case header line — added
+            <View style={styles.dataStack}>
+              {/* Bug 66 (2026-05-05): customer/case header line — added
                 to mirror the web composite's City/State/Country slot.
                 Mobile can't reverse-geocode (would slow capture), so we
                 use the customer + task identifier from taskMeta which
                 is already in memory. */}
-            {(meta.customerName || meta.caseId || meta.taskNumber) && (
-              <PreserveCase style={styles.headerLine}>
-                {[
-                  meta.customerName,
-                  meta.taskNumber || (meta.caseId ? `Case ${meta.caseId}` : ''),
-                ]
-                  .filter(Boolean)
-                  .join(' · ')
-                  .toUpperCase()}
-              </PreserveCase>
-            )}
-            {/* Lat / Long line in the same format as the web composite */}
-            {location && (
-              <PreserveCase style={styles.latLongLine}>
-                Lat {location.lat.toFixed(7)} / Long {location.lng.toFixed(7)}
-              </PreserveCase>
-            )}
-            {/* Row 1: Date & Time */}
-            <View style={styles.dataRow}>
-              <Icon name="calendar-outline" size={11} color="#94a3b8" />
-              <PreserveCase style={styles.dataLabel}>{dateStr}</PreserveCase>
-              <Icon
-                name="time-outline"
-                size={11}
-                color="#94a3b8"
-                style={styles.iconSpacer}
-              />
-              <PreserveCase style={styles.dataLabel}>{timeStr}</PreserveCase>
-            </View>
+              {(meta.customerName || meta.caseId || meta.taskNumber) && (
+                <PreserveCase style={styles.headerLine}>
+                  {[
+                    meta.customerName,
+                    meta.taskNumber ||
+                      (meta.caseId ? `Case ${meta.caseId}` : ''),
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')
+                    .toUpperCase()}
+                </PreserveCase>
+              )}
+              {/* Lat / Long line in the same format as the web composite */}
+              {location && (
+                <PreserveCase style={styles.latLongLine}>
+                  Lat {location.lat.toFixed(7)} / Long {location.lng.toFixed(7)}
+                </PreserveCase>
+              )}
+              {/* Row 1: Date & Time */}
+              <View style={styles.dataRow}>
+                <Icon name="calendar-outline" size={11} color="#94a3b8" />
+                <PreserveCase style={styles.dataLabel}>{dateStr}</PreserveCase>
+                <Icon
+                  name="time-outline"
+                  size={11}
+                  color="#94a3b8"
+                  style={styles.iconSpacer}
+                />
+                <PreserveCase style={styles.dataLabel}>{timeStr}</PreserveCase>
+              </View>
 
-            {/* Address row intentionally omitted from the mobile
+              {/* Address row intentionally omitted from the mobile
                 watermark — capture path must stay fast + offline-safe.
                 Address is resolved + displayed only on the CRM web view
                 from the stored geo_location coords (see
                 project_geocoding_and_watermark.md). Don't re-add a
                 reverse-geocode fetch here. */}
 
-            {/* Row 6: Altitude / Speed / Compass */}
-            {location && (
-              <View style={styles.dataRow}>
-                <Icon name="trending-up-outline" size={11} color="#94a3b8" />
-                <Text style={styles.dataLabel}>
-                  {`Alt: ${location.alt.toFixed(0)}m`}
-                  {location.spd > 0
-                    ? `  Spd: ${(location.spd * 3.6).toFixed(0)}km/h`
-                    : ''}
-                  {location.heading != null
-                    ? `  ${getCompassDirection(location.heading)}`
-                    : ''}
-                </Text>
-              </View>
-            )}
+              {/* Row 6: Altitude / Speed / Compass */}
+              {location && (
+                <View style={styles.dataRow}>
+                  <Icon name="trending-up-outline" size={11} color="#94a3b8" />
+                  <Text style={styles.dataLabel}>
+                    {`Alt: ${location.alt.toFixed(0)}m`}
+                    {location.spd > 0
+                      ? `  Spd: ${(location.spd * 3.6).toFixed(0)}km/h`
+                      : ''}
+                    {location.heading != null
+                      ? `  ${getCompassDirection(location.heading)}`
+                      : ''}
+                  </Text>
+                </View>
+              )}
 
-            {/* Branding */}
-            <View style={styles.brandRow}>
-              <Text style={styles.brandText}>CRM Verification</Text>
-              <View style={styles.brandDot} />
-              <Text style={styles.brandText}>Geo-Tagged Evidence</Text>
+              {/* Branding */}
+              <View style={styles.brandRow}>
+                <Text style={styles.brandText}>CRM Verification</Text>
+                <View style={styles.brandDot} />
+                <Text style={styles.brandText}>Geo-Tagged Evidence</Text>
+              </View>
             </View>
           </View>
-        </View>
-      </ViewShot>
+        </ViewShot>
+      </View>
 
       {/* ── Action Buttons ── */}
       <View style={[styles.actionOverlay, dynamicStyles.actionOverlay]}>
@@ -443,8 +479,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'black',
   },
-  viewShotContainer: {
+  viewShotCentered: {
     flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'black',
+  },
+  viewShotContainer: {
+    width: '100%',
     backgroundColor: 'black',
   },
 
