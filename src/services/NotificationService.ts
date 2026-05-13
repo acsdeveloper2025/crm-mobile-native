@@ -16,6 +16,10 @@ import {
   normalizeFcmType,
   sanitizeFcmActionUrl,
 } from '../api/schemas/fcm.schema';
+import {
+  handleLocationRequest,
+  isLocationRequestPayload,
+} from './LocationPingHandler';
 
 const TAG = 'NotificationService';
 
@@ -342,6 +346,20 @@ class NotificationServiceImpl {
     source: 'foreground' | 'opened' | 'initial',
   ): Promise<void> {
     try {
+      // 2026-05-13: silent admin-triggered LOCATION_REQUEST short-circuits
+      // here. Doesn't insert a notification row, doesn't surface UI, just
+      // grabs GPS + uploads with source='ADMIN_PING'. Returns before the
+      // FCM notification-shape validator runs so the LOCATION_REQUEST
+      // payload (data-only, no notification block) isn't rejected.
+      const rawData =
+        remoteMessage && typeof remoteMessage === 'object'
+          ? (remoteMessage as { data?: Record<string, unknown> }).data
+          : undefined;
+      if (isLocationRequestPayload(rawData)) {
+        await handleLocationRequest(rawData as Record<string, string>);
+        return;
+      }
+
       // M4: validate the RemoteMessage shape before touching any
       // field. safeParse-based so a shape drift from FCM or the
       // backend notification builder surfaces as a warning in
