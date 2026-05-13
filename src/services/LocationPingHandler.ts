@@ -98,6 +98,7 @@ export const handleLocationRequest = async (
         accuracy: location.accuracy,
         timestamp: location.timestamp,
         source: 'ADMIN_PING',
+        requestedBy: data.requestedBy,
       },
       {
         headers: { 'Idempotency-Key': requestId },
