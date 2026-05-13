@@ -235,6 +235,13 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
         isActive={isActive}
         photo={true}
         format={format}
+        // Native pinch-to-zoom on the preview (no extra deps; vision-camera v4
+        // ships this in-engine — works as long as a CameraDevice is mounted).
+        enableZoomGesture={true}
+        // Capture in whatever orientation the device is held in. Default
+        // ('portrait') was clipping landscape shots because the photo
+        // buffer stayed portrait-locked even when the device was rotated.
+        outputOrientation="device"
         onError={error => {
           Logger.error(TAG, 'Camera runtime error', error);
           Alert.alert(
