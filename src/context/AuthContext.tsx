@@ -15,6 +15,7 @@ import { SyncQueue } from '../services/SyncQueue';
 import { notificationService } from '../services/NotificationService';
 import { mobileSocketService } from '../services/MobileSocketService';
 import { DataCleanupService } from '../services/DataCleanupService';
+import { PrivacyConsentService } from '../services/PrivacyConsentService';
 
 const TAG = 'AuthContext';
 
@@ -177,6 +178,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         });
         SyncService.performSync().catch(syncError => {
           Logger.warn(TAG, 'Initial sync after login failed', syncError);
+        });
+        // 2026-05-13: belt-and-braces — re-sync any locally-stored
+        // consent acceptance to the backend's user_consents table.
+        // Covers cases where the original PrivacyConsentScreen accept
+        // happened offline / before the BE consent endpoint existed.
+        // Idempotent server-side.
+        PrivacyConsentService.syncWithBackend().catch(error => {
+          Logger.warn(TAG, 'Consent sync after login failed', error);
         });
       } catch (e) {
         Logger.error(TAG, 'Login failed in context', e);

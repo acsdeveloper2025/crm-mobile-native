@@ -1,6 +1,6 @@
 {
   "name": "CrmMobileNative",
-  "version": "1.0.47",
+  "version": "1.0.48",
   "private": true,
   "op-sqlite": {
     "sqlcipher": true
