@@ -72,6 +72,11 @@ export const ENDPOINTS = {
     REVERSE_GEOCODE: '/location/reverse-geocode',
   },
 
+  // Field Executive Acknowledgement (DPDP §5 + CoC/NDA/Anti-bribery)
+  CONSENTS: {
+    ACCEPT: '/consents/accept',
+  },
+
   // Sync
   SYNC: {
     UPLOAD: '/sync/upload',
