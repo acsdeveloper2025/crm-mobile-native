@@ -19,6 +19,9 @@ export interface LocationResult {
   latitude: number;
   longitude: number;
   accuracy: number;
+  altitude?: number;
+  speed?: number;
+  heading?: number;
   timestamp: string;
   source: 'GPS' | 'NETWORK' | 'PASSIVE';
 }
@@ -127,6 +130,22 @@ class LocationServiceClass {
               latitude: position.coords.latitude,
               longitude: position.coords.longitude,
               accuracy: position.coords.accuracy || 0,
+              altitude:
+                typeof position.coords.altitude === 'number' && !isNaN(position.coords.altitude)
+                  ? position.coords.altitude
+                  : undefined,
+              speed:
+                typeof position.coords.speed === 'number' &&
+                !isNaN(position.coords.speed) &&
+                position.coords.speed >= 0
+                  ? position.coords.speed
+                  : undefined,
+              heading:
+                typeof position.coords.heading === 'number' &&
+                !isNaN(position.coords.heading) &&
+                position.coords.heading >= 0
+                  ? position.coords.heading
+                  : undefined,
               timestamp: new Date(position.timestamp).toISOString(),
               source: 'GPS',
             };
