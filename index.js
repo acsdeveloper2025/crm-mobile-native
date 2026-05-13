@@ -25,6 +25,39 @@ import App from './App';
 import { name as appName } from './app.json';
 import { BackgroundSyncDaemon } from './src/sync/BackgroundSyncDaemon';
 
+// 2026-05-13: register a background FCM handler so silent
+// `LOCATION_REQUEST` data-messages from BE (admin-triggered ping on
+// /user-management/field-monitoring) wake the app, capture GPS, and
+// upload — even when screen is off / app is backgrounded. Must be
+// registered at module-load (before AppRegistry.registerComponent) per
+// @react-native-firebase/messaging contract; otherwise the handler is
+// not invoked for cold-start deliveries.
+//
+// Non-LOCATION_REQUEST data-messages flow through the foreground
+// onMessage handler in NotificationService (when app is in foreground)
+// or through the system tray (when app is backgrounded with a
+// notification block). The background handler below is intentionally
+// scoped to LOCATION_REQUEST only.
+import messaging from '@react-native-firebase/messaging';
+import {
+  handleLocationRequest,
+  isLocationRequestPayload,
+} from './src/services/LocationPingHandler';
+
+messaging().setBackgroundMessageHandler(async remoteMessage => {
+  try {
+    const data = remoteMessage?.data;
+    if (isLocationRequestPayload(data)) {
+      await handleLocationRequest(data);
+    }
+  } catch (err) {
+    // Background handler errors are swallowed silently; the BE flow
+    // falls back to "last known" on the admin's map after the FE-side
+    // 20s timeout. Don't crash the FCM service.
+    console.warn('Background FCM handler error', err);
+  }
+});
+
 AppRegistry.registerComponent(appName, () => App);
 AppRegistry.registerHeadlessTask('BackgroundSyncTask', () => async () => {
   await BackgroundSyncDaemon.runHeadlessTask();
