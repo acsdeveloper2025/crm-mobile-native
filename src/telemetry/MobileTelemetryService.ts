@@ -1,6 +1,7 @@
 import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import { config } from '../config';
+import { SessionStore } from '../services/SessionStore';
 import { Logger } from '../utils/logger';
 import axios from 'axios';
 
@@ -148,6 +149,16 @@ class MobileTelemetryServiceClass {
   private async sendToInternalApi(events: TelemetryEvent[]): Promise<void> {
     const now = Date.now();
     if (now < this.internalApiDisabledUntil) {
+      return;
+    }
+
+    // Pre-auth events stay queued; uploading them would trigger an
+    // unsolicited token-refresh attempt and a "Token refresh returned no
+    // token" warning on every cold boot. Skip silently — events will be
+    // re-attempted on the next FLUSH_INTERVAL_MS after login persists a
+    // token to SessionStore.
+    const token = await SessionStore.getAccessToken();
+    if (!token) {
       return;
     }
 
