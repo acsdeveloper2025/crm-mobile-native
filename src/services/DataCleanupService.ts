@@ -42,6 +42,8 @@ export interface CleanupResult {
   deletedCases: number;
   deletedFiles: number;
   deletedSize: number;
+  attachmentCacheDeleted: number;
+  attachmentCacheSize: number;
   errors: string[];
 }
 
@@ -65,8 +67,10 @@ export class DataCleanupService {
    */
   static async initializeAutoCleanup(): Promise<void> {
     try {
-      const isEnabled = await this.getConfig(AUTO_CLEANUP_ENABLED_KEY);
-      if (isEnabled !== 'true') {
+      // Default-true (see isAutoCleanupEnabled): null counts as enabled.
+      // Only explicit 'false' opts out.
+      const enabled = await this.isAutoCleanupEnabled();
+      if (!enabled) {
         return;
       }
       const today = new Date().toISOString().split('T')[0];
@@ -222,7 +226,10 @@ export class DataCleanupService {
 
   static async isAutoCleanupEnabled(): Promise<boolean> {
     const isEnabled = await this.getConfig(AUTO_CLEANUP_ENABLED_KEY);
-    return isEnabled === 'true'; // false by default
+    // 2026-05-14: default TRUE — auto-cleanup is on unless the user has
+    // explicitly toggled it off. Stored value must be the literal string
+    // 'false' to disable. null/undefined/anything-else = on.
+    return isEnabled !== 'false';
   }
 
   /**
@@ -236,6 +243,8 @@ export class DataCleanupService {
       deletedCases: 0,
       deletedFiles: 0,
       deletedSize: 0,
+      attachmentCacheDeleted: 0,
+      attachmentCacheSize: 0,
       errors: [],
     };
 
@@ -255,9 +264,9 @@ export class DataCleanupService {
         cutoffIso,
       );
 
-      if (oldTaskIds.length === 0) {
-        return result; // Nothing to delete
-      }
+      // Even when no 45d-old tasks exist, fall through to the post-loop
+      // steps (orphan sweep, attachment cache wipe, vacuum) so the
+      // user-pressed "Run Manual Cleanup" always reclaims FS state.
 
       for (const taskId of oldTaskIds) {
         try {
@@ -320,6 +329,18 @@ export class DataCleanupService {
         result.deletedSize += sweep.reclaimedBytes;
       } catch (sweepErr) {
         Logger.warn(TAG, 'Orphan-file sweep failed', sweepErr);
+      }
+
+      // 2026-05-14: also wipe the attachment FS cache directory at the
+      // end of a manual cleanup so a user-initiated "Run Manual Cleanup"
+      // reclaims ALL cached attachment downloads — not just the >45d
+      // subset. Backend is authoritative; UI re-fetches on demand.
+      try {
+        const cacheWipe = await this.clearAttachmentCache(true);
+        result.attachmentCacheDeleted = cacheWipe.deleted;
+        result.attachmentCacheSize = cacheWipe.size;
+      } catch (cacheErr) {
+        Logger.warn(TAG, 'Attachment cache wipe failed', cacheErr);
       }
 
       // F-MD5 (audit 2026-04-28): reclaim SQLite free pages after the
@@ -437,15 +458,20 @@ export class DataCleanupService {
   }
 
   /**
-   * Clears only attachment files and DB map
+   * Clears attachment FS cache. Default (forceAll=true) wipes EVERY file
+   * regardless of age — matches user-pressed "Clear Attachment FS Cache"
+   * intent. Pass forceAll=false to keep the legacy >45d age gate for
+   * automated callers that only want stale files reclaimed.
    */
-  static async clearAttachmentCache(): Promise<{
+  static async clearAttachmentCache(forceAll: boolean = true): Promise<{
     deleted: number;
     size: number;
   }> {
     let deletedFiles = 0;
     let deletedSize = 0;
-    const cutoff = Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000;
+    const cutoff = forceAll
+      ? Number.POSITIVE_INFINITY
+      : Date.now() - RETENTION_DAYS * 24 * 60 * 60 * 1000;
     try {
       const exists = await RNFS.exists(ATTACHMENT_CACHE_DIR);
       if (!exists) {
@@ -459,9 +485,11 @@ export class DataCleanupService {
         }
 
         const stats = await RNFS.stat(entry.path);
-        const modifiedAt = stats.mtime ? new Date(stats.mtime).getTime() : 0;
-        if (modifiedAt && modifiedAt > cutoff) {
-          continue;
+        if (!forceAll) {
+          const modifiedAt = stats.mtime ? new Date(stats.mtime).getTime() : 0;
+          if (modifiedAt && modifiedAt > cutoff) {
+            continue;
+          }
         }
 
         deletedFiles++;

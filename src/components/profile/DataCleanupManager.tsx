@@ -34,7 +34,7 @@ export const DataCleanupManager = () => {
   const handleManualCleanup = async () => {
     Alert.alert(
       'Manual Cleanup',
-      'This will delete completed or revoked cases older than 45 days that are already synced. Proceed?',
+      'This will delete completed or revoked cases older than 45 days that are already synced AND clear every cached attachment file on this device. Proceed?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -44,15 +44,17 @@ export const DataCleanupManager = () => {
             setIsCleaning(true);
             try {
               const result = await DataCleanupService.manualCleanup();
+              const summary = [
+                `Cases: ${result.deletedCases}`,
+                `Photo/attachment files: ${result.deletedFiles}`,
+                `Cached attachments: ${result.attachmentCacheDeleted}`,
+              ].join('\n');
               if (result.success) {
-                Alert.alert(
-                  'Cleanup Complete',
-                  `Deleted ${result.deletedCases} old cases and ${result.deletedFiles} files.`,
-                );
+                Alert.alert('Cleanup Complete', summary);
               } else {
                 Alert.alert(
                   'Cleanup Completed with Errors',
-                  result.errors.join('\n'),
+                  `${summary}\n\nErrors:\n${result.errors.join('\n')}`,
                 );
               }
             } catch (err: unknown) {
@@ -108,7 +110,7 @@ export const DataCleanupManager = () => {
   const handleClearAttachmentCache = () => {
     Alert.alert(
       'Clear Offline Attachments',
-      'This will delete cached attachment downloads older than 45 days to free up space.',
+      'This will delete EVERY cached attachment file on this device to free up space. Backend keeps the originals; the app will re-fetch them on demand.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -117,10 +119,11 @@ export const DataCleanupManager = () => {
           onPress: async () => {
             setIsCleaning(true);
             try {
-              const result = await DataCleanupService.clearAttachmentCache();
+              const result = await DataCleanupService.clearAttachmentCache(true);
+              const mb = (result.size / (1024 * 1024)).toFixed(1);
               Alert.alert(
                 'Attachments Cleared',
-                `Deleted ${result.deleted} files.`,
+                `Deleted ${result.deleted} files (${mb} MB reclaimed).`,
               );
             } catch (err: unknown) {
               Alert.alert(
