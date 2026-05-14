@@ -23,6 +23,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { PreserveCase } from '../../components/ui/PreserveCase';
 import { useAuth } from '../../context/AuthContext';
 import { Logger } from '../../utils/logger';
+import { FIELD_EXECUTIVE_ACKNOWLEDGEMENT } from '../../constants/fieldExecutiveAcknowledgement';
 
 // F-MD12 (audit 2026-04-28 deeper): DPDP rights are exercised via
 // email to support, who track and process via internal ticketing.
@@ -30,45 +31,6 @@ import { Logger } from '../../utils/logger';
 // auditable on receipt.
 const SUPPORT_EMAIL = 'support@allcheckservices.com';
 
-const PRIVACY_POLICY_TEXT = `Last updated: April 2026
-
-AllCheckServices ("we", "us") operates this verification CRM mobile app (the "App") on behalf of our enterprise clients (lending banks/NBFCs).
-
-1. WHAT WE COLLECT
-- Your account identity (name, employee ID, phone, designation).
-- Your verification activity: tasks accepted, photos captured, forms submitted, location captured at the moment of capture.
-- Device information: model, OS version, app version, push token.
-- Diagnostic logs: app errors, sync events, performance metrics.
-
-2. HOW WE USE IT
-- To assign and track field verification tasks.
-- To produce verification reports for our enterprise clients.
-- To pay your commissions and track your performance.
-- To diagnose app issues and improve reliability.
-
-3. WHO WE SHARE IT WITH
-- Our enterprise clients receive your verification submissions and reports.
-- Our cloud infrastructure providers process the data on our behalf under contract.
-- We do not sell your personal data.
-
-4. STORAGE & SECURITY
-- App data on your phone is encrypted at rest (SQLCipher).
-- Data in transit uses TLS 1.2+ with certificate pinning.
-- We retain your verification data for 45 days locally and indefinitely on our servers (subject to client contract).
-
-5. YOUR RIGHTS (under India's DPDP Act 2023)
-- You can request a copy of your personal data at any time.
-- You can request correction of inaccurate data.
-- You can request deletion of your account and personal data, subject to legal retention obligations.
-- To exercise these rights, contact: support@allcheckservices.com.
-
-6. CHANGES
-- We will update this notice when our practices change. Material changes will be communicated via the app and email.
-
-7. CONTACT
-- Email: support@allcheckservices.com
-- Address: [Office address]
-`;
 
 export const PrivacyPolicyScreen: React.FC = () => {
   const { theme } = useTheme();
@@ -134,7 +96,7 @@ export const PrivacyPolicyScreen: React.FC = () => {
           style={[styles.body, { color: theme.colors.textSecondary }]}
           accessibilityRole="text"
         >
-          {PRIVACY_POLICY_TEXT}
+          {FIELD_EXECUTIVE_ACKNOWLEDGEMENT}
         </PreserveCase>
 
         <View style={styles.actions}>
