@@ -51,13 +51,27 @@ interface NotificationPreferences {
   quietHoursEnd: string | null;
 }
 
+type EventKey =
+  | 'caseAssignment'
+  | 'caseReassignment'
+  | 'caseCompletion'
+  | 'caseRevocation'
+  | 'systemNotifications';
+
+// 2026-05-14: load-bearing notification types — required for the field
+// agent to function (must hear about new work, ownership changes, work
+// being revoked, and urgent system alerts). User cannot turn these off;
+// the switches render disabled + locked, and the screen force-enables
+// them on load even if BE persistence holds a legacy `false`.
+const REQUIRED_EVENT_KEYS: ReadonlySet<EventKey> = new Set<EventKey>([
+  'caseAssignment',
+  'caseReassignment',
+  'caseRevocation',
+  'systemNotifications',
+]);
+
 const EVENT_TYPES: Array<{
-  key:
-    | 'caseAssignment'
-    | 'caseReassignment'
-    | 'caseCompletion'
-    | 'caseRevocation'
-    | 'systemNotifications';
+  key: EventKey;
   label: string;
   description: string;
 }> = [
@@ -120,7 +134,21 @@ export const NotificationSettingsScreen = ({ navigation }: any) => {
       if (!res.success || !res.data) {
         throw new Error('Could not load preferences');
       }
-      setPrefs(res.data);
+      // Force-enable load-bearing event types — required for the agent
+      // to receive new work / revocations / urgent system alerts. BE may
+      // have legacy `false` from a previous version that allowed opt-out.
+      const enforced: NotificationPreferences = { ...res.data };
+      for (const key of REQUIRED_EVENT_KEYS) {
+        const enabledField = `${key}Enabled` as FieldName;
+        const pushField = `${key}Push` as FieldName;
+        (enforced as Record<FieldName, boolean | string | null>)[
+          enabledField
+        ] = true;
+        (enforced as Record<FieldName, boolean | string | null>)[
+          pushField
+        ] = true;
+      }
+      setPrefs(enforced);
     } catch (e: unknown) {
       Logger.warn(TAG, 'Failed to load preferences', e);
       setError(e instanceof Error ? e.message : 'Failed to load preferences');
@@ -155,11 +183,25 @@ export const NotificationSettingsScreen = ({ navigation }: any) => {
       );
       return;
     }
+    // Defense in depth: re-force required keys to true at save time in
+    // case state was mutated through some path that bypassed the UI
+    // disable. BE should also reject any attempt to set these to false.
+    const safePrefs: NotificationPreferences = { ...prefs };
+    for (const key of REQUIRED_EVENT_KEYS) {
+      const enabledField = `${key}Enabled` as FieldName;
+      const pushField = `${key}Push` as FieldName;
+      (safePrefs as Record<FieldName, boolean | string | null>)[
+        enabledField
+      ] = true;
+      (safePrefs as Record<FieldName, boolean | string | null>)[
+        pushField
+      ] = true;
+    }
     setSaving(true);
     try {
       const res = await ApiClient.put<{ success: boolean }>(
         ENDPOINTS.NOTIFICATIONS.PREFERENCES,
-        prefs,
+        safePrefs,
       );
       if (!res.success) {
         throw new Error('Save failed');
@@ -242,6 +284,7 @@ export const NotificationSettingsScreen = ({ navigation }: any) => {
           const enabledField = fieldName(key, 'Enabled');
           const pushField = fieldName(key, 'Push');
           const wsField = fieldName(key, 'Websocket');
+          const isRequired = REQUIRED_EVENT_KEYS.has(key);
           const isEnabled = Boolean(prefs[enabledField]);
           return (
             <View
@@ -256,22 +299,49 @@ export const NotificationSettingsScreen = ({ navigation }: any) => {
             >
               <View style={styles.eventHeaderRow}>
                 <View style={styles.eventLabelWrap}>
-                  <Text
-                    style={[styles.eventLabel, { color: theme.colors.text }]}
-                  >
-                    {label}
-                  </Text>
+                  <View style={styles.eventLabelRow}>
+                    <Text
+                      style={[styles.eventLabel, { color: theme.colors.text }]}
+                    >
+                      {label}
+                    </Text>
+                    {isRequired ? (
+                      <View
+                        style={[
+                          styles.requiredBadge,
+                          { backgroundColor: theme.colors.primary + '20' },
+                        ]}
+                      >
+                        <Icon
+                          name="lock-closed"
+                          size={11}
+                          color={theme.colors.primary}
+                        />
+                        <Text
+                          style={[
+                            styles.requiredBadgeText,
+                            { color: theme.colors.primary },
+                          ]}
+                        >
+                          Required
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
                   <Text
                     style={[
                       styles.eventDescription,
                       { color: theme.colors.textMuted },
                     ]}
                   >
-                    {description}
+                    {isRequired
+                      ? `${description} Always on — needed for the app to function.`
+                      : description}
                   </Text>
                 </View>
                 <Switch
                   value={isEnabled}
+                  disabled={isRequired}
                   onValueChange={v => setBool(enabledField, v)}
                 />
               </View>
@@ -290,7 +360,7 @@ export const NotificationSettingsScreen = ({ navigation }: any) => {
                 </Text>
                 <Switch
                   value={Boolean(prefs[pushField])}
-                  disabled={!isEnabled}
+                  disabled={!isEnabled || isRequired}
                   onValueChange={v => setBool(pushField, v)}
                 />
               </View>
@@ -500,7 +570,23 @@ const makeStyles = (theme: Theme) =>
       gap: 12,
     },
     eventLabelWrap: { flex: 1 },
-    eventLabel: { fontSize: 15, fontWeight: '600', marginBottom: 2 },
+    eventLabelRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: 6,
+      marginBottom: 2,
+    },
+    eventLabel: { fontSize: 15, fontWeight: '600' },
+    requiredBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      borderRadius: 10,
+    },
+    requiredBadgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.3 },
     eventDescription: { fontSize: 12, lineHeight: 16 },
     subToggleRow: {
       flexDirection: 'row',
