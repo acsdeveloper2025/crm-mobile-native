@@ -7,6 +7,7 @@ import {
   ScrollView,
   Image,
   Linking,
+  Alert,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { PreserveCase } from '../../components/ui/PreserveCase';
@@ -349,16 +350,38 @@ export const ProfileScreen = ({ navigation }: any) => {
               },
             ]}
             onPress={() => {
-              const subject = 'Ethics report — bribery / misconduct';
+              // 2026-05-14: prefill reporter identity so Ethics can act
+              // on the report on receipt — body without identity arrived
+              // anonymous and was unactionable. Matches the identity-
+              // prefill pattern used by PrivacyPolicyScreen rights
+              // requests. Falls back to an Alert with the address if no
+              // mail client is installed (Linking.openURL would
+              // otherwise reject silently).
+              const subject = `Ethics report — ${
+                user?.employeeId || user?.username || 'agent'
+              }`;
+              const identity = [
+                `Name: ${user?.name || ''}`,
+                `Employee ID: ${user?.employeeId || ''}`,
+                `Email: ${user?.email || ''}`,
+              ]
+                .filter(Boolean)
+                .join('\n');
               const body =
-                'I would like to report the following concern:\n\n[Please describe what happened, when, where, and any names of people involved.]\n\nThis report is confidential and will be reviewed by ACS Ethics.';
-              Linking.openURL(
-                `mailto:ethics@allcheckservices.com?subject=${encodeURIComponent(
-                  subject,
-                )}&body=${encodeURIComponent(body)}`,
-              ).catch((err: unknown) =>
-                Logger.warn('ProfileScreen', 'Linking.openURL failed', err),
-              );
+                `I would like to report the following concern:\n\n` +
+                `[Please describe what happened, when, where, and any names of people involved.]\n\n` +
+                `--- Reporter identity (auto-filled) ---\n${identity}\n\n` +
+                `This report is confidential and will be reviewed by ACS Ethics.`;
+              const url = `mailto:ethics@allcheckservices.com?subject=${encodeURIComponent(
+                subject,
+              )}&body=${encodeURIComponent(body)}`;
+              Linking.openURL(url).catch((err: unknown) => {
+                Logger.warn('ProfileScreen', 'Linking.openURL failed', err);
+                Alert.alert(
+                  'Unable to open email',
+                  'Please email ethics@allcheckservices.com directly with your concern. Your reporting officer should also be informed.',
+                );
+              });
             }}
             accessibilityRole="button"
             accessibilityLabel="Report ethics concern"
