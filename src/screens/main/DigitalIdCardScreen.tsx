@@ -9,15 +9,21 @@ export const DigitalIdCardScreen = () => {
   const { theme } = useTheme();
   const { user } = useAuth();
 
+  // 2026-05-14: read actual user fields rather than the prior hardcoded
+  // 'Verification Services' / role==='AGENT' branch (the real role is
+  // 'FIELD_AGENT' so that branch never matched, and ID cards rendered
+  // the raw enum string as designation) / fixed '31 Dec 2026' expiry.
+  // Mobile UserProfile.designation + .department are already the
+  // FK-derived names per their 2026-04-28 comments — no extra mapping.
+  // The DigitalIdCard component conditionally hides any field left
+  // undefined, so optional rows just disappear cleanly.
   const userProfileInfo = {
     fullName: user?.name || 'Unknown Agent',
     employeeId: user?.employeeId || user?.username || 'N/A',
-    department: 'Verification Services',
-    designation:
-      user?.role === 'AGENT' ? 'Field Verification Agent' : user?.role,
-    email: user?.email,
-    validUntil: '31 Dec 2026',
-    profilePhoto: user?.profilePhotoUrl,
+    department: user?.department || undefined,
+    designation: user?.designation || undefined,
+    email: user?.email || undefined,
+    profilePhoto: user?.profilePhotoUrl || undefined,
   };
 
   return (
