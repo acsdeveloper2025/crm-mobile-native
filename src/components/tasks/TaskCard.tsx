@@ -431,7 +431,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
               {task.status ? task.status.replace('_', ' ') : 'UNKNOWN'}
             </Text>
           </View>
-          {(task.status === 'IN_PROGRESS' || task.status === 'REVISIT') && (
+          {task.status === 'IN_PROGRESS' && (
             <Icon
               name="chevron-forward"
               size={20}

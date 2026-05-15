@@ -662,7 +662,7 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
             </TouchableOpacity>
           )}
 
-          {(task.status === 'IN_PROGRESS' || task.status === 'REVISIT') && (
+          {task.status === 'IN_PROGRESS' && (
             <TouchableOpacity
               style={[
                 styles.primaryButton,

@@ -444,7 +444,7 @@ export const TaskListScreen = ({
         );
         return;
       }
-      if (task.status === 'IN_PROGRESS' || task.status === 'REVISIT') {
+      if (task.status === 'IN_PROGRESS') {
         navigation.navigate('VerificationForm', { taskId: task.id });
         return;
       }
