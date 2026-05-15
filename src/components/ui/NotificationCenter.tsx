@@ -305,13 +305,43 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     }
   };
 
+  // P24: show relative + absolute side-by-side so users get both
+  // instant scan ("just now") and precise reference ("12 May, 2:23 PM")
+  // without having to hover or tap. Matches the web inbox footer.
+  const formatRelative = (d: Date): string => {
+    const diffMs = Date.now() - d.getTime();
+    const sec = Math.max(0, Math.floor(diffMs / 1000));
+    if (sec < 60) {
+      return 'just now';
+    }
+    const min = Math.floor(sec / 60);
+    if (min < 60) {
+      return `${min}m ago`;
+    }
+    const hr = Math.floor(min / 60);
+    if (hr < 24) {
+      return `${hr}h ago`;
+    }
+    const days = Math.floor(hr / 24);
+    if (days < 7) {
+      return `${days}d ago`;
+    }
+    const weeks = Math.floor(days / 7);
+    if (weeks < 5) {
+      return `${weeks}w ago`;
+    }
+    const months = Math.floor(days / 30);
+    return `${months}mo ago`;
+  };
+
   const formatDate = (dateString: string) => {
     try {
       const d = new Date(dateString);
-      return `${d.toLocaleDateString()} ${d.toLocaleTimeString([], {
+      const abs = `${d.toLocaleDateString()} ${d.toLocaleTimeString([], {
         hour: '2-digit',
         minute: '2-digit',
       })}`;
+      return `${formatRelative(d)} · ${abs}`;
     } catch {
       return dateString;
     }
