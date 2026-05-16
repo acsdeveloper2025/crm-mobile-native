@@ -12,6 +12,7 @@ import type { UserProfile } from '../types/api';
 import { Logger } from '../utils/logger';
 import { SyncService } from '../services/SyncService';
 import { SyncQueue } from '../services/SyncQueue';
+import { applyJitter } from '../utils/syncJitter';
 import { notificationService } from '../services/NotificationService';
 import { mobileSocketService } from '../services/MobileSocketService';
 import { DataCleanupService } from '../services/DataCleanupService';
@@ -115,9 +116,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             error,
           );
         });
-        SyncService.performSync().catch(syncError => {
-          Logger.warn(TAG, 'Initial sync after auth restore failed', syncError);
-        });
+        // O-CRIT-1 (AUDIT 2026-05-16): jitter the initial sync so a fleet-wide
+        // foreground (shift-end office reconnect, mass app-open after push)
+        // spreads its load across ~30s instead of stampeding the backend.
+        applyJitter()
+          .then(() => SyncService.performSync())
+          .catch(syncError => {
+            Logger.warn(TAG, 'Initial sync after auth restore failed', syncError);
+          });
       } else {
         setIsAuthenticated(false);
         setUser(null);
@@ -176,9 +182,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         mobileSocketService.connect().catch(error => {
           Logger.warn(TAG, 'WebSocket connect after login failed', error);
         });
-        SyncService.performSync().catch(syncError => {
-          Logger.warn(TAG, 'Initial sync after login failed', syncError);
-        });
+        // O-CRIT-1: see applyJitter rationale at the auth-restore site above.
+        applyJitter()
+          .then(() => SyncService.performSync())
+          .catch(syncError => {
+            Logger.warn(TAG, 'Initial sync after login failed', syncError);
+          });
         // 2026-05-13: belt-and-braces — re-sync any locally-stored
         // consent acceptance to the backend's user_consents table.
         // Covers cases where the original PrivacyConsentScreen accept
