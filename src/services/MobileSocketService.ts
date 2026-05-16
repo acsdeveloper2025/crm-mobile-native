@@ -96,6 +96,20 @@ class MobileSocketServiceClass {
         Logger.warn(TAG, 'Failed to handle WS notification', err);
       });
     });
+
+    // A-CRIT-1 chunk 5 (AUDIT 2026-05-17): listen for admin- or self-
+    // initiated session revocations. If the payload's deviceId matches
+    // ours, the current device's refresh token has been revoked
+    // server-side — wipe Keychain + emit a navigation signal so
+    // RootNavigator can route to login.
+    this.socket.on(
+      'auth:session_revoked',
+      (payload: { type?: string; userId?: string; deviceId?: string | null; deviceLabel?: string | null }) => {
+        this.handleSessionRevoked(payload).catch(err => {
+          Logger.warn(TAG, 'Failed to handle auth:session_revoked', err);
+        });
+      },
+    );
   }
 
   disconnect(): void {
@@ -221,6 +235,62 @@ class MobileSocketServiceClass {
     } catch (err) {
       Logger.warn(TAG, 'Remote-revoke cleanup failed', err);
     }
+  }
+
+  /**
+   * A-CRIT-1 chunk 5 (AUDIT 2026-05-17): handle admin/self session
+   * revoke push. The backend emits to the user's WS room — every
+   * device the user has logged in on receives this payload. We must
+   * filter by deviceId so a sibling device's revoke doesn't log us
+   * out too.
+   *
+   * Lazy-require AuthService to avoid the circular-import cycle that
+   * already exists in this codebase (see AuthService line 358
+   * "Lazy-require to avoid a circular import cycle").
+   */
+  private async handleSessionRevoked(payload: {
+    deviceId?: string | null;
+    deviceLabel?: string | null;
+  }): Promise<void> {
+    if (!payload?.deviceId) {
+      // Legacy NULL-device session — no way to know if it's us.
+      // Refresh-token 401 path will catch it on next API call.
+      Logger.info(TAG, 'auth:session_revoked with NULL deviceId — ignoring');
+      return;
+    }
+    let myDeviceId: string;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { AuthService } = require('./AuthService') as typeof import('./AuthService');
+      const info = await AuthService.getDeviceInfo();
+      myDeviceId = info.deviceId;
+    } catch (err) {
+      Logger.warn(TAG, 'Could not resolve own deviceId — cannot match revoke push', err);
+      return;
+    }
+
+    if (payload.deviceId !== myDeviceId) {
+      Logger.info(TAG, 'auth:session_revoked for sibling device — ignoring', {
+        revokedDeviceId: payload.deviceId,
+      });
+      return;
+    }
+
+    Logger.info(TAG, 'auth:session_revoked matches us — wiping local session', {
+      deviceLabel: payload.deviceLabel,
+    });
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const { AuthService } = require('./AuthService') as typeof import('./AuthService');
+      await AuthService.logout();
+    } catch (err) {
+      Logger.warn(TAG, 'AuthService.logout failed during forced revoke', err);
+    }
+    // Emit a signal RootNavigator / AuthContext listens for. Mirrors
+    // the task:revoked-remotely event pattern above.
+    DeviceEventEmitter.emit('auth:session-revoked-remotely', {
+      deviceLabel: payload.deviceLabel,
+    });
   }
 }
 
