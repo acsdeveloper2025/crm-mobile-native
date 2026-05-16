@@ -2,6 +2,7 @@ import { DeviceEventEmitter } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 import { config } from '../config';
 import { DatabaseService } from '../database/DatabaseService';
+import { ProjectionUpdater } from '../projections/ProjectionUpdater';
 import { TaskRepository } from '../repositories/TaskRepository';
 import { Logger } from '../utils/logger';
 import { notificationService } from './NotificationService';
@@ -209,6 +210,12 @@ class MobileSocketServiceClass {
         [reason, now, now, taskId],
       );
       await TaskRepository.wipeLocalTaskArtifacts(taskId);
+      // NC-1 (2026-05-16): rebuild dashboard + task-list projections so the
+      // FE's home-screen counters reflect the revoked task immediately.
+      // Mobile-initiated revoke path already does this via
+      // TaskRepository.revokeTask → ProjectionUpdater.scheduleTaskRebuild;
+      // the WS-pushed path was missing it (final-audit NC-1).
+      await ProjectionUpdater.scheduleTaskRebuild(taskId);
       DeviceEventEmitter.emit('task:revoked-remotely', { taskId, reason });
       Logger.info(TAG, 'Handled remote revoke', { taskId, reason });
     } catch (err) {
