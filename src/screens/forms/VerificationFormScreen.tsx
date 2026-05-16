@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Platform,
+  DeviceEventEmitter,
 } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -91,6 +92,38 @@ export const VerificationFormScreen = ({
   // are no UNsaved changes to warn about). Using useRef so the flip
   // is visible to the listener closure without re-registering it.
   const justSavedRef = useRef(false);
+
+  // B-147 (2026-05-16): if BE revokes this task while the FE is mid-form
+  // (server pushes TASK_REVOKED via WS → MobileSocketService.handleRemoteRevoke
+  // wipes local data + emits DeviceEventEmitter signal), bail out of the
+  // form with an Alert. Without this guard the FE would keep filling
+  // fields for a task that no longer exists, hit an opaque submit failure,
+  // and lose work.
+  useEffect(() => {
+    if (!taskId) return undefined;
+    const sub = DeviceEventEmitter.addListener(
+      'task:revoked-remotely',
+      (evt: { taskId: string; reason: string }) => {
+        if (evt.taskId !== taskId) return;
+        // Mark "just saved" so the beforeRemove unsaved-changes guard
+        // doesn't fire on top of the revoke alert.
+        justSavedRef.current = true;
+        Alert.alert(
+          'Task Revoked',
+          `This task was revoked by your office. Reason: ${evt.reason || 'not specified'}.\n\nLocal photos and form drafts have been cleared.`,
+          [
+            {
+              text: 'OK',
+              onPress: () => navigation.goBack(),
+            },
+          ],
+          { cancelable: false },
+        );
+      },
+    );
+    return () => sub.remove();
+  }, [taskId, navigation]);
+
   useEffect(() => {
     const showEvent =
       Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';

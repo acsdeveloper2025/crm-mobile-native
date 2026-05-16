@@ -386,6 +386,10 @@ class SyncDownloadServiceClass {
       return;
     }
 
+    // B-148: collected inside the tx, unlinked after commit (RNFS is
+    // non-transactional; deferring keeps the SQLite tx pure).
+    const deferredUnlinks: string[] = [];
+
     // Wrap the entire upsert (stale row migration + insert/replace) in a
     // transaction to prevent orphaned FK records if a crash occurs mid-way.
     await DatabaseService.transaction(async () => {
@@ -573,7 +577,49 @@ class SyncDownloadServiceClass {
           now,
         ],
       );
+      // B-148 (2026-05-16): if this sync tick flipped the task to REVOKED
+      // (server-side revoke that mobile missed via WS push), wipe local
+      // attachments + form drafts inside the same tx. FS unlinks are
+      // deferred until after commit because RNFS is non-transactional.
+      const previousStatus = existingRows[0]?.status;
+      const justRevoked =
+        mergedState.status === 'REVOKED' && previousStatus !== 'REVOKED';
+      if (justRevoked) {
+        const orphanPaths = await SyncEngineRepository.query<{
+          local_path?: string;
+          thumbnail_path?: string;
+        }>(
+          'SELECT local_path, thumbnail_path FROM attachments WHERE task_id = ?',
+          [canonicalTaskId],
+        );
+        deferredUnlinks.push(
+          ...orphanPaths.flatMap(r =>
+            [r.local_path, r.thumbnail_path].filter(
+              (p): p is string => typeof p === 'string' && p.length > 0,
+            ),
+          ),
+        );
+        await SyncEngineRepository.execute(
+          'DELETE FROM attachments WHERE task_id = ?',
+          [canonicalTaskId],
+        );
+        await SyncEngineRepository.execute(
+          'DELETE FROM form_submissions WHERE task_id = ?',
+          [canonicalTaskId],
+        );
+      }
     }); // end transaction
+
+    // Post-commit FS cleanup. Errors swallowed — DB delete is authority.
+    for (const p of deferredUnlinks) {
+      try {
+        if (await RNFS.exists(p)) {
+          await RNFS.unlink(p);
+        }
+      } catch {
+        // missing file or permission — fine
+      }
+    }
   }
 }
 

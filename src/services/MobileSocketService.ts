@@ -1,5 +1,8 @@
+import { DeviceEventEmitter } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 import { config } from '../config';
+import { DatabaseService } from '../database/DatabaseService';
+import { TaskRepository } from '../repositories/TaskRepository';
 import { Logger } from '../utils/logger';
 import { notificationService } from './NotificationService';
 import { SessionStore } from './SessionStore';
@@ -113,6 +116,16 @@ class MobileSocketServiceClass {
   private async handleIncoming(
     payload: IncomingNotificationPayload,
   ): Promise<void> {
+    // B-147 (2026-05-16): TASK_REVOKED is a system event (no notification
+    // row, no inbox entry) — route to the revoke handler instead of the
+    // generic notification path. Triggered when admin/team-lead revokes
+    // a task that's currently assigned to THIS field agent.
+    if (payload?.type === 'TASK_REVOKED' && payload.taskId) {
+      await this.handleRemoteRevoke(payload).catch(err => {
+        Logger.warn(TAG, 'Failed to handle remote revoke', err);
+      });
+      return;
+    }
     if (!payload?.id) {
       return;
     }
@@ -163,6 +176,44 @@ class MobileSocketServiceClass {
       actionUrl: payload.actionUrl ?? undefined,
       timestamp: ts,
     });
+  }
+
+  /**
+   * B-147 — handle a server-pushed TASK_REVOKED system event. Updates
+   * the local task row, wipes attachments + form drafts + their FS
+   * files, then emits a DeviceEventEmitter signal so any active
+   * VerificationFormScreen for the same task can navigate away with
+   * an alert.
+   *
+   * Idempotent: if the task is already REVOKED locally (caught earlier
+   * via sync or duplicate WS), the UPDATE is still safe (re-stamps
+   * revoke_reason / revoked_at) and wipeLocalTaskArtifacts is a no-op
+   * on already-empty tables.
+   */
+  private async handleRemoteRevoke(
+    payload: IncomingNotificationPayload & { reason?: string },
+  ): Promise<void> {
+    const taskId = payload.taskId!;
+    const reason = (payload as { reason?: string }).reason || 'Revoked by backend';
+    const now = new Date().toISOString();
+    try {
+      await DatabaseService.execute(
+        `UPDATE tasks
+           SET status = 'REVOKED',
+               is_revoked = 1,
+               is_saved = 0,
+               revoke_reason = ?,
+               revoked_at = ?,
+               local_updated_at = ?
+         WHERE id = ?`,
+        [reason, now, now, taskId],
+      );
+      await TaskRepository.wipeLocalTaskArtifacts(taskId);
+      DeviceEventEmitter.emit('task:revoked-remotely', { taskId, reason });
+      Logger.info(TAG, 'Handled remote revoke', { taskId, reason });
+    } catch (err) {
+      Logger.warn(TAG, 'Remote-revoke cleanup failed', err);
+    }
   }
 }
 

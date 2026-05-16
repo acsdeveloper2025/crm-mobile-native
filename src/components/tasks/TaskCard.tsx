@@ -257,35 +257,42 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
       <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
         <View style={styles.actionButtons}>
           {task.status === 'ASSIGNED' && task.isRevoked !== 1 && (
-            <>
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={handleAccept}
-                disabled={isAccepting}
-                accessibilityRole="button"
-                accessibilityLabel={
-                  isAccepting ? 'Accepting task' : 'Accept task'
-                }
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={handleAccept}
+              disabled={isAccepting}
+              accessibilityRole="button"
+              accessibilityLabel={
+                isAccepting ? 'Accepting task' : 'Accept task'
+              }
+            >
+              {isAccepting ? (
+                <ActivityIndicator
+                  size="small"
+                  color={theme.colors.success}
+                />
+              ) : (
+                <Icon
+                  name="checkmark-circle"
+                  size={32}
+                  color={theme.colors.success}
+                />
+              )}
+              <Text
+                style={[styles.actionLabel, { color: theme.colors.success }]}
               >
-                {isAccepting ? (
-                  <ActivityIndicator
-                    size="small"
-                    color={theme.colors.success}
-                  />
-                ) : (
-                  <Icon
-                    name="checkmark-circle"
-                    size={32}
-                    color={theme.colors.success}
-                  />
-                )}
-                <Text
-                  style={[styles.actionLabel, { color: theme.colors.success }]}
-                >
-                  {isAccepting ? 'Accepting...' : 'Accept'}
-                </Text>
-              </TouchableOpacity>
+                {isAccepting ? 'Accepting...' : 'Accept'}
+              </Text>
+            </TouchableOpacity>
+          )}
 
+          {/* Revoke allowed on ASSIGNED AND IN_PROGRESS (field-rejection
+              semantics per locked workflow model). A field agent may
+              discover wrong pincode / wrong area / not-relevant only
+              AFTER tapping Start, so the action must remain available
+              until COMPLETED. */}
+          {(task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS') &&
+            task.isRevoked !== 1 && (
               <TouchableOpacity
                 style={styles.iconButton}
                 onPress={() => onRevokePress?.(task)}
@@ -303,8 +310,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
                   Revoke
                 </Text>
               </TouchableOpacity>
-            </>
-          )}
+            )}
 
           {/* 2026-05-03: hide Info button on COMPLETED tasks (same UX
               rationale as Attachments below — once submitted the task is
