@@ -1,3 +1,4 @@
+import RNFS from 'react-native-fs';
 import { DatabaseService } from '../database/DatabaseService';
 import { DashboardProjection } from '../projections/DashboardProjection';
 import { ProjectionUpdater } from '../projections/ProjectionUpdater';
@@ -254,7 +255,54 @@ class TaskRepositoryClass {
        WHERE id = ?`,
       [reason, now, now, taskId],
     );
+    // B-145 (2026-05-16): wipe local artifacts of the prior attempt so a
+    // reassign-to-same-FE forces a fresh re-capture. Without this, stale
+    // photos + form drafts would leak across attempts. Order: FS unlink
+    // first, then DB DELETE — if FS fails we still want the DB cleaned.
+    await this.wipeLocalTaskArtifacts(taskId);
     await ProjectionUpdater.scheduleTaskRebuild(taskId);
+  }
+
+  /**
+   * Delete local attachments + form_submissions + their FS files for a
+   * task. Used by:
+   *   - mobile-initiated revoke (FE taps Revoke) — local cleanup
+   *   - WS-pushed revoke (BE revoked from web — see MobileSocketService)
+   *   - sync-side conflict detection (downloadSync sees server-side
+   *     status flip to REVOKED — see SyncConflictResolver)
+   *
+   * Idempotent: safe to call on a task with no attachments/forms.
+   * Errors on FS unlink are logged-and-swallowed so a missing-file
+   * mid-cleanup doesn't block the DB part. The DB part is the
+   * authority on what counts as "wiped".
+   */
+  async wipeLocalTaskArtifacts(taskId: string): Promise<void> {
+    const paths = await DatabaseService.query<{
+      local_path?: string;
+      thumbnail_path?: string;
+    }>('SELECT local_path, thumbnail_path FROM attachments WHERE task_id = ?', [taskId]);
+
+    for (const row of paths) {
+      for (const p of [row.local_path, row.thumbnail_path]) {
+        if (!p) continue;
+        try {
+          if (await RNFS.exists(p)) {
+            await RNFS.unlink(p);
+          }
+        } catch {
+          // swallow: missing file or permission — DB delete is authority
+        }
+      }
+    }
+
+    await DatabaseService.execute(
+      'DELETE FROM attachments WHERE task_id = ?',
+      [taskId],
+    );
+    await DatabaseService.execute(
+      'DELETE FROM form_submissions WHERE task_id = ?',
+      [taskId],
+    );
   }
 
   async setPriority(taskId: string, priority: number): Promise<void> {
