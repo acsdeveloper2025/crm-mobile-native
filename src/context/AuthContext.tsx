@@ -1,3 +1,4 @@
+import { Alert, DeviceEventEmitter } from 'react-native';
 import React, {
   createContext,
   useState,
@@ -52,6 +53,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     checkAuthStatus();
+  }, []);
+
+  // A-CRIT-1 chunk 5 consumer (AUDIT 2026-05-17): when MobileSocketService
+  // matches an `auth:session_revoked` WS push to this device, it already
+  // wiped the Keychain via AuthService.logout(). We just need to clear
+  // React state (which causes RootNavigator to swap in LoginScreen) +
+  // surface an Alert so the user understands why they're signed out.
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener(
+      'auth:session-revoked-remotely',
+      (evt: { deviceLabel?: string | null }) => {
+        Logger.info(TAG, 'auth:session-revoked-remotely received', evt);
+        setIsAuthenticated(false);
+        setUser(null);
+        SyncService.stopPeriodicSync();
+        mobileSocketService.disconnect();
+        const labelText = evt?.deviceLabel ? ` (${evt.deviceLabel})` : '';
+        Alert.alert(
+          'Signed Out',
+          `Your session${labelText} was revoked. Please log in again.`,
+          [{ text: 'OK' }],
+          { cancelable: false },
+        );
+      },
+    );
+    return () => sub.remove();
   }, []);
 
   useEffect(() => {
