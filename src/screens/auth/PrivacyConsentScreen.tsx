@@ -21,7 +21,6 @@ import { PrivacyConsentService } from '../../services/PrivacyConsentService';
 import { Logger } from '../../utils/logger';
 import { FIELD_EXECUTIVE_ACKNOWLEDGEMENT } from '../../constants/fieldExecutiveAcknowledgement';
 
-
 interface Props {
   onAccepted: () => void;
 }

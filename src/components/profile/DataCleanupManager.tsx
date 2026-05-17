@@ -119,7 +119,9 @@ export const DataCleanupManager = () => {
           onPress: async () => {
             setIsCleaning(true);
             try {
-              const result = await DataCleanupService.clearAttachmentCache(true);
+              const result = await DataCleanupService.clearAttachmentCache(
+                true,
+              );
               const mb = (result.size / (1024 * 1024)).toFixed(1);
               Alert.alert(
                 'Attachments Cleared',

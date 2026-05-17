@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { PreserveCase } from '../ui/PreserveCase';
+import { AuthedImage } from '../media/AuthedImage';
 
 interface UserProfile {
   fullName: string;
@@ -71,8 +72,8 @@ export const DigitalIdCard: React.FC<DigitalIdCardProps> = ({
           <View style={styles.photoSection}>
             <View style={styles.photoContainer}>
               {userProfile.profilePhoto ? (
-                <Image
-                  source={{ uri: userProfile.profilePhoto }}
+                <AuthedImage
+                  uri={userProfile.profilePhoto}
                   style={[
                     styles.profilePhoto,
                     { borderColor: theme.colors.primary },

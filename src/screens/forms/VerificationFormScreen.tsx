@@ -110,7 +110,9 @@ export const VerificationFormScreen = ({
         justSavedRef.current = true;
         Alert.alert(
           'Task Revoked',
-          `This task was revoked by your office. Reason: ${evt.reason || 'not specified'}.\n\nLocal photos and form drafts have been cleared.`,
+          `This task was revoked by your office. Reason: ${
+            evt.reason || 'not specified'
+          }.\n\nLocal photos and form drafts have been cleared.`,
           [
             {
               text: 'OK',

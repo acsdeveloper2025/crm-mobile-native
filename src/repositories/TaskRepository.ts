@@ -280,7 +280,9 @@ class TaskRepositoryClass {
     const paths = await DatabaseService.query<{
       local_path?: string;
       thumbnail_path?: string;
-    }>('SELECT local_path, thumbnail_path FROM attachments WHERE task_id = ?', [taskId]);
+    }>('SELECT local_path, thumbnail_path FROM attachments WHERE task_id = ?', [
+      taskId,
+    ]);
 
     for (const row of paths) {
       for (const p of [row.local_path, row.thumbnail_path]) {
@@ -295,10 +297,9 @@ class TaskRepositoryClass {
       }
     }
 
-    await DatabaseService.execute(
-      'DELETE FROM attachments WHERE task_id = ?',
-      [taskId],
-    );
+    await DatabaseService.execute('DELETE FROM attachments WHERE task_id = ?', [
+      taskId,
+    ]);
     await DatabaseService.execute(
       'DELETE FROM form_submissions WHERE task_id = ?',
       [taskId],

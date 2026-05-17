@@ -149,7 +149,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         applyJitter()
           .then(() => SyncService.performSync())
           .catch(syncError => {
-            Logger.warn(TAG, 'Initial sync after auth restore failed', syncError);
+            Logger.warn(
+              TAG,
+              'Initial sync after auth restore failed',
+              syncError,
+            );
           });
       } else {
         setIsAuthenticated(false);

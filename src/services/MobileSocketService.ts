@@ -104,7 +104,12 @@ class MobileSocketServiceClass {
     // RootNavigator can route to login.
     this.socket.on(
       'auth:session_revoked',
-      (payload: { type?: string; userId?: string; deviceId?: string | null; deviceLabel?: string | null }) => {
+      (payload: {
+        type?: string;
+        userId?: string;
+        deviceId?: string | null;
+        deviceLabel?: string | null;
+      }) => {
         this.handleSessionRevoked(payload).catch(err => {
           Logger.warn(TAG, 'Failed to handle auth:session_revoked', err);
         });
@@ -209,7 +214,8 @@ class MobileSocketServiceClass {
     payload: IncomingNotificationPayload & { reason?: string },
   ): Promise<void> {
     const taskId = payload.taskId!;
-    const reason = (payload as { reason?: string }).reason || 'Revoked by backend';
+    const reason =
+      (payload as { reason?: string }).reason || 'Revoked by backend';
     const now = new Date().toISOString();
     try {
       await DatabaseService.execute(
@@ -261,11 +267,16 @@ class MobileSocketServiceClass {
     let myDeviceId: string;
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { AuthService } = require('./AuthService') as typeof import('./AuthService');
+      const { AuthService } =
+        require('./AuthService') as typeof import('./AuthService');
       const info = await AuthService.getDeviceInfo();
       myDeviceId = info.deviceId;
     } catch (err) {
-      Logger.warn(TAG, 'Could not resolve own deviceId — cannot match revoke push', err);
+      Logger.warn(
+        TAG,
+        'Could not resolve own deviceId — cannot match revoke push',
+        err,
+      );
       return;
     }
 
@@ -281,7 +292,8 @@ class MobileSocketServiceClass {
     });
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { AuthService } = require('./AuthService') as typeof import('./AuthService');
+      const { AuthService } =
+        require('./AuthService') as typeof import('./AuthService');
       await AuthService.logout();
     } catch (err) {
       Logger.warn(TAG, 'AuthService.logout failed during forced revoke', err);

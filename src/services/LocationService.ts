@@ -131,7 +131,8 @@ class LocationServiceClass {
               longitude: position.coords.longitude,
               accuracy: position.coords.accuracy || 0,
               altitude:
-                typeof position.coords.altitude === 'number' && !isNaN(position.coords.altitude)
+                typeof position.coords.altitude === 'number' &&
+                !isNaN(position.coords.altitude)
                   ? position.coords.altitude
                   : undefined,
               speed:
