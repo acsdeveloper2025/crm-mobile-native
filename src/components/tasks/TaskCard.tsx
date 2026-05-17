@@ -208,6 +208,19 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
             </Text>
           </View>
         )}
+        {/* 2026-05-16: status pill moved here from the footer so the
+            action-buttons row (Revoke/Info/Attachments) can own the
+            footer width without wrapping the badge below it. */}
+        <View
+          style={[
+            styles.badge,
+            { backgroundColor: getStatusColor(task.status) },
+          ]}
+        >
+          <Text style={[styles.statusText, { color: theme.colors.surface }]}>
+            {task.status ? task.status.replace('_', ' ') : 'UNKNOWN'}
+          </Text>
+        </View>
       </View>
 
       <Text
@@ -427,16 +440,6 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
               </TouchableOpacity>
             </View>
           )}
-          <View
-            style={[
-              styles.badge,
-              { backgroundColor: getStatusColor(task.status) },
-            ]}
-          >
-            <Text style={[styles.statusText, { color: theme.colors.surface }]}>
-              {task.status ? task.status.replace('_', ' ') : 'UNKNOWN'}
-            </Text>
-          </View>
           {task.status === 'IN_PROGRESS' && (
             <Icon
               name="chevron-forward"
