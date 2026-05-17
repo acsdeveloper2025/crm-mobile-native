@@ -5,10 +5,10 @@ import {
   StyleSheet,
   TouchableOpacity,
   ScrollView,
-  Image,
   Linking,
   Alert,
 } from 'react-native';
+import { AuthedImage } from '../../components/media/AuthedImage';
 import { useAuth } from '../../context/AuthContext';
 import { PreserveCase } from '../../components/ui/PreserveCase';
 import { useTheme, ThemePreference } from '../../context/ThemeContext';
@@ -106,8 +106,8 @@ export const ProfileScreen = ({ navigation }: any) => {
               ]}
             >
               {user?.profilePhotoUrl ? (
-                <Image
-                  source={{ uri: user.profilePhotoUrl }}
+                <AuthedImage
+                  uri={user.profilePhotoUrl}
                   style={styles.avatarImage}
                 />
               ) : (

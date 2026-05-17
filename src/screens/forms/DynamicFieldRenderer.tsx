@@ -342,9 +342,10 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({
         // Android opens the native calendar/spinner dialog. On select, we
         // format to YYYY-MM-DD and pass to onChange. On cancel, no change.
         const currentStr = value?.toString() || '';
-        const parsed = currentStr && /^\d{4}-\d{2}-\d{2}/.test(currentStr)
-          ? new Date(currentStr)
-          : new Date();
+        const parsed =
+          currentStr && /^\d{4}-\d{2}-\d{2}/.test(currentStr)
+            ? new Date(currentStr)
+            : new Date();
         return (
           <View>
             <TouchableOpacity
@@ -371,7 +372,9 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({
             >
               <Text
                 style={{
-                  color: currentStr ? theme.colors.text : theme.colors.textMuted,
+                  color: currentStr
+                    ? theme.colors.text
+                    : theme.colors.textMuted,
                 }}
               >
                 {currentStr || 'YYYY-MM-DD (tap to pick)'}
@@ -386,7 +389,10 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({
                   setShowDatePicker(false);
                   if (event.type === 'set' && selectedDate) {
                     const yyyy = selectedDate.getFullYear();
-                    const mm = String(selectedDate.getMonth() + 1).padStart(2, '0');
+                    const mm = String(selectedDate.getMonth() + 1).padStart(
+                      2,
+                      '0',
+                    );
                     const dd = String(selectedDate.getDate()).padStart(2, '0');
                     onChange(field.id, `${yyyy}-${mm}-${dd}`);
                   }

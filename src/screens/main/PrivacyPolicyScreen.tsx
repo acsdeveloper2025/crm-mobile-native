@@ -31,7 +31,6 @@ import { FIELD_EXECUTIVE_ACKNOWLEDGEMENT } from '../../constants/fieldExecutiveA
 // auditable on receipt.
 const SUPPORT_EMAIL = 'support@allcheckservices.com';
 
-
 export const PrivacyPolicyScreen: React.FC = () => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();

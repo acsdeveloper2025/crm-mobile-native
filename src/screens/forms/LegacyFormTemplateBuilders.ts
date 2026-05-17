@@ -6470,7 +6470,8 @@ const legacyPositivePropertyApfFields = withLegacyPropertyApfOrder([
     name: 'otherObservation',
     label: 'Other Observation',
     type: 'textarea',
-    placeholder: 'Required when verdict differs from observed construction activity',
+    placeholder:
+      'Required when verdict differs from observed construction activity',
     requiredWhen: [
       legacyCondition('constructionActivity', 'equals', 'SEEN'),
       legacyCondition('finalStatus', 'in', ['Negative', 'Refer', 'Fraud']),

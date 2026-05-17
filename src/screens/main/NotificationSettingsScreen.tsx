@@ -141,12 +141,10 @@ export const NotificationSettingsScreen = ({ navigation }: any) => {
       for (const key of REQUIRED_EVENT_KEYS) {
         const enabledField = `${key}Enabled` as FieldName;
         const pushField = `${key}Push` as FieldName;
-        (enforced as Record<FieldName, boolean | string | null>)[
-          enabledField
-        ] = true;
-        (enforced as Record<FieldName, boolean | string | null>)[
-          pushField
-        ] = true;
+        (enforced as Record<FieldName, boolean | string | null>)[enabledField] =
+          true;
+        (enforced as Record<FieldName, boolean | string | null>)[pushField] =
+          true;
       }
       setPrefs(enforced);
     } catch (e: unknown) {
@@ -190,12 +188,10 @@ export const NotificationSettingsScreen = ({ navigation }: any) => {
     for (const key of REQUIRED_EVENT_KEYS) {
       const enabledField = `${key}Enabled` as FieldName;
       const pushField = `${key}Push` as FieldName;
-      (safePrefs as Record<FieldName, boolean | string | null>)[
-        enabledField
-      ] = true;
-      (safePrefs as Record<FieldName, boolean | string | null>)[
-        pushField
-      ] = true;
+      (safePrefs as Record<FieldName, boolean | string | null>)[enabledField] =
+        true;
+      (safePrefs as Record<FieldName, boolean | string | null>)[pushField] =
+        true;
     }
     setSaving(true);
     try {

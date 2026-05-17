@@ -280,10 +280,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
               }
             >
               {isAccepting ? (
-                <ActivityIndicator
-                  size="small"
-                  color={theme.colors.success}
-                />
+                <ActivityIndicator size="small" color={theme.colors.success} />
               ) : (
                 <Icon
                   name="checkmark-circle"
