@@ -15,6 +15,13 @@ if linkage != nil
 end
 
 target 'CrmMobileNative' do
+  # 2026-05-18: Firebase Swift pods (FirebaseCoreInternal) require modular
+  # headers to be importable when building as static libraries. Without
+  # this, pod install fails with "Swift pods cannot yet be integrated as
+  # static libraries". Targeted modular_headers per the failing pod so the
+  # rest of the project keeps its non-modular default.
+  pod 'GoogleUtilities', :modular_headers => true
+
   config = use_native_modules!
 
   use_react_native!(
