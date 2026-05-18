@@ -1,10 +1,22 @@
 import Foundation
 import BackgroundTasks
 import React
+// 2026-05-18: RN 0.84's React-Core xcframework no longer exposes
+// `RCTBridgeModule` as a Swift-importable module. Exposure is via the
+// bridging header `CrmMobileNative-Bridging-Header.h` (wired in
+// project.pbxproj SWIFT_OBJC_BRIDGING_HEADER).
 
 @objc(BackgroundSyncBridge)
 class BackgroundSyncBridge: NSObject, RCTBridgeModule {
   static let taskIdentifier = "com.crmmobilenative.backgroundsync"
+
+  // 2026-05-18: RN 0.84 made `moduleName()` a required protocol method on
+  // RCTBridgeModule (was previously auto-derived from the @objc class
+  // name macro). Explicitly returning the bridge name keeps the bridge
+  // wiring identical to the prior auto-derived name.
+  static func moduleName() -> String! {
+    return "BackgroundSyncBridge"
+  }
 
   @objc
   static func requiresMainQueueSetup() -> Bool {
