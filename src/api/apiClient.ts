@@ -1,13 +1,17 @@
 // API Client - Axios instance with auth token injection and refresh logic
 // All API calls go through this client
 //
-// SECURITY: Certificate Pinning
-// For production, enable SSL certificate pinning to prevent MITM attacks.
-// Install react-native-ssl-pinning or react-native-cert-pinner and configure:
-//   - Android: Place certificate .cer files in android/app/src/main/res/raw/
-//   - iOS: Add certificates to the Xcode project and Info.plist
-// Then replace axios with the pinned HTTP client for all production requests.
-// See: https://github.com/nickhudkins/react-native-ssl-pinning
+// SECURITY: Certificate Pinning (T0-9, closed 2026-05-18)
+// Pinning is enforced natively on both platforms — no library required.
+//   - Android: android/app/src/main/res/xml/network_security_config.xml
+//     (<pin-set> on crm.allcheckservices.com; cleartext blocked globally)
+//   - iOS:     ios/CrmMobileNative/Info.plist NSPinnedDomains entry
+//     (Apple-native SPKI pinning, iOS 14+; deployment target is 15.1)
+// Both pin the SAME two SPKI SHA-256 hashes: the current leaf cert AND
+// the Let's Encrypt R13 intermediate CA. Rotation procedure is in
+// docs/ssl-pinning.md. App-level code requires no changes — axios
+// flows through NSURLSession (iOS) / OkHttp (Android) which both
+// enforce the OS-level pins automatically.
 
 import axios, {
   AxiosInstance,

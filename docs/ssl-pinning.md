@@ -96,48 +96,90 @@ correctness still requires a real TLS handshake against the
 production cert; the logcat instructions above are the canonical
 way to do that.
 
-## iOS — TrustKit (not yet installed)
+## iOS — Apple-native NSPinnedDomains (iOS 14+; in use)
 
-iOS has no built-in SPKI pinning equivalent to Android's
-`network_security_config.xml`. The recommended library is
-[TrustKit](https://github.com/datatheorem/TrustKit).
+2026-05-18 update: this project now uses Apple's native declarative
+SPKI pinning via `NSPinnedDomains` in Info.plist. **No library** —
+TrustKit is no longer required. This was previously documented as
+"TrustKit not yet installed"; the change to Apple-native happened
+because:
 
-Install:
+  - Deployment target is iOS 15.1 (well above iOS 14 minimum for
+    `NSPinnedDomains`).
+  - Native pinning has zero new dependencies, no native code, no
+    pod / no Podfile change.
+  - Apple-supported and won't break with iOS updates.
+  - All HTTPS traffic via `NSURLSession` is pinned automatically;
+    axios + fetch bridge through NSURLSession, so app code requires
+    no changes.
 
-```bash
-cd ios
-pod init   # only if you don't have a Podfile yet
-# Add to Podfile target:
-#   pod 'TrustKit', '~> 3.0'
-pod install
+Live configuration in `ios/CrmMobileNative/Info.plist`:
+
+```xml
+<key>NSAppTransportSecurity</key>
+<dict>
+    <key>NSAllowsArbitraryLoads</key>
+    <false/>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+    <key>NSPinnedDomains</key>
+    <dict>
+        <key>crm.allcheckservices.com</key>
+        <dict>
+            <key>NSIncludesSubdomains</key>
+            <true/>
+            <key>NSPinnedCAIdentities</key>
+            <array>
+                <dict>
+                    <key>SPKI-SHA256-BASE64</key>
+                    <string>REPLACE_WITH_PRIMARY_SPKI_SHA256_BASE64</string>
+                </dict>
+                <dict>
+                    <key>SPKI-SHA256-BASE64</key>
+                    <string>REPLACE_WITH_BACKUP_SPKI_SHA256_BASE64</string>
+                </dict>
+            </array>
+        </dict>
+    </dict>
+</dict>
 ```
 
-Configure in `ios/CrmMobileNative/AppDelegate.mm` (or `.swift`):
+The two pin values MUST match the Android `<pin-set>` block —
+they pin the same SPKI hashes (primary = current leaf cert,
+backup = LE R13 intermediate CA).
 
-```objc
-#import <TrustKit/TrustKit.h>
+### Rotation procedure (iOS)
 
-// Inside application:didFinishLaunchingWithOptions:
-NSDictionary *trustKitConfig = @{
-    kTSKSwizzleNetworkDelegates: @YES,
-    kTSKPinnedDomains: @{
-        @"crm.allcheckservices.com": @{
-            kTSKEnforcePinning: @YES,
-            kTSKIncludeSubdomains: @YES,
-            kTSKPublicKeyHashes: @[
-                @"REPLACE_WITH_PRIMARY_SPKI_SHA256_BASE64",
-                @"REPLACE_WITH_BACKUP_SPKI_SHA256_BASE64",
-            ],
-            kTSKExpirationDate: @"2027-01-01",
-        }
-    }
-};
-[TrustKit initSharedInstanceWithConfiguration:trustKitConfig];
-```
+Same as Android: keep at least two pins at all times. To rotate:
 
-TrustKit swizzles `NSURLSession` globally, so axios (which bridges
-through fetch → NSURLSession under react-native-fetch-blob) picks
-up pinning without code changes.
+1. Compute the new pin (see "Computing a SPKI SHA-256 pin" above).
+2. Add it as a THIRD entry inside `NSPinnedCAIdentities` BEFORE
+   the server starts presenting the new cert.
+3. Wait for the new app release to cross 95% adoption.
+4. Ship a follow-up release that drops the old (now-retired) pin.
+
+### Verifying iOS pinning works
+
+1. Build a debug IPA: `cd ios && xcodebuild -workspace
+   CrmMobileNative.xcworkspace -scheme CrmMobileNative
+   -configuration Debug -sdk iphoneos build`.
+2. Install on a test device.
+3. Proxy the device through `mitmproxy` with the mitmproxy root CA
+   installed as a TRUSTED user CA (Settings > General > VPN &
+   Device Management > Trust the profile).
+4. Launch the app. Every HTTPS request to `crm.allcheckservices.com`
+   should FAIL with a TLS handshake error — Apple's TLS stack will
+   reject the proxy cert because its SPKI doesn't match any pin.
+5. If requests succeed: pinning is NOT enforced — check Info.plist
+   for typos in `NSPinnedDomains` / `SPKI-SHA256-BASE64` / domain
+   name. Apple silently ignores misconfigured pin blocks.
+6. Remove the proxy and confirm normal traffic works.
+
+### Legacy: TrustKit (not used)
+
+The TrustKit library remains a fallback option if Apple ever
+restricts `NSPinnedDomains` on a future iOS version. Install
+instructions are preserved in git history (commit ~2026-04-19).
 
 ## Runtime kill switch
 
