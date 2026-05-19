@@ -111,5 +111,9 @@
 		<string>processing</string>
 		<string>location</string>
 	</array>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Ionicons.ttf</string>
+	</array>
 </dict>
 </plist>
