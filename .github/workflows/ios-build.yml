@@ -22,17 +22,26 @@ on:
       - "App.tsx"
       - ".github/workflows/ios-build.yml"
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Optional release tag to publish the simulator .app.zip to (e.g. v1.0.57). Leave blank for non-release smoke tests."
+        required: false
+        type: string
 
 permissions:
   contents: read
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.release_tag || github.ref_name }}
 
 jobs:
   build-simulator-app:
     runs-on: macos-15
     timeout-minutes: 45
+    # `publish-to-release` step below needs write access on tag pushes
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -114,15 +123,57 @@ jobs:
           test -f "$APP_PATH/AppIcon60x60@2x.png" || { echo "::error::Generated app icon missing"; exit 1; }
           echo "::notice::iOS simulator .app build verified."
 
+      - name: Derive version name for tag pushes
+        id: version
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION_NAME="${RELEASE_TAG#v}"
+          if [[ "$VERSION_NAME" == "$RELEASE_TAG" || -z "$VERSION_NAME" ]]; then
+            VERSION_NAME="$(node -p "require('./package.json').version")"
+          fi
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+
       - name: Zip simulator .app
         working-directory: ios/build/Build/Products/Debug-iphonesimulator
         run: |
-          ditto -c -k --sequesterRsrc --keepParent \
-            CrmMobileNative.app CrmMobileNative-simulator.app.zip
+          set -euo pipefail
+          if [[ -n "${{ steps.version.outputs.version_name || '' }}" ]]; then
+            ZIP_NAME="crm-mobile-native-v${{ steps.version.outputs.version_name }}-simulator.app.zip"
+          else
+            ZIP_NAME="CrmMobileNative-simulator.app.zip"
+          fi
+          ditto -c -k --sequesterRsrc --keepParent CrmMobileNative.app "$ZIP_NAME"
+          shasum -a 256 "$ZIP_NAME" > "$ZIP_NAME.sha256"
+          echo "ZIP_NAME=$ZIP_NAME" >> "$GITHUB_ENV"
 
       - name: Upload simulator .app artifact
         uses: actions/upload-artifact@v4
         with:
           name: ios-simulator-app
-          path: ios/build/Build/Products/Debug-iphonesimulator/CrmMobileNative-simulator.app.zip
+          path: |
+            ios/build/Build/Products/Debug-iphonesimulator/${{ env.ZIP_NAME }}
+            ios/build/Build/Products/Debug-iphonesimulator/${{ env.ZIP_NAME }}.sha256
           retention-days: 14
+
+      # Attach the simulator .app.zip to the GitHub Release on tag pushes
+      # (or manual workflow_dispatch with a release_tag). This is the SAME
+      # release the Android workflow publishes APK + AAB to. The .app.zip
+      # is NOT an installable IPA — it's a Mac-simulator build. Real iOS
+      # IPA distribution requires Apple Developer enrollment; see
+      # docs/ios-distribution-options.md.
+      - name: Attach simulator .app.zip to GitHub Release
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          append_body: true
+          body: |
+            ## iOS Simulator Build
+            - `${{ env.ZIP_NAME }}` — unsigned `.app` bundle for iOS Simulator on Mac (Debug config).
+            - **Not installable on physical iPhones** — requires Apple Developer Program enrollment for a signed IPA.
+            - See `docs/ios-distribution-options.md` for the upgrade path.
+          files: |
+            ios/build/Build/Products/Debug-iphonesimulator/${{ env.ZIP_NAME }}
+            ios/build/Build/Products/Debug-iphonesimulator/${{ env.ZIP_NAME }}.sha256
