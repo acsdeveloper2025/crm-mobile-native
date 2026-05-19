@@ -99,10 +99,6 @@ const setStoredFlag = async (key: string, value: string): Promise<void> => {
 };
 
 const requestStartupPermissionsIfNeeded = async (): Promise<void> => {
-  if (Platform.OS !== 'android') {
-    return;
-  }
-
   const alreadyRequested = await getStoredFlag(STARTUP_PERMISSIONS_KEY);
   if (alreadyRequested === '1') {
     return;
@@ -110,45 +106,66 @@ const requestStartupPermissionsIfNeeded = async (): Promise<void> => {
 
   const denied: string[] = [];
 
-  const locationResult = await PermissionsAndroid.request(
-    PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-    {
-      title: 'Location Permission',
-      message:
-        'Location is required for visit start, geo-tagging, and form submission.',
-      buttonPositive: 'Allow',
-      buttonNegative: 'Deny',
-    },
-  );
-  if (locationResult !== PermissionsAndroid.RESULTS.GRANTED) {
-    denied.push('Location');
-  }
-
-  const cameraResult = await PermissionsAndroid.request(
-    PermissionsAndroid.PERMISSIONS.CAMERA,
-    {
-      title: 'Camera Permission',
-      message: 'Camera is required to capture verification photos and selfies.',
-      buttonPositive: 'Allow',
-      buttonNegative: 'Deny',
-    },
-  );
-  if (cameraResult !== PermissionsAndroid.RESULTS.GRANTED) {
-    denied.push('Camera');
-  }
-
-  if (Number(Platform.Version) >= 33) {
-    const notificationResult = await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+  if (Platform.OS === 'android') {
+    const locationResult = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
       {
-        title: 'Notification Permission',
-        message: 'Notifications are required for new task and sync alerts.',
+        title: 'Location Permission',
+        message:
+          'Location is required for visit start, geo-tagging, and form submission.',
         buttonPositive: 'Allow',
         buttonNegative: 'Deny',
       },
     );
-    if (notificationResult !== PermissionsAndroid.RESULTS.GRANTED) {
-      denied.push('Notifications');
+    if (locationResult !== PermissionsAndroid.RESULTS.GRANTED) {
+      denied.push('Location');
+    }
+
+    const cameraResult = await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.CAMERA,
+      {
+        title: 'Camera Permission',
+        message:
+          'Camera is required to capture verification photos and selfies.',
+        buttonPositive: 'Allow',
+        buttonNegative: 'Deny',
+      },
+    );
+    if (cameraResult !== PermissionsAndroid.RESULTS.GRANTED) {
+      denied.push('Camera');
+    }
+
+    if (Number(Platform.Version) >= 33) {
+      const notificationResult = await PermissionsAndroid.request(
+        PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+        {
+          title: 'Notification Permission',
+          message: 'Notifications are required for new task and sync alerts.',
+          buttonPositive: 'Allow',
+          buttonNegative: 'Deny',
+        },
+      );
+      if (notificationResult !== PermissionsAndroid.RESULTS.GRANTED) {
+        denied.push('Notifications');
+      }
+    }
+  } else if (Platform.OS === 'ios') {
+    const { Camera } = require('react-native-vision-camera');
+    const Geolocation = require('@react-native-community/geolocation').default;
+
+    const cameraStatus = await Camera.requestCameraPermission();
+    if (cameraStatus !== 'granted') {
+      denied.push('Camera');
+    }
+
+    const locationStatus = await new Promise<string>(resolve => {
+      Geolocation.requestAuthorization(
+        () => resolve('granted'),
+        () => resolve('denied'),
+      );
+    });
+    if (locationStatus !== 'granted') {
+      denied.push('Location');
     }
   }
 
