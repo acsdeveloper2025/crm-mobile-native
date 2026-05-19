@@ -1,0 +1,127 @@
+name: iOS Build Smoke Test
+
+# Stage 1 of iOS CI: verifies the iOS build still compiles end-to-end
+# on every push/tag. Produces an unsigned simulator .app artifact —
+# NOT installable on physical iPhones.
+#
+# Stage 2 (signed IPA via Apple Developer Program) is documented in
+# docs/ios-distribution-options.md and gated behind enrollment.
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+  pull_request:
+    paths:
+      - "ios/**"
+      - "package.json"
+      - "package-lock.json"
+      - "patches/**"
+      - "App.tsx"
+      - ".github/workflows/ios-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  build-simulator-app:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read Node version
+        id: node-version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f .nvmrc ]]; then
+            echo "version=$(cat .nvmrc | tr -d 'v\n\r ')" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=22" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ steps.node-version.outputs.version }}
+          cache: "npm"
+
+      - name: Install JS dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+          working-directory: .
+
+      - name: Cache CocoaPods
+        uses: actions/cache@v4
+        with:
+          path: ios/Pods
+          key: pods-${{ runner.os }}-${{ hashFiles('ios/Podfile.lock') }}
+          restore-keys: |
+            pods-${{ runner.os }}-
+
+      - name: Pod install
+        working-directory: ios
+        run: bundle exec pod install --repo-update
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: List available simulators
+        run: xcrun simctl list runtimes available | head -20
+
+      - name: Build app for iOS Simulator
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -workspace CrmMobileNative.xcworkspace \
+            -scheme CrmMobileNative \
+            -configuration Debug \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee build.log | xcbeautify || {
+              echo "::error::iOS build failed; full log follows"
+              tail -200 build.log
+              exit 1
+            }
+
+      - name: Verify .app produced
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          APP_PATH="build/Build/Products/Debug-iphonesimulator/CrmMobileNative.app"
+          test -d "$APP_PATH" || { echo "::error::$APP_PATH not found"; exit 1; }
+          /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist"
+          /usr/libexec/PlistBuddy -c "Print :CFBundleDisplayName" "$APP_PATH/Info.plist"
+          test -f "$APP_PATH/GoogleService-Info.plist" || { echo "::error::GoogleService-Info.plist missing from .app bundle"; exit 1; }
+          test -f "$APP_PATH/Ionicons.ttf" || { echo "::error::Ionicons.ttf missing from .app bundle"; exit 1; }
+          test -f "$APP_PATH/AppIcon60x60@2x.png" || { echo "::error::Generated app icon missing"; exit 1; }
+          echo "::notice::iOS simulator .app build verified."
+
+      - name: Zip simulator .app
+        working-directory: ios/build/Build/Products/Debug-iphonesimulator
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent \
+            CrmMobileNative.app CrmMobileNative-simulator.app.zip
+
+      - name: Upload simulator .app artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-app
+          path: ios/build/Build/Products/Debug-iphonesimulator/CrmMobileNative-simulator.app.zip
+          retention-days: 14
