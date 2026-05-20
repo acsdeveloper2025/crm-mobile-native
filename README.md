@@ -1,125 +1,114 @@
-This is the React Native mobile client for the CRM platform.
+# CRM Mobile (Native)
 
-# Download Android Builds
+React Native client for the ACS Check Services CRM. Field executives use it to receive case assignments, capture geo-tagged + watermarked verification photos, fill verification forms offline, and sync back to the backend.
 
-Android release builds are published through GitHub Releases.
+Pairs with the monorepo at <https://github.com/acsdeveloper2025/CRM-APP-MONOREPO-PROD> (backend + admin web). Staging backend lives at <https://crm.allcheckservices.com>.
 
-To download the latest APK or App Bundle:
+## What's in here
 
-1. Open the repository Releases page.
-2. Select the latest `v4.x.x` release.
-3. Download the attached `crm-mobile-native-vX.X.X.apk` or `crm-mobile-native-vX.X.X.aab` asset.
-4. Verify the attached `.sha256` checksum file before distribution if needed.
+- **React Native 0.84** + **React 19** + **TypeScript**
+- **op-sqlite + SQLCipher** — encrypted local DB for offline-first case + form storage
+- **vision-camera** — verification photo capture with native watermarking
+- **@react-native-firebase/messaging** — FCM push notifications (background + foreground)
+- **@react-native-community/geolocation** — GPS for photo metadata
+- **react-native-keychain** — secure auth-token storage
+- **SSL pinning** on the backend hostname (see `scripts/check-ssl-pins.sh`)
+- **Sync queue** — BullMQ-driven retry on the backend; mobile-side queue with NetInfo gating
 
-Release publishing is automated by [android-release.yml](./.github/workflows/android-release.yml).
+## Download releases
 
-# Release Process
+Android APK / AAB builds are published as GitHub Releases on every tag push.
 
-Production releases are tag-driven.
+1. Open the [Releases page](https://github.com/acsdeveloper2025/crm-mobile-native/releases).
+2. Select the latest `v1.x.x` release.
+3. Download the attached `crm-mobile-native-vX.X.X.apk` (sideload) or `crm-mobile-native-vX.X.X.aab` (Play Store internal track).
+4. Verify the `.sha256` checksum before distribution if needed.
 
-1. Merge the releaseable code to `main`.
-2. Create a tag such as `v4.0.2`.
-3. Push the tag to GitHub.
-4. GitHub Actions runs type-check, lint, a debug smoke build, release APK build, and release AAB build.
-5. The workflow publishes a GitHub Release with:
-   - `crm-mobile-native-vX.X.X.apk`
-   - `crm-mobile-native-vX.X.X.aab`
-   - matching `.sha256` files
+Publishing is automated via `.github/workflows/android-release.yml`.
 
-Manual `workflow_dispatch` is kept for rebuilds and recovery only. It should not be the normal production release path.
+iOS distribution is currently dev-only — paid Apple Developer enrollment is the gating step (see `docs/ios-distribution-options.md`).
 
-# Getting Started
+## Release process
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+Tag-driven, fully automated:
 
-## Step 1: Start Metro
+1. Merge release-ready code to `main`.
+2. Bump `version` in `package.json` and `versionCode` in `android/app/build.gradle`.
+3. Create + push an annotated tag matching the package version:
+   ```bash
+   git tag -a v1.0.58 -m "v1.0.58 — release notes"
+   git push origin v1.0.58
+   ```
+4. GitHub Actions runs:
+   - `android-release.yml` — type-check, lint, debug smoke, release APK + AAB, publishes GitHub Release with `.apk` + `.aab` + `.sha256` assets.
+   - `ios-build.yml` — type-check, lint, simulator-only smoke build, attaches `.app.zip` to the Release.
 
-First, you will need to run **Metro**, the JavaScript build tool for React Native.
+Manual `workflow_dispatch` is for rebuilds and recovery, not the normal release path.
 
-To start the Metro dev server, run the following command from the root of your React Native project:
+## Local dev — prerequisites
 
-```sh
-# Using npm
+- **Node 20 LTS** (matches monorepo) — pinned in `.nvmrc`
+- **Java JDK 17** (Android)
+- **Xcode 16+** + **CocoaPods** + **Ruby 3.4** (iOS, macOS only)
+- **Android Studio** with SDK platform 34+ and an emulator OR a physical device with USB debugging
+
+## Local dev — first run
+
+```bash
+nvm use                          # picks Node 20 from .nvmrc
+npm install                      # native deps + auto-applies patches via patch-package
+cd ios && bundle install         # one-time, macOS only
+bundle exec pod install          # every time native deps change
+cd ..
+
+# Start Metro (separate terminal stays open)
 npm start
 
-# OR using Yarn
-yarn start
+# In another terminal — run on device/sim
+npm run android                  # Android emulator or USB device
+npm run ios                      # iOS simulator (macOS only)
 ```
 
-## Step 2: Build and run your app
+Backend endpoint is configured per-build via `BASE_URL` in `src/config/`. Default points at staging; override for local dev pointing at your laptop's IP.
 
-With Metro running, open a new terminal window/pane from the root of your React Native project, and use one of the following commands to build and run your Android or iOS app:
+## Common commands
 
-### Android
+| Command | What |
+|---|---|
+| `npm start` | Metro JS bundler (keep this running) |
+| `npm run android` | Build + install + launch on Android |
+| `npm run ios` | Build + install + launch on iOS simulator |
+| `npm run typecheck` | TypeScript check (no emit) |
+| `npm run lint` | ESLint |
+| `npm run lint:fix` | ESLint with auto-fix |
+| `npm run check:ssl-pins` | Verify pinned SPKI matches the backend cert |
+| `npm run verify:ssl-pins-live` | Network-side check against the live backend |
+| `npm run prerelease` | Run typecheck + lint + both SSL pin checks before tagging |
 
-```sh
-# Using npm
-npm run android
+## Architecture highlights
 
-# OR using Yarn
-yarn android
-```
+- **Offline-first**: every user action queues locally in op-sqlite first, then syncs to backend via a retry queue. Network drop mid-form doesn't lose data.
+- **Watermark pipeline**: photos captured via vision-camera get GPS + timestamp + agent ID + case ID baked into the JPEG client-side (`WatermarkReStamper`). The backend re-validates server-side.
+- **Push notifications**: case assignments and revocations arrive via FCM (background) + foreground via Socket.IO when the app is open. Killed-app push delivery requires Firebase service account configured server-side.
+- **SSL pinning**: backend cert SPKI is pinned in `src/config/sslPins.ts`. Pin rotation requires a coordinated mobile release before the server-side cert rotates. See the monorepo's `docs/aws-migration-notes.md` for the intermediate-CA migration plan.
 
-### iOS
+## Troubleshooting
 
-For iOS, remember to install CocoaPods dependencies (this only needs to be run on first clone or after updating native deps).
+- **Metro fails to start**: kill any process on `:8081`. Re-run `npm start --reset-cache`.
+- **Android build fails on native deps**: `cd android && ./gradlew clean && cd ..`. Make sure JDK 17 is active (`java -version`).
+- **iOS build fails on pods**: `cd ios && rm -rf Pods Podfile.lock && bundle exec pod install`. Make sure Xcode CLI tools are installed (`xcode-select --install`).
+- **FCM not receiving in dev**: ensure `google-services.json` is at `android/app/` (committed — public client config) and `GoogleService-Info.plist` is at `ios/CrmMobileNative/` (committed). The PRIVATE service account JSON is server-side only.
+- **SSL pin mismatch**: backend cert was rotated. Update `src/config/sslPins.ts` with new SPKI, ship a new mobile release.
 
-The first time you create a new project, run the Ruby bundler to install CocoaPods itself:
+## Don't-regress notes
 
-```sh
-bundle install
-```
+- Keep `google-services.json` + `GoogleService-Info.plist` committed (these are public client configs).
+- NEVER commit a Firebase **service account JSON** or APNS `.p8` key — these are server-side secrets.
+- `patch-package` runs in postinstall — don't bypass it; several native deps require local patches for RN 0.84 + Xcode 16 compatibility.
+- `ENABLE_USER_SCRIPT_SANDBOXING` in iOS Xcode project must stay `NO` (Xcode 26 flips it `YES` automatically → Copy Pods Resources fails with sandbox: deny).
 
-Then, and every time you update your native dependencies, run:
+## Learn more
 
-```sh
-bundle exec pod install
-```
-
-For more information, please visit [CocoaPods Getting Started guide](https://guides.cocoapods.org/using/getting-started.html).
-
-```sh
-# Using npm
-npm run ios
-
-# OR using Yarn
-yarn ios
-```
-
-If everything is set up correctly, you should see your new app running in the Android Emulator, iOS Simulator, or your connected device.
-
-This is one way to run your app — you can also build it directly from Android Studio or Xcode.
-
-## Step 3: Modify your app
-
-Now that you have successfully run the app, let's make changes!
-
-Open `App.tsx` in your text editor of choice and make some changes. When you save, your app will automatically update and reflect these changes — this is powered by [Fast Refresh](https://reactnative.dev/docs/fast-refresh).
-
-When you want to forcefully reload, for example to reset the state of your app, you can perform a full reload:
-
-- **Android**: Press the <kbd>R</kbd> key twice or select **"Reload"** from the **Dev Menu**, accessed via <kbd>Ctrl</kbd> + <kbd>M</kbd> (Windows/Linux) or <kbd>Cmd ⌘</kbd> + <kbd>M</kbd> (macOS).
-- **iOS**: Press <kbd>R</kbd> in iOS Simulator.
-
-## Congratulations! :tada:
-
-You've successfully run and modified your React Native App. :partying_face:
-
-### Now what?
-
-- If you want to add this new React Native code to an existing application, check out the [Integration guide](https://reactnative.dev/docs/integration-with-existing-apps).
-- If you're curious to learn more about React Native, check out the [docs](https://reactnative.dev/docs/getting-started).
-
-# Troubleshooting
-
-If you're having issues getting the above steps to work, see the [Troubleshooting](https://reactnative.dev/docs/troubleshooting) page.
-
-# Learn More
-
-To learn more about React Native, take a look at the following resources:
-
-- [React Native Website](https://reactnative.dev) - learn more about React Native.
-- [Getting Started](https://reactnative.dev/docs/environment-setup) - an **overview** of React Native and how setup your environment.
-- [Learn the Basics](https://reactnative.dev/docs/getting-started) - a **guided tour** of the React Native **basics**.
-- [Blog](https://reactnative.dev/blog) - read the latest official React Native **Blog** posts.
-- [`@facebook/react-native`](https://github.com/facebook/react-native) - the Open Source; GitHub **repository** for React Native.
+- [React Native docs](https://reactnative.dev/docs/getting-started)
+- [Monorepo README](https://github.com/acsdeveloper2025/CRM-APP-MONOREPO-PROD#readme) — backend + admin web
+- [iOS distribution options](./docs/ios-distribution-options.md) — paid Apple Developer enrollment path
