@@ -6,6 +6,10 @@ on:
       - main
     tags:
       - "v*"
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.gitignore'
   workflow_dispatch:
     inputs:
       release_tag:

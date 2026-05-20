@@ -13,6 +13,10 @@ on:
       - main
     tags:
       - "v*"
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - '.gitignore'
   pull_request:
     paths:
       - "ios/**"
