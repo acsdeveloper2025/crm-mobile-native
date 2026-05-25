@@ -46,7 +46,6 @@ import { SubmitVerificationUseCase } from '../../usecases/SubmitVerificationUseC
 import { resolveFormTypeKey } from '../../utils/formTypeKey';
 import { TaskInfoModal } from '../../components/tasks/TaskInfoModal';
 import { TaskRevokeModal } from '../../components/tasks/TaskRevokeModal';
-import { RevokeReason } from '../../types/api';
 import {
   selectTaskById,
   getTaskSnapshot,
@@ -479,7 +478,7 @@ export const TaskListScreen = ({
   }, []);
 
   const handleRevokeConfirm = useCallback(
-    async (reason: RevokeReason) => {
+    async (reason: string) => {
       if (!selectedRevokeTask) {
         return;
       }

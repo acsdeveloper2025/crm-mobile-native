@@ -11,6 +11,10 @@ import {
   VerificationTypeOutcomesRepository,
   type VerificationTypeOutcomeRow,
 } from '../repositories/VerificationTypeOutcomesRepository';
+import {
+  RevokeReasonsRepository,
+  type RevokeReasonRow,
+} from '../repositories/RevokeReasonsRepository';
 import { DataCleanupService } from '../services/DataCleanupService';
 import { Logger } from '../utils/logger';
 import { syncConflictResolver } from './SyncConflictResolver';
@@ -179,6 +183,19 @@ class SyncDownloadServiceClass {
         );
       }
 
+      // A2.4 (audit 2026-05-25): refresh local revoke_reasons mirror.
+      // Non-fatal — TaskRevokeModal falls back to the compiled-in
+      // RevokeReason enum when the local table is empty.
+      try {
+        await this.refreshRevokeReasons();
+      } catch (refErr) {
+        Logger.warn(
+          TAG,
+          'Reference data refresh failed (revoke_reasons); using last-synced rows',
+          refErr,
+        );
+      }
+
       await ProjectionUpdater.rebuildDashboard();
 
       return { tasksDownloaded, conflicts, errors };
@@ -235,6 +252,34 @@ class SyncDownloadServiceClass {
     );
     Logger.info(TAG, 'verification_type_outcomes mirror refreshed', {
       count: response.data.length,
+    });
+  }
+
+  /**
+   * A2.4 (audit 2026-05-25): fetch revoke_reasons from backend and
+   * replace the local mirror atomically. Called once per successful
+   * download cycle. Endpoint shape: { success, data: RevokeReasonRow[] }.
+   */
+  private async refreshRevokeReasons(): Promise<void> {
+    const response = await ApiClient.get<{
+      success: boolean;
+      data?: RevokeReasonRow[];
+    }>(ENDPOINTS.REFERENCE.REVOKE_REASONS);
+    if (!response.success || !Array.isArray(response.data)) {
+      throw new Error('Invalid revoke-reasons response');
+    }
+    // Coerce to our row shape — endpoint returns active rows only, so
+    // mark them isActive=true.
+    const rows: RevokeReasonRow[] = response.data.map(r => ({
+      id: r.id,
+      code: r.code,
+      label: r.label,
+      sortOrder: r.sortOrder,
+      isActive: true,
+    }));
+    await RevokeReasonsRepository.replaceAll(rows);
+    Logger.info(TAG, 'revoke_reasons mirror refreshed', {
+      count: rows.length,
     });
   }
 

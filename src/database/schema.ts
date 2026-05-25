@@ -297,6 +297,22 @@ CREATE TABLE IF NOT EXISTS verification_type_outcomes (
   is_active INTEGER NOT NULL DEFAULT 1,
   synced_at TEXT NOT NULL
 );
+
+-- A2.4 (audit 2026-05-25): local mirror of revoke_reasons master.
+-- Hydrated by SyncDownloadService from
+-- /api/mobile/reference/revoke-reasons. Used by TaskRevokeModal to
+-- populate the reason dropdown — replaces the hardcoded RevokeReason
+-- enum (kept as offline fallback only when this table is empty).
+-- Placed directly in SCHEMA_SQL (CREATE TABLE IF NOT EXISTS) so fresh
+-- installs get the table without depending on the migration runner.
+CREATE TABLE IF NOT EXISTS revoke_reasons (
+  id INTEGER PRIMARY KEY,
+  code TEXT NOT NULL UNIQUE,
+  label TEXT NOT NULL,
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  is_active INTEGER NOT NULL DEFAULT 1,
+  synced_at TEXT NOT NULL
+);
 `;
 
 /**
@@ -656,6 +672,21 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE notifications ADD COLUMN deleted_at TEXT NULL;
       CREATE INDEX IF NOT EXISTS idx_notifications_visible
         ON notifications(timestamp DESC) WHERE is_deleted = 0;
+    `,
+  },
+  {
+    version: 17,
+    description:
+      'A2.4 (audit 2026-05-25): local mirror of revoke_reasons master. Hydrated by SyncDownloadService from /api/mobile/reference/revoke-reasons. Used by TaskRevokeModal to populate the reason dropdown — replaces the hardcoded RevokeReason enum which now serves as offline fallback only.',
+    sql: `
+      CREATE TABLE IF NOT EXISTS revoke_reasons (
+        id INTEGER PRIMARY KEY,
+        code TEXT NOT NULL UNIQUE,
+        label TEXT NOT NULL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        synced_at TEXT NOT NULL
+      );
     `,
   },
 ];

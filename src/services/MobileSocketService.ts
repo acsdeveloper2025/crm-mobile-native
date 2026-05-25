@@ -266,7 +266,6 @@ class MobileSocketServiceClass {
     }
     let myDeviceId: string;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { AuthService } =
         require('./AuthService') as typeof import('./AuthService');
       const info = await AuthService.getDeviceInfo();
@@ -291,7 +290,6 @@ class MobileSocketServiceClass {
       deviceLabel: payload.deviceLabel,
     });
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { AuthService } =
         require('./AuthService') as typeof import('./AuthService');
       await AuthService.logout();

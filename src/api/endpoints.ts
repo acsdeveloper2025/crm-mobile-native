@@ -84,9 +84,10 @@ export const ENDPOINTS = {
     STATUS: '/sync/status',
   },
 
-  // F2.7.1: reference data hydrated by SyncDownloadService
+  // F2.7.1 / A2.4: reference data hydrated by SyncDownloadService
   REFERENCE: {
     VERIFICATION_TYPE_OUTCOMES: '/reference/verification-type-outcomes',
+    REVOKE_REASONS: '/reference/revoke-reasons',
   },
 
   // Notifications — all paths relative to apiBaseUrl (which includes /mobile)

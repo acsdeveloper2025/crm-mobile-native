@@ -1,5 +1,4 @@
 import React, { createContext, useCallback, useContext, useMemo } from 'react';
-import { RevokeReason } from '../types/api';
 import type { LocalTask } from '../types/mobile';
 import { TaskStatus } from '../types/enums';
 import { Logger } from '../utils/logger';
@@ -53,7 +52,10 @@ interface TaskContextValue {
     patch: Record<string, unknown>,
   ) => Promise<void>;
   toggleSaveTask: (taskId: string, isSaved: boolean) => Promise<void>;
-  revokeTask: (taskId: string, reason: RevokeReason) => Promise<void>;
+  // A2.4: widened from RevokeReason enum to string so the dropdown
+  // can submit any active master label (the enum stays as offline
+  // fallback only).
+  revokeTask: (taskId: string, reason: string) => Promise<void>;
   setTaskPriority: (taskId: string, priority: number | null) => Promise<void>;
   submitTaskForm: (input: SubmitTaskFormInput) => Promise<void>;
   persistAutoSave: (taskId: string, payload: AutoSavePayload) => Promise<void>;
@@ -207,12 +209,9 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({
     [getTask],
   );
 
-  const revokeTask = useCallback(
-    async (taskId: string, reason: RevokeReason) => {
-      await RevokeTaskUseCase.execute(taskId, reason);
-    },
-    [],
-  );
+  const revokeTask = useCallback(async (taskId: string, reason: string) => {
+    await RevokeTaskUseCase.execute(taskId, reason);
+  }, []);
 
   const setTaskPriority = useCallback(
     async (taskId: string, priority: number | null) => {

@@ -354,12 +354,12 @@ const DynamicFieldRendererComponent: React.FC<DynamicFieldProps> = ({
               accessibilityRole="button"
               style={[
                 styles.input,
+                styles.datePickerInput,
                 {
                   backgroundColor: theme.colors.surface,
                   borderColor: displayError
                     ? theme.colors.danger
                     : theme.colors.border,
-                  justifyContent: 'center',
                 },
                 displayError && [
                   styles.inputError,
@@ -587,6 +587,9 @@ export const DynamicFieldRenderer = React.memo(
 const styles = StyleSheet.create({
   container: {
     marginBottom: 16,
+  },
+  datePickerInput: {
+    justifyContent: 'center',
   },
   labelContainer: {
     flexDirection: 'row',

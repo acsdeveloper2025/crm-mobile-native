@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,38 @@ import { RevokeReason } from '../../types/api';
 import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { Picker } from '@react-native-picker/picker';
+import {
+  RevokeReasonsRepository,
+  type RevokeReasonRow,
+} from '../../repositories/RevokeReasonsRepository';
+import { Logger } from '../../utils/logger';
+
+const TAG = 'TaskRevokeModal';
 
 interface TaskRevokeModalProps {
   visible: boolean;
   onClose: () => void;
-  onRevoke: (reason: RevokeReason) => Promise<void>;
+  /**
+   * A2.4 (audit 2026-05-25): submit string is the master `label`
+   * (e.g. "Not my area"). The compiled-in `RevokeReason` enum values
+   * map 1:1 to the same labels for offline fallback compatibility.
+   */
+  onRevoke: (reason: string) => Promise<void>;
   isRevoking: boolean;
 }
+
+/**
+ * Offline fallback list used when the local revoke_reasons mirror is
+ * empty (fresh install before first successful sync). Mirrors the
+ * `RevokeReason` enum order from `src/types/api.ts`.
+ */
+const FALLBACK_REASONS: Array<{ code: string; label: string }> = [
+  { code: 'NOT_MY_AREA', label: RevokeReason.NotMyArea },
+  { code: 'WRONG_PINCODE', label: RevokeReason.WrongPincode },
+  { code: 'NOT_WORKING', label: RevokeReason.NotWorking },
+  { code: 'LEFT_AREA', label: RevokeReason.LeftArea },
+  { code: 'WRONG_INCOMPLETE_ADDRESS', label: RevokeReason.WrongAddress },
+];
 
 export const TaskRevokeModal: React.FC<TaskRevokeModalProps> = ({
   visible,
@@ -26,8 +51,45 @@ export const TaskRevokeModal: React.FC<TaskRevokeModalProps> = ({
   isRevoking,
 }) => {
   const { theme } = useTheme();
-  // Provide a default value mapping to the first enum value
-  const [reason, setReason] = useState<RevokeReason>(RevokeReason.NotMyArea);
+  const [reasons, setReasons] = useState<Array<{ code: string; label: string }>>(
+    FALLBACK_REASONS,
+  );
+  const [reason, setReason] = useState<string>(FALLBACK_REASONS[0].label);
+
+  // Hydrate from the local mirror each time the modal opens. Falls back
+  // to the compiled-in list when the table is empty (fresh install
+  // offline) or the read fails.
+  useEffect(() => {
+    if (!visible) {
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await RevokeReasonsRepository.listActive();
+        if (cancelled) {
+          return;
+        }
+        if (rows.length > 0) {
+          const mapped = rows.map((r: RevokeReasonRow) => ({
+            code: r.code,
+            label: r.label,
+          }));
+          setReasons(mapped);
+          setReason(mapped[0].label);
+        } else {
+          // empty mirror — keep fallback
+          setReasons(FALLBACK_REASONS);
+          setReason(FALLBACK_REASONS[0].label);
+        }
+      } catch (err) {
+        Logger.warn(TAG, 'Failed to read revoke_reasons mirror; using fallback', err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
 
   const handleConfirm = async () => {
     await onRevoke(reason);
@@ -83,14 +145,14 @@ export const TaskRevokeModal: React.FC<TaskRevokeModalProps> = ({
               <Picker
                 selectedValue={reason}
                 onValueChange={(itemValue: unknown) =>
-                  setReason(itemValue as RevokeReason)
+                  setReason(String(itemValue))
                 }
                 enabled={!isRevoking}
                 dropdownIconColor={theme.colors.text}
                 style={{ color: theme.colors.text }}
               >
-                {Object.values(RevokeReason).map(r => (
-                  <Picker.Item key={r} label={r} value={r} />
+                {reasons.map(r => (
+                  <Picker.Item key={r.code} label={r.label} value={r.label} />
                 ))}
               </Picker>
             </View>
