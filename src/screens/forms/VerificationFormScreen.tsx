@@ -16,7 +16,10 @@ import { Picker } from '@react-native-picker/picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTask } from '../../hooks/useTask';
 import { PhotoGallery } from '../../components/media/PhotoGallery';
-import { DynamicFormBuilder } from './DynamicFormBuilder';
+import {
+  DynamicFormBuilder,
+  type DynamicFormBuilderHandle,
+} from './DynamicFormBuilder';
 import { useTheme } from '../../context/ThemeContext';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { VerificationFormSkeleton } from '../../components/ui/Skeleton';
@@ -86,6 +89,13 @@ export const VerificationFormScreen = ({
   // keyboard and the Save/Submit buttons stayed off-screen — user had
   // to dismiss the keyboard first to reach them.
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // Required-field validation errors (key -> message) shown as red field
+  // highlights on submit; cleared per field as the user fills them.
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
+  const scrollRef = useRef<ScrollView>(null);
+  const formBuilderRef = useRef<DynamicFormBuilderHandle>(null);
   // 2026-05-02: flag set by handleSave success path. The beforeRemove
   // navigation guard checks this so the "Unsaved Changes" alert does
   // NOT fire after a successful Save (the user just persisted; there
@@ -425,6 +435,20 @@ export const VerificationFormScreen = ({
           [fieldId]: value,
         };
       });
+      // Clear the red required-highlight for this field once it has a value.
+      const isEmpty =
+        value === null ||
+        value === undefined ||
+        (typeof value === 'string' && value.trim() === '') ||
+        (Array.isArray(value) && value.length === 0);
+      if (!isEmpty) {
+        setValidationErrors(prev => {
+          if (!prev[fieldId]) return prev;
+          const next = { ...prev };
+          delete next[fieldId];
+          return next;
+        });
+      }
     },
     [],
   );
@@ -523,6 +547,17 @@ export const VerificationFormScreen = ({
       formValues,
     );
     if (!templateValidation.isValid) {
+      // Highlight every missing field in red + scroll to the first one,
+      // alongside the summary alert.
+      const errorMap: Record<string, string> = {};
+      for (const key of templateValidation.missingKeys) {
+        errorMap[key] = 'Required';
+      }
+      setValidationErrors(errorMap);
+      formBuilderRef.current?.scrollToFirstError(
+        templateValidation.missingKeys,
+      );
+
       const preview = templateValidation.missingFields.slice(0, 6).join(', ');
       const hasMore = templateValidation.missingFields.length > 6;
       Alert.alert(
@@ -531,6 +566,8 @@ export const VerificationFormScreen = ({
       );
       return;
     }
+    // Validation passed — clear any stale red highlights.
+    setValidationErrors({});
 
     // Offline confirmation — let user know form will be queued
     const isOnline = NetworkService.getIsOnline();
@@ -725,6 +762,7 @@ export const VerificationFormScreen = ({
         keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
       >
         <ScrollView
+          ref={scrollRef}
           style={styles.scrollView}
           // UX (2026-04-21):
           //   - keyboardShouldPersistTaps='handled' lets the user tap
@@ -956,9 +994,12 @@ export const VerificationFormScreen = ({
               </View>
             ) : template ? (
               <DynamicFormBuilder
+                ref={formBuilderRef}
                 template={template}
                 formValues={formValues}
                 onFieldChange={handleFieldChange}
+                validationErrors={validationErrors}
+                scrollViewRef={scrollRef}
               />
             ) : (
               <View

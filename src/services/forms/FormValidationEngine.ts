@@ -62,8 +62,9 @@ export const evaluateFieldCondition = (
 export const validateTemplateRequiredFields = (
   currentTemplate: FormTemplate,
   values: Record<string, unknown>,
-): { isValid: boolean; missingFields: string[] } => {
+): { isValid: boolean; missingFields: string[]; missingKeys: string[] } => {
   const missingFields: string[] = [];
+  const missingKeys: string[] = [];
   const isEnumField = (fieldType: string): boolean =>
     fieldType === 'select' ||
     fieldType === 'radio' ||
@@ -104,6 +105,7 @@ export const validateTemplateRequiredFields = (
       const value = values[valueKey];
       if ((requiredByDefault || requiredWhen) && isEmptyFieldValue(value)) {
         missingFields.push(field.label);
+        missingKeys.push(valueKey);
         continue;
       }
 
@@ -120,12 +122,14 @@ export const validateTemplateRequiredFields = (
           const hasInvalidValue = arr.some(item => !allowed.has(String(item)));
           if (hasInvalidValue) {
             missingFields.push(field.label);
+            missingKeys.push(valueKey);
           }
           continue;
         }
 
         if (!isEmptyFieldValue(value) && !allowed.has(String(value))) {
           missingFields.push(field.label);
+          missingKeys.push(valueKey);
         }
       }
     }
@@ -134,5 +138,6 @@ export const validateTemplateRequiredFields = (
   return {
     isValid: missingFields.length === 0,
     missingFields,
+    missingKeys,
   };
 };

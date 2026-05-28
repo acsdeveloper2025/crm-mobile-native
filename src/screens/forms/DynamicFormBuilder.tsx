@@ -1,5 +1,11 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, {
+  useMemo,
+  useRef,
+  useImperativeHandle,
+  forwardRef,
+} from 'react';
+import { View, Text, StyleSheet, findNodeHandle } from 'react-native';
+import type { ScrollView } from 'react-native';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { useTheme } from '../../context/ThemeContext';
 import { Logger } from '../../utils/logger';
@@ -105,15 +111,52 @@ export interface DynamicFormBuilderProps {
   formValues: Record<string, any>;
   onFieldChange: (fieldId: string, value: unknown) => void;
   validationErrors?: Record<string, string>;
+  scrollViewRef?: React.RefObject<ScrollView | null>;
 }
 
-export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
-  template,
-  formValues,
-  onFieldChange,
-  validationErrors = {},
-}) => {
+export interface DynamicFormBuilderHandle {
+  // Scrolls the form to the first field key present in `orderedKeys`.
+  scrollToFirstError: (orderedKeys: string[]) => void;
+}
+
+export const DynamicFormBuilder = forwardRef<
+  DynamicFormBuilderHandle,
+  DynamicFormBuilderProps
+>(function DynamicFormBuilder(
+  { template, formValues, onFieldChange, validationErrors = {}, scrollViewRef },
+  ref,
+) {
   const { theme } = useTheme();
+  const fieldViewRefs = useRef<Record<string, View | null>>({});
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      scrollToFirstError: (orderedKeys: string[]) => {
+        const sv = scrollViewRef?.current;
+        if (!sv) return;
+        const innerNode =
+          (
+            sv as unknown as { getInnerViewNode?: () => number }
+          ).getInnerViewNode?.() ?? findNodeHandle(sv);
+        if (innerNode == null) return;
+        for (const key of orderedKeys) {
+          const node = fieldViewRefs.current[key];
+          if (node) {
+            node.measureLayout(
+              innerNode as number,
+              (_x: number, y: number) => {
+                sv.scrollTo({ y: Math.max(y - 120, 0), animated: true });
+              },
+              () => {},
+            );
+            return;
+          }
+        }
+      },
+    }),
+    [scrollViewRef],
+  );
 
   const visibleSections = useMemo(() => {
     if (!template) {
@@ -276,20 +319,27 @@ export const DynamicFormBuilder: React.FC<DynamicFormBuilderProps> = ({
 
           <View style={styles.fieldsContainer}>
             {visibleFields.map(({ key, field }) => (
-              <DynamicFieldRenderer
+              <View
                 key={`${sectionKey}_${key}`}
-                field={field}
-                value={formValues[key]}
-                onChange={onFieldChange}
-                error={validationErrors[key]}
-              />
+                collapsable={false}
+                ref={node => {
+                  fieldViewRefs.current[key] = node;
+                }}
+              >
+                <DynamicFieldRenderer
+                  field={field}
+                  value={formValues[key]}
+                  onChange={onFieldChange}
+                  error={validationErrors[key]}
+                />
+              </View>
             ))}
           </View>
         </View>
       ))}
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   container: {
