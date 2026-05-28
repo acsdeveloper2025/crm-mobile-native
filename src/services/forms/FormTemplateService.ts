@@ -90,6 +90,7 @@ const COMMON_COLOR_OPTIONS = [
   'Orange',
   'Mixed',
   'Other',
+  'Glass',
 ];
 
 const COMMON_PERIOD_OPTIONS = [

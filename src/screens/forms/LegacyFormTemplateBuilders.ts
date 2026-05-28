@@ -312,6 +312,7 @@ const STANDARD_COLORS = [
   'Purple',
   'Violet',
   'Teal',
+  'Glass',
 ];
 
 /** Common select options shared across all form types */
