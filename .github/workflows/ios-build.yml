@@ -9,8 +9,6 @@ name: iOS Build Smoke Test
 
 on:
   push:
-    branches:
-      - main
     tags:
       - "v*"
     paths-ignore:
