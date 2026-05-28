@@ -269,6 +269,12 @@ const coerceOutcomeForFormType = (
 const NUMBERS_0_TO_20 = Array.from({ length: 21 }, (_, i) => String(i));
 const NUMBERS_0_TO_50 = Array.from({ length: 51 }, (_, i) => String(i));
 const NUMBERS_0_TO_100 = Array.from({ length: 101 }, (_, i) => String(i));
+// Canonical floor option list — "Ground" is an explicit choice (renders as
+// "ground floor"); blank stays blank so the report omits the floor sentence.
+const FLOOR_OPTIONS = [
+  'Ground',
+  ...Array.from({ length: 100 }, (_, i) => String(i + 1)),
+];
 const STAYING_PERIOD_UNITS = ['Day', 'Month', 'Year'];
 const STANDARD_COLORS = [
   'White',
@@ -321,8 +327,8 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
   shiftedPeriodValue: NUMBERS_0_TO_50,
   shiftedPeriodUnit: STAYING_PERIOD_UNITS,
   addressStructure: NUMBERS_0_TO_100,
-  applicantStayingFloor: NUMBERS_0_TO_100,
-  addressFloor: NUMBERS_0_TO_100,
+  applicantStayingFloor: FLOOR_OPTIONS,
+  addressFloor: FLOOR_OPTIONS,
   addressExistAt: NUMBERS_0_TO_100,
   designation: [
     'Applicant Self',
@@ -399,6 +405,7 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
   societyNamePlateStatus: ['SIGHTED', 'NOT SIGHTED'],
   doorNamePlateStatus: ['SIGHTED', 'NOT SIGHTED'],
   sightStatus: ['SIGHTED', 'NOT SIGHTED'],
+  documentShown: ['Showed', 'Did Not Showed Any Document'],
   addressLocatable: ['Easy to Locate', 'Difficult to Locate'],
   addressRating: ['Good', 'Shabby', 'Poor'],
   tpcMetPerson: ['Neighbour', 'Security'],
@@ -566,7 +573,6 @@ const legacyResidenceSelectOptions: Record<string, string[]> = {
     'Other',
   ],
   workingStatus: ['Salaried', 'Self Employed', 'House Wife'],
-  documentShown: ['Showed', 'Did Not Showed Any Document'],
   documentType: [
     'Electricity Bill',
     'Aadhar Card',
@@ -768,8 +774,8 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
     required: true,
   },
   {
-    name: 'applicantStayingFloor',
-    label: 'Applicant Staying Floor',
+    name: 'addressFloor',
+    label: 'Address Floor',
     type: 'select',
     required: true,
   },
@@ -1107,8 +1113,8 @@ const legacyNspResidenceFields = withLegacyResidenceOrder([
     required: true,
   },
   {
-    name: 'applicantStayingFloor',
-    label: 'Applicant Staying Floor',
+    name: 'addressFloor',
+    label: 'Address Floor',
     type: 'select',
     required: true,
   },
@@ -1225,12 +1231,6 @@ const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
   {
     name: 'addressStructure',
     label: 'Address Structure',
-    type: 'select',
-    required: true,
-  },
-  {
-    name: 'applicantStayingFloor',
-    label: 'Applicant Staying Floor',
     type: 'select',
     required: true,
   },
@@ -1418,7 +1418,6 @@ const legacyResiCumOfficeSelectOptions: Record<string, string[]> = {
     'Private Limited',
   ],
   businessLocation: ['At Same Address', 'From Different Address'],
-  documentShown: ['Showed', 'Did Not Showed Any Document'],
   documentType: [
     'Electricity Bill',
     'Aadhar Card',
@@ -1638,8 +1637,8 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     required: true,
   },
   {
-    name: 'applicantStayingFloor',
-    label: 'Applicant Staying Floor',
+    name: 'addressFloor',
+    label: 'Address Floor',
     type: 'select',
     required: true,
   },
@@ -2012,8 +2011,8 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     required: true,
   },
   {
-    name: 'applicantStayingFloor',
-    label: 'Applicant Staying Floor',
+    name: 'addressFloor',
+    label: 'Address Floor',
     type: 'select',
     required: true,
   },
@@ -2574,6 +2573,12 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
     required: true,
   },
   {
+    name: 'addressFloor',
+    label: 'Address Floor',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'addressStructureColor',
     label: 'Address Structure Color',
     type: 'select',
@@ -2735,6 +2740,12 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
     required: true,
   },
   {
+    name: 'addressFloor',
+    label: 'Address Floor',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'addressStructureColor',
     label: 'Address Structure Color',
     type: 'select',
@@ -2878,6 +2889,12 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
     required: true,
   },
   {
+    name: 'addressFloor',
+    label: 'Address Floor',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'addressStructureColor',
     label: 'Address Structure Color',
     type: 'select',
@@ -2972,12 +2989,6 @@ const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
   {
     name: 'addressStructure',
     label: 'Address Structure',
-    type: 'select',
-    required: true,
-  },
-  {
-    name: 'addressFloor',
-    label: 'Office Floor',
     type: 'select',
     required: true,
   },
@@ -3318,7 +3329,8 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
     name: 'documentShown',
     label: 'Document Shown',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('businessStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Open'),
   },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
@@ -3356,6 +3368,12 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
   {
     name: 'addressStructure',
     label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressFloor',
+    label: 'Address Floor',
     type: 'select',
     required: true,
   },
@@ -3534,6 +3552,12 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
     required: true,
   },
   {
+    name: 'addressFloor',
+    label: 'Address Floor',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'addressStructureColor',
     label: 'Address Structure Color',
     type: 'select',
@@ -3658,6 +3682,12 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
   {
     name: 'addressStructure',
     label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressFloor',
+    label: 'Address Floor',
     type: 'select',
     required: true,
   },
@@ -4070,7 +4100,8 @@ const legacyPositiveBuilderFields = withLegacyBusinessOrder([
     name: 'documentShown',
     label: 'Document Shown',
     type: 'select',
-    required: true,
+    conditional: legacyCondition('officeStatus', 'equals', 'Open'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Open'),
   },
   // --- TPC ---
   { name: 'tpcMetPerson1', label: 'TPC Met Person', type: 'select' },
@@ -4108,6 +4139,12 @@ const legacyPositiveBuilderFields = withLegacyBusinessOrder([
   {
     name: 'addressStructure',
     label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressFloor',
+    label: 'Address Floor',
     type: 'select',
     required: true,
   },
@@ -4286,6 +4323,12 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
     required: true,
   },
   {
+    name: 'addressFloor',
+    label: 'Address Floor',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'addressStructureColor',
     label: 'Address Structure Color',
     type: 'select',
@@ -4410,6 +4453,12 @@ const legacyNspBuilderFields = withLegacyBusinessOrder([
   {
     name: 'addressStructure',
     label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressFloor',
+    label: 'Address Floor',
     type: 'select',
     required: true,
   },
@@ -4827,6 +4876,12 @@ const legacyPositiveNocFields = withLegacyNocOrder([
     required: true,
   },
   {
+    name: 'addressFloor',
+    label: 'Address Floor',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'addressStructureColor',
     label: 'Address Structure Color',
     type: 'select',
@@ -5004,6 +5059,12 @@ const legacyShiftedNocFields = withLegacyNocOrder([
     required: true,
   },
   {
+    name: 'addressFloor',
+    label: 'Address Floor',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'addressStructureColor',
     label: 'Address Structure Color',
     type: 'select',
@@ -5110,6 +5171,12 @@ const legacyNspNocFields = withLegacyNocOrder([
   {
     name: 'addressStructure',
     label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressFloor',
+    label: 'Address Floor',
     type: 'select',
     required: true,
   },
@@ -5599,6 +5666,12 @@ const legacyPositiveDsaFields = withLegacyDsaOrder([
     required: true,
   },
   {
+    name: 'addressFloor',
+    label: 'Address Floor',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'addressStructureColor',
     label: 'Address Structure Color',
     type: 'select',
@@ -5773,6 +5846,12 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
     required: true,
   },
   {
+    name: 'addressFloor',
+    label: 'Address Floor',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'addressStructureColor',
     label: 'Address Structure Color',
     type: 'select',
@@ -5901,6 +5980,12 @@ const legacyNspDsaFields = withLegacyDsaOrder([
     required: true,
   },
   {
+    name: 'addressFloor',
+    label: 'Address Floor',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'addressStructureColor',
     label: 'Address Structure Color',
     type: 'select',
@@ -6019,12 +6104,6 @@ const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
   {
     name: 'addressStructure',
     label: 'Address Structure',
-    type: 'select',
-    required: true,
-  },
-  {
-    name: 'applicantStayingFloor',
-    label: 'Applicant Staying Floor',
     type: 'select',
     required: true,
   },
@@ -6862,8 +6941,8 @@ const legacyPositivePropertyIndividualFields =
       required: true,
     },
     {
-      name: 'addressExistAt',
-      label: 'Address Exist At',
+      name: 'addressFloor',
+      label: 'Address Floor',
       type: 'select',
       required: true,
     },
@@ -7016,6 +7095,12 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
   {
     name: 'addressStructure',
     label: 'Address Structure',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'addressFloor',
+    label: 'Address Floor',
     type: 'select',
     required: true,
   },
