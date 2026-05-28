@@ -8,7 +8,7 @@
  * so existing accepters are re-prompted.
  */
 export const FIELD_EXECUTIVE_ACKNOWLEDGEMENT = `ALL CHECK SERVICES — FIELD EXECUTIVE ACKNOWLEDGEMENT
-Last updated: May 2026 · Policy version: 1
+Last updated: May 2026 · Policy version: 2
 
 By tapping "I Accept" below, you confirm you have read and agree to the following terms as a condition of using this application for verification work assigned by All Check Services LLP ("ACS", "we", "us", "the company").
 
@@ -84,7 +84,7 @@ You agree:
 We collect:
 - Account identity: name, employee ID, phone, designation, email.
 - Verification activity: tasks accepted, photos captured, forms submitted, the GPS location at the moment of each photo capture.
-- Live location: when an admin requests your current location during shift hours (typically 8:00 AM – 10:00 PM IST), the app captures one GPS fix silently and sends it to ACS. This is for shift monitoring, safety, and dispute resolution. It does NOT run continuously in the background.
+- Live location: during your shift window (typically 8:00 AM – 10:00 PM IST), while the ACS app is open on your screen, the app records your GPS location periodically (about once every minute or two) so your supervisor can see your last known position on the live map. The app also records your location when you capture a verification photo, submit a form, or when an admin requests an on-demand check. This is for shift monitoring, safety, and dispute resolution. The app does NOT track your location in the background when the app is closed or minimised, and does NOT record outside your shift window.
 - Device diagnostics: device model, OS version, app version, crash logs — used only to fix app issues.
 
 We use it ONLY for:
@@ -99,11 +99,12 @@ We do NOT sell your data. We do NOT share it with parties outside the ACS verifi
 ────────────────────────────────────────
 8. LIVE LOCATION MONITORING
 ────────────────────────────────────────
-During your assigned shift window (default 8:00 AM – 10:00 PM IST), an authorised ACS supervisor may trigger an on-demand GPS check from the admin dashboard. When this happens:
-- The app captures one GPS reading and sends it to ACS silently.
-- You will not see a separate alert or banner on your phone for each check (it is silent by design, to keep the live map accurate).
-- Outside the shift window, on-demand checks are disabled.
-- You can review the full history of when your location was requested by emailing support@allcheckservices.com.
+During your assigned shift window (default 8:00 AM – 10:00 PM IST), ACS maintains a live map of field executives' last known locations. While you are working:
+- While the app is open on your screen, your location is recorded periodically (about once every minute or two) and sent to ACS to keep your position on the map current.
+- An authorised ACS supervisor may also trigger an on-demand GPS check; the app captures one reading and sends it silently.
+- Location recording is silent by design (no per-update banner), to keep the live map accurate.
+- The app does NOT record your location when it is closed or running in the background, and does NOT record outside your shift window.
+- You can review the history of your recorded locations by emailing support@allcheckservices.com.
 
 ────────────────────────────────────────
 9. YOUR RIGHTS (Digital Personal Data Protection Act, 2023)

@@ -16,7 +16,7 @@ import { Logger } from '../utils/logger';
 const STORAGE_KEY = 'privacy_consent_version';
 const TAG = 'PrivacyConsentService';
 
-export const CURRENT_PRIVACY_POLICY_VERSION = 1;
+export const CURRENT_PRIVACY_POLICY_VERSION = 2;
 
 export const PrivacyConsentService = {
   async hasAcceptedCurrent(): Promise<boolean> {
