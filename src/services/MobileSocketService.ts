@@ -7,6 +7,7 @@ import { TaskRepository } from '../repositories/TaskRepository';
 import { Logger } from '../utils/logger';
 import { notificationService } from './NotificationService';
 import { SessionStore } from './SessionStore';
+import { handleLocationRequest, type LocationRequestData } from './LocationPingHandler';
 
 const TAG = 'MobileSocketService';
 
@@ -115,6 +116,17 @@ class MobileSocketServiceClass {
         });
       },
     );
+
+    // Admin "Refresh" on the field-monitoring roster. Mirrors the FCM
+    // LOCATION_REQUEST path but over the live socket — reliable when the
+    // app is foregrounded (FCM data-messages get delayed/dropped under
+    // Doze). Reuses handleLocationRequest; duplicate FCM+socket delivery
+    // is idempotent via requestId.
+    this.socket.on('location:request', (payload: LocationRequestData) => {
+      handleLocationRequest(payload).catch(err => {
+        Logger.warn(TAG, 'Failed to handle location:request', err);
+      });
+    });
   }
 
   disconnect(): void {
