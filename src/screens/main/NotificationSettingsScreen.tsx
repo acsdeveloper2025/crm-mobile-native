@@ -13,10 +13,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { ApiClient } from '../../api/apiClient';
 import { ENDPOINTS } from '../../api/endpoints';
 import { Logger } from '../../utils/logger';
-import type { Theme } from '../../theme/Theme';
 
 const TAG = 'NotificationSettingsScreen';
 
@@ -110,9 +110,9 @@ const fieldName = (
 
 const TIME_REGEX = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
 
-export const NotificationSettingsScreen = ({ navigation }: any) => {
+export const NotificationSettingsScreen = () => {
   const { theme } = useTheme();
-  const styles = useMemo(() => makeStyles(theme), [theme]);
+  const styles = useMemo(() => makeStyles(), []);
 
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [loading, setLoading] = useState(true);
@@ -253,21 +253,9 @@ export const NotificationSettingsScreen = ({ navigation }: any) => {
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: theme.colors.background }]}
-      edges={['top']}
+      edges={['bottom']}
     >
-      <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => navigation.goBack()}
-          style={styles.backBtn}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <Icon name="arrow-back" size={22} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Notification Settings
-        </Text>
-      </View>
+      <ScreenHeader title="Notification Settings" />
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <Text
@@ -515,20 +503,9 @@ export const NotificationSettingsScreen = ({ navigation }: any) => {
   );
 };
 
-const makeStyles = (theme: Theme) =>
+const makeStyles = () =>
   StyleSheet.create({
     safeArea: { flex: 1 },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 12,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: theme.colors.border,
-      gap: 8,
-    },
-    backBtn: { padding: 6 },
-    title: { fontSize: 18, fontWeight: '600' },
     scrollContent: { padding: 16, paddingBottom: 96 },
     center: {
       flex: 1,
