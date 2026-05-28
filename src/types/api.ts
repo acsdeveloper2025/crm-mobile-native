@@ -242,7 +242,7 @@ export interface MobileLocationCaptureRequest {
   longitude: number;
   accuracy: number;
   timestamp: string;
-  source: 'GPS' | 'NETWORK' | 'PASSIVE';
+  source: 'GPS' | 'NETWORK' | 'PASSIVE' | 'TRACKING';
   caseId?: string;
   taskId?: string;
   activityType?: 'CASE_START' | 'CASE_PROGRESS' | 'CASE_COMPLETE' | 'TRAVEL';

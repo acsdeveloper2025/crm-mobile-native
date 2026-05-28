@@ -31,6 +31,11 @@ const MOVING_INTERVAL_MS = 60_000; // 60s when agent is moving
 const STATIONARY_INTERVAL_MS = 120_000; // 120s when agent is stationary
 const STATIONARY_DISTANCE_THRESHOLD = 30; // meters — less than this in last update = stationary
 const DISTANCE_FILTER_METERS = 100; // minimum meters between updates
+// Field-exec tracking shift window (IST). Tracking points are only enqueued
+// inside [start, end); the backend also rejects out-of-window TRACKING ingest
+// (403 OUTSIDE_SHIFT_WINDOW). Matches the consent promise.
+const TRACKING_SHIFT_START_HOUR = 8;
+const TRACKING_SHIFT_END_HOUR = 22;
 
 class LocationServiceClass {
   private watchId: number | null = null;
@@ -309,12 +314,14 @@ class LocationServiceClass {
       },
     );
 
-    // Fallback timer: ensure at least one update per stationary interval
-    // (watchPosition may not fire if device is completely still)
+    // Fallback timer: ensure at least one tracking point per stationary
+    // interval (watchPosition may not fire if the device is completely still).
+    // Routes through the TRACKING enqueue path (not recordLocation, which is
+    // for task-tethered captures) so the point lands untethered + shift-gated.
     this.adaptiveTimerId = setInterval(() => {
-      this.recordLocation(undefined, 'TRAVEL').catch(err =>
-        Logger.error(TAG, 'Adaptive timer location failed', err),
-      );
+      this.getCurrentLocation()
+        .then(loc => (loc ? this.recordLocationDirect(loc) : undefined))
+        .catch(err => Logger.error(TAG, 'Adaptive timer location failed', err));
     }, STATIONARY_INTERVAL_MS);
 
     Logger.info(
@@ -365,9 +372,28 @@ class LocationServiceClass {
   }
 
   /**
-   * Record a location directly (no permission check, used by watcher)
+   * Is the current moment inside the field-exec tracking shift window (IST)?
+   * Tracking points outside it are not enqueued (the backend also rejects
+   * them with 403 OUTSIDE_SHIFT_WINDOW).
+   */
+  isWithinShiftWindow(): boolean {
+    const istHour = new Date(Date.now() + 5.5 * 60 * 60 * 1000).getUTCHours();
+    return (
+      istHour >= TRACKING_SHIFT_START_HOUR && istHour < TRACKING_SHIFT_END_HOUR
+    );
+  }
+
+  /**
+   * Record a continuous-tracking location point (no permission check, used by
+   * the watcher + adaptive fallback timer). Enqueued with source='TRACKING' so
+   * the backend lands it untethered from a task; skipped outside the shift
+   * window.
    */
   private async recordLocationDirect(location: LocationResult): Promise<void> {
+    if (!this.isWithinShiftWindow()) {
+      return;
+    }
+
     const id = uuidv4();
 
     await LocationRepository.createTracked({
@@ -379,9 +405,17 @@ class LocationServiceClass {
       source: location.source,
     });
 
+    const payload: MobileLocationCaptureRequest = {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      accuracy: location.accuracy,
+      timestamp: location.timestamp,
+      source: 'TRACKING',
+    };
+
     await SyncGateway.enqueueLocation(
       id,
-      location as unknown as Record<string, unknown>,
+      payload as unknown as Record<string, unknown>,
       SYNC_PRIORITY.LOW,
     );
   }

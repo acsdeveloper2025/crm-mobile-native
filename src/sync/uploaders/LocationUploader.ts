@@ -61,6 +61,25 @@ class LocationUploaderClass {
         return { outcome: 'SUCCESS' };
       }
 
+      // Field-exec tracking P3: a TRACKING point that slips past the client
+      // shift-window gate (clock skew / window edge) is rejected by the server
+      // with 403 OUTSIDE_SHIFT_WINDOW. It will never be accepted (the window
+      // is evaluated server-side at NOW()), so drop it like a 400 rather than
+      // retrying forever and flooding the DLQ.
+      if (
+        status === 403 &&
+        axiosErr?.response?.data?.error?.code === 'OUTSIDE_SHIFT_WINDOW'
+      ) {
+        await SyncEngineRepository.execute(
+          "UPDATE locations SET sync_status = 'REJECTED', synced_at = ? WHERE id = ?",
+          [new Date().toISOString(), operation.entityId],
+        );
+        return {
+          outcome: 'SUCCESS',
+          error: 'Location rejected by server (403): outside shift window',
+        };
+      }
+
       // D6 (audit 2026-04-21 round 2): previously 400 was silently
       // marked SYNCED too, which was a lie — the server rejected the
       // payload so it was never stored. Anything downstream relying

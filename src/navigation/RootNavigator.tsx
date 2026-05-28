@@ -9,7 +9,13 @@ import {
   type NativeStackNavigationOptions,
 } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import {
+  View,
+  ActivityIndicator,
+  StyleSheet,
+  Platform,
+  AppState,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import messaging from '@react-native-firebase/messaging';
 
@@ -36,6 +42,7 @@ import { VerificationFormScreen } from '../screens/forms/VerificationFormScreen'
 import { ForceUpdateScreen } from '../screens/auth/ForceUpdateScreen';
 import { PrivacyConsentScreen } from '../screens/auth/PrivacyConsentScreen';
 import { PrivacyConsentService } from '../services/PrivacyConsentService';
+import { LocationService } from '../services/LocationService';
 import { SyncLogsScreen } from '../screens/main/SyncLogsScreen';
 import { DataCleanupScreen } from '../screens/main/DataCleanupScreen';
 import { NotificationSettingsScreen } from '../screens/main/NotificationSettingsScreen';
@@ -446,6 +453,37 @@ export const RootNavigator = () => {
       cancelled = true;
     };
   }, [isAuthenticated]);
+
+  // Field-exec tracking epic P3: foreground-only continuous tracking. Start the
+  // GPS watch when the agent is authenticated, has accepted the privacy policy,
+  // and the app is foregrounded; stop it when the app backgrounds. Logout
+  // already calls LocationService.stopTracking() (AuthService). The watch +
+  // adaptive fallback only enqueue points inside the shift window (the service
+  // gates that internally); the backend re-gates and rejects out-of-window.
+  useEffect(() => {
+    if (!isAuthenticated || privacyConsented !== true) {
+      LocationService.stopTracking();
+      return;
+    }
+
+    const sync = (state: string) => {
+      if (state === 'active') {
+        if (!LocationService.isTracking()) {
+          LocationService.startTracking();
+        }
+      } else {
+        LocationService.stopTracking();
+      }
+    };
+
+    sync(AppState.currentState);
+    const subscription = AppState.addEventListener('change', sync);
+
+    return () => {
+      subscription.remove();
+      LocationService.stopTracking();
+    };
+  }, [isAuthenticated, privacyConsented]);
 
   if (authLoading) {
     return (
