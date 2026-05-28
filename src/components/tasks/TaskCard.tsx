@@ -248,6 +248,19 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         </Text>
       </View>
 
+      {task.notes ? (
+        <View style={styles.triggerContainer}>
+          <Text style={styles.triggerIcon}>📋</Text>
+          <Text
+            style={[styles.triggerText, { color: theme.colors.textSecondary }]}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
+            Trigger: {task.notes}
+          </Text>
+        </View>
+      ) : null}
+
       <Text style={[styles.timestamp, { color: theme.colors.textMuted }]}>
         {getDynamicTimestamp()}
       </Text>
@@ -470,6 +483,7 @@ const areEqual = (prev: TaskCardProps, next: TaskCardProps): boolean => {
     prevTask.addressCity === nextTask.addressCity &&
     prevTask.addressState === nextTask.addressState &&
     prevTask.addressPincode === nextTask.addressPincode &&
+    prevTask.notes === nextTask.notes &&
     prevTask.verificationTypeName === nextTask.verificationTypeName &&
     prevTask.verificationType === nextTask.verificationType &&
     prevTask.verificationTaskNumber === nextTask.verificationTaskNumber &&
@@ -543,6 +557,20 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   addressText: {
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
+  },
+  triggerContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  triggerIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  triggerText: {
     fontSize: 13,
     flex: 1,
     lineHeight: 18,

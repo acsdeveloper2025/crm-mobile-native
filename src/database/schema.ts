@@ -1,7 +1,7 @@
 // SQLite Database Schema and Migrations
 // Offline-first schema for field verification data
 
-export const DB_VERSION = 16;
+export const DB_VERSION = 18;
 
 /**
  * All CREATE TABLE statements for the local SQLite database.
@@ -254,7 +254,8 @@ CREATE TABLE IF NOT EXISTS task_list_projection (
   in_progress_at TEXT,
   saved_at TEXT,
   attachment_count INTEGER NOT NULL DEFAULT 0,
-  search_text TEXT
+  search_text TEXT,
+  notes TEXT
 );
 
 -- Task detail projection (read-optimized case detail view)
@@ -686,6 +687,18 @@ export const MIGRATIONS: Migration[] = [
         sort_order INTEGER NOT NULL DEFAULT 0,
         is_active INTEGER NOT NULL DEFAULT 1,
         synced_at TEXT NOT NULL
+      );
+    `,
+  },
+  {
+    version: 18,
+    description:
+      'Add notes (trigger) to task_list_projection so the verification trigger shows on task cards below the address across all tabs. Backfilled from tasks.notes/description.',
+    sql: `
+      ALTER TABLE task_list_projection ADD COLUMN notes TEXT;
+      UPDATE task_list_projection SET notes = (
+        SELECT COALESCE(NULLIF(t.notes, ''), t.description)
+        FROM tasks t WHERE t.id = task_list_projection.id
       );
     `,
   },

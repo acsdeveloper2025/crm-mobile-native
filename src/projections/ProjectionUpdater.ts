@@ -112,7 +112,7 @@ class ProjectionUpdaterClass {
              id, case_id, verification_task_id, verification_task_number, title, customer_name,
              address_street, address_city, address_state, address_pincode, status, priority,
              assigned_at, updated_at, completed_at, verification_type, verification_type_name,
-             is_saved, is_revoked, revoked_at, in_progress_at, saved_at, attachment_count, search_text
+             is_saved, is_revoked, revoked_at, in_progress_at, saved_at, attachment_count, search_text, notes
            )
            SELECT
              id, case_id, verification_task_id, verification_task_number, title, customer_name,
@@ -126,7 +126,8 @@ class ProjectionUpdaterClass {
                  COALESCE(verification_task_number, '') || ' ' ||
                  COALESCE(case_id, '')
                )
-             )
+             ),
+             COALESCE(NULLIF(notes, ''), description)
            FROM tasks`,
         );
 
@@ -239,7 +240,7 @@ class ProjectionUpdaterClass {
              id, case_id, verification_task_id, verification_task_number, title, customer_name,
              address_street, address_city, address_state, address_pincode, status, priority,
              assigned_at, updated_at, completed_at, verification_type, verification_type_name,
-             is_saved, is_revoked, revoked_at, in_progress_at, saved_at, attachment_count, search_text
+             is_saved, is_revoked, revoked_at, in_progress_at, saved_at, attachment_count, search_text, notes
            )
            SELECT
              id, case_id, verification_task_id, verification_task_number, title, customer_name,
@@ -253,7 +254,8 @@ class ProjectionUpdaterClass {
                  COALESCE(verification_task_number, '') || ' ' ||
                  COALESCE(case_id, '')
                )
-             )
+             ),
+             COALESCE(NULLIF(notes, ''), description)
            FROM tasks
            WHERE id = ?`,
           [taskId],
