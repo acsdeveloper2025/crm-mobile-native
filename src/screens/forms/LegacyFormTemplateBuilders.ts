@@ -648,6 +648,13 @@ const legacyPositiveResidenceFields = withLegacyResidenceOrder([
     required: true,
   },
   {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('houseStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Closed'),
+  },
+  {
     name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
@@ -877,6 +884,13 @@ const legacyShiftedResidenceFields = withLegacyResidenceOrder([
     required: true,
   },
   {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('houseStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Closed'),
+  },
+  {
     name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
@@ -1054,6 +1068,13 @@ const legacyNspResidenceFields = withLegacyResidenceOrder([
     label: 'House Status',
     type: 'select',
     required: true,
+  },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('houseStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('houseStatus', 'equals', 'Closed'),
   },
   {
     name: 'metPersonName',
@@ -1491,6 +1512,13 @@ const legacyPositiveResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     required: true,
   },
   {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Closed'),
+  },
+  {
     name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
@@ -1757,6 +1785,13 @@ const legacyShiftedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     required: true,
   },
   {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Closed'),
+  },
+  {
     name: 'metPersonName',
     label: 'Met Person Name',
     type: 'text',
@@ -1933,6 +1968,13 @@ const legacyNspResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     label: 'Resi-cum-Office Status',
     type: 'select',
     required: true,
+  },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('resiCumOfficeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('resiCumOfficeStatus', 'equals', 'Closed'),
   },
   {
     name: 'metPersonName',
@@ -2399,6 +2441,13 @@ const legacyPositiveOfficeFields = withLegacyOfficeOrder([
     type: 'select',
     required: true,
   },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Closed'),
+  },
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPersonName',
@@ -2640,6 +2689,13 @@ const legacyShiftedOfficeFields = withLegacyOfficeOrder([
     type: 'select',
     required: true,
   },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Closed'),
+  },
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPersonName',
@@ -2807,6 +2863,13 @@ const legacyNspOfficeFields = withLegacyOfficeOrder([
     label: 'Office Status',
     type: 'select',
     required: true,
+  },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Closed'),
   },
   {
     name: 'officeExistence',
@@ -3228,6 +3291,13 @@ const legacyPositiveBusinessFields = withLegacyBusinessOrder([
     type: 'select',
     required: true,
   },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('businessStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Closed'),
+  },
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPersonName',
@@ -3441,6 +3511,13 @@ const legacyShiftedBusinessFields = withLegacyBusinessOrder([
     type: 'select',
     required: true,
   },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('businessStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Closed'),
+  },
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPersonName',
@@ -3637,6 +3714,13 @@ const legacyNspBusinessFields = withLegacyBusinessOrder([
     label: 'Business Status',
     type: 'select',
     required: true,
+  },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('businessStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('businessStatus', 'equals', 'Closed'),
   },
   {
     name: 'businessExistance',
@@ -3999,6 +4083,13 @@ const legacyPositiveBuilderFields = withLegacyBusinessOrder([
     type: 'select',
     required: true,
   },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Closed'),
+  },
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPersonName',
@@ -4212,6 +4303,13 @@ const legacyShiftedBuilderFields = withLegacyBusinessOrder([
     type: 'select',
     required: true,
   },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Closed'),
+  },
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPersonName',
@@ -4408,6 +4506,13 @@ const legacyNspBuilderFields = withLegacyBusinessOrder([
     label: 'Office Status',
     type: 'select',
     required: true,
+  },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Closed'),
   },
   {
     name: 'businessExistance',
@@ -4834,6 +4939,13 @@ const legacyPositiveNocFields = withLegacyNocOrder([
     type: 'select',
     required: true,
   },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Closed'),
+  },
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPersonName',
@@ -4946,6 +5058,13 @@ const legacyShiftedNocFields = withLegacyNocOrder([
     label: 'Office Status',
     type: 'select',
     required: true,
+  },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Closed'),
   },
   // --- Yellow fields (hidden when Closed) ---
   {
@@ -5126,6 +5245,13 @@ const legacyNspNocFields = withLegacyNocOrder([
     label: 'Office Status',
     type: 'select',
     required: true,
+  },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Closed'),
   },
   {
     name: 'businessExistance',
@@ -5523,6 +5649,13 @@ const legacyPositiveDsaFields = withLegacyDsaOrder([
     type: 'select',
     required: true,
   },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Closed'),
+  },
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPersonName',
@@ -5735,6 +5868,13 @@ const legacyShiftedDsaFields = withLegacyDsaOrder([
     type: 'select',
     required: true,
   },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Closed'),
+  },
   // --- Yellow fields (hidden when Closed) ---
   {
     name: 'metPersonName',
@@ -5931,6 +6071,13 @@ const legacyNspDsaFields = withLegacyDsaOrder([
     label: 'Office Status',
     type: 'select',
     required: true,
+  },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('officeStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('officeStatus', 'equals', 'Closed'),
   },
   {
     name: 'businessExistance',
@@ -6874,6 +7021,13 @@ const legacyPositivePropertyIndividualFields =
       required: true,
     },
     {
+      name: 'callRemark',
+      label: 'Call Remark',
+      type: 'select',
+      conditional: legacyCondition('flatStatus', 'equals', 'Closed'),
+      requiredWhen: legacyCondition('flatStatus', 'equals', 'Closed'),
+    },
+    {
       name: 'metPersonName',
       label: 'Met Person Name',
       type: 'text',
@@ -7048,6 +7202,13 @@ const legacyNspPropertyIndividualFields = withLegacyPropertyIndividualOrder([
     required: true,
   },
   { name: 'flatStatus', label: 'Flat Status', type: 'select', required: true },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    conditional: legacyCondition('flatStatus', 'equals', 'Closed'),
+    requiredWhen: legacyCondition('flatStatus', 'equals', 'Closed'),
+  },
   {
     name: 'metPersonName',
     label: 'Met Person Name',
