@@ -37,6 +37,15 @@ const DISTANCE_FILTER_METERS = 100; // minimum meters between updates
 const TRACKING_SHIFT_START_HOUR = 8;
 const TRACKING_SHIFT_END_HOUR = 22;
 
+/**
+ * Relaxed staleness ceiling for "where is the agent" use cases — the admin
+ * on-demand Refresh (ADMIN_PING) and the stationary heartbeat timer. A still
+ * or indoor phone often only has a cached fix a few minutes old; for
+ * position-on-a-map (not task-presence proof) that is fine, so accept up to
+ * 5 minutes. Task-tethered captures keep the strict 30s default.
+ */
+export const RELAXED_FIX_MAX_AGE_MS = 5 * 60_000;
+
 class LocationServiceClass {
   private watchId: number | null = null;
   private lastLocation: LocationResult | null = null;
@@ -96,13 +105,21 @@ class LocationServiceClass {
   /**
    * Get current location (one-shot)
    */
-  async getCurrentLocation(): Promise<LocationResult | null> {
+  async getCurrentLocation(
+    maxAgeMs: number = LocationServiceClass.STALE_FIX_THRESHOLD_MS,
+  ): Promise<LocationResult | null> {
     try {
       const hasPermission = await this.requestPermissions();
       if (!hasPermission) {
         Logger.warn(TAG, 'Location permission denied');
         return null;
       }
+
+      // For the relaxed (≥ default) callers, let the OS hand back a cached
+      // fix up to maxAgeMs old (fast + works when stationary/indoors). The
+      // strict task path keeps the original 10s cache hint.
+      const maximumAge =
+        maxAgeMs > LocationServiceClass.STALE_FIX_THRESHOLD_MS ? maxAgeMs : 10000;
 
       return new Promise((resolve, reject) => {
         Geolocation.getCurrentPosition(
@@ -113,14 +130,12 @@ class LocationServiceClass {
             // location" UX rather than silently accepting an old
             // coordinate.
             const positionAgeMs = Date.now() - position.timestamp;
-            if (positionAgeMs > LocationServiceClass.STALE_FIX_THRESHOLD_MS) {
+            if (positionAgeMs > maxAgeMs) {
               Logger.warn(
                 TAG,
                 `Rejecting stale GPS fix (${Math.round(
                   positionAgeMs / 1000,
-                )}s old > ${Math.round(
-                  LocationServiceClass.STALE_FIX_THRESHOLD_MS / 1000,
-                )}s threshold)`,
+                )}s old > ${Math.round(maxAgeMs / 1000)}s threshold)`,
                 {
                   lat: position.coords.latitude,
                   lon: position.coords.longitude,
@@ -179,7 +194,7 @@ class LocationServiceClass {
           {
             enableHighAccuracy: true,
             timeout: 15000,
-            maximumAge: 10000,
+            maximumAge,
           },
         );
       });
@@ -319,7 +334,9 @@ class LocationServiceClass {
     // Routes through the TRACKING enqueue path (not recordLocation, which is
     // for task-tethered captures) so the point lands untethered + shift-gated.
     this.adaptiveTimerId = setInterval(() => {
-      this.getCurrentLocation()
+      // Heartbeat: accept a cached fix up to 5 min old so a stationary /
+      // indoor agent still drops a periodic point (keeps "last seen" fresh).
+      this.getCurrentLocation(RELAXED_FIX_MAX_AGE_MS)
         .then(loc => (loc ? this.recordLocationDirect(loc) : undefined))
         .catch(err => Logger.error(TAG, 'Adaptive timer location failed', err));
     }, STATIONARY_INTERVAL_MS);

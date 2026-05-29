@@ -23,7 +23,7 @@
 // NotificationService) AND the setBackgroundMessageHandler registered
 // at boot (in index.js).
 
-import { LocationService } from './LocationService';
+import { LocationService, RELAXED_FIX_MAX_AGE_MS } from './LocationService';
 import { ApiClient } from '../api/apiClient';
 import { ENDPOINTS } from '../api/endpoints';
 import { Logger } from '../utils/logger';
@@ -76,7 +76,10 @@ export const handleLocationRequest = async (
 
   let location;
   try {
-    location = await LocationService.getCurrentLocation();
+    // Admin Refresh is "where is the agent", not task-presence proof —
+    // accept a fix up to 5 min old so a stationary / indoor agent still
+    // resolves instead of returning "couldn't reach".
+    location = await LocationService.getCurrentLocation(RELAXED_FIX_MAX_AGE_MS);
   } catch (err) {
     Logger.warn(TAG, 'LocationService.getCurrentLocation threw', err);
     return;
