@@ -18,19 +18,40 @@ import {
   useCameraFormat,
 } from 'react-native-vision-camera';
 import Icon from 'react-native-vector-icons/Ionicons';
+import Geolocation from '@react-native-community/geolocation';
 import { useFocusEffect } from '@react-navigation/native';
+import { CameraService } from '../../services/CameraService';
 import { Logger } from '../../utils/logger';
 
 const TAG = 'CameraCaptureScreen';
 
+// Warm GPS fix kept current while the agent frames the shot, so the
+// shutter tap attaches a location instantly (no wait, no second screen).
+// We track the tightest-accuracy fix seen since the screen opened.
+type WarmFix = {
+  latitude: number;
+  longitude: number;
+  accuracy: number;
+  altitude?: number;
+  speed?: number;
+  heading?: number;
+  timestamp: string;
+};
+
 export const CameraCaptureScreen = ({ route, navigation }: any) => {
-  const { taskId, componentType, taskMeta } = route.params || {};
+  const { taskId, componentType } = route.params || {};
   const device = useCameraDevice(componentType === 'selfie' ? 'front' : 'back');
   const camera = useRef<Camera>(null);
   // B4 (audit 2026-04-21 round 2): AppState listener reads the latest
   // permission state via this ref rather than a state variable that
   // would be stale in the closure captured at focus time.
   const hasPermissionRef = useRef<boolean>(false);
+  // Warm GPS fix + its best-seen accuracy, refreshed by a watchPosition
+  // that runs for as long as the camera screen is focused. Read at the
+  // moment of capture so Save is instant.
+  const warmFixRef = useRef<WarmFix | null>(null);
+  const warmAccuracyRef = useRef<number>(Infinity);
+  const gpsWatchIdRef = useRef<number | null>(null);
 
   const [hasPermission, setHasPermission] = useState<boolean>(false);
   const [isActive, setIsActive] = useState(false);
@@ -39,10 +60,51 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
   const [gpsWarning, setGpsWarning] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
 
-  // Use 720p for faster shutter + processing and predictable upload sizes.
+  // 2026-05-31: capture at 1080p class so doorplates / documents stay
+  // readable. CameraService downscales to a 1920 long-edge bound (aspect
+  // preserved) — it can't upscale, so the capture format must be ≥ that.
   const format = useCameraFormat(device, [
-    { photoResolution: { width: 1280, height: 720 } },
+    { photoResolution: { width: 1920, height: 1080 } },
   ]);
+
+  // Keep the tightest-accuracy GPS fix current while framing the shot.
+  const startWarmGpsWatch = useCallback(() => {
+    if (gpsWatchIdRef.current != null) {
+      return;
+    }
+    warmAccuracyRef.current = Infinity;
+    gpsWatchIdRef.current = Geolocation.watchPosition(
+      pos => {
+        const accuracy = pos.coords.accuracy || Infinity;
+        // Keep the best fix; ignore looser updates so accuracy only improves.
+        if (accuracy <= warmAccuracyRef.current) {
+          warmAccuracyRef.current = accuracy;
+          warmFixRef.current = {
+            latitude: pos.coords.latitude,
+            longitude: pos.coords.longitude,
+            accuracy,
+            altitude: pos.coords.altitude ?? undefined,
+            speed: pos.coords.speed ?? undefined,
+            heading: pos.coords.heading ?? undefined,
+            timestamp: new Date(pos.timestamp).toISOString(),
+          };
+        }
+        setGpsWarning(prev => (prev ? null : prev));
+      },
+      () => {
+        // Individual watch errors are non-fatal — the watch keeps trying
+        // and savePhoto's own fallback covers the never-got-a-fix case.
+      },
+      { enableHighAccuracy: true, distanceFilter: 0, interval: 1000 },
+    );
+  }, []);
+
+  const stopWarmGpsWatch = useCallback(() => {
+    if (gpsWatchIdRef.current != null) {
+      Geolocation.clearWatch(gpsWatchIdRef.current);
+      gpsWatchIdRef.current = null;
+    }
+  }, []);
 
   const requestPermissions = useCallback(async () => {
     setIsPreparing(true);
@@ -97,20 +159,24 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
         return;
       }
 
-      // Request location permission (non-blocking) — actual GPS fix happens in WatermarkPreviewScreen
+      // Request location permission, then start a warm GPS watch so a
+      // fix is ready the instant the agent taps the shutter (no second
+      // screen, no waiting). GPS is still mandatory at save time —
+      // CameraService.savePhoto re-checks and throws GPS_REQUIRED if
+      // neither the warm fix nor its own fallback yields a location.
       const { LocationService } = require('../../services/LocationService');
       LocationService.requestPermissions()
         .then((locationGranted: boolean) => {
           if (!locationGranted) {
-            setGpsWarning('GPS unavailable — photos will lack location data');
+            setGpsWarning('GPS unavailable — enable location to save photos');
+            return;
           }
+          startWarmGpsWatch();
         })
         .catch((err: unknown) => {
           // H15 (audit 2026-04-21): was .catch(() => {}) — silent.
           // Log so a hard permission-request failure (hardware denied,
-          // OS error) surfaces in telemetry. UI still shows the
-          // "GPS unavailable" warning on the subsequent screen because
-          // WatermarkPreviewScreen's ladder will never get a fix.
+          // OS error) surfaces in telemetry.
           Logger.warn(
             'CameraCaptureScreen',
             'Location permission request failed',
@@ -131,7 +197,7 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
     } finally {
       setIsPreparing(false);
     }
-  }, [navigation]);
+  }, [navigation, startWarmGpsWatch]);
 
   useFocusEffect(
     useCallback(() => {
@@ -153,9 +219,10 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
 
       return () => {
         setIsActive(false);
+        stopWarmGpsWatch();
         subscription.remove();
       };
-    }, [requestPermissions]),
+    }, [requestPermissions, stopWarmGpsWatch]),
   );
 
   const handleCapture = async () => {
@@ -164,26 +231,52 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
     try {
       setIsCapturing(true);
 
+      // 2026-05-31: capture at full resolution, no speed-cap. The photo is
+      // saved RAW (CameraService normalizes orientation + downscales to
+      // ~1080p preserving aspect) — the web overlays metadata at view time.
       const photo = await camera.current.takePhoto({
         flash: 'off',
         enableShutterSound: false,
-        qualityPrioritization: 'speed',
+        qualityPrioritization: 'balanced',
       } as any);
 
-      // Redirect to Watermark compositor instead of immediately saving
-      navigation.navigate('WatermarkPreview', {
-        photoPath: photo.path,
+      // Attach the warm GPS fix captured while framing — instant, no wait.
+      // savePhoto still enforces GPS-mandatory (throws GPS_REQUIRED if the
+      // warm fix is absent AND its own fallback fetch yields nothing).
+      const warm = warmFixRef.current;
+      const saved = await CameraService.savePhoto(
+        photo.path,
         taskId,
-        componentType,
-        taskMeta,
-      });
+        componentType === 'selfie' ? 'selfie' : 'photo',
+        warm
+          ? {
+              locationOverride: {
+                latitude: warm.latitude,
+                longitude: warm.longitude,
+                accuracy: warm.accuracy,
+                altitude: warm.altitude,
+                speed: warm.speed,
+                heading: warm.heading,
+                timestamp: warm.timestamp,
+              },
+            }
+          : undefined,
+      );
+
+      if (!saved) {
+        throw new Error(
+          'Could not save the photo. Make sure GPS is on and you are in an area with signal, then try again.',
+        );
+      }
+
+      // Return to the form; PhotoGallery reloads via its useFocusEffect.
+      navigation.goBack();
     } catch (err: unknown) {
       Alert.alert(
         'Capture Error',
         (err instanceof Error ? err.message : String(err)) ||
           'Failed to capture photo.',
       );
-    } finally {
       setIsCapturing(false);
     }
   };
@@ -317,7 +410,7 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
               : 'Tap to capture photo'}
           </Text>
           <Text style={styles.captureHintSub}>
-            Fast mode enabled for quicker capture
+            Photo saves with GPS automatically
           </Text>
         </View>
       </View>

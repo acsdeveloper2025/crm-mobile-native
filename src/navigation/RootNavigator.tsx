@@ -37,7 +37,6 @@ import { CompletedTasksScreen } from '../screens/tasks/CompletedTasksScreen';
 import { TaskDetailScreen } from '../screens/tasks/TaskDetailScreen';
 import { TaskAttachmentsScreen } from '../screens/tasks/TaskAttachmentsScreen';
 import { CameraCaptureScreen } from '../components/media/CameraCaptureScreen';
-import { WatermarkPreviewScreen } from '../components/media/WatermarkPreviewScreen';
 import { VerificationFormScreen } from '../screens/forms/VerificationFormScreen';
 import { ForceUpdateScreen } from '../screens/auth/ForceUpdateScreen';
 import { PrivacyConsentScreen } from '../screens/auth/PrivacyConsentScreen';
@@ -85,10 +84,6 @@ const SafeTaskAttachmentsScreen = withScreenErrorBoundary(
 const SafeCameraCaptureScreen = withScreenErrorBoundary(
   CameraCaptureScreen,
   'CameraCapture',
-);
-const SafeWatermarkPreviewScreen = withScreenErrorBoundary(
-  WatermarkPreviewScreen,
-  'WatermarkPreview',
 );
 const SafeVerificationFormScreen = withScreenErrorBoundary(
   VerificationFormScreen,
@@ -148,19 +143,6 @@ export type RootStackParamList = {
   TaskDetail: { taskId: string };
   TaskAttachments: { taskId: string; taskNumber?: string };
   CameraCapture: {
-    taskId: string;
-    componentType?: 'photo' | 'selfie';
-    taskMeta?: {
-      caseId?: string;
-      taskNumber?: string;
-      customerName?: string;
-      clientName?: string;
-      productName?: string;
-      verificationType?: string;
-    };
-  };
-  WatermarkPreview: {
-    photoPath: string;
     taskId: string;
     componentType?: 'photo' | 'selfie';
     taskMeta?: {
@@ -577,11 +559,6 @@ export const RootNavigator = () => {
             <Stack.Screen
               name="CameraCapture"
               component={SafeCameraCaptureScreen}
-              options={getCameraScreenOptions()}
-            />
-            <Stack.Screen
-              name="WatermarkPreview"
-              component={SafeWatermarkPreviewScreen}
               options={getCameraScreenOptions()}
             />
             <Stack.Screen

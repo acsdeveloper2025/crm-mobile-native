@@ -30,6 +30,14 @@ const THUMBNAILS_DIR = `${PHOTOS_DIR}/thumbnails`;
 // on cold-start GPS.
 const GPS_SAVE_TIMEOUT_MS = 2_000;
 
+// 2026-05-31: raw-photo capture quality. Long-edge bound for the
+// fit-inside downscale (1080p class — sharp enough for doorplates /
+// documents, small enough for slow field uploads). Aspect is always
+// preserved (mode:'contain'), so a landscape capture keeps its full
+// frame — no portrait crop.
+const NORMALIZE_MAX_EDGE = 1920;
+const NORMALIZE_QUALITY = 85;
+
 function locationWithTimeout(
   promise: Promise<
     Awaited<ReturnType<typeof LocationService.getCurrentLocation>>
@@ -208,7 +216,19 @@ class CameraServiceClass {
       // Move file from temp to our photos directory
       await RNFS.moveFile(sourcePath, finalDestPath);
 
-      // Get file size
+      // 2026-05-31: photos are now saved RAW (no on-device watermark
+      // composite — the CRM web overlays address + metadata from the
+      // stored GPS coords at view time). Two things must happen here that
+      // the old ViewShot path did implicitly:
+      //   1. Bake EXIF orientation into the pixels. Raw camera JPEGs carry
+      //      an orientation tag; we strip EXIF before upload, so without
+      //      baking it the web would render rotated/sideways photos.
+      //   2. Downscale to ~1080p class. `mode:'contain'` + equal bounds
+      //      preserves aspect — NO landscape crop (the bug we are fixing) —
+      //      and `onlyScaleDown` never upscales an already-small image.
+      await this.normalizeCapturedImage(finalDestPath, extension);
+
+      // Get file size (post-normalize so size/hash reflect the final bytes)
       const stat = await RNFS.stat(finalDestPath);
       thumbnailPath = await this.createThumbnail(finalDestPath, id, extension);
 
@@ -392,6 +412,55 @@ class CameraServiceClass {
       }
       Logger.error(TAG, 'Failed to save photo', error);
       return null;
+    }
+  }
+
+  /**
+   * Normalize a freshly-captured raw JPEG in place:
+   *  - bake EXIF orientation into the pixels (rotation arg `0` tells
+   *    ImageResizer to auto-apply the source's EXIF orientation, then the
+   *    output is a plain upright image with no orientation tag)
+   *  - downscale the long edge to ~1080p class while PRESERVING aspect
+   *    (`mode:'contain'` + equal width/height bounds = fit-inside box, so
+   *    a landscape frame stays landscape — never cropped to portrait)
+   *  - `onlyScaleDown:true` leaves already-smaller images untouched
+   *
+   * Best-effort: on any failure the original file is kept as-is (a rotated
+   * or larger photo is better than a failed capture). Overwrites in place
+   * so the caller's destPath/hash/stat all see the final bytes.
+   */
+  private async normalizeCapturedImage(
+    filePath: string,
+    extension: string,
+  ): Promise<void> {
+    try {
+      const format = extension === 'png' ? 'PNG' : 'JPEG';
+      const resized = await ImageResizer.createResizedImage(
+        filePath,
+        NORMALIZE_MAX_EDGE,
+        NORMALIZE_MAX_EDGE,
+        format,
+        NORMALIZE_QUALITY,
+        0, // rotation: 0 = apply source EXIF orientation, output upright
+        undefined, // temp dir; we move the result over the original below
+        false,
+        { mode: 'contain', onlyScaleDown: true },
+      );
+
+      const resizedPath = resized.path.replace('file://', '');
+      if (resizedPath === filePath) {
+        return;
+      }
+      if (await RNFS.exists(filePath)) {
+        await RNFS.unlink(filePath);
+      }
+      await RNFS.moveFile(resizedPath, filePath);
+    } catch (error) {
+      Logger.warn(
+        TAG,
+        'Image normalize (orientation/downscale) failed; keeping original',
+        error,
+      );
     }
   }
 

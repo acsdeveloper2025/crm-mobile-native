@@ -31,7 +31,6 @@ import { RemoteLogService } from './src/services/RemoteLogService';
 import { notificationService } from './src/services/NotificationService';
 import { SyncQueue } from './src/services/SyncQueue';
 import ErrorBoundary from './src/components/ErrorBoundary';
-import { WatermarkReStamper } from './src/components/media/WatermarkReStamper';
 import { BackgroundSyncDaemon } from './src/sync/BackgroundSyncDaemon';
 import { MobileTelemetryService } from './src/telemetry/MobileTelemetryService';
 import { DatabaseKeyStore } from './src/services/DatabaseKeyStore';
@@ -392,7 +391,6 @@ function App(): React.JSX.Element {
               <NetworkStatusBanner />
               <RootNavigator />
               <ForegroundNotificationBanner />
-              <WatermarkReStamper />
             </ErrorBoundary>
           </TaskProvider>
         </AuthProvider>
