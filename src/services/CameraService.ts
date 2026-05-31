@@ -426,9 +426,11 @@ class CameraServiceClass {
 
   /**
    * Normalize a freshly-captured raw JPEG in place:
-   *  - bake EXIF orientation into the pixels (rotation arg `0` tells
-   *    ImageResizer to auto-apply the source's EXIF orientation, then the
-   *    output is a plain upright image with no orientation tag)
+   *  - bake EXIF orientation into the pixels by passing ImageResizer an
+   *    EXPLICIT rotation derived from the file's EXIF Orientation tag
+   *    (normalizeWithResizer → exifOrientationToDegrees). ImageResizer does
+   *    NOT auto-apply EXIF and strips it on output, so without the explicit
+   *    angle a sideways-sensor capture would save rotated.
    *  - downscale the long edge to ~1080p class while PRESERVING aspect
    *    (`mode:'contain'` + equal width/height bounds = fit-inside box, so
    *    a landscape frame stays landscape — never cropped to portrait)
@@ -549,6 +551,44 @@ class CameraServiceClass {
     }
   }
 
+  /**
+   * Map an EXIF Orientation tag (1..8) to the clockwise degrees ImageResizer
+   * must rotate the pixels so the output is visually upright. Verified on
+   * device 2026-05-31: ImageResizer's `rotation` arg does NOT auto-apply the
+   * source EXIF (passing 0 left orientation-6 pixels sideways) — we must
+   * supply the angle explicitly. Only 1/3/6/8 are produced by a normal rear
+   * camera; mirrored variants (2/4/5/7) can't be corrected by rotation alone,
+   * so we apply their rotational component and accept the mirror (rare).
+   */
+  private static exifOrientationToDegrees(orientation: number | null): number {
+    switch (orientation) {
+      case 3:
+      case 4:
+        return 180;
+      case 6:
+      case 5:
+        return 90;
+      case 8:
+      case 7:
+        return 270;
+      default:
+        return 0; // 1, 2, null → already upright (or unknown)
+    }
+  }
+
+  /** Read the JPEG EXIF Orientation tag (1..8) or null if absent/unreadable. */
+  private async readJpegOrientation(filePath: string): Promise<number | null> {
+    try {
+      const base64 = await RNFS.readFile(filePath, 'base64');
+      const exif = piexif.load(`data:image/jpeg;base64,${base64}`);
+      const zeroth = (exif as { '0th'?: Record<number, unknown> })['0th'];
+      const value = zeroth?.[piexif.ImageIFD.Orientation];
+      return typeof value === 'number' ? value : null;
+    } catch {
+      return null;
+    }
+  }
+
   /** Full decode → orientation-bake + downscale → overwrite in place. */
   private async normalizeWithResizer(
     filePath: string,
@@ -556,13 +596,21 @@ class CameraServiceClass {
   ): Promise<void> {
     try {
       const format = extension === 'png' ? 'PNG' : 'JPEG';
+      // Bake the EXIF orientation into the pixels. ImageResizer strips EXIF on
+      // output, so without an explicit rotation a sideways-sensor capture
+      // (EXIF 6/8) would be saved rotated — which is exactly the bug this
+      // fixes. PNG has no EXIF orientation, so degrees stay 0.
+      const orientation =
+        format === 'JPEG' ? await this.readJpegOrientation(filePath) : null;
+      const rotationDegrees =
+        CameraServiceClass.exifOrientationToDegrees(orientation);
       const resized = await ImageResizer.createResizedImage(
         filePath,
         NORMALIZE_MAX_EDGE,
         NORMALIZE_MAX_EDGE,
         format,
         NORMALIZE_QUALITY,
-        0, // rotation: 0 = apply source EXIF orientation, output upright
+        rotationDegrees, // explicit CW degrees to bake the image upright
         undefined, // temp dir; we move the result over the original below
         false,
         { mode: 'contain', onlyScaleDown: true },
