@@ -119,7 +119,9 @@ class LocationServiceClass {
       // fix up to maxAgeMs old (fast + works when stationary/indoors). The
       // strict task path keeps the original 10s cache hint.
       const maximumAge =
-        maxAgeMs > LocationServiceClass.STALE_FIX_THRESHOLD_MS ? maxAgeMs : 10000;
+        maxAgeMs > LocationServiceClass.STALE_FIX_THRESHOLD_MS
+          ? maxAgeMs
+          : 10000;
 
       return new Promise((resolve, reject) => {
         Geolocation.getCurrentPosition(

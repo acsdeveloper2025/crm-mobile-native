@@ -1,9 +1,4 @@
-import React, {
-  useMemo,
-  useRef,
-  useImperativeHandle,
-  forwardRef,
-} from 'react';
+import React, { useMemo, useRef, useImperativeHandle, forwardRef } from 'react';
 import { View, Text, StyleSheet, findNodeHandle } from 'react-native';
 import type { ScrollView } from 'react-native';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';

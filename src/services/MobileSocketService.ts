@@ -7,7 +7,10 @@ import { TaskRepository } from '../repositories/TaskRepository';
 import { Logger } from '../utils/logger';
 import { notificationService } from './NotificationService';
 import { SessionStore } from './SessionStore';
-import { handleLocationRequest, type LocationRequestData } from './LocationPingHandler';
+import {
+  handleLocationRequest,
+  type LocationRequestData,
+} from './LocationPingHandler';
 
 const TAG = 'MobileSocketService';
 

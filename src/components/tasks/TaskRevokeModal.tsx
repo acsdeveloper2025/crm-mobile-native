@@ -51,9 +51,8 @@ export const TaskRevokeModal: React.FC<TaskRevokeModalProps> = ({
   isRevoking,
 }) => {
   const { theme } = useTheme();
-  const [reasons, setReasons] = useState<Array<{ code: string; label: string }>>(
-    FALLBACK_REASONS,
-  );
+  const [reasons, setReasons] =
+    useState<Array<{ code: string; label: string }>>(FALLBACK_REASONS);
   const [reason, setReason] = useState<string>(FALLBACK_REASONS[0].label);
 
   // Hydrate from the local mirror each time the modal opens. Falls back
@@ -83,7 +82,11 @@ export const TaskRevokeModal: React.FC<TaskRevokeModalProps> = ({
           setReason(FALLBACK_REASONS[0].label);
         }
       } catch (err) {
-        Logger.warn(TAG, 'Failed to read revoke_reasons mirror; using fallback', err);
+        Logger.warn(
+          TAG,
+          'Failed to read revoke_reasons mirror; using fallback',
+          err,
+        );
       }
     })();
     return () => {
