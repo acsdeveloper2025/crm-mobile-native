@@ -470,22 +470,12 @@ class CameraServiceClass {
         w <= NORMALIZE_MAX_EDGE &&
         h <= NORMALIZE_MAX_EDGE;
 
-      if (withinBound && extension !== 'png') {
-        const orientation = await this.readExifOrientation(filePath);
-        // orientation 1 = upright, null = no EXIF block = also upright.
-        // 2..8 means rotation/mirror is baked only in the tag, not pixels
-        // → must normalize so the pixels themselves are upright.
-        if (orientation === 1 || orientation === null) {
-          // Strip EXIF in place so the saved bytes == uploaded bytes (the
-          // upload path strips too). This keeps the capture-time hash valid
-          // against the server re-hash. One read+write, NO decode.
-          await this.stripExifInPlace(filePath);
-          Logger.debug(
-            TAG,
-            'Normalize skipped (upright + in-bound); EXIF stripped in place',
-          );
-          return;
-        }
+      if (
+        withinBound &&
+        extension !== 'png' &&
+        (await this.trySkipNormalize(filePath))
+      ) {
+        return;
       }
 
       await this.normalizeWithResizer(filePath, extension);
@@ -499,32 +489,64 @@ class CameraServiceClass {
   }
 
   /**
-   * Read the JPEG EXIF Orientation tag (1..8), or null when there is no
-   * EXIF block / not a JPEG / read fails. Authoritative for the bytes as
-   * written — vision-camera's display-relative `orientation` field is NOT
-   * a reliable proxy for what's actually in the file.
+   * Phase 3 skip: when the JPEG is already upright, strip its EXIF in place
+   * and report success — letting the caller bypass the full decode+resize.
+   * Reads the file's base64 ONCE (M1): the same string is used to read the
+   * EXIF Orientation tag AND to produce the stripped bytes, so the skip
+   * path costs one read + one write, NO decode.
+   *
+   * Returns true only when the photo was upright (EXIF Orientation 1 or no
+   * EXIF block) AND the strip+write succeeded. Returns false on a
+   * rotation/mirror tag (2..8 — pixels must be baked upright) or on any
+   * read/write error, so the caller falls through to normalizeWithResizer.
+   *
+   * Authoritative on the file's own EXIF — vision-camera's display-relative
+   * `orientation` field is NOT a reliable proxy for what's in the file.
    */
-  private async readExifOrientation(filePath: string): Promise<number | null> {
+  private async trySkipNormalize(filePath: string): Promise<boolean> {
+    let base64: string;
     try {
-      const base64 = await RNFS.readFile(filePath, 'base64');
-      const exif = piexif.load(`data:image/jpeg;base64,${base64}`);
+      base64 = await RNFS.readFile(filePath, 'base64');
+    } catch (err) {
+      Logger.warn(TAG, 'EXIF read for skip-check failed; will normalize', err);
+      return false;
+    }
+
+    const dataUri = `data:image/jpeg;base64,${base64}`;
+
+    // Orientation 1 = upright; a thrown load() means no EXIF block = also
+    // upright. 2..8 means rotation/mirror lives only in the tag, not the
+    // pixels → must normalize so the pixels themselves are upright.
+    let orientation: number | null;
+    try {
+      const exif = piexif.load(dataUri);
       const zeroth = (exif as { '0th'?: Record<number, unknown> })['0th'];
       const value = zeroth?.[piexif.ImageIFD.Orientation];
-      return typeof value === 'number' ? value : null;
+      orientation = typeof value === 'number' ? value : null;
     } catch {
-      // piexif throws when there's no EXIF at all — that's "upright/none",
-      // not an error worth logging on every capture.
-      return null;
+      orientation = null;
     }
-  }
+    if (orientation !== 1 && orientation !== null) {
+      return false;
+    }
 
-  /** Strip every EXIF IFD from a JPEG in place (read → remove → write). */
-  private async stripExifInPlace(filePath: string): Promise<void> {
-    const base64 = await RNFS.readFile(filePath, 'base64');
-    const stripped = piexif
-      .remove(`data:image/jpeg;base64,${base64}`)
-      .replace(/^data:image\/jpeg;base64,/, '');
-    await RNFS.writeFile(filePath, stripped, 'base64');
+    // Strip EXIF in place so the saved bytes == the uploaded bytes (the
+    // upload path strips too, and piexif.remove is byte-idempotent). This
+    // keeps the capture-time client hash valid against the server re-hash.
+    try {
+      const stripped = piexif
+        .remove(dataUri)
+        .replace(/^data:image\/jpeg;base64,/, '');
+      await RNFS.writeFile(filePath, stripped, 'base64');
+      Logger.debug(
+        TAG,
+        'Normalize skipped (upright + in-bound); EXIF stripped in place',
+      );
+      return true;
+    } catch (err) {
+      Logger.warn(TAG, 'EXIF strip for skip failed; will normalize', err);
+      return false;
+    }
   }
 
   /** Full decode → orientation-bake + downscale → overwrite in place. */
