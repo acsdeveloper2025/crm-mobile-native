@@ -248,19 +248,25 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
         photo.path,
         taskId,
         componentType === 'selfie' ? 'selfie' : 'photo',
-        warm
-          ? {
-              locationOverride: {
-                latitude: warm.latitude,
-                longitude: warm.longitude,
-                accuracy: warm.accuracy,
-                altitude: warm.altitude,
-                speed: warm.speed,
-                heading: warm.heading,
-                timestamp: warm.timestamp,
-              },
-            }
-          : undefined,
+        {
+          // Phase 3: pass the capture's pixel dims so savePhoto can skip the
+          // downscale when the photo is already within the size bound.
+          captureWidth: photo.width,
+          captureHeight: photo.height,
+          ...(warm
+            ? {
+                locationOverride: {
+                  latitude: warm.latitude,
+                  longitude: warm.longitude,
+                  accuracy: warm.accuracy,
+                  altitude: warm.altitude,
+                  speed: warm.speed,
+                  heading: warm.heading,
+                  timestamp: warm.timestamp,
+                },
+              }
+            : {}),
+        },
       );
 
       if (!saved) {

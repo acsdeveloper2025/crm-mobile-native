@@ -5,6 +5,7 @@ import { Platform, PermissionsAndroid } from 'react-native';
 import { v4 as uuidv4 } from 'uuid';
 import RNFS from 'react-native-fs';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
+import piexif from 'piexifjs';
 import { AttachmentRepository } from '../repositories/AttachmentRepository';
 import { TaskRepository } from '../repositories/TaskRepository';
 import { DatabaseService } from '../database/DatabaseService';
@@ -99,6 +100,11 @@ interface SavePhotoOptions {
     heading?: number;
     timestamp?: string;
   } | null;
+  // 2026-05-31 (Phase 3): capture pixel dims from vision-camera's
+  // PhotoFile — a free signal (no file read) used to decide whether the
+  // downscale step can be skipped.
+  captureWidth?: number;
+  captureHeight?: number;
 }
 
 class CameraServiceClass {
@@ -226,7 +232,10 @@ class CameraServiceClass {
       //   2. Downscale to ~1080p class. `mode:'contain'` + equal bounds
       //      preserves aspect — NO landscape crop (the bug we are fixing) —
       //      and `onlyScaleDown` never upscales an already-small image.
-      await this.normalizeCapturedImage(finalDestPath, extension);
+      await this.normalizeCapturedImage(finalDestPath, extension, {
+        captureWidth: options?.captureWidth,
+        captureHeight: options?.captureHeight,
+      });
 
       // Get file size (post-normalize so size/hash reflect the final bytes)
       const stat = await RNFS.stat(finalDestPath);
@@ -425,11 +434,101 @@ class CameraServiceClass {
    *    a landscape frame stays landscape — never cropped to portrait)
    *  - `onlyScaleDown:true` leaves already-smaller images untouched
    *
+   * Phase 3 (conditional-normalize): when the capture is already upright
+   * (EXIF Orientation == 1 / absent) AND already within the size bound,
+   * the expensive decode+re-encode is skipped — but EXIF is FIRST stripped
+   * in place so the saved bytes match what gets uploaded (the upload path
+   * also strips EXIF; the backend hash_verified check compares the
+   * client capture-time hash against a re-hash of the uploaded bytes, so
+   * the bytes hashed here MUST equal the bytes that land server-side).
+   * Re-encoding via ImageResizer already produces EXIF-less output, so the
+   * non-skip branch needs no extra strip. Fail-safe: any doubt normalizes.
+   *
    * Best-effort: on any failure the original file is kept as-is (a rotated
    * or larger photo is better than a failed capture). Overwrites in place
    * so the caller's destPath/hash/stat all see the final bytes.
+   *
+   * @param captureWidth/captureHeight  vision-camera PhotoFile pixel dims
+   *   (free, no file read) — used to decide if the downscale can be skipped.
    */
   private async normalizeCapturedImage(
+    filePath: string,
+    extension: string,
+    capture: { captureWidth?: number; captureHeight?: number } = {},
+  ): Promise<void> {
+    try {
+      // Phase 3 skip path — JPEG only (PNG has no EXIF orientation tag and
+      // isn't the camera output). Skip the decode+re-encode when the photo
+      // is already within the size bound AND already upright.
+      const w = capture.captureWidth;
+      const h = capture.captureHeight;
+      const withinBound =
+        typeof w === 'number' &&
+        typeof h === 'number' &&
+        w > 0 &&
+        h > 0 &&
+        w <= NORMALIZE_MAX_EDGE &&
+        h <= NORMALIZE_MAX_EDGE;
+
+      if (withinBound && extension !== 'png') {
+        const orientation = await this.readExifOrientation(filePath);
+        // orientation 1 = upright, null = no EXIF block = also upright.
+        // 2..8 means rotation/mirror is baked only in the tag, not pixels
+        // → must normalize so the pixels themselves are upright.
+        if (orientation === 1 || orientation === null) {
+          // Strip EXIF in place so the saved bytes == uploaded bytes (the
+          // upload path strips too). This keeps the capture-time hash valid
+          // against the server re-hash. One read+write, NO decode.
+          await this.stripExifInPlace(filePath);
+          Logger.debug(
+            TAG,
+            'Normalize skipped (upright + in-bound); EXIF stripped in place',
+          );
+          return;
+        }
+      }
+
+      await this.normalizeWithResizer(filePath, extension);
+    } catch (error) {
+      Logger.warn(
+        TAG,
+        'Image normalize (orientation/downscale) failed; keeping original',
+        error,
+      );
+    }
+  }
+
+  /**
+   * Read the JPEG EXIF Orientation tag (1..8), or null when there is no
+   * EXIF block / not a JPEG / read fails. Authoritative for the bytes as
+   * written — vision-camera's display-relative `orientation` field is NOT
+   * a reliable proxy for what's actually in the file.
+   */
+  private async readExifOrientation(filePath: string): Promise<number | null> {
+    try {
+      const base64 = await RNFS.readFile(filePath, 'base64');
+      const exif = piexif.load(`data:image/jpeg;base64,${base64}`);
+      const zeroth = (exif as { '0th'?: Record<number, unknown> })['0th'];
+      const value = zeroth?.[piexif.ImageIFD.Orientation];
+      return typeof value === 'number' ? value : null;
+    } catch {
+      // piexif throws when there's no EXIF at all — that's "upright/none",
+      // not an error worth logging on every capture.
+      return null;
+    }
+  }
+
+  /** Strip every EXIF IFD from a JPEG in place (read → remove → write). */
+  private async stripExifInPlace(filePath: string): Promise<void> {
+    const base64 = await RNFS.readFile(filePath, 'base64');
+    const stripped = piexif
+      .remove(`data:image/jpeg;base64,${base64}`)
+      .replace(/^data:image\/jpeg;base64,/, '');
+    await RNFS.writeFile(filePath, stripped, 'base64');
+  }
+
+  /** Full decode → orientation-bake + downscale → overwrite in place. */
+  private async normalizeWithResizer(
     filePath: string,
     extension: string,
   ): Promise<void> {
