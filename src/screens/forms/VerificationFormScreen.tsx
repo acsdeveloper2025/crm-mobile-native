@@ -605,9 +605,14 @@ export const VerificationFormScreen = ({
         submitTaskForm,
       });
 
+      // P1c (ERROR_HANDLING_AUDIT #15): the submit only ENQUEUES locally
+      // (status='pending', sync_status=PENDING) — FormUploader syncs to the
+      // server afterward. Don't claim "submitted successfully" (implies the
+      // server has it); say it's queued + will sync. Failures surface as the
+      // Resubmit badge on the task.
       Alert.alert(
-        'Success',
-        'Verification submitted successfully and queued for upload.',
+        'Submission Queued',
+        'Verification saved and queued for upload. It will sync to the server automatically and appear in Completed.',
         [
           {
             text: 'OK',
