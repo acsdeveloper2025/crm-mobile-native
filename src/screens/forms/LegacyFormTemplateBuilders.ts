@@ -344,6 +344,10 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
     'Office Staff',
     'Clark',
     'Principal',
+    'Builder',
+    'Builder Partner',
+    'Director',
+    'Partner',
     'Other',
   ],
   addressStructureColor: STANDARD_COLORS,
@@ -454,6 +458,7 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
     'Number is Switch Off',
     'Number is Unreachable',
     'Refused to Guide Address',
+    'Pickup call & confirm',
   ],
   callRemarkUntraceable: [
     'Did Not Pick Up Call',
@@ -556,6 +561,10 @@ const COMMON_SELECT_OPTIONS: Record<string, string[]> = {
     'Office Staff',
     'Clark',
     'Principal',
+    'Builder',
+    'Builder Partner',
+    'Director',
+    'Partner',
     'Other',
   ],
 };
@@ -1213,6 +1222,12 @@ const legacyEntryRestrictedResidenceFields = withLegacyResidenceOrder([
   {
     name: 'addressRating',
     label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
     type: 'select',
     required: true,
   },
@@ -2135,6 +2150,12 @@ const legacyEntryRestrictedResiCumOfficeFields = withLegacyResiCumOfficeOrder([
     required: true,
   },
   {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'metPersonType',
     label: 'Met Person',
     type: 'select',
@@ -2378,6 +2399,10 @@ const legacyOfficeSelectOptions: Record<string, string[]> = {
     'Office Staff',
     'Clark',
     'Principal',
+    'Builder',
+    'Builder Partner',
+    'Director',
+    'Partner',
     'Other',
   ],
   officeExistence: ['Exist', 'Does Not Exist'],
@@ -3008,6 +3033,12 @@ const legacyEntryRestrictedOfficeFields = withLegacyOfficeOrder([
     required: true,
   },
   {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'metPersonType',
     label: 'Met Person',
     type: 'select',
@@ -3221,6 +3252,10 @@ const legacyBusinessSelectOptions: Record<string, string[]> = {
     'Office Staff',
     'Clark',
     'Principal',
+    'Builder',
+    'Builder Partner',
+    'Director',
+    'Partner',
     'Other',
   ],
   businessExistence: ['Exist', 'Does Not Exist'],
@@ -3866,6 +3901,12 @@ const legacyEntryRestrictedBusinessFields = withLegacyBusinessOrder([
   {
     name: 'addressRating',
     label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
     type: 'select',
     required: true,
   },
@@ -4661,6 +4702,12 @@ const legacyEntryRestrictedBuilderFields = withLegacyBusinessOrder([
     required: true,
   },
   {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'metPersonType',
     label: 'Met Person',
     type: 'select',
@@ -4859,6 +4906,8 @@ const legacyNocSelectOptions: Record<string, string[]> = {
     'Partner',
     'Director',
     'Tenant',
+    'Builder',
+    'Builder Partner',
     'Other',
   ],
   designationShiftedOffice: [
@@ -4873,6 +4922,10 @@ const legacyNocSelectOptions: Record<string, string[]> = {
     'Office Staff',
     'Clark',
     'Principal',
+    'Builder',
+    'Builder Partner',
+    'Director',
+    'Partner',
     'Other',
   ],
   businessExistence: ['Exist', 'Does Not Exist'],
@@ -5401,6 +5454,12 @@ const legacyEntryRestrictedNocFields = withLegacyNocOrder([
     required: true,
   },
   {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'metPersonType',
     label: 'Met Person',
     type: 'select',
@@ -5590,6 +5649,10 @@ const legacyDsaSelectOptions: Record<string, string[]> = {
     'Office Staff',
     'Clark',
     'Principal',
+    'Builder',
+    'Builder Partner',
+    'Director',
+    'Partner',
     'Other',
   ],
   businessExistence: ['Exist', 'Does Not Exist'],
@@ -6227,6 +6290,12 @@ const legacyEntryRestrictedDsaFields = withLegacyDsaOrder([
     required: true,
   },
   {
+    name: 'callRemark',
+    label: 'Call Remark',
+    type: 'select',
+    required: true,
+  },
+  {
     name: 'metPersonType',
     label: 'Met Person',
     type: 'select',
@@ -6758,6 +6827,12 @@ const legacyEntryRestrictedPropertyApfFields = withLegacyPropertyApfOrder([
   {
     name: 'addressRating',
     label: 'Address Rating',
+    type: 'select',
+    required: true,
+  },
+  {
+    name: 'callRemark',
+    label: 'Call Remark',
     type: 'select',
     required: true,
   },
@@ -7347,6 +7422,12 @@ const legacyEntryRestrictedPropertyIndividualFields =
       required: true,
     },
     {
+      name: 'callRemark',
+      label: 'Call Remark',
+      type: 'select',
+      required: true,
+    },
+    {
       name: 'flatStatus',
       label: 'Flat Status',
       type: 'select',
@@ -7594,30 +7675,86 @@ export const getOutcomeLabelForFormType = (
   outcome: AllOutcome,
 ): string => getOutcomeLabel(formTypeKey, outcome);
 
+// When 'Pickup call & confirm' is chosen in Call Remark, the agent reached
+// the applicant and confirmed a status — surface a dependent select for that
+// detail. Value strings are report-facing (the backend TemplateReportService
+// string-matches them), so keep them in sync with CRM-BACKEND.
+const CALL_CONFIRMATION_TRIGGER = 'Pickup call & confirm';
+const CALL_CONFIRMATION_OPTIONS = [
+  'Address is Shifted',
+  'Loan Cancel',
+  'Already Verification Done',
+  'Hold for Verification',
+  'Requested to Visit Another Address',
+  'Request to Visit Another Day',
+  'Currently Not Available',
+];
+
+// Inject a "Call Confirmation" select immediately after every "callRemark"
+// field, gated on callRemark === 'Pickup call & confirm'. Done centrally so
+// all 9 types × every outcome that carries Call Remark get it without editing
+// each per-outcome section array. Orders are re-sequenced so the inserted
+// field sorts in place.
+const injectCallConfirmationField = (template: FormTemplate): void => {
+  for (const section of template.sections) {
+    const expanded: FormFieldTemplate[] = [];
+    for (const field of section.fields) {
+      expanded.push(field);
+      if (field.name === 'callRemark') {
+        expanded.push({
+          id: 'callConfirmation',
+          name: 'callConfirmation',
+          label: 'Call Confirmation',
+          type: 'select',
+          order: field.order,
+          options: CALL_CONFIRMATION_OPTIONS.map(value => ({ label: value, value })),
+          conditional: {
+            field: 'callRemark',
+            operator: 'equals',
+            value: CALL_CONFIRMATION_TRIGGER,
+          },
+          requiredWhen: {
+            field: 'callRemark',
+            operator: 'equals',
+            value: CALL_CONFIRMATION_TRIGGER,
+          },
+        });
+      }
+    }
+    section.fields = expanded.map((f, i) => ({ ...f, order: i + 1 }));
+  }
+};
+
 export const buildLegacyTemplateForFormType = (
   verificationType: FormTypeKey,
   outcome: string,
 ): FormTemplate | null => {
-  switch (verificationType) {
-    case 'residence':
-      return buildLegacyResidenceTemplate(verificationType, outcome);
-    case 'residence-cum-office':
-      return buildLegacyResidenceCumOfficeTemplate(verificationType, outcome);
-    case 'office':
-      return buildLegacyOfficeTemplate(verificationType, outcome);
-    case 'business':
-      return buildLegacyBusinessTemplate(verificationType, outcome);
-    case 'builder':
-      return buildLegacyBuilderTemplate(verificationType, outcome);
-    case 'noc':
-      return buildLegacyNocTemplate(verificationType, outcome);
-    case 'dsa-connector':
-      return buildLegacyDsaTemplate(verificationType, outcome);
-    case 'property-individual':
-      return buildLegacyPropertyIndividualTemplate(verificationType, outcome);
-    case 'property-apf':
-      return buildLegacyPropertyApfTemplate(verificationType, outcome);
-    default:
-      return null;
+  const template = ((): FormTemplate | null => {
+    switch (verificationType) {
+      case 'residence':
+        return buildLegacyResidenceTemplate(verificationType, outcome);
+      case 'residence-cum-office':
+        return buildLegacyResidenceCumOfficeTemplate(verificationType, outcome);
+      case 'office':
+        return buildLegacyOfficeTemplate(verificationType, outcome);
+      case 'business':
+        return buildLegacyBusinessTemplate(verificationType, outcome);
+      case 'builder':
+        return buildLegacyBuilderTemplate(verificationType, outcome);
+      case 'noc':
+        return buildLegacyNocTemplate(verificationType, outcome);
+      case 'dsa-connector':
+        return buildLegacyDsaTemplate(verificationType, outcome);
+      case 'property-individual':
+        return buildLegacyPropertyIndividualTemplate(verificationType, outcome);
+      case 'property-apf':
+        return buildLegacyPropertyApfTemplate(verificationType, outcome);
+      default:
+        return null;
+    }
+  })();
+  if (template) {
+    injectCallConfirmationField(template);
   }
+  return template;
 };
