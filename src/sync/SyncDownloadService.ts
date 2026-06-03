@@ -440,6 +440,10 @@ class SyncDownloadServiceClass {
     // tab, counts, conflict resolver) treats it as done with no other change.
     if (task.status === 'SUBMITTED_FOR_REVIEW') {
       task.status = 'COMPLETED';
+      // The server has not stamped completed_at (the task is not COMPLETED
+      // server-side yet), so fall back to the submit time so the agent's
+      // Completed view shows a sensible "Completed on" and TAT is not inflated.
+      task.completedAt = task.completedAt || task.updatedAt || new Date().toISOString();
     }
 
     // B-148: collected inside the tx, unlinked after commit (RNFS is
