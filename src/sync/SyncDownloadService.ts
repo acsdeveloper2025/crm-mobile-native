@@ -431,6 +431,21 @@ class SyncDownloadServiceClass {
       return;
     }
 
+    // Mandatory backend review (server-side): once a field agent submits, the
+    // task sits in SUBMITTED_FOR_REVIEW until a backend user finalizes it. The
+    // field agent does NOT track that company-side review state — for them,
+    // submitting IS completion (any further work arrives as a brand-new task
+    // with its own payout). So normalize it to COMPLETED here, at the single
+    // server-ingestion point, and every downstream view (task card, Completed
+    // tab, counts, conflict resolver) treats it as done with no other change.
+    if (task.status === 'SUBMITTED_FOR_REVIEW') {
+      task.status = 'COMPLETED';
+      // The server has not stamped completed_at (the task is not COMPLETED
+      // server-side yet), so fall back to the submit time so the agent's
+      // Completed view shows a sensible "Completed on" and TAT is not inflated.
+      task.completedAt = task.completedAt || task.updatedAt || new Date().toISOString();
+    }
+
     // B-148: collected inside the tx, unlinked after commit (RNFS is
     // non-transactional; deferring keeps the SQLite tx pure).
     const deferredUnlinks: string[] = [];
