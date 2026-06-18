@@ -42,19 +42,19 @@
 		  Mirrors android/app/src/main/res/xml/network_security_config.xml
 		  pin-set. Both pins verified against the live cert on 2026-05-18.
 
-		  Pins:
+		  Pins (refreshed 2026-06-18 for the /api/v2 connection):
 		    Primary: SPKI SHA-256 of crm.allcheckservices.com leaf cert
-		             (Let's Encrypt; rotates every ~60 days — refresh
-		             with the next renewal).
-		    Backup : SPKI SHA-256 of Let's Encrypt R13 intermediate CA
-		             (rotates rarely — survives leaf renewals).
+		             (Let's Encrypt; rotates every ~60 days).
+		    Backup : SPKI SHA-256 of the ISRG Root X1 trust anchor
+		             (valid to 2035). NSPinnedCAIdentities pins a CA in
+		             the verified chain, so the LE leaf/intermediate can
+		             rotate WITHOUT a new release — durable strategy.
 
-		  Rotation invariant: keep at least TWO pins at all times.
-		  When the leaf rotates, add the next-cert pin as a THIRD pin
-		  BEFORE the cert switch, wait for adoption, then drop the
-		  old leaf pin. See docs/ssl-pinning.md.
+		  Rotation invariant: keep at least TWO pins at all times. With
+		  the ISRG-root backup, leaf rotation no longer bricks the app.
+		  See docs/ssl-pinning.md.
 
-		  Re-validate before pin-set expiration 2026-12-31.
+		  Re-validate before review date 2028-12-31.
 		-->
 		<key>NSPinnedDomains</key>
 		<dict>
@@ -65,12 +65,14 @@
 				<key>NSPinnedCAIdentities</key>
 				<array>
 					<dict>
+						<!-- Primary: crm.allcheckservices.com leaf cert (Let's Encrypt, refreshed 2026-06-18) -->
 						<key>SPKI-SHA256-BASE64</key>
-						<string>+D94EBRU5pr3Lcn2SvqWT8E+MSR6oDpQx952sp+iH2M=</string>
+						<string>V329rvVf6FFkAnHhuxgqMXVCR9puyLSJbeXYMGVllIc=</string>
 					</dict>
 					<dict>
+						<!-- Backup: ISRG Root X1 trust anchor (durable; survives LE leaf/intermediate rotation) -->
 						<key>SPKI-SHA256-BASE64</key>
-						<string>AlSQhgtJirc8ahLyekmtX+Iw+v46yPYRLJt9Cq1GlB0=</string>
+						<string>C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=</string>
 					</dict>
 				</array>
 			</dict>

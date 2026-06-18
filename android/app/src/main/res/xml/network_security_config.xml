@@ -35,23 +35,22 @@
     <!--
       Production API domain — certificate pinning ACTIVE (2026-04-19).
 
-      Pin set:
+      Pin set (refreshed 2026-06-18 for the /api/v2 connection):
         Primary: SPKI SHA-256 of the current leaf cert for
                  crm.allcheckservices.com (Let's Encrypt leaf, rotates every
-                 ~60 days — refresh this pin when a new cert is issued).
-        Backup : SPKI SHA-256 of the Let's Encrypt R13 intermediate CA.
-                 Acts as a rotation safety net: Android matches any cert in
-                 the presented chain against the pin set, so even when the
-                 leaf rotates the intermediate keeps the app reachable until
-                 the next app release ships an updated leaf pin.
+                 ~60 days).
+        Backup : SPKI SHA-256 of the ISRG Root X1 trust anchor (valid to
+                 2035). Android matches the pin set against the VERIFIED chain
+                 incl. the trust anchor, so when the LE leaf/intermediate
+                 rotate the root pin keeps the app reachable WITHOUT a new
+                 release — the durable strategy for a sideloaded field APK.
 
-      Expiration: 2026-12-31 — both pins MUST be reviewed and re-validated
-      before this date. Pin rotation procedure documented in
-      docs/ssl-pinning.md.
+      Expiration: 2028-12-31 — pins reviewed/re-validated before this date.
+      Because the backup pins the long-lived ISRG root, leaf rotation no
+      longer bricks the app between releases.
 
-      Verified against live server on 2026-04-19 using the curl
-      pinnedpubkey flag with sha256//+D94EBRU5pr3Lcn2SvqWT8E... returned
-      HTTP 200 from https://crm.allcheckservices.com/ .
+      Verified against live server on 2026-06-18: leaf SPKI
+      V329rvVf6FFkAnHhuxgqMXVCR9puyLSJbeXYMGVllIc= (issuer LE YR2 ← ISRG X1).
 
       Release pipeline guard: scripts/check-ssl-pins.sh fails the build if
       the pin-set element is missing, placeholder values leak through, or
@@ -62,11 +61,11 @@
         <trust-anchors>
             <certificates src="system" />
         </trust-anchors>
-        <pin-set expiration="2026-12-31">
-            <!-- Primary: crm.allcheckservices.com leaf cert (Let's Encrypt) -->
-            <pin digest="SHA-256">+D94EBRU5pr3Lcn2SvqWT8E+MSR6oDpQx952sp+iH2M=</pin>
-            <!-- Backup: Let's Encrypt R13 intermediate CA -->
-            <pin digest="SHA-256">AlSQhgtJirc8ahLyekmtX+Iw+v46yPYRLJt9Cq1GlB0=</pin>
+        <pin-set expiration="2028-12-31">
+            <!-- Primary: crm.allcheckservices.com leaf cert (Let's Encrypt, refreshed 2026-06-18) -->
+            <pin digest="SHA-256">V329rvVf6FFkAnHhuxgqMXVCR9puyLSJbeXYMGVllIc=</pin>
+            <!-- Backup: ISRG Root X1 trust anchor (durable; survives LE leaf/intermediate rotation) -->
+            <pin digest="SHA-256">C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=</pin>
         </pin-set>
     </domain-config>
 </network-security-config>

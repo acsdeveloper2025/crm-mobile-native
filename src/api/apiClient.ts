@@ -7,8 +7,9 @@
 //     (<pin-set> on crm.allcheckservices.com; cleartext blocked globally)
 //   - iOS:     ios/CrmMobileNative/Info.plist NSPinnedDomains entry
 //     (Apple-native SPKI pinning, iOS 14+; deployment target is 15.1)
-// Both pin the SAME two SPKI SHA-256 hashes: the current leaf cert AND
-// the Let's Encrypt R13 intermediate CA. Rotation procedure is in
+// Both pin the SAME two SPKI SHA-256 hashes (refreshed 2026-06-18): the
+// current leaf cert AND the ISRG Root X1 trust anchor (durable — survives
+// Let's Encrypt leaf/intermediate rotation). Rotation procedure is in
 // docs/ssl-pinning.md. App-level code requires no changes — axios
 // flows through NSURLSession (iOS) / OkHttp (Android) which both
 // enforce the OS-level pins automatically.
@@ -26,6 +27,48 @@ import { SessionStore } from '../services/SessionStore';
 import { TimeService } from '../services/TimeService';
 import { NetworkService } from '../services/NetworkService';
 import { buildTraceparent } from './tracing';
+
+/**
+ * v2 response-envelope adapter (2026-06-18, /api/v2 connection).
+ *
+ * The app's response parsers expect the v1 mobile envelope `{ success, data }`.
+ * The v2 API (`/api/v2`) returns native shapes for the web-shared endpoints:
+ *   - bare objects        e.g. POST /auth/login  -> { user, tokens, ... }
+ *   - { tokens: {...} }        POST /auth/refresh
+ *   - Paginated lists          GET  /notifications -> { items, totalCount, page, pageSize }
+ * while the device-specific endpoints (mutes/reference/attachments/consents/
+ * telemetry/forms), `/sync/download`, and `/auth/version-check` already emit
+ * `{ success, ... }`. This ONE adapter normalizes every v2 response body into
+ * the v1 envelope so the existing parsers/Zod schemas keep working:
+ *   - already has `success`      -> passthrough (device endpoints, sync, version-check)
+ *   - Paginated                  -> { success, data: items, pagination: { hasMore, ... } }
+ *   - /auth/refresh { tokens }    -> { success, data: tokens }  (parser reads data.accessToken)
+ *   - any other bare object       -> { success, data: body }    (login reads data.tokens.accessToken)
+ * Non-object bodies (strings/blobs/captive-portal HTML) pass through untouched.
+ *
+ * IMPORTANT: validate end-to-end on a device before release (Phase 3) — login,
+ * silent /auth/refresh, the /notifications feed, and task start/complete/revoke.
+ */
+export function normalizeV2Envelope(url: string, body: unknown): unknown {
+  if (body === null || typeof body !== 'object') return body;
+  const obj = body as Record<string, unknown>;
+  if ('success' in obj) return obj; // already the v1 envelope (device endpoints, sync, version-check)
+  if (Array.isArray(obj.items) && typeof obj.totalCount === 'number') {
+    const items = obj.items as unknown[];
+    const page = typeof obj.page === 'number' ? obj.page : 1;
+    const pageSize = typeof obj.pageSize === 'number' ? obj.pageSize : items.length;
+    const total = obj.totalCount as number;
+    return {
+      success: true,
+      data: items,
+      pagination: { hasMore: page * pageSize < total, page, pageSize, total },
+    };
+  }
+  if (url.includes('/auth/refresh') && obj.tokens && typeof obj.tokens === 'object') {
+    return { success: true, data: obj.tokens }; // mobile reads data.accessToken (flat)
+  }
+  return { success: true, data: obj };
+}
 
 type RefreshHandler = () => Promise<string | null>;
 type UnauthorizedHandler = () => Promise<void> | void;
@@ -149,6 +192,9 @@ class ApiClientClass {
         ) {
           NetworkService.notifyCaptivePortal();
         }
+        // /api/v2 connection (2026-06-18): normalize the v2 response shape into the
+        // v1 `{ success, data }` envelope the app's parsers expect. See normalizeV2Envelope.
+        response.data = normalizeV2Envelope(response.config?.url || '', response.data);
         return response;
       },
       async (error: AxiosError) => {
