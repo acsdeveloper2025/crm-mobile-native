@@ -52,6 +52,9 @@ import { buildTraceparent } from './tracing';
 export function normalizeV2Envelope(url: string, body: unknown): unknown {
   if (body === null || typeof body !== 'object') return body;
   const obj = body as Record<string, unknown>;
+  // /health and /time return a bare object the app reads TOP-LEVEL (response.status / .epochMs),
+  // NOT under `.data` — wrapping them would break the reachability/clock checks. Never wrap these.
+  if (url.includes('/health') || url.includes('/time')) return obj;
   if ('success' in obj) return obj; // already the v1 envelope (device endpoints, sync, version-check)
   if (Array.isArray(obj.items) && typeof obj.totalCount === 'number') {
     const items = obj.items as unknown[];
