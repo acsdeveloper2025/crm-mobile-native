@@ -469,8 +469,15 @@ export const TaskListScreen = ({
     [navigation],
   );
 
-  const handleInfoPress = useCallback((task: LocalTask) => {
+  const handleInfoPress = useCallback(async (task: LocalTask) => {
+    // Open immediately with the lean list-projection task, then upgrade to the FULL task. The list
+    // projection omits client/product/applicantType/createdBy/contactNumber/assignedTo/callingCode
+    // (those live in the tasks table / detail projection), so the info modal would otherwise show N/A.
     setSelectedInfoTask(task);
+    const full = await TaskRepository.getTaskById(task.id);
+    if (full) {
+      setSelectedInfoTask((cur) => (cur && cur.id === full.id ? full : cur));
+    }
   }, []);
 
   const handleRevokePress = useCallback((task: LocalTask) => {
