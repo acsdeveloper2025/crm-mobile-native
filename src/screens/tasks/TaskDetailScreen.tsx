@@ -491,6 +491,31 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
               </Text>
             </View>
           </View>
+          {task.companyName ? (
+            <View style={styles.detailRow}>
+              <Icon
+                name="business-outline"
+                size={20}
+                color={theme.colors.textSecondary}
+                style={styles.icon}
+              />
+              <View style={styles.detailValueWrap}>
+                <Text
+                  style={[
+                    styles.detailLabel,
+                    { color: theme.colors.textMuted },
+                  ]}
+                >
+                  Company
+                </Text>
+                <Text
+                  style={[styles.detailValue, { color: theme.colors.text }]}
+                >
+                  {task.companyName}
+                </Text>
+              </View>
+            </View>
+          ) : null}
         </View>
 
         {/* Case Details */}

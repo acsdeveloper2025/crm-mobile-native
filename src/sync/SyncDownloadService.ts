@@ -529,14 +529,14 @@ class SyncDownloadServiceClass {
       await SyncEngineRepository.execute(
         `INSERT INTO tasks
         (id, case_id, verification_task_id, verification_task_number, title, description, customer_name, customer_calling_code,
-         customer_phone, customer_email, address_street, address_city, address_state, address_pincode, latitude, longitude,
+         customer_phone, customer_email, company_name, address_street, address_city, address_state, address_pincode, latitude, longitude,
          status, priority, assigned_at, updated_at, completed_at, notes, verification_type, verification_outcome, applicant_type,
          backend_contact_number, created_by_backend_user, assigned_to_field_user, client_id, client_name, client_code,
          product_id, product_name, product_code, verification_type_id, verification_type_name, verification_type_code,
          form_data_json, is_revoked, revoked_at, revoked_by_name, revoke_reason,
          in_progress_at, saved_at, is_saved, attachment_count,
          sync_status, last_synced_at, local_updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SYNCED', ?, ?)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SYNCED', ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          case_id = excluded.case_id,
          verification_task_id = excluded.verification_task_id,
@@ -547,6 +547,7 @@ class SyncDownloadServiceClass {
          customer_calling_code = excluded.customer_calling_code,
          customer_phone = excluded.customer_phone,
          customer_email = excluded.customer_email,
+         company_name = excluded.company_name,
          address_street = excluded.address_street,
          address_city = excluded.address_city,
          address_state = excluded.address_state,
@@ -597,6 +598,7 @@ class SyncDownloadServiceClass {
           task.customerCallingCode || null,
           task.customerPhone || null,
           task.customerEmail || null,
+          task.companyName || null,
           task.addressStreet || '',
           task.addressCity || '',
           task.addressState || '',

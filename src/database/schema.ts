@@ -1,7 +1,7 @@
 // SQLite Database Schema and Migrations
 // Offline-first schema for field verification data
 
-export const DB_VERSION = 18;
+export const DB_VERSION = 19;
 
 /**
  * All CREATE TABLE statements for the local SQLite database.
@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS tasks (
   customer_calling_code TEXT,
   customer_phone TEXT,
   customer_email TEXT,
+  company_name TEXT,
   address_street TEXT,
   address_city TEXT,
   address_state TEXT,
@@ -237,6 +238,7 @@ CREATE TABLE IF NOT EXISTS task_list_projection (
   verification_task_number TEXT,
   title TEXT NOT NULL,
   customer_name TEXT NOT NULL,
+  company_name TEXT,
   address_street TEXT,
   address_city TEXT,
   address_state TEXT,
@@ -699,6 +701,18 @@ export const MIGRATIONS: Migration[] = [
       UPDATE task_list_projection SET notes = (
         SELECT COALESCE(NULLIF(t.notes, ''), t.description)
         FROM tasks t WHERE t.id = task_list_projection.id
+      );
+    `,
+  },
+  {
+    version: 19,
+    description:
+      'v2 sync: add company_name (targeted applicant employer/company) to tasks + task_list_projection so the field app can show it under the customer. Backfilled into the list projection from tasks; task_detail_projection.task_json picks it up on the next projection rebuild.',
+    sql: `
+      ALTER TABLE tasks ADD COLUMN company_name TEXT;
+      ALTER TABLE task_list_projection ADD COLUMN company_name TEXT;
+      UPDATE task_list_projection SET company_name = (
+        SELECT t.company_name FROM tasks t WHERE t.id = task_list_projection.id
       );
     `,
   },

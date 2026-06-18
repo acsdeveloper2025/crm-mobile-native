@@ -12,6 +12,7 @@ export interface LocalTask {
   customerCallingCode?: string;
   customerPhone?: string;
   customerEmail?: string;
+  companyName?: string; // Applicant's employer/company (v2 sync, optional)
   addressStreet: string;
   addressCity: string;
   addressState: string;

@@ -109,13 +109,13 @@ class ProjectionUpdaterClass {
         await tx.execute('DELETE FROM task_list_projection');
         await tx.execute(
           `INSERT INTO task_list_projection (
-             id, case_id, verification_task_id, verification_task_number, title, customer_name,
+             id, case_id, verification_task_id, verification_task_number, title, customer_name, company_name,
              address_street, address_city, address_state, address_pincode, status, priority,
              assigned_at, updated_at, completed_at, verification_type, verification_type_name,
              is_saved, is_revoked, revoked_at, in_progress_at, saved_at, attachment_count, search_text, notes
            )
            SELECT
-             id, case_id, verification_task_id, verification_task_number, title, customer_name,
+             id, case_id, verification_task_id, verification_task_number, title, customer_name, company_name,
              address_street, address_city, address_state, address_pincode, status, priority,
              assigned_at, updated_at, completed_at, verification_type, verification_type_name,
              is_saved, is_revoked, revoked_at, in_progress_at, saved_at, attachment_count,
@@ -154,6 +154,7 @@ class ProjectionUpdaterClass {
              'customerCallingCode', customer_calling_code,
              'customerPhone', customer_phone,
              'customerEmail', customer_email,
+             'companyName', company_name,
              'addressStreet', address_street,
              'addressCity', address_city,
              'addressState', address_state,
@@ -237,13 +238,13 @@ class ProjectionUpdaterClass {
         ]);
         await tx.execute(
           `INSERT INTO task_list_projection (
-             id, case_id, verification_task_id, verification_task_number, title, customer_name,
+             id, case_id, verification_task_id, verification_task_number, title, customer_name, company_name,
              address_street, address_city, address_state, address_pincode, status, priority,
              assigned_at, updated_at, completed_at, verification_type, verification_type_name,
              is_saved, is_revoked, revoked_at, in_progress_at, saved_at, attachment_count, search_text, notes
            )
            SELECT
-             id, case_id, verification_task_id, verification_task_number, title, customer_name,
+             id, case_id, verification_task_id, verification_task_number, title, customer_name, company_name,
              address_street, address_city, address_state, address_pincode, status, priority,
              assigned_at, updated_at, completed_at, verification_type, verification_type_name,
              is_saved, is_revoked, revoked_at, in_progress_at, saved_at, attachment_count,
@@ -276,6 +277,7 @@ class ProjectionUpdaterClass {
              'customerCallingCode', customer_calling_code,
              'customerPhone', customer_phone,
              'customerEmail', customer_email,
+             'companyName', company_name,
              'addressStreet', address_street,
              'addressCity', address_city,
              'addressState', address_state,

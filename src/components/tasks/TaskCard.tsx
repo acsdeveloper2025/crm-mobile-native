@@ -248,6 +248,19 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         </Text>
       </View>
 
+      {task.companyName ? (
+        <View style={styles.companyContainer}>
+          <Text style={styles.companyIcon}>🏢</Text>
+          <Text
+            style={[styles.companyText, { color: theme.colors.textSecondary }]}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
+            Company: {task.companyName}
+          </Text>
+        </View>
+      ) : null}
+
       {task.notes ? (
         <View style={styles.triggerContainer}>
           <Text style={styles.triggerIcon}>📋</Text>
@@ -479,6 +492,7 @@ const areEqual = (prev: TaskCardProps, next: TaskCardProps): boolean => {
     prevTask.attachmentCount === nextTask.attachmentCount &&
     prevTask.priority === nextTask.priority &&
     prevTask.customerName === nextTask.customerName &&
+    prevTask.companyName === nextTask.companyName &&
     prevTask.addressStreet === nextTask.addressStreet &&
     prevTask.addressCity === nextTask.addressCity &&
     prevTask.addressState === nextTask.addressState &&
@@ -557,6 +571,20 @@ const styles = StyleSheet.create({
     marginRight: 6,
   },
   addressText: {
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
+  },
+  companyContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  companyIcon: {
+    fontSize: 16,
+    marginRight: 6,
+  },
+  companyText: {
     fontSize: 13,
     flex: 1,
     lineHeight: 18,

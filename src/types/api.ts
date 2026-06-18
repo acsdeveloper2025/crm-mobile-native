@@ -76,6 +76,9 @@ export interface MobileCaseResponse {
   customerCallingCode?: string;
   customerPhone?: string;
   customerEmail?: string;
+  // v2 sync: targeted applicant's employer/company name. Only present
+  // when the backend has one for the case — most cases omit it.
+  companyName?: string;
   addressStreet: string;
   addressCity: string;
   addressState: string;

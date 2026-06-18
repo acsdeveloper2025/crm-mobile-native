@@ -107,6 +107,13 @@ export const TaskInfoModal: React.FC<TaskInfoModalProps> = ({
               value={task.customerName}
               theme={theme}
             />
+            {task.companyName ? (
+              <InfoRow
+                label="Company"
+                value={task.companyName}
+                theme={theme}
+              />
+            ) : null}
             <InfoRow label="Case ID" value={`#${task.caseId}`} theme={theme} />
             <InfoRow
               label="Verification Task Number"
