@@ -73,6 +73,71 @@ export function normalizeV2Envelope(url: string, body: unknown): unknown {
   return { success: true, data: obj };
 }
 
+/**
+ * Human-readable text for the v2 error codes the app surfaces. Keeps the
+ * device UI and sync gates working: the app reads a *sentence* from
+ * `message` / nested `error.code`, while v2 only sends a bare `<CODE>`
+ * string. Unmapped codes fall back to a Title-Cased transform of the code
+ * (e.g. `SOME_CODE` -> `Some Code`) so the user never sees a raw enum.
+ */
+const V2_ERROR_MESSAGES: Record<string, string> = {
+  OUTSIDE_SHIFT_WINDOW: 'This action is outside your assigned shift window.',
+  CLOCK_SKEW_AHEAD:
+    "Your device clock is ahead of the server. Please correct the time and retry.",
+  VALIDATION: 'Some of the submitted details are invalid. Please review and try again.',
+  INVALID_TRANSITION: 'That action is not allowed for the current status.',
+  TASK_NOT_FOUND: 'This task could not be found. It may have been reassigned or removed.',
+  INVALID_IMAGE: 'The image could not be processed. Please retake the photo and retry.',
+  FORM_TOO_LARGE: 'The submission is too large. Please reduce attachments and retry.',
+  UNKNOWN_FORM_TYPE: 'This form type is not supported by the server.',
+  INVALID_REFRESH: 'Your session has expired. Please sign in again.',
+};
+
+/**
+ * Title-Case a v2 error code for display when it has no mapped message,
+ * e.g. `OUTSIDE_SHIFT_WINDOW` -> `Outside Shift Window`.
+ */
+function humanizeErrorCode(code: string): string {
+  return code
+    .toLowerCase()
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+/**
+ * v2 error-envelope adapter (2026-06-18, /api/v2 connection).
+ *
+ * The success interceptor (normalizeV2Envelope) maps v2 2xx bodies into the
+ * v1 shape, but on a 4xx/5xx axios rejects with the RAW v2 error body
+ * `{ error: "<CODE>", details?, issues? }`. The app was built against v1's
+ * shape `{ success:false, message:"<text>", error:{ code, details } }`, so
+ * downstream code that reads `error.response.data.error.code` (e.g.
+ * LocationUploader's OUTSIDE_SHIFT_WINDOW drop) or `data.message`
+ * (LoginScreen) silently misses. This rewrites a v2 error body into the v1
+ * shape so those consumers keep working.
+ *
+ * Defensive — only rewrites when the shape clearly matches a v2 error
+ * (plain object, no `success` key, string `error` field). v1-shaped bodies
+ * (which already carry `success`) and non-object bodies (strings/HTML/blobs)
+ * pass through untouched.
+ */
+export function normalizeV2Error(body: unknown): unknown {
+  if (body === null || typeof body !== 'object') return body;
+  const obj = body as Record<string, unknown>;
+  if ('success' in obj) return obj; // already a v1-shaped error envelope
+  if (typeof obj.error !== 'string') return obj; // not a v2 error shape
+  const code = obj.error;
+  const message = V2_ERROR_MESSAGES[code] ?? humanizeErrorCode(code);
+  return {
+    ...obj,
+    success: false,
+    error: { code, details: obj.details, issues: obj.issues },
+    message,
+  };
+}
+
 type RefreshHandler = () => Promise<string | null>;
 type UnauthorizedHandler = () => Promise<void> | void;
 
@@ -201,6 +266,15 @@ class ApiClientClass {
         return response;
       },
       async (error: AxiosError) => {
+        // /api/v2 connection (2026-06-18): normalize the RAW v2 error body
+        // `{ error: "<CODE>", details?, issues? }` into the v1 shape the app's
+        // consumers expect (`error.response.data.error.code` / `.message`).
+        // Mirror of normalizeV2Envelope for the rejection path. Only mutate
+        // the response body — preserve status/config/headers on the error.
+        if (error.response) {
+          error.response.data = normalizeV2Error(error.response.data);
+        }
+
         const originalRequest = error.config as InternalAxiosRequestConfig & {
           _retry?: boolean;
         };
