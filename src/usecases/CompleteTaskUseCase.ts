@@ -25,19 +25,24 @@ export const CompleteTaskUseCase = {
       throw new Error('Task not found');
     }
 
+    // ADR-0047 two-stage completion: the device is a field terminal — its
+    // "finish my work" action produces SUBMITTED (field executive done), NEVER
+    // COMPLETED. Only the OFFICE turns SUBMITTED → COMPLETED on the web, which
+    // arrives back via down-sync. The task lands in the new Submitted tab.
+    //
     // The earlier D4 wrap (`DatabaseService.transaction(...)`) deadlocked on
     // op-sqlite (nested transactions via projection rebuild + replaceLatestStatusItem).
     // Order matters: enqueue first, then local update. If enqueue throws,
     // nothing locally changed — user retries cleanly. If the local update
-    // throws after enqueue, the queue still carries the COMPLETED action and
+    // throws after enqueue, the queue still carries the SUBMITTED action and
     // next sync-down converges via the conflict resolver. Reversing the order
-    // would leave the row locally COMPLETED with no queue entry — backend
-    // never learns the task is done.
+    // would leave the row locally SUBMITTED with no queue entry — backend
+    // never learns the field work is submitted.
     await SyncGateway.enqueueTaskStatus(
       resolveBackendTaskId(task.id, task.verificationTaskId),
       task.id,
-      TaskStatus.Completed,
+      TaskStatus.Submitted,
     );
-    await TaskRepository.updateTaskStatus(taskId, TaskStatus.Completed);
+    await TaskRepository.updateTaskStatus(taskId, TaskStatus.Submitted);
   },
 };

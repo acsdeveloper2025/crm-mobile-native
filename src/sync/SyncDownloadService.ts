@@ -82,11 +82,9 @@ class SyncDownloadServiceClass {
         );
 
         for (const task of payload.cases) {
-          const canonicalTaskId = (
-            task.verificationTaskId ||
-            task.id ||
-            ''
-          ).trim();
+          // v2 always sends the canonical backend task UUID as verificationTaskId
+          // (= case_tasks.id, NOT NULL); no v1-style local-id fallback is needed.
+          const canonicalTaskId = (task.verificationTaskId || '').trim();
           if (canonicalTaskId && recentlyCleaned.has(canonicalTaskId)) {
             // Skip — local cleanup purged this within the TTL window.
             continue;
@@ -422,7 +420,9 @@ class SyncDownloadServiceClass {
   }
 
   private async upsertTaskFromServer(task: MobileCaseResponse): Promise<void> {
-    const canonicalTaskId = (task.verificationTaskId || task.id || '').trim();
+    // v2 always sends the canonical backend task UUID as verificationTaskId
+    // (= case_tasks.id, NOT NULL); no v1-style local-id fallback is needed.
+    const canonicalTaskId = (task.verificationTaskId || '').trim();
     if (!canonicalTaskId) {
       Logger.warn(
         TAG,
@@ -431,20 +431,13 @@ class SyncDownloadServiceClass {
       return;
     }
 
-    // Mandatory backend review (server-side): once a field agent submits, the
-    // task sits in SUBMITTED_FOR_REVIEW until a backend user finalizes it. The
-    // field agent does NOT track that company-side review state — for them,
-    // submitting IS completion (any further work arrives as a brand-new task
-    // with its own payout). So normalize it to COMPLETED here, at the single
-    // server-ingestion point, and every downstream view (task card, Completed
-    // tab, counts, conflict resolver) treats it as done with no other change.
-    if (task.status === 'SUBMITTED_FOR_REVIEW') {
-      task.status = 'COMPLETED';
-      // The server has not stamped completed_at (the task is not COMPLETED
-      // server-side yet), so fall back to the submit time so the agent's
-      // Completed view shows a sensible "Completed on" and TAT is not inflated.
-      task.completedAt = task.completedAt || task.updatedAt || new Date().toISOString();
-    }
+    // ADR-0047 two-stage completion: the server now drives the real task
+    // lifecycle — the device's submit lands the task in SUBMITTED (field
+    // executive done), and the OFFICE later turns SUBMITTED → COMPLETED on
+    // the web. Persist whatever status the server sends verbatim (SUBMITTED
+    // or COMPLETED); no client-side status rewrite. The server no longer
+    // emits SUBMITTED_FOR_REVIEW, so the old normalize-to-COMPLETED block is
+    // gone — SUBMITTED flows through to its own tab automatically.
 
     // B-148: collected inside the tx, unlinked after commit (RNFS is
     // non-transactional; deferring keeps the SQLite tx pure).

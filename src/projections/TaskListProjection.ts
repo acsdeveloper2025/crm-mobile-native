@@ -40,7 +40,7 @@ class TaskListProjectionClass {
         `SELECT COUNT(*) as count
          FROM tasks
          WHERE is_saved = 1
-           AND status != 'COMPLETED'
+           AND status NOT IN ('COMPLETED','SUBMITTED')
            AND (is_revoked IS NULL OR is_revoked = 0)`,
       );
       return (rows[0]?.count ?? 0) > 0;
@@ -81,7 +81,7 @@ class TaskListProjectionClass {
     // lists. COMPLETED is intentionally NOT exclusive on is_saved
     // because markCompleted clears is_saved to 0 anyway.
     if (statusFilter === 'SAVED') {
-      sql += ` AND is_saved = 1 AND status != 'COMPLETED'`;
+      sql += ` AND is_saved = 1 AND status NOT IN ('COMPLETED','SUBMITTED')`;
     } else if (statusFilter === 'ASSIGNED' || statusFilter === 'IN_PROGRESS') {
       sql += ` AND status = ? AND (is_saved IS NULL OR is_saved = 0)`;
       params.push(statusFilter);
@@ -136,6 +136,7 @@ class TaskListProjectionClass {
     ALL: number;
     ASSIGNED: number;
     IN_PROGRESS: number;
+    SUBMITTED: number;
     COMPLETED: number;
     SAVED: number;
   }> {
@@ -151,17 +152,24 @@ class TaskListProjectionClass {
     let all = 0;
     let assigned = 0;
     let inProgress = 0;
+    let submitted = 0;
     let completed = 0;
     let saved = 0;
 
     rows.forEach(row => {
       if (row.isRevoked) return;
-      if (row.isSaved && row.status !== 'COMPLETED') {
+      if (
+        row.isSaved &&
+        row.status !== 'COMPLETED' &&
+        row.status !== 'SUBMITTED'
+      ) {
         saved += row.count;
       } else if (row.status === 'ASSIGNED') {
         assigned += row.count;
       } else if (row.status === 'IN_PROGRESS') {
         inProgress += row.count;
+      } else if (row.status === 'SUBMITTED') {
+        submitted += row.count;
       } else if (row.status === 'COMPLETED') {
         completed += row.count;
       }
@@ -172,6 +180,7 @@ class TaskListProjectionClass {
       ALL: all,
       ASSIGNED: assigned,
       IN_PROGRESS: inProgress,
+      SUBMITTED: submitted,
       COMPLETED: completed,
       SAVED: saved,
     };

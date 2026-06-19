@@ -48,16 +48,22 @@ class FormUploaderClass {
 
     const now = new Date().toISOString();
     if (markCompleted) {
+      // ADR-0047 two-stage completion: a server ack lands the task in
+      // SUBMITTED (field executive done); the OFFICE completes it later via
+      // down-sync. The device must NEVER write COMPLETED, so flip only
+      // sync_status → SYNCED and keep status='SUBMITTED' (no completed_at).
+      // (Currently no caller passes markCompleted=true; kept consistent with
+      // the success-ack path in upload() so the path can't reintroduce
+      // device-side COMPLETED.)
       await SyncEngineRepository.execute(
         `UPDATE tasks
-         SET status = 'COMPLETED',
-             completed_at = ?,
+         SET status = 'SUBMITTED',
              sync_status = 'SYNCED',
              last_synced_at = ?,
              local_updated_at = ?,
              form_data_json = ?
          WHERE id = ?`,
-        [now, now, now, JSON.stringify(nextFormData), taskId],
+        [now, now, JSON.stringify(nextFormData), taskId],
       );
       return;
     }
@@ -408,16 +414,20 @@ class FormUploaderClass {
           },
         };
         const now = new Date().toISOString();
+        // ADR-0047 two-stage completion: on a successful server ack the task
+        // stays SUBMITTED (the field executive is done; the OFFICE completes it
+        // later, which arrives via down-sync). The device must NEVER write
+        // COMPLETED. Flip only sync_status → SYNCED; leave status='SUBMITTED'
+        // (set by SubmitVerificationUseCase) and do NOT stamp completed_at.
         await tx.execute(
           `UPDATE tasks
-             SET status = 'COMPLETED',
-                 completed_at = ?,
+             SET status = 'SUBMITTED',
                  sync_status = 'SYNCED',
                  last_synced_at = ?,
                  local_updated_at = ?,
                  form_data_json = ?
            WHERE id = ?`,
-          [now, now, now, JSON.stringify(nextFormData), localTaskId],
+          [now, now, JSON.stringify(nextFormData), localTaskId],
         );
       }
 

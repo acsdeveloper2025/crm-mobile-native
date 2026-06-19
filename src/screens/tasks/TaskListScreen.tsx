@@ -57,6 +57,7 @@ const FILTER_TABS = [
   { id: 'ALL', label: 'All', value: undefined },
   { id: 'ASSIGNED', label: 'Assigned', value: 'ASSIGNED' },
   { id: 'IN_PROGRESS', label: 'In Progress', value: 'IN_PROGRESS' },
+  { id: 'SUBMITTED', label: 'Submitted', value: 'SUBMITTED' },
   { id: 'COMPLETED', label: 'Completed', value: 'COMPLETED' },
   { id: 'SAVED', label: 'Saved', value: 'SAVED' },
 ] as const;
@@ -212,6 +213,7 @@ export const TaskListScreen = ({
     ALL: 0,
     ASSIGNED: 0,
     IN_PROGRESS: 0,
+    SUBMITTED: 0,
     COMPLETED: 0,
     SAVED: 0,
   });
@@ -273,6 +275,14 @@ export const TaskListScreen = ({
         emptyMessage:
           'Use the Save button on a case in the In Progress tab to save it for offline use.',
         searchPlaceholder: defaultSearchPlaceholder || 'Search saved tasks...',
+      };
+    }
+    if (initialFilter === 'SUBMITTED') {
+      return {
+        title: 'Submitted Tasks',
+        emptyMessage: 'You have not submitted any cases yet.',
+        searchPlaceholder:
+          defaultSearchPlaceholder || 'Search submitted tasks...',
       };
     }
     if (initialFilter === 'COMPLETED') {
@@ -380,7 +390,11 @@ export const TaskListScreen = ({
       // Check this BEFORE the IN_PROGRESS branch because saved tasks
       // keep status='IN_PROGRESS' (Saved tab filter is by `is_saved=1`,
       // not status).
-      if (task.isSaved === 1 && task.status !== 'COMPLETED') {
+      if (
+        task.isSaved === 1 &&
+        task.status !== 'COMPLETED' &&
+        task.status !== 'SUBMITTED'
+      ) {
         Alert.alert(
           'Submit Saved Task',
           `Submit verification for ${task.customerName || `#${task.caseId}`}?`,
@@ -447,7 +461,9 @@ export const TaskListScreen = ({
         navigation.navigate('VerificationForm', { taskId: task.id });
         return;
       }
-      if (task.status === 'COMPLETED') {
+      // ADR-0047: SUBMITTED is the field terminal — read-only (the office
+      // completes it), so tap opens the detail view like COMPLETED.
+      if (task.status === 'SUBMITTED' || task.status === 'COMPLETED') {
         navigation.navigate('TaskDetail', { taskId: task.id });
         return;
       }

@@ -21,6 +21,7 @@ export type ThemeColors = {
   info: string;
   assigned: string;
   inProgress: string;
+  submitted: string;
   completed: string;
   saved: string;
   revoked: string;
@@ -127,6 +128,7 @@ export const lightTheme: Theme = {
     info: '#3B82F6',
     assigned: '#3B82F6',
     inProgress: '#F59E0B',
+    submitted: '#8B5CF6', // violet-500 — distinct from completed (green)
     completed: '#10B981',
     saved: '#EF4444',
     revoked: '#EF4444',
@@ -157,6 +159,7 @@ export const darkTheme: Theme = {
     info: '#60A5FA', // blue-400
     assigned: '#60A5FA',
     inProgress: '#FBBF24',
+    submitted: '#A78BFA', // violet-400 — distinct from completed (green)
     completed: '#34D399',
     saved: '#F87171',
     revoked: '#F87171',

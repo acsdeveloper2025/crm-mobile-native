@@ -5,6 +5,7 @@ export enum TaskStatus {
   Pending = 'PENDING',
   Assigned = 'ASSIGNED',
   InProgress = 'IN_PROGRESS',
+  Submitted = 'SUBMITTED',
   Completed = 'COMPLETED',
   Revoked = 'REVOKED',
   // Local-only statuses (not sent by backend)

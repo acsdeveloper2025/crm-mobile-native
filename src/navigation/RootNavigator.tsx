@@ -33,6 +33,7 @@ import { DiagnosticsScreen } from '../screens/main/DiagnosticsScreen';
 import { AssignedTasksScreen } from '../screens/tasks/AssignedTasksScreen';
 import { InProgressTasksScreen } from '../screens/tasks/InProgressTasksScreen';
 import { SavedTasksScreen } from '../screens/tasks/SavedTasksScreen';
+import { SubmittedTasksScreen } from '../screens/tasks/SubmittedTasksScreen';
 import { CompletedTasksScreen } from '../screens/tasks/CompletedTasksScreen';
 import { TaskDetailScreen } from '../screens/tasks/TaskDetailScreen';
 import { TaskAttachmentsScreen } from '../screens/tasks/TaskAttachmentsScreen';
@@ -69,6 +70,10 @@ const SafeInProgressTasksScreen = withScreenErrorBoundary(
   'InProgress',
 );
 const SafeSavedTasksScreen = withScreenErrorBoundary(SavedTasksScreen, 'Saved');
+const SafeSubmittedTasksScreen = withScreenErrorBoundary(
+  SubmittedTasksScreen,
+  'Submitted',
+);
 const SafeCompletedTasksScreen = withScreenErrorBoundary(
   CompletedTasksScreen,
   'Completed',
@@ -170,8 +175,9 @@ export type TabParamList = {
   Dashboard: undefined;
   Assigned: undefined;
   InProgress: undefined;
-  Saved: undefined;
+  Submitted: undefined;
   Completed: undefined;
+  Saved: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -202,6 +208,8 @@ const TabBarIcon = ({
     iconName = focused ? 'list' : 'list-outline';
   } else if (route.name === 'InProgress') {
     iconName = focused ? 'time' : 'time-outline';
+  } else if (route.name === 'Submitted') {
+    iconName = focused ? 'cloud-upload' : 'cloud-upload-outline';
   } else if (route.name === 'Saved') {
     iconName = focused ? 'star' : 'star-outline';
   } else if (route.name === 'Completed') {
@@ -273,14 +281,19 @@ const MainTabs = () => {
         options={{ title: 'In Progress Tasks', tabBarLabel: 'Progress' }}
       />
       <Tab.Screen
-        name="Saved"
-        component={SafeSavedTasksScreen}
-        options={{ title: 'Saved for Offline', tabBarLabel: 'Saved' }}
+        name="Submitted"
+        component={SafeSubmittedTasksScreen}
+        options={{ title: 'Submitted Tasks', tabBarLabel: 'Submitted' }}
       />
       <Tab.Screen
         name="Completed"
         component={SafeCompletedTasksScreen}
         options={{ title: 'Completed Tasks', tabBarLabel: 'Completed' }}
+      />
+      <Tab.Screen
+        name="Saved"
+        component={SafeSavedTasksScreen}
+        options={{ title: 'Saved for Offline', tabBarLabel: 'Saved' }}
       />
     </Tab.Navigator>
   );
@@ -296,6 +309,7 @@ const linking = {
           Dashboard: 'dashboard',
           Assigned: 'assigned',
           InProgress: 'in-progress',
+          Submitted: 'submitted',
           Saved: 'saved',
           Completed: 'completed',
         },

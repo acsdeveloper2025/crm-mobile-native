@@ -18,6 +18,7 @@ export interface TaskListCounts {
   ALL: number;
   ASSIGNED: number;
   IN_PROGRESS: number;
+  SUBMITTED: number;
   COMPLETED: number;
   SAVED: number;
 }
@@ -192,18 +193,20 @@ class TaskRepositoryClass {
     status: string,
   ): Promise<void> {
     const now = new Date().toISOString();
-    // 2026-04-24: when submission moves status to COMPLETED, also stamp
-    // completed_at and clear is_saved so the task lands in the Completed
-    // tab cleanly (TaskCard timestamp helper reads completed_at; Saved
-    // tab filter excludes status=COMPLETED). Sync_status stays PENDING
-    // until FormUploader confirms server ack — UI shows "pending sync".
+    // ADR-0047 two-stage completion: submission now moves the task to SUBMITTED
+    // (the field terminal), NOT COMPLETED — only the office completes it later.
+    // Clear is_saved on SUBMITTED too so the task leaves the Saved tab cleanly
+    // (the Saved filter excludes SUBMITTED + COMPLETED). completed_at is stamped
+    // only on COMPLETED (which the device never writes; it arrives via
+    // down-sync). Sync_status stays PENDING until FormUploader confirms server
+    // ack — UI shows "pending sync".
     await DatabaseService.execute(
       `UPDATE tasks
        SET form_data_json = ?,
            status = ?,
            in_progress_at = CASE WHEN in_progress_at IS NULL AND ? = 'IN_PROGRESS' THEN ? ELSE in_progress_at END,
            completed_at = CASE WHEN ? = 'COMPLETED' THEN ? ELSE completed_at END,
-           is_saved = CASE WHEN ? = 'COMPLETED' THEN 0 ELSE is_saved END,
+           is_saved = CASE WHEN ? IN ('COMPLETED', 'SUBMITTED') THEN 0 ELSE is_saved END,
            sync_status = 'PENDING',
            local_updated_at = ?
        WHERE id = ?`,

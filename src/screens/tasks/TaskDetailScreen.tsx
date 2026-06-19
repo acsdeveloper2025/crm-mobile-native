@@ -124,6 +124,8 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
         return theme.colors.primary;
       case 'IN_PROGRESS':
         return theme.colors.warning;
+      case 'SUBMITTED':
+        return theme.colors.submitted;
       case 'COMPLETED':
         return theme.colors.success;
       default:

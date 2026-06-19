@@ -143,7 +143,11 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({
         throw new Error('Task not found');
       }
 
-      if (status === TaskStatus.Completed) {
+      // ADR-0047 two-stage completion: the device's "finish" action lands the
+      // task in SUBMITTED (field terminal), never COMPLETED — CompleteTaskUseCase
+      // now enqueues + writes SUBMITTED. Intercept both so any caller asking to
+      // complete/submit routes through the single field-terminal path.
+      if (status === TaskStatus.Completed || status === TaskStatus.Submitted) {
         await CompleteTaskUseCase.execute(taskId);
         await syncIfOnline();
         return;

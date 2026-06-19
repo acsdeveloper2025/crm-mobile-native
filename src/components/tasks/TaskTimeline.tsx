@@ -92,6 +92,17 @@ export const TaskTimeline: React.FC<TaskTimelineProps> = ({
         description: 'Case data was last updated',
       },
       {
+        // ADR-0047: SUBMITTED is the field terminal (office completes later).
+        // LocalTask has no submittedAt column (no migration), so fall back to
+        // updatedAt when the task is currently SUBMITTED.
+        label: 'Submitted',
+        timestamp:
+          task.status === 'SUBMITTED' ? task.updatedAt : undefined,
+        icon: 'cloud-upload-outline',
+        colorName: 'submitted',
+        description: 'Case was submitted for office completion',
+      },
+      {
         label: 'Completed',
         timestamp:
           task.completedAt ||
@@ -115,6 +126,7 @@ export const TaskTimeline: React.FC<TaskTimelineProps> = ({
     if (colorName === 'primary') return theme.colors.primary;
     if (colorName === 'warning') return theme.colors.warning || '#f59e0b';
     if (colorName === 'info') return theme.colors.info || '#3b82f6';
+    if (colorName === 'submitted') return theme.colors.submitted;
     if (colorName === 'success') return theme.colors.success;
     return theme.colors.textSecondary;
   };

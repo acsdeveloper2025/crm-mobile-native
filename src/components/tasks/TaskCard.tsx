@@ -83,6 +83,8 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         return theme.colors.primary;
       case 'IN_PROGRESS':
         return theme.colors.warning;
+      case 'SUBMITTED':
+        return theme.colors.submitted;
       case 'COMPLETED':
         return theme.colors.success;
       default:
@@ -96,6 +98,8 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         return theme.colors.assigned;
       case 'IN_PROGRESS':
         return theme.colors.inProgress;
+      case 'SUBMITTED':
+        return theme.colors.submitted;
       case 'COMPLETED':
         return theme.colors.completed;
       default:
@@ -106,6 +110,11 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
   const getDynamicTimestamp = () => {
     if (task.isRevoked && task.revokedAt) {
       return `Revoked on ${new Date(task.revokedAt).toLocaleString()}`;
+    }
+    // ADR-0047: SUBMITTED is the field terminal. LocalTask has no submittedAt
+    // column (no migration), so fall back to updatedAt for the display stamp.
+    if (task.status === 'SUBMITTED') {
+      return `Submitted on ${new Date(task.updatedAt).toLocaleString()}`;
     }
     if (task.status === 'COMPLETED' && task.completedAt) {
       return `Completed on ${new Date(task.completedAt).toLocaleString()}`;
@@ -149,6 +158,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         },
         (task.status === 'ASSIGNED' ||
           task.status === 'IN_PROGRESS' ||
+          task.status === 'SUBMITTED' ||
           task.status === 'COMPLETED') &&
           styles.cardStatusAccent,
         { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
@@ -188,7 +198,8 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
          * to a successfully synced one — agent never sees the failure
          * unless they tap into TaskDetailScreen.
          */}
-        {task.status === 'COMPLETED' && task.syncStatus !== 'SYNCED' && (
+        {(task.status === 'COMPLETED' || task.status === 'SUBMITTED') &&
+          task.syncStatus !== 'SYNCED' && (
           <View
             style={[
               styles.savedBadge,

@@ -124,13 +124,22 @@ class SyncConflictResolver {
         // the In-Progress tab. Now: if local says saved and backend
         // isn't COMPLETED/REVOKED, preserve all local progress fields
         // including is_saved.
+        // ADR-0047 two-stage completion: SUBMITTED is the field terminal —
+        // treat it like COMPLETED here so a not-yet-uploaded submit (local
+        // SUBMITTED, sync PENDING) is never bounced back to IN_PROGRESS /
+        // ASSIGNED by a server payload still reflecting the pre-submit state.
+        // The office's real COMPLETED arrives once the submit syncs (server
+        // updatedAt then leads) and is accepted via the fall-through below.
         const shouldPreserveLocal =
           (backendStatus === 'ASSIGNED' &&
             (localStatus === 'IN_PROGRESS' ||
+              localStatus === 'SUBMITTED' ||
               localStatus === 'COMPLETED' ||
               localSaved)) ||
           (backendStatus === 'IN_PROGRESS' &&
-            (localStatus === 'COMPLETED' || localSaved)) ||
+            (localStatus === 'SUBMITTED' ||
+              localStatus === 'COMPLETED' ||
+              localSaved)) ||
           (localSaved &&
             backendStatus !== 'COMPLETED' &&
             backendStatus !== 'REVOKED');

@@ -268,17 +268,17 @@ export const SubmitVerificationUseCase = {
       submissionPayload.photos as unknown[],
     );
 
-    // 2026-04-24: on submit, immediately move task to COMPLETED locally so
-    // it leaves the In-Progress tab and lands in Completed (with
-    // sync_status=PENDING showing "pending sync" indicator). This matches
-    // the offline-first contract: queued = locally complete + awaiting
-    // server ack. FormUploader flips sync_status → SYNCED on backend ack.
-    // On backend failure the task stays COMPLETED + sync_status=PENDING +
-    // form_submission.status='failed' → Resubmit button shows.
+    // ADR-0047 two-stage completion: on submit, move the task to SUBMITTED
+    // locally — this is the field executive's terminal state. It leaves the
+    // In-Progress tab and lands in the new Submitted tab (NOT Completed; only
+    // the office turns SUBMITTED → COMPLETED on the web). sync_status=PENDING
+    // shows the "pending sync" indicator until FormUploader flips it to SYNCED
+    // on backend ack. On backend failure the task stays SUBMITTED +
+    // sync_status=PENDING + form_submission.status='failed' → Resubmit shows.
     await TaskRepository.updateFormData(
       task.id,
       persistedFormData,
-      TaskStatus.Completed,
+      TaskStatus.Submitted,
     );
     await TaskRepository.updateVerificationOutcome(
       task.id,
