@@ -66,6 +66,13 @@ class MaintenanceRepositoryClass {
     'form_templates',
     'sync_queue',
     'sync_metadata',
+    // `user_session` is the device-owned local session singleton. It must be
+    // clearable so StorageService.clearAllData() can wipe the prior user's
+    // session on a user-change login (AuthService cross-user wipe). It was
+    // missing from this whitelist, so the wipe threw on this table mid-loop
+    // ("Table \"user_session\" is not allowed for bulk clear") and left a
+    // partial wipe — the symptom reported during the ADR-0054 device smoke.
+    'user_session',
     'notifications',
     'key_value_store',
     'task_list_projection',

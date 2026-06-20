@@ -188,6 +188,18 @@ class StorageServiceClass {
         'sync_metadata',
         'user_session',
         'key_value_store',
+        // Cross-user data tables (ADR-0054 review gate, 2026-06-20). These hold
+        // the prior user's PII/operational data and are read UNSCOPED by the UI
+        // (e.g. TaskListProjection reads task_list_projection with no user
+        // filter), so a user-change wipe must clear them too — otherwise User
+        // A's tasks/notifications render to User B on first launch before any
+        // sync (the login sync only does incremental rebuildTask, which never
+        // deletes orphan projection rows). No FKs among these, so order is free.
+        'notifications',
+        'task_list_projection',
+        'task_detail_projection',
+        'dashboard_projection',
+        'form_templates',
       ];
 
       await MaintenanceRepository.clearAllTables(tables);
