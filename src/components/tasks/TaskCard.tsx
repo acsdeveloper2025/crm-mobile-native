@@ -9,6 +9,7 @@ import {
   Alert,
 } from 'react-native';
 import { LocalTask } from '../../types/mobile';
+import { formatTaskAddress } from '../../utils/formatTaskAddress';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
@@ -255,8 +256,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         <Text
           style={[styles.addressText, { color: theme.colors.textSecondary }]}
         >
-          {task.addressStreet}, {task.addressCity}, {task.addressState}{' '}
-          {task.addressPincode}
+          {formatTaskAddress(task)}
         </Text>
       </View>
 

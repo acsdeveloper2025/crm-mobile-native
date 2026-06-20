@@ -8,6 +8,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { LocalTask } from '../../types/mobile';
+import { formatTaskAddress } from '../../utils/formatTaskAddress';
 import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 
@@ -177,11 +178,7 @@ export const TaskInfoModal: React.FC<TaskInfoModalProps> = ({
                 Address
               </Text>
               <Text style={[styles.infoValue, { color: theme.colors.text }]}>
-                {task.addressStreet ||
-                  [task.addressCity, task.addressState, task.addressPincode]
-                    .filter(Boolean)
-                    .join(' ')
-                    .trim()}
+                {formatTaskAddress(task)}
               </Text>
             </View>
           </ScrollView>

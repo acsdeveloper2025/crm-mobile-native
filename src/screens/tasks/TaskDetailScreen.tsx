@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useTask } from '../../hooks/useTask';
+import { formatTaskAddress } from '../../utils/formatTaskAddress';
 import { useTheme } from '../../context/ThemeContext';
 import { ScreenHeader } from '../../components/ScreenHeader';
 import { TaskDetailSkeleton } from '../../components/ui/Skeleton';
@@ -629,8 +630,7 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
                 Address
               </Text>
               <Text style={[styles.detailValue, { color: theme.colors.text }]}>
-                {task.addressStreet}, {task.addressCity}, {task.addressState}{' '}
-                {task.addressPincode}
+                {formatTaskAddress(task)}
               </Text>
             </View>
           </View>
