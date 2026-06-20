@@ -40,10 +40,14 @@ class MainActivity : ReactActivity() {
    * flag per-screen with `getWindow().clearFlags(FLAG_SECURE)`.
    */
   override fun onCreate(savedInstanceState: Bundle?) {
-    window.setFlags(
-      WindowManager.LayoutParams.FLAG_SECURE,
-      WindowManager.LayoutParams.FLAG_SECURE
-    )
+    // FLAG_SECURE blocks screenshots/recording (DPDP — sensitive PII). DEBUG builds skip it so
+    // developers can capture screens during local testing; release builds stay fully secured.
+    if (!BuildConfig.DEBUG) {
+      window.setFlags(
+        WindowManager.LayoutParams.FLAG_SECURE,
+        WindowManager.LayoutParams.FLAG_SECURE
+      )
+    }
     super.onCreate(savedInstanceState)
   }
 
