@@ -263,9 +263,11 @@ class AuthServiceClass {
       // C20 (audit 2026-04-20): per-refresh Idempotency-Key lets the
       // backend dedupe duplicate rotations when our retry path (C16)
       // or a network blip causes a second attempt in flight.
+      // ADR-0054 Phase 5: /auth/refresh returns a BARE v2 body
+      // `{ tokens: { accessToken, refreshToken, expiresIn } }` — read the
+      // tokens off the top level, NOT `response.data`.
       const response = await ApiClient.post<{
-        success: boolean;
-        data?: {
+        tokens?: {
           accessToken: string;
           refreshToken?: string;
           expiresIn: number;
@@ -287,26 +289,27 @@ class AuthServiceClass {
         endpoint: 'POST /auth/refresh',
       });
 
-      if (response.success && response.data) {
-        this.accessToken = response.data.accessToken;
-        if (response.data.refreshToken) {
-          this.refreshToken = response.data.refreshToken;
+      const tokens = response.tokens;
+      if (tokens && tokens.accessToken) {
+        this.accessToken = tokens.accessToken;
+        if (tokens.refreshToken) {
+          this.refreshToken = tokens.refreshToken;
         }
         if (this.refreshToken) {
           await SessionStore.setTokens({
-            accessToken: response.data.accessToken,
+            accessToken: tokens.accessToken,
             refreshToken: this.refreshToken,
           });
         }
         await this.scrubLegacySqliteTokens();
 
         const expiresAt = new Date(
-          Date.now() + response.data.expiresIn * 1000,
+          Date.now() + tokens.expiresIn * 1000,
         ).toISOString();
         await this.kvSet(TOKEN_EXPIRY_KEY, expiresAt);
 
         Logger.info(TAG, 'Token refreshed successfully');
-        return response.data.accessToken;
+        return tokens.accessToken;
       }
 
       return null;

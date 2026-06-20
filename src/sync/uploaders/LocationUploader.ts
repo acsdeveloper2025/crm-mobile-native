@@ -25,12 +25,16 @@ class LocationUploaderClass {
       return { outcome: 'SUCCESS' };
     }
     try {
-      const response = await ApiClient.post<{ success: boolean }>(
+      // ADR-0054 Phase 5: /location/capture returns a BARE v2 body
+      // `{ id, timestamp, accuracy }` (no `success` flag). A truthy object
+      // with an `id` is the success signal; a 2xx that somehow lacks it is
+      // treated as a failure (retryable).
+      const response = await ApiClient.post<{ id?: string } | null>(
         ENDPOINTS.LOCATION.CAPTURE,
         operation.payload,
         idempotencyHeaders(operation.operationId),
       );
-      if (!response.success) {
+      if (!response || typeof response !== 'object' || !response.id) {
         return { outcome: 'FAILURE', error: 'Location upload failed' };
       }
       await SyncEngineRepository.execute(
@@ -39,17 +43,20 @@ class LocationUploaderClass {
       );
       return { outcome: 'SUCCESS' };
     } catch (error: unknown) {
+      // ADR-0054 Phase 5: the raw v2 error body is `{ error: "<CODE>", details?,
+      // issues? }` — `data.error` is a CODE STRING, not a nested `{ code }`.
       const axiosErr = error as {
         response?: {
           status?: number;
           data?: {
-            error?: { code?: string };
-            message?: string;
-            success?: boolean;
+            error?: string;
+            details?: unknown;
+            issues?: unknown;
           };
         };
       };
       const status = axiosErr?.response?.status;
+      const errorCode = axiosErr?.response?.data?.error;
 
       // 409: Location already captured for this task — truly is "already
       // on the server", mark SYNCED and move on.
@@ -66,10 +73,7 @@ class LocationUploaderClass {
       // with 403 OUTSIDE_SHIFT_WINDOW. It will never be accepted (the window
       // is evaluated server-side at NOW()), so drop it like a 400 rather than
       // retrying forever and flooding the DLQ.
-      if (
-        status === 403 &&
-        axiosErr?.response?.data?.error?.code === 'OUTSIDE_SHIFT_WINDOW'
-      ) {
+      if (status === 403 && errorCode === 'OUTSIDE_SHIFT_WINDOW') {
         await SyncEngineRepository.execute(
           "UPDATE locations SET sync_status = 'REJECTED', synced_at = ? WHERE id = ?",
           [new Date().toISOString(), operation.entityId],
@@ -95,7 +99,7 @@ class LocationUploaderClass {
         return {
           outcome: 'SUCCESS',
           error: `Location rejected by server (400): ${
-            axiosErr?.response?.data?.message || 'validation failed'
+            errorCode || 'validation failed'
           }`,
         };
       }

@@ -42,17 +42,17 @@ export interface UserProfile {
   assignedAreas?: number[];
 }
 
+// ADR-0054 Phase 5: /auth/login is v2-native — a BARE body (no { success, data }
+// wrapper). The app reads `user` + `tokens` off the top level; extra v2 flags
+// (mustChangePassword, mustAcceptPolicies, pendingPolicies, ...) are ignored.
 export interface MobileLoginResponse {
-  success: boolean;
-  message: string;
-  data?: {
-    user: UserProfile;
-    tokens: {
-      accessToken: string;
-      refreshToken: string;
-      expiresIn: number;
-    };
+  user: UserProfile;
+  tokens: {
+    accessToken: string;
+    refreshToken: string;
+    expiresIn: number;
   };
+  [key: string]: unknown;
 }
 
 export interface MobileCaseListRequest {
@@ -344,21 +344,26 @@ export interface MobileVersionCheckRequest {
   buildNumber?: string;
 }
 
+// ADR-0054 Phase 5: /auth/version-check is v2-native — a BARE body
+// `{ forceUpdate, updateRequired, latestVersion, minSupportedVersion, urgent,
+// downloadUrl?, releaseNotes?, releaseDate? }`. No `success` flag; v2 omits
+// `size`/`features`/`bugFixes`/`currentVersion`/`checkTimestamp`/`buildNumber`,
+// so those are optional (the service supplies fallbacks).
 export interface MobileVersionCheckResponse {
-  success: boolean;
-  updateRequired: boolean;
-  forceUpdate: boolean;
+  updateRequired?: boolean;
+  forceUpdate?: boolean;
   urgent?: boolean;
-  latestVersion: string;
-  currentVersion: string;
-  downloadUrl: string;
-  releaseNotes: string;
-  features: string[];
+  latestVersion?: string;
+  minSupportedVersion?: string;
+  currentVersion?: string;
+  downloadUrl?: string;
+  releaseNotes?: string;
+  features?: string[];
   bugFixes?: string[];
   size?: string;
   releaseDate?: string;
   buildNumber?: string;
-  checkTimestamp: string;
+  checkTimestamp?: string;
 }
 
 // ------------------------------------------------------------------

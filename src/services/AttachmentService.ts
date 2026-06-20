@@ -51,9 +51,10 @@ class AttachmentServiceClass {
     taskId: string,
   ): Promise<RemoteTaskAttachment[]> {
     try {
-      const response = await ApiClient.get<{
-        success: boolean;
-        data?: Array<{
+      // ADR-0054 Phase 5: GET /verification-tasks/:id/attachments returns a
+      // BARE ARRAY of the office reference docs (no `{ success, data }`).
+      const response = await ApiClient.get<
+        Array<{
           id: string;
           filename?: string;
           originalName?: string;
@@ -61,19 +62,19 @@ class AttachmentServiceClass {
           size?: number;
           url?: string;
           uploadedAt?: string;
-        }>;
-      }>(ENDPOINTS.ATTACHMENTS.LIST(taskId));
+        }>
+      >(ENDPOINTS.ATTACHMENTS.LIST(taskId));
 
-      if (!response.success || !Array.isArray(response.data)) {
+      if (!Array.isArray(response)) {
         return [];
       }
 
-      validateResponse(MobileAttachmentListSchema, response.data, {
+      validateResponse(MobileAttachmentListSchema, response, {
         service: 'attachments',
         endpoint: `GET ${ENDPOINTS.ATTACHMENTS.LIST(taskId)}`,
       });
 
-      return response.data.map(attachment => {
+      return response.map(attachment => {
         const mimeType = attachment.mimeType || 'application/pdf';
         return {
           id: attachment.id,

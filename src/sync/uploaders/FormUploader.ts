@@ -332,9 +332,12 @@ class FormUploaderClass {
       )}`,
     );
 
-    let response: { success: boolean };
+    // ADR-0054 Phase 5: the verification-form submit returns a BARE
+    // CaseTaskView (the task it completed) — no `success` flag. A truthy
+    // object with an `id` is the success signal.
+    let response: { id?: string } | null;
     try {
-      response = await ApiClient.post<{ success: boolean }>(
+      response = await ApiClient.post<{ id?: string } | null>(
         endpointMap[formType](taskId),
         payload,
         idempotencyHeaders(operation.operationId),
@@ -361,7 +364,7 @@ class FormUploaderClass {
       throw uploadError;
     }
 
-    if (!response.success) {
+    if (!response || typeof response !== 'object') {
       await this.updateLocalSubmissionState(
         localTaskId,
         'failed',

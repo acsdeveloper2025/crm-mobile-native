@@ -534,16 +534,20 @@ class FormTemplateServiceClass {
     }
 
     const backendFormType = toBackendFormType(verificationType);
-    const response = await ApiClient.get<{ success: boolean; data?: any }>(
+    // ADR-0054 Phase 5: GET /forms/:type/template is v2-native — the body IS
+    // the template object, or a BARE `null` (the v2 backend has no server-side
+    // form-template engine and always returns null; the device renders from its
+    // bundled templates). Null-safe: a null/empty body → fall back to bundled.
+    const response = await ApiClient.get<any>(
       ENDPOINTS.FORMS.TEMPLATE(backendFormType),
       { params: { outcome } },
     );
 
-    if (!response.success || !response.data) {
+    if (!response || typeof response !== 'object') {
       return null;
     }
 
-    validateResponse(MobileFormTemplateSchema, response.data, {
+    validateResponse(MobileFormTemplateSchema, response, {
       service: 'forms',
       endpoint: `GET ${ENDPOINTS.FORMS.TEMPLATE(backendFormType)}`,
     });
@@ -551,7 +555,7 @@ class FormTemplateServiceClass {
     const backendTemplate = buildTemplateFromBackend(
       verificationType,
       outcome,
-      response.data,
+      response,
     );
     await FormRepository.saveTemplate({
       id: backendTemplate.id,

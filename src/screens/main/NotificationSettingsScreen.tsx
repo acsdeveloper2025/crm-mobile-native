@@ -127,17 +127,23 @@ export const NotificationSettingsScreen = () => {
     setLoading(true);
     setError(null);
     try {
+      // ADR-0054 Phase 5: GET /notifications/preferences is v2-native — a BARE
+      // body `{ preferences, updatedAt }` (no `{ success, data }` wrapper). The
+      // device's flat toggle map lives under `.preferences` (the backend stores
+      // it as an opaque Record); read it from there.
       const res = await ApiClient.get<{
-        success: boolean;
-        data?: NotificationPreferences;
+        preferences?: Partial<NotificationPreferences>;
+        updatedAt?: string | null;
       }>(ENDPOINTS.NOTIFICATIONS.PREFERENCES);
-      if (!res.success || !res.data) {
+      if (!res || typeof res !== 'object' || !res.preferences) {
         throw new Error('Could not load preferences');
       }
       // Force-enable load-bearing event types — required for the agent
       // to receive new work / revocations / urgent system alerts. BE may
       // have legacy `false` from a previous version that allowed opt-out.
-      const enforced: NotificationPreferences = { ...res.data };
+      const enforced: NotificationPreferences = {
+        ...(res.preferences as NotificationPreferences),
+      };
       for (const key of REQUIRED_EVENT_KEYS) {
         const enabledField = `${key}Enabled` as FieldName;
         const pushField = `${key}Push` as FieldName;
@@ -195,13 +201,14 @@ export const NotificationSettingsScreen = () => {
     }
     setSaving(true);
     try {
-      const res = await ApiClient.put<{ success: boolean }>(
-        ENDPOINTS.NOTIFICATIONS.PREFERENCES,
-        safePrefs,
-      );
-      if (!res.success) {
-        throw new Error('Save failed');
-      }
+      // ADR-0054 Phase 5: PUT /notifications/preferences is v2-native — the
+      // backend accepts a flat toggle map (its schema wraps it into
+      // `{ preferences }`) and returns a BARE `{ preferences, updatedAt }`
+      // (no `success` flag). Success = the request resolved without throwing.
+      await ApiClient.put<{
+        preferences?: Record<string, unknown>;
+        updatedAt?: string | null;
+      }>(ENDPOINTS.NOTIFICATIONS.PREFERENCES, safePrefs);
       Alert.alert('Saved', 'Notification preferences updated.');
     } catch (e: unknown) {
       Logger.error(TAG, 'Failed to save preferences', e);

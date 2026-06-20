@@ -70,12 +70,11 @@ export const LoginScreen = () => {
     const axiosErr = e as any;
     const status = axiosErr?.response?.status;
     const responseData = axiosErr?.response?.data;
-    const backendMessage =
-      typeof responseData === 'string' ? '' : responseData?.message;
+    // ADR-0054 Phase 5: the raw v2 error body is `{ error: "<CODE>", details?,
+    // issues? }` — `responseData.error` is a CODE STRING (e.g. 'UNAUTHENTICATED',
+    // 'VALIDATION'), there is no `message` and no nested `error.code`.
     const backendError =
       typeof responseData === 'string' ? '' : responseData?.error;
-    const nestedError =
-      typeof responseData === 'string' ? '' : responseData?.data?.error;
 
     // Specific HTTP status handlers
     if (status === 401) {
@@ -91,17 +90,28 @@ export const LoginScreen = () => {
       return 'Server is temporarily unavailable. Please try again shortly.';
     }
 
+    // Map the bare v2 error code to a friendly sentence; an unmapped code
+    // falls back to a Title-Cased transform so the user never sees a raw enum.
     if (typeof backendError === 'string' && backendError.trim().length > 0) {
-      return backendError;
-    }
-    if (typeof nestedError === 'string' && nestedError.trim().length > 0) {
-      return nestedError;
-    }
-    if (
-      typeof backendMessage === 'string' &&
-      backendMessage.trim().length > 0
-    ) {
-      return backendMessage;
+      const code = backendError.trim();
+      const V2_LOGIN_ERROR_MESSAGES: Record<string, string> = {
+        UNAUTHENTICATED: 'Invalid username or password.',
+        VALIDATION: 'Please enter a valid username and password.',
+        VERSION_REQUIRED:
+          'This app version is no longer supported. Please update to continue.',
+        FORBIDDEN:
+          'Your account has been locked or disabled. Please contact your administrator.',
+      };
+      const mapped = V2_LOGIN_ERROR_MESSAGES[code];
+      if (mapped) {
+        return mapped;
+      }
+      return code
+        .toLowerCase()
+        .split(/[_\s]+/)
+        .filter(Boolean)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ');
     }
 
     // Network-level error codes
@@ -180,15 +190,18 @@ export const LoginScreen = () => {
         endpoint: 'POST /auth/login',
       });
 
-      if (response?.data?.tokens) {
+      // ADR-0054 Phase 5: /auth/login is v2-native — a BARE body
+      // `{ user, tokens: { accessToken, refreshToken, expiresIn }, ... }`
+      // (no `{ success, data }` wrapper). Read off the top level.
+      if (response?.tokens) {
         // Reset rate limiting on successful login
         failedAttemptsRef.current = 0;
         lockoutUntilRef.current = 0;
         await login(
-          response.data.tokens.accessToken,
-          response.data.user,
-          response.data.tokens.refreshToken,
-          response.data.tokens.expiresIn,
+          response.tokens.accessToken,
+          response.user,
+          response.tokens.refreshToken,
+          response.tokens.expiresIn,
         );
       } else {
         setError('Invalid response from server');

@@ -147,11 +147,12 @@ export const MobileAttachmentListSchema = z.array(MobileAttachmentSchema);
 // minutes, so we validate non-strict and let the shape warn in
 // telemetry before it becomes a support ticket.
 
+// ADR-0054 Phase 5: /auth/refresh is now v2-native — a BARE
+// `{ tokens: { accessToken, refreshToken, expiresIn } }` body (no
+// `{ success, data }` wrapper).
 export const MobileRefreshResponseSchema = z
   .object({
-    success: z.boolean(),
-    message: z.string().optional(),
-    data: z
+    tokens: z
       .object({
         accessToken: z.string().min(1),
         refreshToken: z.string().optional(),
@@ -164,17 +165,21 @@ export const MobileRefreshResponseSchema = z
 
 // --- Version check -------------------------------------------------------
 //
-// POST /mobile/version-check gates the whole app on force-update. If
-// the backend renames forceUpdate the client silently drops to the
-// default update policy (= no prompt), which is dangerous. Permissive
-// shape, but the top-level success + forceUpdate are required.
+// POST /auth/version-check gates the whole app on force-update. If the backend
+// renames forceUpdate the client silently drops to the default update policy
+// (= no prompt), which is dangerous.
+//
+// ADR-0054 Phase 5: the v2-native body is BARE `{ forceUpdate, updateRequired,
+// latestVersion, minSupportedVersion, urgent, downloadUrl?, releaseNotes?,
+// releaseDate? }` — no `success` flag, and v2 omits `size`/`features`/`bugFixes`
+// (kept optional for forward-compat; the service falls back to []/undefined).
 
 export const MobileVersionCheckResponseSchema = z
   .object({
-    success: z.boolean(),
     forceUpdate: z.boolean().optional(),
     updateRequired: z.boolean().optional(),
     latestVersion: z.string().optional(),
+    minSupportedVersion: z.string().optional(),
     releaseDate: z.string().optional(),
     urgent: z.boolean().optional(),
     size: z.string().optional(),

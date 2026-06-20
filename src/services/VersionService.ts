@@ -47,10 +47,15 @@ class VersionServiceClass {
         { timeout: 5000 },
       );
 
-      if (response && response.success) {
+      // ADR-0054 Phase 5: /auth/version-check is v2-native — a BARE body
+      // `{ forceUpdate, updateRequired, latestVersion, minSupportedVersion,
+      // urgent, downloadUrl?, releaseNotes?, releaseDate? }` (no `success`
+      // flag, and no `size`/`features`/`bugFixes` — those fall back below).
+      // A truthy object is the success signal.
+      if (response && typeof response === 'object') {
         validateResponse(MobileVersionCheckResponseSchema, response, {
           service: 'version',
-          endpoint: 'POST /mobile/version-check',
+          endpoint: 'POST /auth/version-check',
         });
 
         Logger.info(
@@ -60,9 +65,9 @@ class VersionServiceClass {
         return {
           version: response.latestVersion || APP_VERSION,
           releaseDate: response.releaseDate || new Date().toISOString(),
-          updateRequired: response.updateRequired,
-          forceUpdate: response.forceUpdate,
-          required: response.forceUpdate,
+          updateRequired: response.updateRequired ?? false,
+          forceUpdate: response.forceUpdate ?? false,
+          required: response.forceUpdate ?? false,
           urgent: response.urgent,
           size: response.size,
           releaseNotes: response.releaseNotes ? [response.releaseNotes] : [],

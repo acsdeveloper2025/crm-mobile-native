@@ -761,14 +761,16 @@ class NotificationServiceImpl {
       updatedAt?: string;
       deletedAt?: string;
     };
+    // ADR-0054 Phase 5: GET /notifications/trash is v2-native — a paginated
+    // body `{ items, totalCount, page, pageSize, ... }` (read `.items`).
     const response = await ApiClient.get<{
-      success: boolean;
-      data?: TrashRow[];
+      items?: TrashRow[];
+      totalCount?: number;
     }>(ENDPOINTS.NOTIFICATIONS.TRASH);
-    if (!response.success || !response.data) {
+    if (!response || !Array.isArray(response.items)) {
       throw new Error('Invalid trash response');
     }
-    return response.data;
+    return response.items;
   }
 
   // Phase 3 Trash UI (2026-05-08): restore one or many soft-deleted
@@ -857,17 +859,18 @@ class NotificationServiceImpl {
     }>
   > {
     try {
-      const res = await ApiClient.get<{
-        success: boolean;
-        data: Array<{
+      // ADR-0054 Phase 5: GET /notifications/mutes is v2-native — a BARE
+      // ARRAY of mute records (no `{ success, data }` wrapper).
+      const res = await ApiClient.get<
+        Array<{
           id: string;
           caseId: string | null;
           taskId: string | null;
           createdAt: string;
           expiresAt: string | null;
-        }>;
-      }>(ENDPOINTS.NOTIFICATIONS.LIST_MUTES);
-      return res?.data ?? [];
+        }>
+      >(ENDPOINTS.NOTIFICATIONS.LIST_MUTES);
+      return Array.isArray(res) ? res : [];
     } catch (e) {
       Logger.warn(TAG, 'Failed to list mutes', e);
       return [];
@@ -926,34 +929,47 @@ class NotificationServiceImpl {
     const collected: NotificationRow[] = [];
 
     try {
-      let offset = 0;
-      for (let page = 0; page < MAX_PAGES; page += 1) {
+      // ADR-0054 Phase 5: GET /notifications is v2-native — a paginated body
+      // `{ items, totalCount, page, pageSize, ... }` (read `.items`/`.totalCount`,
+      // NOT `.data`/`.pagination`). The v2 list endpoint paginates by `page`
+      // (1-based), NOT `offset` — the backend's resolvePage ignores `offset`
+      // entirely, so iterate by page number. `hasMore` is computed from
+      // page * pageSize < totalCount.
+      for (let pageNo = 1; pageNo <= MAX_PAGES; pageNo += 1) {
         const response = await ApiClient.get<{
-          success: boolean;
-          data?: NotificationRow[];
-          pagination?: { hasMore?: boolean };
+          items?: NotificationRow[];
+          totalCount?: number;
+          page?: number;
+          pageSize?: number;
         }>(
-          `${ENDPOINTS.NOTIFICATIONS.LIST}?limit=${PAGE_LIMIT}&offset=${offset}`,
+          `${ENDPOINTS.NOTIFICATIONS.LIST}?limit=${PAGE_LIMIT}&page=${pageNo}`,
         );
 
-        if (!response.success || !response.data) {
+        if (!response || !Array.isArray(response.items)) {
           throw new Error('Invalid notifications response');
         }
 
-        validateResponse(MobileNotificationListSchema, response.data, {
+        validateResponse(MobileNotificationListSchema, response.items, {
           service: 'notifications',
           endpoint: 'GET /notifications',
         });
 
-        collected.push(...response.data);
+        collected.push(...response.items);
 
+        const totalCount =
+          typeof response.totalCount === 'number' ? response.totalCount : 0;
+        const pageSize =
+          typeof response.pageSize === 'number'
+            ? response.pageSize
+            : PAGE_LIMIT;
+        const currentPage =
+          typeof response.page === 'number' ? response.page : pageNo;
         const hasMore =
-          Boolean(response.pagination?.hasMore) &&
-          response.data.length === PAGE_LIMIT;
+          currentPage * pageSize < totalCount &&
+          response.items.length === PAGE_LIMIT;
         if (!hasMore) {
           break;
         }
-        offset += PAGE_LIMIT;
       }
 
       await this.upsertBackendNotifications(collected);

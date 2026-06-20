@@ -52,23 +52,15 @@ class SyncDownloadServiceClass {
       while (hasMore) {
         // ADR-0054 Phase 1: `/api/v2/sync/download` now returns a BARE
         // v2-native body `{ tasks, revokedAssignmentIds, syncTimestamp,
-        // hasMore, nextCursor }` — no `{ success, data }` wrapper. The
-        // apiClient's `normalizeV2Envelope` wraps any bare object that
-        // lacks a `success` key into `{ success: true, data: body }`, so
-        // we read the v2-native body back out of `response.data`. (We do
-        // NOT special-case the sync path in the adapter — the generic
-        // bare-object branch already produces exactly the shape we want
-        // here, and other endpoints keep their existing handling.)
-        const response = await ApiClient.get<{
-          success: boolean;
-          data?: MobileSyncDownloadResponse;
-        }>(
+        // hasMore, nextCursor }` — no `{ success, data }` wrapper. ADR-0054
+        // Phase 5: the adapter is gone, so the bare v2-native body IS the
+        // response — read it directly (no `.data` unwrap, no `.success` gate).
+        const payload = await ApiClient.get<MobileSyncDownloadResponse>(
           `${ENDPOINTS.SYNC.DOWNLOAD}?lastSyncTimestamp=${encodeURIComponent(
             lastSyncAt,
           )}&limit=${limit}&offset=${offset}`,
         );
-        const payload = response.data;
-        if (!response.success || !payload) {
+        if (!payload || !Array.isArray(payload.tasks)) {
           throw new Error('Invalid sync download response');
         }
         // Drift detection at the sync boundary: non-strict so a brand-new
@@ -222,6 +214,9 @@ class SyncDownloadServiceClass {
    * F2.7.1: fetch verification_type_outcomes from backend and replace the
    * local mirror atomically. Called once per successful download cycle.
    * Endpoint shape: { success: boolean, data: VerificationTypeOutcomeRow[] }.
+   * ADR-0054 Phase 5 — KEEP the `{ success, data }` reads: the crm2 reference
+   * service emits this v1 envelope at the backend (referenceService, NOT the
+   * removed adapter), so this is the true native v2 shape. Do NOT "fix" it.
    */
   private async refreshVerificationTypeOutcomes(): Promise<void> {
     const response = await ApiClient.get<{
@@ -254,6 +249,9 @@ class SyncDownloadServiceClass {
    * A2.4 (audit 2026-05-25): fetch revoke_reasons from backend and
    * replace the local mirror atomically. Called once per successful
    * download cycle. Endpoint shape: { success, data: RevokeReasonRow[] }.
+   * ADR-0054 Phase 5 — KEEP the `{ success, data }` reads: the crm2 reference
+   * service emits this v1 envelope at the backend (referenceService, NOT the
+   * removed adapter), so this is the true native v2 shape. Do NOT "fix" it.
    */
   private async refreshRevokeReasons(): Promise<void> {
     const response = await ApiClient.get<{

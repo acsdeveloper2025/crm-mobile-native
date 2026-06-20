@@ -61,22 +61,21 @@ class ProfilePhotoUploaderClass {
     } as unknown as Blob);
 
     try {
+      // ADR-0054 Phase 5: POST /users/me/photo is v2-native — a BARE body
+      // `{ url, profilePhotoUrl }` (no `{ success, data }` wrapper).
       const response = await ApiClient.post<{
-        success: boolean;
-        data?: { profilePhotoUrl?: string };
+        url?: string;
+        profilePhotoUrl?: string;
       }>(ENDPOINTS.PROFILE.UPLOAD_PHOTO, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         // 30 s default is plenty for a 50-100 KB payload; don't override.
       });
 
-      if (!response.success || !response.data?.profilePhotoUrl) {
+      if (!response || !response.profilePhotoUrl) {
         throw new Error('Server rejected profile photo upload');
       }
-      Logger.info(
-        TAG,
-        `Profile photo uploaded: ${response.data.profilePhotoUrl}`,
-      );
-      return { profilePhotoUrl: response.data.profilePhotoUrl };
+      Logger.info(TAG, `Profile photo uploaded: ${response.profilePhotoUrl}`);
+      return { profilePhotoUrl: response.profilePhotoUrl };
     } finally {
       // The resized temp file served its purpose — drop it.
       try {

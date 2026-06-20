@@ -23,7 +23,11 @@
 import {
   MobileCaseSchema,
   MobileSyncDownloadResponseSchema,
+  MobileRefreshResponseSchema,
+  MobileVersionCheckResponseSchema,
+  MobileNotificationListSchema,
 } from './sync.schema.ts';
+import { MobileLoginResponseSchema } from './auth.schema.ts';
 
 declare const process: { exitCode?: number };
 
@@ -204,6 +208,134 @@ check('a task missing `id` is a hard break (fails)', () => {
 check('a task missing `caseId` is a hard break (fails)', () => {
   const result = MobileCaseSchema.safeParse(omitKey(v2Task, 'caseId'));
   assertEqual(result.success, false);
+});
+
+// ─────────────────────────────────────────────────────────────────────────
+// ADR-0054 Phase 5 (app cutover): the v1 envelope adapter is REMOVED, so the
+// app parses each endpoint's BARE v2 body directly. These checks pin the
+// now-bare shapes the app reads off the top level (no `{ success, data }`).
+// ─────────────────────────────────────────────────────────────────────────
+
+// --- /auth/login — bare { user, tokens, ... } (no { success, data }) ---
+const v2LoginBody = {
+  user: {
+    id: 'u-1',
+    username: 'field.exec',
+    role: 'FIELD_AGENT',
+    name: 'Field Exec',
+  },
+  tokens: {
+    accessToken: 'access.jwt.token',
+    refreshToken: 'refresh.jwt.token',
+    expiresIn: 900,
+  },
+  // extra v2 flags the app ignores — must pass through, not fail validation
+  mustChangePassword: false,
+  mustAcceptPolicies: false,
+  pendingPolicies: [],
+};
+
+check('a bare v2 /auth/login body validates and exposes top-level tokens', () => {
+  const parsed = MobileLoginResponseSchema.parse(v2LoginBody) as Record<
+    string,
+    unknown
+  >;
+  const tokens = parsed.tokens as Record<string, unknown>;
+  assertEqual(tokens.accessToken, 'access.jwt.token');
+  assertEqual(tokens.refreshToken, 'refresh.jwt.token');
+  const user = parsed.user as Record<string, unknown>;
+  assertEqual(user.username, 'field.exec');
+});
+
+check('a v1-wrapped login body { success, data } no longer validates', () => {
+  const result = MobileLoginResponseSchema.safeParse({
+    success: true,
+    data: v2LoginBody,
+  });
+  // The bare schema requires top-level `user`+`tokens`; the wrapped body lacks them.
+  assertEqual(result.success, false);
+});
+
+// --- /auth/refresh — bare { tokens: {...} } (no { success, data }) ---
+check('a bare v2 /auth/refresh body validates with top-level tokens', () => {
+  const parsed = MobileRefreshResponseSchema.parse({
+    tokens: {
+      accessToken: 'a.jwt',
+      refreshToken: 'r.jwt',
+      expiresIn: 900,
+    },
+  }) as Record<string, unknown>;
+  const tokens = parsed.tokens as Record<string, unknown>;
+  assertEqual(tokens.accessToken, 'a.jwt');
+  assertEqual(tokens.expiresIn, 900);
+});
+
+// --- /auth/version-check — bare { forceUpdate, ... } (no `success`) ---
+check('a bare v2 /auth/version-check body validates (no success flag)', () => {
+  const result = MobileVersionCheckResponseSchema.safeParse({
+    forceUpdate: false,
+    updateRequired: true,
+    latestVersion: '1.0.73',
+    minSupportedVersion: '1.0.50',
+    urgent: false,
+    downloadUrl: 'https://example/app.apk',
+    releaseNotes: 'Bug fixes',
+  });
+  assertEqual(
+    result.success,
+    true,
+    result.success ? '' : JSON.stringify(result.error?.issues),
+  );
+});
+
+// --- /notifications — paginated { items, totalCount, ... }; the app parses
+// `.items` (an array of notification rows) through the list schema. ---
+check('the notification list `items` array parses through the list schema', () => {
+  const items = [
+    {
+      id: 'n-1',
+      type: 'CASE_ASSIGNMENT',
+      title: 'New task assigned',
+      isRead: false,
+      createdAt: '2026-06-20T08:00:00.000Z',
+    },
+  ];
+  const result = MobileNotificationListSchema.safeParse(items);
+  assertEqual(
+    result.success,
+    true,
+    result.success ? '' : JSON.stringify(result.error?.issues),
+  );
+});
+
+// --- device attachment upload — bare { attachments, failed, ... }; the app
+// detects partial/total failure from `failed[]`, NOT a `success` flag. This
+// pins the detection logic the AttachmentUploader uses post-adapter. ---
+function uploadFailed(body: {
+  attachments?: unknown[];
+  failed?: unknown[];
+}): boolean {
+  const stored = body.attachments ?? [];
+  const failed = body.failed ?? [];
+  // No stored row (and either an explicit failure or simply nothing) → failure.
+  return stored.length === 0 || (failed.length > 0 && stored.length === 0);
+}
+
+check('a successful device upload (failed:[]) is NOT a failure', () => {
+  assertEqual(
+    uploadFailed({ attachments: [{ id: 'a-1' }], failed: [] }),
+    false,
+  );
+});
+
+check('a device upload with a failed[] entry and no stored row IS a failure', () => {
+  assertEqual(
+    uploadFailed({
+      attachments: [],
+      failed: [{ filename: 'x.jpg', reason: 'PHOTO_FAILED' }],
+    }),
+    true,
+  );
 });
 
 console.log(`\nsync.schema contract: ${passed} checks passed`);

@@ -157,10 +157,16 @@ class AttachmentUploaderClass {
     const sizeBytes = typeof payload.size === 'number' ? payload.size : 0;
     const uploadTimeoutMs = calculateUploadTimeout(sizeBytes);
 
+    // ADR-0054 Phase 5: the device upload returns a BARE v2 result
+    // `{ attachments, failed, caseId, taskId, verificationType, submissionId }`
+    // — there is NO `success` flag. The server always replies 200 (new +
+    // idempotent replay); a partial/total failure is signalled by entries in
+    // `failed[]`. The device uploads ONE file per operation, so any `failed`
+    // entry means this upload did not store → retry.
     const response = await ApiClient.post<{
-      success: boolean;
-      data?: { attachments?: Array<{ id: string; url?: string }> };
-    }>(ENDPOINTS.ATTACHMENTS.UPLOAD(taskId), formData, {
+      attachments?: Array<{ id: string; url?: string }>;
+      failed?: Array<{ filename: string; reason: string }>;
+    } | null>(ENDPOINTS.ATTACHMENTS.UPLOAD(taskId), formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
         'Idempotency-Key': operation.operationId,
@@ -168,7 +174,19 @@ class AttachmentUploaderClass {
       timeout: uploadTimeoutMs,
     });
 
-    if (!response.success) {
+    if (!response || typeof response !== 'object') {
+      return { outcome: 'FAILURE', error: 'Attachment upload failed' };
+    }
+    const failed = response.failed ?? [];
+    const stored = response.attachments ?? [];
+    // No stored row AND a failure recorded → the upload did not persist.
+    if (stored.length === 0 && failed.length > 0) {
+      return {
+        outcome: 'FAILURE',
+        error: `Attachment upload failed: ${failed[0]?.reason ?? 'unknown'}`,
+      };
+    }
+    if (stored.length === 0) {
       return { outcome: 'FAILURE', error: 'Attachment upload failed' };
     }
 
@@ -182,7 +200,7 @@ class AttachmentUploaderClass {
     // The retry loop here catches transient SQLite contention
     // (BUSY, LOCKED) at a cost of up to ~450ms total before we
     // give up and let the outer queue retry from scratch.
-    const uploadedAttachment = response.data?.attachments?.[0];
+    const uploadedAttachment = stored[0];
     const attachmentId = String(payload.id);
     const now = new Date().toISOString();
 

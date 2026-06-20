@@ -32,28 +32,24 @@ export const MobileUserSchema = z
 
 export type MobileUserDto = z.infer<typeof MobileUserSchema>;
 
-/** Login response envelope.
+/** Login response.
  *
- * A1 (audit 2026-04-21 round 2): backend wraps the tokens in a
- * `tokens: {...}` object (see `mobileAuthController.ts:219-224`). The
- * previous flat shape matched neither what backend sends nor what
- * LoginScreen reads, so every successful login emitted a drift warning
- * into telemetry. Match the real backend envelope. */
-export const MobileLoginResponseSchema = z.object({
-  success: z.boolean(),
-  message: z.string().optional(),
-  data: z
-    .object({
-      user: MobileUserSchema,
-      tokens: z
-        .object({
-          accessToken: z.string().min(1),
-          refreshToken: z.string().min(1),
-          expiresIn: z.number().optional(),
-        })
-        .passthrough(),
-    })
-    .passthrough(),
-});
+ * ADR-0054 Phase 5: /auth/login is v2-native — a BARE body
+ * `{ user, tokens: { accessToken, refreshToken, expiresIn }, mustChangePassword,
+ * mustEnrollMfa, mustAcceptPolicies, pendingPolicies }` (no `{ success, data }`
+ * wrapper). `.passthrough()` accepts the extra policy/MFA flags the app
+ * doesn't consume. */
+export const MobileLoginResponseSchema = z
+  .object({
+    user: MobileUserSchema,
+    tokens: z
+      .object({
+        accessToken: z.string().min(1),
+        refreshToken: z.string().min(1),
+        expiresIn: z.number().optional(),
+      })
+      .passthrough(),
+  })
+  .passthrough();
 
 export type MobileLoginResponseDto = z.infer<typeof MobileLoginResponseSchema>;
