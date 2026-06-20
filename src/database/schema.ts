@@ -1,7 +1,7 @@
 // SQLite Database Schema and Migrations
 // Offline-first schema for field verification data
 
-export const DB_VERSION = 19;
+export const DB_VERSION = 20;
 
 /**
  * All CREATE TABLE statements for the local SQLite database.
@@ -11,7 +11,12 @@ export const SCHEMA_SQL = `
 -- Tasks (verification assignments)
 CREATE TABLE IF NOT EXISTS tasks (
   id TEXT PRIMARY KEY,
+  -- ADR-0054 Phase 1: case_id now holds the case UUID (was the numeric
+  -- case display number). Column kept INTEGER-affinity to avoid a table
+  -- rebuild — SQLite stores the UUID string fine (dynamic typing). The
+  -- user-facing display number moved to case_number below.
   case_id INTEGER NOT NULL,
+  case_number TEXT,
   verification_task_id TEXT NOT NULL,
   verification_task_number TEXT,
   title TEXT NOT NULL,
@@ -234,6 +239,7 @@ CREATE TABLE IF NOT EXISTS key_value_store (
 CREATE TABLE IF NOT EXISTS task_list_projection (
   id TEXT PRIMARY KEY,
   case_id INTEGER NOT NULL,
+  case_number TEXT,
   verification_task_id TEXT NOT NULL,
   verification_task_number TEXT,
   title TEXT NOT NULL,
@@ -713,6 +719,19 @@ export const MIGRATIONS: Migration[] = [
       ALTER TABLE task_list_projection ADD COLUMN company_name TEXT;
       UPDATE task_list_projection SET company_name = (
         SELECT t.company_name FROM tasks t WHERE t.id = task_list_projection.id
+      );
+    `,
+  },
+  {
+    version: 20,
+    description:
+      "ADR-0054 Phase 1 (v2-native sync): the down-sync now sends caseId as a case UUID (fed into the existing case_id column) and a separate caseNumber for the user-facing display. Add case_number to tasks + task_list_projection so the case display number survives the caseId-now-uuid change. Backfill case_number from the pre-upgrade numeric case_id (which held the display number before this version); task_detail_projection.task_json picks it up on the next projection rebuild.",
+    sql: `
+      ALTER TABLE tasks ADD COLUMN case_number TEXT;
+      ALTER TABLE task_list_projection ADD COLUMN case_number TEXT;
+      UPDATE tasks SET case_number = CAST(case_id AS TEXT) WHERE case_number IS NULL;
+      UPDATE task_list_projection SET case_number = (
+        SELECT t.case_number FROM tasks t WHERE t.id = task_list_projection.id
       );
     `,
   },

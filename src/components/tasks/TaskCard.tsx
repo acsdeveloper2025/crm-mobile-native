@@ -239,7 +239,8 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         ellipsizeMode="tail"
         style={[styles.caseId, { color: theme.colors.text }]}
       >
-        Case ID: #{task.caseId} | VT ID: {task.verificationTaskNumber || 'N/A'}
+        Case ID: #{task.caseNumber || task.caseId} | VT ID:{' '}
+        {task.verificationTaskNumber || 'N/A'}
       </Text>
       <Text
         numberOfLines={2}

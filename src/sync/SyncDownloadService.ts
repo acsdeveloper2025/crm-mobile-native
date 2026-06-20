@@ -50,6 +50,15 @@ class SyncDownloadServiceClass {
       const limit = config.syncBatchSize;
 
       while (hasMore) {
+        // ADR-0054 Phase 1: `/api/v2/sync/download` now returns a BARE
+        // v2-native body `{ tasks, revokedAssignmentIds, syncTimestamp,
+        // hasMore, nextCursor }` — no `{ success, data }` wrapper. The
+        // apiClient's `normalizeV2Envelope` wraps any bare object that
+        // lacks a `success` key into `{ success: true, data: body }`, so
+        // we read the v2-native body back out of `response.data`. (We do
+        // NOT special-case the sync path in the adapter — the generic
+        // bare-object branch already produces exactly the shape we want
+        // here, and other endpoints keep their existing handling.)
         const response = await ApiClient.get<{
           success: boolean;
           data?: MobileSyncDownloadResponse;
@@ -81,10 +90,12 @@ class SyncDownloadServiceClass {
           await DataCleanupService.listRecentlyCleanedTaskIds(),
         );
 
-        for (const task of payload.cases) {
-          // v2 always sends the canonical backend task UUID as verificationTaskId
-          // (= case_tasks.id, NOT NULL); no v1-style local-id fallback is needed.
-          const canonicalTaskId = (task.verificationTaskId || '').trim();
+        for (const task of payload.tasks) {
+          // ADR-0054 Phase 1: the canonical backend task UUID is now the
+          // top-level `id` (= case_tasks.id, NOT NULL). It still maps onto
+          // the local `verification_task_id` column (column name kept to
+          // avoid a DB rebuild), so all downstream keying is unchanged.
+          const canonicalTaskId = (task.id || '').trim();
           if (canonicalTaskId && recentlyCleaned.has(canonicalTaskId)) {
             // Skip — local cleanup purged this within the TTL window.
             continue;
@@ -106,9 +117,13 @@ class SyncDownloadServiceClass {
           // casesController.createCase (bug 42).
         }
 
-        // C10 + DB2 (round 2): both delete loops use purgeTaskTransactional
-        // so DB mutations commit atomically per task and files are unlinked
-        // only after the DB writes succeed.
+        // ADR-0054 Phase 1: server-side removals now flow ONLY through
+        // `revokedAssignmentIds` (the v2-native body no longer carries
+        // `deletedTaskIds`/`deletedCaseIds`/`conflicts`). The
+        // `revokedAssignmentIds` entries are backend task UUIDs, which we
+        // match against the local `verification_task_id` column.
+        // purgeTaskTransactional commits per task atomically and unlinks
+        // files only after the DB writes succeed.
         for (const backendTaskId of payload.revokedAssignmentIds || []) {
           const taskRows = await SyncEngineRepository.query<{ id: string }>(
             'SELECT id FROM tasks WHERE verification_task_id = ?',
@@ -119,27 +134,9 @@ class SyncDownloadServiceClass {
           }
           await ProjectionUpdater.rebuildTask(backendTaskId);
         }
-        for (const taskId of payload.deletedTaskIds || []) {
-          await this.purgeTaskTransactional(taskId, taskId, {
-            deleteMatchOnVerificationTaskId: true,
-          });
-          await ProjectionUpdater.rebuildTask(taskId);
-        }
-        // A5 (round 2): case-level deletions.
-        for (const caseId of payload.deletedCaseIds || []) {
-          const rows = await SyncEngineRepository.query<{ id: string }>(
-            'SELECT id FROM tasks WHERE case_id = ?',
-            [caseId],
-          );
-          for (const { id: taskId } of rows) {
-            await this.purgeTaskTransactional(taskId, taskId);
-            await ProjectionUpdater.rebuildTask(taskId);
-          }
-        }
 
-        conflicts += payload.conflicts?.length || 0;
         latestSyncTimestamp = payload.syncTimestamp || latestSyncTimestamp;
-        const pageSize = payload.cases.length;
+        const pageSize = payload.tasks.length;
         hasMore = Boolean(payload.hasMore);
         if (hasMore && pageSize === 0) {
           hasMore = false;
@@ -420,9 +417,11 @@ class SyncDownloadServiceClass {
   }
 
   private async upsertTaskFromServer(task: MobileCaseResponse): Promise<void> {
-    // v2 always sends the canonical backend task UUID as verificationTaskId
-    // (= case_tasks.id, NOT NULL); no v1-style local-id fallback is needed.
-    const canonicalTaskId = (task.verificationTaskId || '').trim();
+    // ADR-0054 Phase 1: the canonical backend task UUID is the top-level
+    // `id` (= case_tasks.id, NOT NULL). It is written into BOTH the `id`
+    // PK and the `verification_task_id` column (column name kept), so all
+    // existing keying on `verification_task_id` is unaffected.
+    const canonicalTaskId = (task.id || '').trim();
     if (!canonicalTaskId) {
       Logger.warn(
         TAG,
@@ -521,7 +520,7 @@ class SyncDownloadServiceClass {
       const now = new Date().toISOString();
       await SyncEngineRepository.execute(
         `INSERT INTO tasks
-        (id, case_id, verification_task_id, verification_task_number, title, description, customer_name, customer_calling_code,
+        (id, case_id, case_number, verification_task_id, verification_task_number, title, description, customer_name, customer_calling_code,
          customer_phone, customer_email, company_name, address_street, address_city, address_state, address_pincode, latitude, longitude,
          status, priority, assigned_at, updated_at, completed_at, notes, verification_type, verification_outcome, applicant_type,
          backend_contact_number, created_by_backend_user, assigned_to_field_user, client_id, client_name, client_code,
@@ -529,9 +528,10 @@ class SyncDownloadServiceClass {
          form_data_json, is_revoked, revoked_at, revoked_by_name, revoke_reason,
          in_progress_at, saved_at, is_saved, attachment_count,
          sync_status, last_synced_at, local_updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SYNCED', ?, ?)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'SYNCED', ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          case_id = excluded.case_id,
+         case_number = excluded.case_number,
          verification_task_id = excluded.verification_task_id,
          verification_task_number = excluded.verification_task_number,
          title = excluded.title,
@@ -581,20 +581,37 @@ class SyncDownloadServiceClass {
          last_synced_at = excluded.last_synced_at,
          local_updated_at = excluded.local_updated_at`,
         [
+          // ADR-0054 Phase 1 source remap (bind order matches the column
+          // list above). The local `tasks` column names are unchanged; only
+          // the v2-native payload source fields differ:
+          //   verification_task_id      <- task.id  (was task.verificationTaskId)
+          //   verification_task_number  <- task.taskNumber
+          //   title                     <- task.taskNumber (column is NOT NULL;
+          //                                 v1's separate `title` is gone)
+          //   description / address_city / address_state  <- '' (server dropped them;
+          //                                 columns kept device-local with defaults)
+          //   address_street            <- task.address
+          //   verification_type + the verification_type_{id,name,code} catalog
+          //                             <- task.verificationUnit
+          //   case_number               <- task.caseNumber (case display number)
+          //   case_id                   <- task.caseId (now a uuid string)
+          // is_saved / saved_at are no longer in the payload — resolveTaskState
+          // supplies them from local state (mergedState).
           canonicalTaskId,
           task.caseId,
+          task.caseNumber != null ? String(task.caseNumber) : null,
           canonicalTaskId,
-          task.verificationTaskNumber || '',
-          task.title,
-          task.description || '',
+          task.taskNumber || '',
+          task.taskNumber || '',
+          '',
           task.customerName,
           task.customerCallingCode || null,
           task.customerPhone || null,
-          task.customerEmail || null,
+          null,
           task.companyName || null,
-          task.addressStreet || '',
-          task.addressCity || '',
-          task.addressState || '',
+          task.address || '',
+          '',
+          '',
           task.addressPincode || '',
           task.latitude || null,
           task.longitude || null,
@@ -604,7 +621,7 @@ class SyncDownloadServiceClass {
           task.updatedAt || now,
           mergedState.completedAt,
           task.notes || null,
-          task.verificationType || null,
+          task.verificationUnit?.name || null,
           task.verificationOutcome || null,
           task.applicantType || null,
           task.backendContactNumber || null,
@@ -616,9 +633,9 @@ class SyncDownloadServiceClass {
           task.product?.id || null,
           task.product?.name || null,
           task.product?.code || null,
-          task.verificationTypeDetails?.id || null,
-          task.verificationTypeDetails?.name || null,
-          task.verificationTypeDetails?.code || null,
+          task.verificationUnit?.id || null,
+          task.verificationUnit?.name || null,
+          task.verificationUnit?.code || null,
           task.formData ? JSON.stringify(task.formData) : null,
           task.isRevoked ? 1 : 0,
           task.revokedAt || null,

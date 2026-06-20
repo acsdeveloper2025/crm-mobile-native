@@ -304,7 +304,8 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
             <Text
               style={[styles.taskNumber, { color: theme.colors.textMuted }]}
             >
-              {task.verificationTaskNumber || `Case #${task.caseId}`}
+              {task.verificationTaskNumber ||
+                `Case #${task.caseNumber || task.caseId}`}
             </Text>
             <View style={styles.headerTopRight}>
               {muteTaskUuid && (

@@ -3,7 +3,12 @@
 
 export interface LocalTask {
   id: string; // UUID - primary key
-  caseId: number; // User-friendly case number
+  // ADR-0054 Phase 1: caseId now holds the case UUID (string). The
+  // user-facing case display number moved to caseNumber. Typed as
+  // string | number for back-compat with pre-upgrade rows whose case_id
+  // column still held the numeric display value until the next sync.
+  caseId: string | number; // case UUID (post-ADR-0054)
+  caseNumber?: string; // user-facing case display number (was caseId)
   verificationTaskId: string; // Backend verification task UUID
   verificationTaskNumber: string; // e.g., VT-000127
   title: string;

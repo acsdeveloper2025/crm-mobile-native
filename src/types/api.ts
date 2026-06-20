@@ -67,50 +67,56 @@ export interface MobileCaseListRequest {
   lastSyncTimestamp?: string;
 }
 
+// ADR-0054 Phase 1 (2026-06-20): the down-sync task shape served by
+// `/api/v2/sync/download` is now v2-native. Renames vs the old v1 shape:
+//   verificationTaskId            -> id            (now the backend task UUID)
+//   verificationTaskNumber, title -> taskNumber
+//   caseId (number)               -> caseId (uuid string) + caseNumber (display)
+//   addressStreet                 -> address
+//   verificationType /
+//     verificationTypeDetails     -> verificationUnit { id, name, code }
+// REMOVED entirely (server no longer sends): description, addressCity,
+//   addressState, isSaved, savedAt, syncStatus, attachments. These are
+//   device-local concerns now and live only in SQLite with default values.
 export interface MobileCaseResponse {
-  id: string;
-  caseId: number;
-  title: string;
-  description: string;
+  id: string; // backend task UUID (case_tasks.id) — the row identity
+  taskNumber?: string; // e.g. VT-000127 (was verificationTaskNumber/title)
+  caseId: string; // case UUID
+  caseNumber?: string | number; // user-facing case display number
   customerName: string;
   customerCallingCode?: string;
   customerPhone?: string;
-  customerEmail?: string;
   // v2 sync: targeted applicant's employer/company name. Only present
   // when the backend has one for the case — most cases omit it.
   companyName?: string;
-  addressStreet: string;
-  addressCity: string;
-  addressState: string;
-  addressPincode: string;
+  applicantType?: string;
+  address?: string; // full single-line address (was addressStreet)
+  addressPincode?: string;
   latitude?: number;
   longitude?: number;
   status: string;
   priority: string;
+  verificationUnit?: {
+    id: string | number;
+    name: string;
+    code?: string;
+  };
+  notes?: string;
   assignedAt: string;
   updatedAt: string;
+  inProgressAt?: string;
+  submittedAt?: string;
   completedAt?: string;
-  notes?: string;
-  verificationType?: string;
   verificationOutcome?: string;
-  applicantType?: string;
+  formData?: Record<string, unknown>;
   backendContactNumber?: string;
   createdByBackendUser?: string;
   assignedToFieldUser?: string;
-  verificationTaskId?: string;
-  verificationTaskNumber?: string;
   // Revoke tracking
   isRevoked?: boolean;
   revokedAt?: string;
-  revokedBy?: string;
-  revokedByName?: string;
   revokeReason?: string;
-  // Status timestamps
-  inProgressAt?: string;
-  savedAt?: string;
-  isSaved?: boolean;
-  // Additional fields
-  businessCaseId?: number;
+  revokedByName?: string;
   attachmentCount?: number;
   client: {
     id: number;
@@ -122,14 +128,6 @@ export interface MobileCaseResponse {
     name: string;
     code?: string;
   };
-  verificationTypeDetails?: {
-    id: number;
-    name: string;
-    code?: string;
-  };
-  attachments?: MobileAttachmentResponse[];
-  formData?: Record<string, unknown>;
-  syncStatus?: 'SYNCED' | 'PENDING' | 'CONFLICT';
 }
 
 export interface MobileAttachmentResponse {
@@ -275,19 +273,18 @@ export interface MobileSyncUploadRequest {
   lastSyncTimestamp: string;
 }
 
+// ADR-0054 Phase 1 (2026-06-20): the down-sync response body is now BARE
+// (no `{ success, message, data }` wrapper) and v2-native:
+//   { tasks, revokedAssignmentIds, syncTimestamp, hasMore, nextCursor }
+// The old `cases`/`changes` arrays and the `deletedTaskIds`/`deletedCaseIds`/
+// `conflicts`/`attachmentChanges` fields are gone — server-side deletes now
+// flow only through `revokedAssignmentIds`.
 export interface MobileSyncDownloadResponse {
-  cases: MobileCaseResponse[];
-  deletedCaseIds: string[];
-  deletedTaskIds?: string[];
+  tasks: MobileCaseResponse[];
   revokedAssignmentIds: string[];
-  conflicts: {
-    caseId: string;
-    localVersion: Record<string, unknown>;
-    serverVersion: Record<string, unknown>;
-    conflictType: 'DATA_CONFLICT' | 'VERSION_CONFLICT';
-  }[];
   syncTimestamp: string;
   hasMore: boolean;
+  nextCursor: string | null;
 }
 
 export interface MobileAppConfigResponse {

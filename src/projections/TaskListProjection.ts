@@ -12,7 +12,9 @@ class TaskListProjectionClass {
       task.customerName,
       task.addressCity,
       task.verificationTaskNumber,
-      task.caseId,
+      // ADR-0054 Phase 1: search on the case display number, not the
+      // opaque case UUID now held in caseId.
+      task.caseNumber || task.caseId,
     ]
       .filter(Boolean)
       .join(' ')

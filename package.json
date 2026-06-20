@@ -1,6 +1,6 @@
 {
   "name": "CrmMobileNative",
-  "version": "1.0.71",
+  "version": "1.0.72",
   "private": true,
   "op-sqlite": {
     "sqlcipher": true
@@ -13,6 +13,7 @@
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "start": "react-native start",
     "typecheck": "tsc --noEmit",
+    "contract:mobile": "node --experimental-strip-types --no-warnings src/api/schemas/sync.schema.contract.test.ts",
     "check:ssl-pins": "bash scripts/check-ssl-pins.sh",
     "verify:ssl-pins-live": "bash scripts/verify-ssl-pins-live.sh",
     "prerelease": "npm run typecheck && npm run lint && npm run check:ssl-pins && npm run verify:ssl-pins-live",

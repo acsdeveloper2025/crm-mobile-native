@@ -86,9 +86,14 @@ class SyncConflictResolver {
     const backendStatus = (task.status || 'ASSIGNED').toUpperCase();
     let status = backendStatus;
     let inProgressAt = task.inProgressAt || null;
-    let savedAt = task.savedAt || null;
+    // ADR-0054 Phase 1: `savedAt`/`isSaved` are no longer in the server
+    // payload — "saved" is a device-only concept the backend never had.
+    // They default to null/0 here and are only ever sourced from local
+    // state in the `existing` branches below (which preserve a local
+    // is_saved=1 against a server payload that doesn't carry it).
+    let savedAt: string | null = null;
     let completedAt = task.completedAt || null;
-    let isSaved = task.isSaved ? 1 : 0;
+    let isSaved = 0;
 
     if (existing) {
       const localStatus = (existing.status || '').toUpperCase();

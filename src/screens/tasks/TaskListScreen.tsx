@@ -397,7 +397,9 @@ export const TaskListScreen = ({
       ) {
         Alert.alert(
           'Submit Saved Task',
-          `Submit verification for ${task.customerName || `#${task.caseId}`}?`,
+          `Submit verification for ${
+            task.customerName || `#${task.caseNumber || task.caseId}`
+          }?`,
           [
             { text: 'Cancel', style: 'cancel' },
             {
@@ -479,7 +481,8 @@ export const TaskListScreen = ({
     (task: LocalTask) => {
       navigation.navigate('TaskAttachments', {
         taskId: task.id,
-        taskNumber: task.verificationTaskNumber || `#${task.caseId}`,
+        taskNumber:
+          task.verificationTaskNumber || `#${task.caseNumber || task.caseId}`,
       });
     },
     [navigation],

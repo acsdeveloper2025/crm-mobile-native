@@ -13,45 +13,57 @@
 
 import { z } from 'zod';
 
-// C18+C19 (audit 2026-04-20): `id` and `caseId` are the identity fields
-// the downstream uses to key rows and foreign-joins into the sync
-// pipeline — a null or renamed value here is a hard-break that must
-// be surfaced, not swallowed. Previously all five fields were
-// `.optional()` which let a null-id row pass validation silently and
-// also masked backend field renames. Identity fields are now required;
-// status/updatedAt stay optional because the downstream has safe
-// defaults for them. Running under non-strict `validateResponse`, so
-// drift triggers a `Logger.warn` into telemetry without breaking a
-// field agent mid-shift.
+// ADR-0054 Phase 1 (2026-06-20): the down-sync now ships the v2-native
+// task shape. `id` (= case_tasks.id, the backend task UUID) and `caseId`
+// (the case UUID) are the identity fields the downstream uses to key rows
+// and foreign-join into the sync pipeline — a null or renamed value here
+// is a hard-break that must be surfaced, not swallowed. Both are required;
+// everything else is optional because the server omits fields it has no
+// value for (status/updatedAt have safe downstream defaults). Running
+// under non-strict `validateResponse`, so drift triggers a `Logger.warn`
+// into telemetry without breaking a field agent mid-shift.
+//
+// The v1-only fields (verificationTaskId, verificationTaskNumber, title,
+// description, addressStreet/City/State, isSaved, savedAt, syncStatus,
+// attachments, verificationType, verificationTypeDetails) are GONE from
+// the server payload and are intentionally NOT declared here — if the
+// server ever re-sends one, `.passthrough()` lets it pass through silently
+// (these are device-local concepts now). The new identity/display fields
+// the app keys/renders on (taskNumber, caseNumber, verificationUnit,
+// address, addressPincode) are declared so a rename fires the drift warn.
 export const MobileCaseSchema = z
   .object({
     id: z.string().min(1),
-    verificationTaskId: z.string().optional(),
-    caseId: z.union([z.string(), z.number()]),
+    caseId: z.string().min(1),
+    taskNumber: z.string().optional(),
+    caseNumber: z.union([z.string(), z.number()]).optional(),
     status: z.string().optional(),
     updatedAt: z.string().optional(),
+    verificationUnit: z
+      .object({
+        id: z.union([z.string(), z.number()]).optional(),
+        name: z.string().optional(),
+        code: z.string().optional(),
+      })
+      .passthrough()
+      .optional(),
+    address: z.string().optional(),
+    addressPincode: z.string().optional(),
   })
   .passthrough();
 
 /**
- * Full sync download response. `cases` is required because the sync loop
- * iterates it; every other field is optional.
+ * Full sync download response (ADR-0054 Phase 1, v2-native bare body —
+ * NO `{ success, data }` wrapper). `tasks` is required because the sync
+ * loop iterates it; every other field is optional.
  */
 export const MobileSyncDownloadResponseSchema = z
   .object({
-    cases: z.array(MobileCaseSchema),
-    // A4 (audit 2026-04-21 round 2): declare every field the backend
-    // actually sends so that a rename of `conflicts` / `attachmentChanges`
-    // / `deletedCaseIds` / `nextCursor` fires the schema drift warning
-    // instead of passing through silently.
+    tasks: z.array(MobileCaseSchema),
     revokedAssignmentIds: z.array(z.string()).optional(),
-    deletedTaskIds: z.array(z.string()).optional(),
-    deletedCaseIds: z.array(z.string()).optional(),
-    conflicts: z.array(z.unknown()).optional(),
-    attachmentChanges: z.array(z.unknown()).optional(),
-    nextCursor: z.string().nullable().optional(),
-    hasMore: z.boolean().optional(),
     syncTimestamp: z.string().optional(),
+    hasMore: z.boolean().optional(),
+    nextCursor: z.string().nullable().optional(),
   })
   .passthrough();
 
