@@ -4,6 +4,7 @@ export interface DashboardProjectionStats {
   assignedCount: number;
   inProgressCount: number;
   completedCount: number;
+  submittedCount: number;
   savedCount: number;
   activeCount: number;
   lastSyncAt: string | null;
@@ -16,6 +17,7 @@ class DashboardProjectionClass {
       assignedCount: number;
       inProgressCount: number;
       completedCount: number;
+      submittedCount: number;
       savedCount: number;
       activeCount: number;
       lastSyncAt: string | null;
@@ -25,6 +27,7 @@ class DashboardProjectionClass {
          assigned_count,
          in_progress_count,
          completed_count,
+         submitted_count,
          saved_count,
          active_count,
          last_sync_at,
@@ -38,6 +41,7 @@ class DashboardProjectionClass {
       assignedCount: rows[0]?.assignedCount ?? 0,
       inProgressCount: rows[0]?.inProgressCount ?? 0,
       completedCount: rows[0]?.completedCount ?? 0,
+      submittedCount: rows[0]?.submittedCount ?? 0,
       savedCount: rows[0]?.savedCount ?? 0,
       activeCount: rows[0]?.activeCount ?? 0,
       lastSyncAt: rows[0]?.lastSyncAt ?? null,

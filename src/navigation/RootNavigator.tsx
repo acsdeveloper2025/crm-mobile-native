@@ -34,7 +34,6 @@ import { AssignedTasksScreen } from '../screens/tasks/AssignedTasksScreen';
 import { InProgressTasksScreen } from '../screens/tasks/InProgressTasksScreen';
 import { SavedTasksScreen } from '../screens/tasks/SavedTasksScreen';
 import { SubmittedTasksScreen } from '../screens/tasks/SubmittedTasksScreen';
-import { CompletedTasksScreen } from '../screens/tasks/CompletedTasksScreen';
 import { TaskDetailScreen } from '../screens/tasks/TaskDetailScreen';
 import { TaskAttachmentsScreen } from '../screens/tasks/TaskAttachmentsScreen';
 import { CameraCaptureScreen } from '../components/media/CameraCaptureScreen';
@@ -73,10 +72,6 @@ const SafeSavedTasksScreen = withScreenErrorBoundary(SavedTasksScreen, 'Saved');
 const SafeSubmittedTasksScreen = withScreenErrorBoundary(
   SubmittedTasksScreen,
   'Submitted',
-);
-const SafeCompletedTasksScreen = withScreenErrorBoundary(
-  CompletedTasksScreen,
-  'Completed',
 );
 const SafeTaskDetailScreen = withScreenErrorBoundary(
   TaskDetailScreen,
@@ -176,7 +171,6 @@ export type TabParamList = {
   Assigned: undefined;
   InProgress: undefined;
   Submitted: undefined;
-  Completed: undefined;
   Saved: undefined;
 };
 
@@ -212,8 +206,6 @@ const TabBarIcon = ({
     iconName = focused ? 'cloud-upload' : 'cloud-upload-outline';
   } else if (route.name === 'Saved') {
     iconName = focused ? 'star' : 'star-outline';
-  } else if (route.name === 'Completed') {
-    iconName = focused ? 'checkmark-circle' : 'checkmark-circle-outline';
   }
 
   return (
@@ -284,11 +276,6 @@ const MainTabs = () => {
         name="Submitted"
         component={SafeSubmittedTasksScreen}
         options={{ title: 'Submitted Tasks', tabBarLabel: 'Submitted' }}
-      />
-      <Tab.Screen
-        name="Completed"
-        component={SafeCompletedTasksScreen}
-        options={{ title: 'Completed Tasks', tabBarLabel: 'Completed' }}
       />
       <Tab.Screen
         name="Saved"

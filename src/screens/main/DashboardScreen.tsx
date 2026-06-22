@@ -35,7 +35,7 @@ export const DashboardScreen = () => {
   const [isSyncing, setIsSyncing] = React.useState(false);
   const [assignedTasks, setAssignedTasks] = useState(0);
   const [inProgressTasks, setInProgressTasks] = useState(0);
-  const [completedTasks, setCompletedTasks] = useState(0);
+  const [submittedTasks, setSubmittedTasks] = useState(0);
   const [savedTasks, setSavedTasks] = useState(0);
   const [isNotificationCenterVisible, setIsNotificationCenterVisible] =
     useState(false);
@@ -51,7 +51,7 @@ export const DashboardScreen = () => {
       const stats = await TaskRepository.getDashboardStats();
       setAssignedTasks(stats.assignedCount);
       setInProgressTasks(stats.inProgressCount);
-      setCompletedTasks(stats.completedCount);
+      setSubmittedTasks(stats.submittedCount);
       setSavedTasks(stats.savedCount);
     } catch (err) {
       Logger.warn(TAG, 'Failed to load dashboard stats', err);
@@ -178,8 +178,8 @@ export const DashboardScreen = () => {
       navigation.navigate('InProgress');
       return;
     }
-    if (filterValue === 'COMPLETED') {
-      navigation.navigate('Completed');
+    if (filterValue === 'SUBMITTED') {
+      navigation.navigate('Submitted');
       return;
     }
     if (filterValue === 'SAVED') {
@@ -479,9 +479,9 @@ export const DashboardScreen = () => {
                   borderTopColor: theme.colors.completed,
                 },
               ]}
-              onPress={() => navigateToTasks('COMPLETED')}
+              onPress={() => navigateToTasks('SUBMITTED')}
               accessibilityRole="button"
-              accessibilityLabel={`${completedTasks} completed tasks, tap to open`}
+              accessibilityLabel={`${submittedTasks} submitted tasks, tap to open`}
             >
               <View style={styles.statHeader}>
                 <Text
@@ -490,16 +490,16 @@ export const DashboardScreen = () => {
                     { color: theme.colors.textSecondary },
                   ]}
                 >
-                  Completed
+                  Submitted
                 </Text>
                 <Icon
-                  name="checkmark-done-outline"
+                  name="cloud-upload-outline"
                   size={16}
                   color={theme.colors.completed}
                 />
               </View>
               <Text style={[styles.statValue, { color: theme.colors.text }]}>
-                {completedTasks}
+                {submittedTasks}
               </Text>
             </TouchableOpacity>
 

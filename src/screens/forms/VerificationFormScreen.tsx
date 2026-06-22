@@ -612,11 +612,11 @@ export const VerificationFormScreen = ({
       // Resubmit badge on the task.
       Alert.alert(
         'Submission Queued',
-        'Verification saved and queued for upload. It will sync to the server automatically and appear in Completed.',
+        'Verification saved and queued for upload. It will sync to the server automatically and appear in Submitted.',
         [
           {
             text: 'OK',
-            onPress: () => navigation.navigate('Main', { screen: 'Completed' }),
+            onPress: () => navigation.navigate('Main', { screen: 'Submitted' }),
           },
         ],
       );

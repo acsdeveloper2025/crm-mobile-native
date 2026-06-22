@@ -214,7 +214,8 @@ class ProjectionUpdaterClass {
              COALESCE(SUM(CASE WHEN is_saved = 1 AND status != 'COMPLETED' THEN 1 ELSE 0 END), 0),
              COALESCE(SUM(CASE WHEN (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
              (SELECT last_download_sync_at FROM sync_metadata WHERE id = 1),
-             CURRENT_TIMESTAMP
+             CURRENT_TIMESTAMP,
+             COALESCE(SUM(CASE WHEN status = 'SUBMITTED' AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0)
            FROM tasks`,
         );
       });
@@ -358,7 +359,8 @@ class ProjectionUpdaterClass {
            COALESCE(SUM(CASE WHEN is_saved = 1 AND status != 'COMPLETED' THEN 1 ELSE 0 END), 0),
            COALESCE(SUM(CASE WHEN (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
            (SELECT last_download_sync_at FROM sync_metadata WHERE id = 1),
-           CURRENT_TIMESTAMP
+           CURRENT_TIMESTAMP,
+           COALESCE(SUM(CASE WHEN status = 'SUBMITTED' AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0)
          FROM tasks`,
       );
     });

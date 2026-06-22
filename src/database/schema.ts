@@ -1,7 +1,7 @@
 // SQLite Database Schema and Migrations
 // Offline-first schema for field verification data
 
-export const DB_VERSION = 20;
+export const DB_VERSION = 21;
 
 /**
  * All CREATE TABLE statements for the local SQLite database.
@@ -282,7 +282,10 @@ CREATE TABLE IF NOT EXISTS dashboard_projection (
   saved_count INTEGER NOT NULL DEFAULT 0,
   active_count INTEGER NOT NULL DEFAULT 0,
   last_sync_at TEXT,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  -- submitted_count is LAST so a fresh-install CREATE matches the v21 ALTER (which appends),
+  -- keeping the positional rebuild INSERTs in ProjectionUpdater consistent across both paths.
+  submitted_count INTEGER NOT NULL DEFAULT 0
 );
 
 -- F2.7.1: local mirror of verification_type_outcomes lookup table.
@@ -733,6 +736,14 @@ export const MIGRATIONS: Migration[] = [
       UPDATE task_list_projection SET case_number = (
         SELECT t.case_number FROM tasks t WHERE t.id = task_list_projection.id
       );
+    `,
+  },
+  {
+    version: 21,
+    description:
+      'Add submitted_count to dashboard_projection so the dashboard Submitted card reads from the cached projection (consistent with the Assigned/In-Progress/Saved cards) rather than a live table scan. The projection is a derived cache rebuilt from tasks; the column is appended here and populated on the next rebuild.',
+    sql: `
+      ALTER TABLE dashboard_projection ADD COLUMN submitted_count INTEGER NOT NULL DEFAULT 0;
     `,
   },
 ];

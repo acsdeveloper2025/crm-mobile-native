@@ -11,6 +11,7 @@ export interface DashboardStats {
   assignedCount: number;
   inProgressCount: number;
   completedCount: number;
+  submittedCount: number;
   savedCount: number;
 }
 
@@ -369,6 +370,7 @@ class TaskRepositoryClass {
       assignedCount: rows.assignedCount,
       inProgressCount: rows.inProgressCount,
       completedCount: rows.completedCount,
+      submittedCount: rows.submittedCount,
       savedCount: rows.savedCount,
     };
   }
