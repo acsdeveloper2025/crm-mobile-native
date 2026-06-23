@@ -79,8 +79,8 @@ const BASE_CONFIG: Omit<AppConfig, 'apiBaseUrl' | 'wsUrl' | 'environment'> = {
 // AWS migration introduces an environment split.
 const ENV_CONFIGS = {
   development: {
-    apiBaseUrl: 'https://crm.allcheckservices.com/api/v2',
-    wsUrl: 'wss://crm.allcheckservices.com',
+    apiBaseUrl: 'http://localhost:4000/api/v2',
+    wsUrl: 'ws://localhost:4000',
   },
   staging: {
     apiBaseUrl: 'https://crm.allcheckservices.com/api/v2',
