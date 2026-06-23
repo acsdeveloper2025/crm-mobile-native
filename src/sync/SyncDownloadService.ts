@@ -18,6 +18,7 @@ import {
 import { DataCleanupService } from '../services/DataCleanupService';
 import { Logger } from '../utils/logger';
 import { syncConflictResolver } from './SyncConflictResolver';
+import { reconcileTaskIdentity } from './reconcileTaskIdentity';
 import type {
   MobileCaseResponse,
   MobileSyncDownloadResponse,
@@ -323,8 +324,14 @@ class SyncDownloadServiceClass {
         "DELETE FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'",
         [localTaskId],
       );
+      // Purge means the task (and therefore all its local children) is gone.
+      // DELETE the PENDING children rather than marking them ABANDONED: under
+      // ON DELETE CASCADE they'd be removed by the tasks DELETE below anyway,
+      // and DELETEing them explicitly keeps the purge orphan-proof even if FK
+      // enforcement is ever off (legacy DB) — they can never be re-uploaded to
+      // a revoked/removed task. Mirrors the just-revoked wipe in upsert.
       await tx.execute(
-        "UPDATE attachments SET sync_status = 'ABANDONED' WHERE task_id = ? AND sync_status = 'PENDING'",
+        "DELETE FROM attachments WHERE task_id = ? AND sync_status = 'PENDING'",
         [localTaskId],
       );
       await tx.execute('DELETE FROM locations WHERE task_id = ?', [
@@ -335,7 +342,7 @@ class SyncDownloadServiceClass {
         [localTaskId],
       );
       await tx.execute(
-        "UPDATE form_submissions SET sync_status = 'ABANDONED' WHERE task_id = ? AND sync_status = 'PENDING'",
+        "DELETE FROM form_submissions WHERE task_id = ? AND sync_status = 'PENDING'",
         [localTaskId],
       );
       await tx.execute(
@@ -450,39 +457,11 @@ class SyncDownloadServiceClass {
     // non-transactional; deferring keeps the SQLite tx pure).
     const deferredUnlinks: string[] = [];
 
-    // Wrap the entire upsert (stale row migration + insert/replace) in a
-    // transaction to prevent orphaned FK records if a crash occurs mid-way.
+    // Wrap insert/replace + the task-identity fold in a transaction so a crash
+    // mid-way can't leave orphaned FK records. The fold (reconcileTaskIdentity)
+    // runs AFTER the insert below, keyed on verification_task_id rather than the
+    // shared case_id — see reconcileTaskIdentity for the root cause it fixes.
     await DatabaseService.transaction(async () => {
-      const staleRows = await SyncEngineRepository.query<{ id: string }>(
-        `SELECT id
-       FROM tasks
-       WHERE case_id = ?
-         AND id != ?`,
-        [task.caseId, canonicalTaskId],
-      );
-
-      for (const stale of staleRows) {
-        await SyncEngineRepository.execute(
-          'UPDATE attachments SET task_id = ? WHERE task_id = ?',
-          [canonicalTaskId, stale.id],
-        );
-        await SyncEngineRepository.execute(
-          'UPDATE locations SET task_id = ? WHERE task_id = ?',
-          [canonicalTaskId, stale.id],
-        );
-        await SyncEngineRepository.execute(
-          'UPDATE form_submissions SET task_id = ? WHERE task_id = ?',
-          [canonicalTaskId, stale.id],
-        );
-        await SyncEngineRepository.execute(
-          "UPDATE sync_queue SET entity_id = ? WHERE entity_type IN ('TASK', 'TASK_STATUS') AND entity_id = ?",
-          [canonicalTaskId, stale.id],
-        );
-        await SyncEngineRepository.execute('DELETE FROM tasks WHERE id = ?', [
-          stale.id,
-        ]);
-      }
-
       const existingRows = await SyncEngineRepository.query<{
         status: string;
         isSaved: number;
@@ -657,6 +636,13 @@ class SyncDownloadServiceClass {
           now,
         ],
       );
+
+      // Fold any local rows that hold this same task under a stale local id
+      // (id != verification_task_id) into the canonical id. Runs AFTER the
+      // upsert above so the canonical row exists and re-pointed child FKs
+      // resolve under PRAGMA foreign_keys = ON. Steady state matches nothing.
+      await reconcileTaskIdentity(SyncEngineRepository, canonicalTaskId);
+
       // B-148 (2026-05-16): if this sync tick flipped the task to REVOKED
       // (server-side revoke that mobile missed via WS push), wipe local
       // attachments + form drafts inside the same tx. FS unlinks are
