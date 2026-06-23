@@ -10,6 +10,7 @@ import { syncScheduler } from './SyncScheduler';
 import { SyncStateService } from './SyncStateService';
 import { SyncOperationStateService } from './SyncOperationStateService';
 import { SyncWatchdogService } from './SyncWatchdogService';
+import { runWithTimeout } from './runWithTimeout';
 
 const TAG = 'SyncEngine';
 /** Base watchdog timeout — extended dynamically based on queue size */
@@ -34,11 +35,21 @@ class SyncEngineClass {
   startPeriodicSync(intervalMs: number = 5 * 60 * 1000): void {
     SyncWatchdogService.recoverIfStalled(WATCHDOG_MAX_TIMEOUT_MS)
       .then(stalled => {
-        if (stalled && !this.syncInProgress) {
-          this.performSync().catch(error =>
-            Logger.warn(TAG, 'Recovery sync failed', error),
-          );
+        if (!stalled) {
+          return;
         }
+        // A prior cycle stalled. On a warm start (background→foreground) the JS
+        // context survived, so the in-memory lock may still be wedged `true`.
+        // The old gate `stalled && !this.syncInProgress` refused recovery EXACTLY
+        // when it was needed (the lock was stuck), which is why only a force-stop
+        // recovered. Force-release the wedged lock, then resync.
+        if (this.syncInProgress) {
+          Logger.warn(TAG, 'Force-releasing a wedged sync lock from a stalled cycle');
+          this.forceReleaseLock();
+        }
+        this.performSync().catch(error =>
+          Logger.warn(TAG, 'Recovery sync failed', error),
+        );
       })
       .catch(error =>
         Logger.warn(TAG, 'Watchdog recovery check failed', error),
@@ -48,6 +59,24 @@ class SyncEngineClass {
 
   stopPeriodicSync(): void {
     syncScheduler.stop();
+  }
+
+  /** Build the "nothing ran" result for a skipped / hard-timed-out cycle. */
+  private static skippedResult(reason: string): SyncResult {
+    return {
+      success: false,
+      uploadedStatusItems: 0,
+      uploadedItems: 0,
+      downloadedTasks: 0,
+      conflicts: 0,
+      errors: [reason],
+    };
+  }
+
+  /** Force-release the in-memory lock (warm-start recovery of a wedged cycle). */
+  private forceReleaseLock(): void {
+    this.syncInProgress = false;
+    this.activeSyncPromise = null;
   }
 
   async validateVisitStart(
@@ -95,33 +124,51 @@ class SyncEngineClass {
   }
 
   async performSync(): Promise<SyncResult> {
-    // If sync is already running, wait for it instead of failing immediately
-    if (this.syncInProgress && this.activeSyncPromise) {
-      Logger.info(TAG, 'Sync already in progress, waiting for completion...');
-      return this.activeSyncPromise;
+    // Single-flight, claimed SYNCHRONOUSLY before ANY await. The old code set the
+    // lock only AFTER `await isBackendReachable()`, so the several triggers that all
+    // fire at launch (AuthContext, the scheduler's network-restore, the background
+    // daemon) raced through that gap and started TWO cycles on the one op-sqlite
+    // connection — the contention that could wedge a cycle. A second caller now
+    // dedupes here instead of starting a parallel cycle.
+    if (this.syncInProgress) {
+      if (this.activeSyncPromise) {
+        Logger.info(TAG, 'Sync already in progress, waiting for completion...');
+        return this.activeSyncPromise;
+      }
+      return SyncEngineClass.skippedResult('Sync already starting');
     }
-
-    const backendReachable = await SyncStateService.isBackendReachable();
-    if (!backendReachable) {
-      MobileTelemetryService.trackSyncError('backend_unreachable', {
-        isSyncing: this.syncInProgress,
-      });
-      return {
-        success: false,
-        uploadedStatusItems: 0,
-        uploadedItems: 0,
-        downloadedTasks: 0,
-        conflicts: 0,
-        errors: ['Backend unreachable'],
-      };
-    }
-
     this.syncInProgress = true;
-    this.activeSyncPromise = this._doSync();
+
     try {
-      return await this.activeSyncPromise;
+      const backendReachable = await SyncStateService.isBackendReachable();
+      if (!backendReachable) {
+        MobileTelemetryService.trackSyncError('backend_unreachable', {
+          isSyncing: true,
+        });
+        return SyncEngineClass.skippedResult('Backend unreachable');
+      }
+
+      this.activeSyncPromise = this._doSync();
+      // Hard outer bound: even if a `_doSync` await wedges and never reaches its own
+      // `finally`, THIS method's `finally` releases the in-memory lock within
+      // WATCHDOG_MAX_TIMEOUT_MS — so a stalled cycle self-heals instead of requiring
+      // a force-stop (the previous failure mode). The lock release lives here, not in
+      // `_doSync`, precisely so a wedged `_doSync` can't keep the lock held.
+      const outcome = await runWithTimeout(
+        this.activeSyncPromise,
+        WATCHDOG_MAX_TIMEOUT_MS,
+        () => SyncEngineClass.skippedResult('Sync cycle exceeded the hard timeout'),
+      );
+      if (outcome.timedOut) {
+        Logger.error(TAG, 'Sync cycle exceeded the hard timeout — releasing lock');
+        MobileTelemetryService.trackSyncError('cycle_hard_timeout', {
+          timeoutMs: WATCHDOG_MAX_TIMEOUT_MS,
+        });
+      }
+      return outcome.value;
     } finally {
       this.activeSyncPromise = null;
+      this.syncInProgress = false;
     }
   }
 
@@ -183,8 +230,9 @@ class SyncEngineClass {
       if (watchdogTriggered) {
         errors.push('Sync watchdog interrupted processing');
       } else {
-        const downloadResult =
-          await SyncDownloadService.downloadServerChanges();
+        const downloadResult = await SyncDownloadService.downloadServerChanges({
+          shouldAbort: () => watchdogTriggered,
+        });
         downloadedTasks = downloadResult.tasksDownloaded;
         conflicts = downloadResult.conflicts;
         errors.push(...downloadResult.errors);
@@ -246,27 +294,12 @@ class SyncEngineClass {
         Logger.warn(TAG, 'Failed to reset sync metadata', syncStatusError);
       }
       await SyncWatchdogService.stop();
-      // Set syncInProgress = false AFTER scheduling the watchdog restart to
-      // prevent a race where another sync starts between the flag reset and
-      // the setTimeout callback.
-      const needsRestart = watchdogTriggered;
-      this.syncInProgress = false;
-
-      if (needsRestart) {
-        setTimeout(() => {
-          // Double-check flag — another sync may have started in the meantime
-          if (!this.syncInProgress) {
-            this.syncInProgress = true; // Claim the lock before async work
-            this.performSync()
-              .catch(error =>
-                Logger.warn(TAG, 'Watchdog restart sync failed', error),
-              )
-              .finally(() => {
-                /* syncInProgress is reset inside performSync's finally */
-              });
-          }
-        }, 1000);
-      }
+      // NOTE: the in-memory `syncInProgress` lock is OWNED + released by
+      // performSync's bounded `finally`, not here — so a wedged `_doSync` that
+      // never reaches this block still has its lock released within the hard
+      // timeout. A watchdog-interrupted cycle is resumed by the next scheduled
+      // tick / network-restore trigger (no self-restart re-entrancy, which used
+      // to manipulate `syncInProgress` from two places).
     }
   }
 

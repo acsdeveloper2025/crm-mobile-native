@@ -32,7 +32,9 @@ export interface SyncDownloadResult {
 }
 
 class SyncDownloadServiceClass {
-  async downloadServerChanges(): Promise<SyncDownloadResult> {
+  async downloadServerChanges(
+    opts?: { shouldAbort?: () => boolean },
+  ): Promise<SyncDownloadResult> {
     const errors: string[] = [];
     // Hoisted so the `finally` block can always clear sync_in_progress using
     // the latest known sync timestamp — even on mid-download errors.
@@ -50,6 +52,14 @@ class SyncDownloadServiceClass {
       const limit = config.syncBatchSize;
 
       while (hasMore) {
+        // Watchdog/hard-timeout interrupt: stop paginating cleanly. The watermark
+        // below persists only the fully-processed pages (idempotent upserts), so the
+        // next cycle resumes from here — a wedged download can no longer hang the
+        // whole sync cycle (and thus the in-memory lock).
+        if (opts?.shouldAbort?.()) {
+          errors.push('Download interrupted by sync watchdog');
+          break;
+        }
         // ADR-0054 Phase 1: `/api/v2/sync/download` now returns a BARE
         // v2-native body `{ tasks, revokedAssignmentIds, syncTimestamp,
         // hasMore, nextCursor }` — no `{ success, data }` wrapper. ADR-0054
