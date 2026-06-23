@@ -245,7 +245,10 @@ class ApiClientClass {
             }
             return Promise.reject(refreshFailure);
           } catch (refreshError) {
-            Logger.error('ApiClient', 'Token refresh failed', refreshError);
+            // Expected when the refresh token is expired/invalid — the
+            // unauthorizedHandler below sends the user to login. Warn, not error,
+            // so a normal session expiry doesn't redbox / spam error telemetry.
+            Logger.warn('ApiClient', 'Token refresh failed', refreshError);
             this.rejectRefreshSubscribers(refreshError);
             // C16 (audit 2026-04-20): only force logout on definitive auth
             // failures (refresh endpoint returns 401/403). Transient errors
@@ -279,6 +282,15 @@ class ApiClientClass {
           requestUrl.includes('/auto-save') && responseStatus === 403;
         const isAutoSaveServerError =
           requestUrl.includes('/auto-save') && responseStatus >= 500;
+        // responseStatus === 0 → no HTTP response reached us (offline, timeout,
+        // server blip): a transient connectivity condition, not a server bug.
+        // Logging it at error redboxes in dev and inflates the prod error rate
+        // with non-actionable noise; the caller already handles it (sync retry /
+        // "backend unreachable" / offline UI).
+        const isNetworkError = responseStatus === 0;
+        // A 401 from /auth/refresh is the expected session-expiry path — the
+        // unauthorizedHandler routes the user back to login.
+        const isAuthRefresh401 = isAuthRefresh && responseStatus === 401;
 
         if (isTelemetryIngestError) {
           // Telemetry ingestion is optional; avoid log spam when endpoint is not enabled.
@@ -288,6 +300,8 @@ class ApiClientClass {
             error.response?.data,
           );
         } else if (
+          isNetworkError ||
+          isAuthRefresh401 ||
           isNotificationRegisterError ||
           isNotificationListError ||
           isAutoSaveForbidden ||
