@@ -30,9 +30,19 @@ class SyncStateServiceClass {
   async updateSyncInProgress(inProgress: boolean): Promise<void> {
     const deviceInfo = await AuthService.getDeviceInfo();
     const now = new Date().toISOString();
+    // UPSERT (not INSERT OR REPLACE): only this writer's columns are touched on
+    // conflict, so the download watermark (last_download_sync_at, written by
+    // SyncDownloadService) is preserved. INSERT OR REPLACE rewrote the whole
+    // singleton row and nulled last_download_sync_at — and this runs at the
+    // START of every sync, so the download phase then read an empty watermark
+    // and re-pulled the backend's 30-day default every cycle.
     await SyncEngineRepository.execute(
-      `INSERT OR REPLACE INTO sync_metadata (id, device_id, sync_in_progress, last_upload_sync_at)
-       VALUES (1, ?, ?, ?)`,
+      `INSERT INTO sync_metadata (id, device_id, sync_in_progress, last_upload_sync_at)
+       VALUES (1, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         device_id = excluded.device_id,
+         sync_in_progress = excluded.sync_in_progress,
+         last_upload_sync_at = excluded.last_upload_sync_at`,
       [deviceInfo.deviceId, inProgress ? 1 : 0, now],
     );
   }

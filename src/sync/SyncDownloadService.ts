@@ -161,9 +161,15 @@ class SyncDownloadServiceClass {
       // before this line, last_download_sync_at stays at its pre-cycle
       // value and the next cycle re-downloads from there. No skip,
       // upserts are idempotent.
+      // UPSERT (not INSERT OR REPLACE) so last_upload_sync_at + device_id set by
+      // SyncStateService survive — INSERT OR REPLACE would null the columns it
+      // omits, the mirror of the watermark-wipe bug fixed in SyncStateService.
       await SyncEngineRepository.execute(
-        `INSERT OR REPLACE INTO sync_metadata (id, last_download_sync_at, device_id, sync_in_progress)
-         VALUES (1, ?, (SELECT COALESCE(device_id, 'unknown') FROM sync_metadata WHERE id = 1), 1)`,
+        `INSERT INTO sync_metadata (id, last_download_sync_at, sync_in_progress, device_id)
+         VALUES (1, ?, 1, (SELECT COALESCE(device_id, 'unknown') FROM sync_metadata WHERE id = 1))
+         ON CONFLICT(id) DO UPDATE SET
+           last_download_sync_at = excluded.last_download_sync_at,
+           sync_in_progress = excluded.sync_in_progress`,
         [latestSyncTimestamp],
       );
 

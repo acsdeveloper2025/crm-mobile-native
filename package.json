@@ -16,6 +16,7 @@
     "contract:mobile": "node --experimental-strip-types --no-warnings src/api/schemas/sync.schema.contract.test.ts",
     "contract:sync-lock": "node --experimental-strip-types --no-warnings src/sync/runWithTimeout.contract.test.ts",
     "contract:task-identity": "node --experimental-strip-types --no-warnings src/sync/reconcileTaskIdentity.contract.test.ts",
+    "contract:sync-metadata": "node --experimental-strip-types --no-warnings src/sync/syncMetadata.contract.test.ts",
     "check:ssl-pins": "bash scripts/check-ssl-pins.sh",
     "verify:ssl-pins-live": "bash scripts/verify-ssl-pins-live.sh",
     "prerelease": "npm run typecheck && npm run lint && npm run check:ssl-pins && npm run verify:ssl-pins-live",
