@@ -26,6 +26,35 @@ import { SyncTasksUseCase } from '../../usecases/SyncTasksUseCase';
 import { AutoSubmitSavedTasksUseCase } from '../../usecases/AutoSubmitSavedTasksUseCase';
 import { DashboardProjection } from '../../projections/DashboardProjection';
 
+// Human-friendly "last synced" label for the Sync Center card. A raw locale
+// timestamp ("6/23/2026, 2:01:00 PM") reads as noise to a field agent; a
+// relative label answers the only question they have ("is this fresh?").
+const formatLastSync = (iso: string | null | undefined): string => {
+  if (!iso) {
+    return 'Not synced yet';
+  }
+  const diffMs = Date.now() - new Date(iso).getTime();
+  if (!Number.isFinite(diffMs) || diffMs < 0) {
+    return new Date(iso).toLocaleString();
+  }
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) {
+    return 'Just now';
+  }
+  if (mins < 60) {
+    return `${mins} min ago`;
+  }
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) {
+    return `${hours} hr ago`;
+  }
+  const days = Math.floor(hours / 24);
+  if (days < 7) {
+    return `${days} day${days === 1 ? '' : 's'} ago`;
+  }
+  return new Date(iso).toLocaleDateString();
+};
+
 export const DashboardScreen = () => {
   const TAG = 'DashboardScreen';
   const { user } = useAuth();
@@ -65,14 +94,12 @@ export const DashboardScreen = () => {
       const taskRows = await TaskRepository.listRecentActivity(3);
 
       const items: Array<{ id: string; text: string }> = [];
+      setLastSyncLabel(formatLastSync(lastSync));
       if (lastSync) {
-        setLastSyncLabel(new Date(lastSync).toLocaleString());
         items.push({
           id: 'last-sync',
           text: `Last sync: ${new Date(lastSync).toLocaleString()}`,
         });
-      } else {
-        setLastSyncLabel('Not synced yet');
       }
 
       for (const row of taskRows) {
@@ -113,10 +140,6 @@ export const DashboardScreen = () => {
     }, [loadStats, loadRecentActivity]),
   );
 
-  const getActiveTaskCount = useCallback(async (): Promise<number> => {
-    return TaskRepository.getActiveTaskCount();
-  }, []);
-
   const handleForceSync = useCallback(async () => {
     try {
       setIsSyncing(true);
@@ -130,24 +153,51 @@ export const DashboardScreen = () => {
       // unaffected — both options remain open to the user.
       const autoSubmit = await AutoSubmitSavedTasksUseCase.execute();
 
-      const activeTasks = await getActiveTaskCount();
-
       if (result.success) {
-        const lines = [
-          `Task Status Uploaded: ${result.uploadedStatusItems}`,
-          `Pending Data Uploaded: ${result.uploadedItems}`,
-          `Downloaded Updates: ${result.downloadedTasks}`,
-          `Available Tasks: ${activeTasks}`,
-        ];
-        if (autoSubmit.submitted > 0 || autoSubmit.skippedDrafts > 0) {
-          lines.push(`Saved Tasks Submitted: ${autoSubmit.submitted}`);
-          if (autoSubmit.skippedDrafts > 0) {
-            lines.push(
-              `Drafts Skipped (incomplete): ${autoSubmit.skippedDrafts}`,
-            );
-          }
+        // Plain-language summary for field agents: what this sync changed, then
+        // where their work stands. The old popup listed internal sync-engine
+        // counters (e.g. an always-zero "Task Status Uploaded") that meant
+        // nothing to a field user.
+        const stats = await TaskRepository.getDashboardStats();
+        const count = (n: number, one: string, many: string): string =>
+          `${n} ${n === 1 ? one : many}`;
+
+        const changes: string[] = [];
+        if (result.downloadedTasks > 0) {
+          changes.push(
+            `${count(result.downloadedTasks, 'task', 'tasks')} added or updated`,
+          );
         }
-        Alert.alert('Sync Complete', lines.join('\n'));
+        if (autoSubmit.submitted > 0) {
+          changes.push(`${count(autoSubmit.submitted, 'task', 'tasks')} submitted`);
+        }
+        if (result.uploadedItems > 0) {
+          changes.push('your photos & forms uploaded');
+        }
+        if (autoSubmit.skippedDrafts > 0) {
+          changes.push(
+            `${count(autoSubmit.skippedDrafts, 'draft', 'drafts')} still incomplete`,
+          );
+        }
+
+        const lines: string[] = [
+          changes.length > 0
+            ? changes
+                .map(c => `${c.charAt(0).toUpperCase()}${c.slice(1)}.`)
+                .join('\n')
+            : 'You’re already up to date.',
+          '',
+          'Your tasks:',
+          `• ${stats.assignedCount} to do`,
+        ];
+        if (stats.inProgressCount > 0) {
+          lines.push(`• ${stats.inProgressCount} in progress`);
+        }
+        if (stats.submittedCount > 0) {
+          lines.push(`• ${stats.submittedCount} submitted`);
+        }
+
+        Alert.alert('Sync complete', lines.join('\n'));
       } else {
         Alert.alert(
           'Sync Failed',
@@ -167,7 +217,7 @@ export const DashboardScreen = () => {
       loadStats();
       loadRecentActivity();
     }
-  }, [getActiveTaskCount, loadRecentActivity, loadStats]);
+  }, [loadRecentActivity, loadStats]);
 
   const navigateToTasks = (filterValue: string) => {
     if (filterValue === 'ASSIGNED') {
