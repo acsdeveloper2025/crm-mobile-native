@@ -2,24 +2,11 @@ import { DatabaseService } from '../database/DatabaseService';
 import type { MobileCaseResponse } from '../types/api';
 import { Logger } from '../utils/logger';
 import { TimeService } from '../services/TimeService';
-
-interface ExistingTaskState {
-  status: string;
-  isSaved: boolean;
-  inProgressAt: string | null;
-  savedAt: string | null;
-  completedAt: string | null;
-  syncStatus: string | null;
-  localUpdatedAt?: string | null;
-}
-
-interface ResolvedTaskState {
-  status: string;
-  inProgressAt: string | null;
-  savedAt: string | null;
-  completedAt: string | null;
-  isSaved: number;
-}
+import {
+  resolveTaskState as resolveTaskStateDecision,
+  type ExistingTaskState,
+  type ResolvedTaskState,
+} from './resolveTaskState.ts';
 
 class SyncConflictResolver {
   /**
@@ -83,97 +70,19 @@ class SyncConflictResolver {
     existing?: ExistingTaskState | null,
     hasQueuedChanges: boolean = false,
   ): ResolvedTaskState {
-    const backendStatus = (task.status || 'ASSIGNED').toUpperCase();
-    let status = backendStatus;
-    let inProgressAt = task.inProgressAt || null;
-    // ADR-0054 Phase 1: `savedAt`/`isSaved` are no longer in the server
-    // payload — "saved" is a device-only concept the backend never had.
-    // They default to null/0 here and are only ever sourced from local
-    // state in the `existing` branches below (which preserve a local
-    // is_saved=1 against a server payload that doesn't carry it).
-    let savedAt: string | null = null;
-    let completedAt = task.completedAt || null;
-    let isSaved = 0;
-
-    if (existing) {
-      const localStatus = (existing.status || '').toUpperCase();
-      const localSaved = existing.isSaved;
-
-      // Check if local edits are newer than server state
-      const localHasFreshEdits = this.isLocalFresher(
-        existing.localUpdatedAt,
-        task.updatedAt,
-      );
-
-      // If there are queued changes that haven't synced yet, always preserve
-      // local state to prevent silent data loss from overwriting pending work.
-      if (hasQueuedChanges) {
-        status = localStatus || status;
-        inProgressAt = existing.inProgressAt || inProgressAt;
-        savedAt = existing.savedAt || savedAt;
-        completedAt = existing.completedAt || completedAt;
-        isSaved = localSaved ? 1 : isSaved;
-        return { status, inProgressAt, savedAt, completedAt, isSaved };
-      }
-
-      if (existing.syncStatus === 'PENDING') {
-        // For PENDING sync status, use existing logic with status precedence.
-        //
-        // 2026-05-02: extended `shouldPreserveLocal` to cover the case
-        // where local `is_saved=1` (mobile-only state — backend has no
-        // is_saved column) and backend status is IN_PROGRESS or
-        // ASSIGNED. Without this, pressing Save on the phone briefly
-        // flipped the task into the Saved tab, then the next sync
-        // pulled the task with no is_saved info and the resolver
-        // overwrote local is_saved=1 → 0, sending the task back to
-        // the In-Progress tab. Now: if local says saved and backend
-        // isn't COMPLETED/REVOKED, preserve all local progress fields
-        // including is_saved.
-        // ADR-0047 two-stage completion: SUBMITTED is the field terminal —
-        // treat it like COMPLETED here so a not-yet-uploaded submit (local
-        // SUBMITTED, sync PENDING) is never bounced back to IN_PROGRESS /
-        // ASSIGNED by a server payload still reflecting the pre-submit state.
-        // The office's real COMPLETED arrives once the submit syncs (server
-        // updatedAt then leads) and is accepted via the fall-through below.
-        const shouldPreserveLocal =
-          (backendStatus === 'ASSIGNED' &&
-            (localStatus === 'IN_PROGRESS' ||
-              localStatus === 'SUBMITTED' ||
-              localStatus === 'COMPLETED' ||
-              localSaved)) ||
-          (backendStatus === 'IN_PROGRESS' &&
-            (localStatus === 'SUBMITTED' ||
-              localStatus === 'COMPLETED' ||
-              localSaved)) ||
-          (localSaved &&
-            backendStatus !== 'COMPLETED' &&
-            backendStatus !== 'REVOKED');
-
-        if (shouldPreserveLocal) {
-          status = localStatus || status;
-          inProgressAt = existing.inProgressAt || inProgressAt;
-          savedAt = existing.savedAt || savedAt;
-          completedAt = existing.completedAt || completedAt;
-          isSaved = localSaved ? 1 : isSaved;
-        }
-      } else if (localHasFreshEdits) {
-        // For non-PENDING status: if local has fresher edits than server, preserve local edits
-        // but still accept server-side administrative changes (status revocations, reassignments)
-        status = localStatus || status;
-        inProgressAt = existing.inProgressAt || inProgressAt;
-        savedAt = existing.savedAt || savedAt;
-        completedAt = existing.completedAt || completedAt;
-        isSaved = localSaved ? 1 : isSaved;
-      }
-    }
-
-    return {
-      status,
-      inProgressAt,
-      savedAt,
-      completedAt,
-      isSaved,
-    };
+    // Compute the server-clock freshness flag here (needs TimeService), then
+    // delegate the pure status-merge decision to ./resolveTaskState so it stays
+    // unit-testable outside the RN runtime. The revoked short-circuit lives in
+    // that helper (A2026-0623-11).
+    const localHasFreshEdits = existing
+      ? this.isLocalFresher(existing.localUpdatedAt, task.updatedAt)
+      : false;
+    return resolveTaskStateDecision(
+      task,
+      existing,
+      hasQueuedChanges,
+      localHasFreshEdits,
+    );
   }
 }
 

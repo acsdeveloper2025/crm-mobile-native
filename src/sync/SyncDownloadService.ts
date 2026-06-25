@@ -19,6 +19,7 @@ import { DataCleanupService } from '../services/DataCleanupService';
 import { Logger } from '../utils/logger';
 import { syncConflictResolver } from './SyncConflictResolver';
 import { reconcileTaskIdentity } from './reconcileTaskIdentity';
+import { isJustRevoked, purgeRevokedTaskPii } from './revokeWipe';
 import type {
   MobileCaseResponse,
   MobileSyncDownloadResponse,
@@ -649,35 +650,20 @@ class SyncDownloadServiceClass {
       // resolve under PRAGMA foreign_keys = ON. Steady state matches nothing.
       await reconcileTaskIdentity(SyncEngineRepository, canonicalTaskId);
 
-      // B-148 (2026-05-16): if this sync tick flipped the task to REVOKED
+      // B-148 (2026-05-16) / A2026-0623-11: if this sync tick revoked the task
       // (server-side revoke that mobile missed via WS push), wipe local
-      // attachments + form drafts inside the same tx. FS unlinks are
-      // deferred until after commit because RNFS is non-transactional.
+      // attachments + form drafts inside the same tx. Gate on the SERVER
+      // revoked signal — the revoked flag OR the merged status — so a
+      // queued/fresher local edit can't mask the revoke and leave PII behind
+      // (the resolver short-circuit keeps the two aligned, this is the
+      // belt-and-suspenders). FS unlinks are deferred until after commit
+      // because RNFS is non-transactional.
       const previousStatus = existingRows[0]?.status;
-      const justRevoked =
-        mergedState.status === 'REVOKED' && previousStatus !== 'REVOKED';
-      if (justRevoked) {
-        const orphanPaths = await SyncEngineRepository.query<{
-          local_path?: string;
-          thumbnail_path?: string;
-        }>(
-          'SELECT local_path, thumbnail_path FROM attachments WHERE task_id = ?',
-          [canonicalTaskId],
-        );
+      const serverRevoked =
+        task.isRevoked === true || mergedState.status === 'REVOKED';
+      if (isJustRevoked(serverRevoked, previousStatus)) {
         deferredUnlinks.push(
-          ...orphanPaths.flatMap(r =>
-            [r.local_path, r.thumbnail_path].filter(
-              (p): p is string => typeof p === 'string' && p.length > 0,
-            ),
-          ),
-        );
-        await SyncEngineRepository.execute(
-          'DELETE FROM attachments WHERE task_id = ?',
-          [canonicalTaskId],
-        );
-        await SyncEngineRepository.execute(
-          'DELETE FROM form_submissions WHERE task_id = ?',
-          [canonicalTaskId],
+          ...(await purgeRevokedTaskPii(SyncEngineRepository, canonicalTaskId)),
         );
       }
     }); // end transaction

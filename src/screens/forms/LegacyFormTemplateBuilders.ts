@@ -3,7 +3,7 @@ import type {
   FormFieldCondition,
   FormFieldTemplate,
 } from '../../types/api';
-import type { FormTypeKey } from '../../utils/formTypeKey';
+import { resolveFormTypeKey, type FormTypeKey } from '../../utils/formTypeKey.ts';
 
 type ResidenceOutcome =
   | 'POSITIVE'
@@ -151,18 +151,6 @@ const syncedOutcomesByFormType = new Map<FormTypeKey, AllOutcome[]>();
 // Synced label override (e.g. server-edited "No Such Person" → "Person Absent").
 const syncedLabelByOutcome = new Map<string, string>();
 
-const FORM_TYPE_KEY_BY_VTYPE_CODE: Record<string, FormTypeKey> = {
-  RV: 'residence',
-  RC: 'residence-cum-office',
-  OV: 'office',
-  EV: 'business',
-  BV: 'builder',
-  NV: 'noc',
-  DV: 'dsa-connector',
-  PIV: 'property-individual',
-  PAV: 'property-apf',
-};
-
 interface OutcomeSyncRow {
   verificationTypeCode: string;
   outcomeCode: string;
@@ -181,7 +169,10 @@ export function setOutcomesFromSync(rows: OutcomeSyncRow[]): void {
   // Group + sort by sort_order
   const grouped = new Map<FormTypeKey, OutcomeSyncRow[]>();
   for (const r of rows) {
-    const key = FORM_TYPE_KEY_BY_VTYPE_CODE[r.verificationTypeCode];
+    // A2026-0623-02: the crm2 reference feed sends LONG verification-type codes
+    // (RESIDENCE … PROPERTY_APF). resolveFormTypeKey maps those (and the name
+    // fallbacks) for all 9 types; the old short-code map dropped every row.
+    const key = resolveFormTypeKey(r.verificationTypeCode);
     if (!key) continue;
     const arr = grouped.get(key) ?? [];
     arr.push(r);
