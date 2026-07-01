@@ -33,22 +33,31 @@ import { BackgroundSyncDaemon } from './src/sync/BackgroundSyncDaemon';
 // @react-native-firebase/messaging contract; otherwise the handler is
 // not invoked for cold-start deliveries.
 //
-// Non-LOCATION_REQUEST data-messages flow through the foreground
-// onMessage handler in NotificationService (when app is in foreground)
-// or through the system tray (when app is backgrounded with a
-// notification block). The background handler below is intentionally
-// scoped to LOCATION_REQUEST only.
+// 2026-07-01: while backgrounded/killed the WebSocket is dead, so
+// task-lifecycle pushes (assign/revoke) would otherwise land only in the
+// OS tray (backend now sends a notification block) with no in-app effect
+// until the next foreground. For the recognized types the handler fires
+// ONE headless sync — it downloads new assignments AND purges revoked
+// tasks via the sync-download `revokedAssignmentIds` list, covering both
+// side effects. Notification rows still refill on foreground
+// refreshFromBackend and the tray already shows the push, so we
+// intentionally don't persist a row here.
 import messaging from '@react-native-firebase/messaging';
 import {
   handleLocationRequest,
   isLocationRequestPayload,
 } from './src/services/LocationPingHandler';
+import { shouldBackgroundSyncForFcmType } from './src/api/schemas/fcm.schema';
 
 messaging().setBackgroundMessageHandler(async remoteMessage => {
   try {
     const data = remoteMessage?.data;
     if (isLocationRequestPayload(data)) {
       await handleLocationRequest(data);
+      return;
+    }
+    if (shouldBackgroundSyncForFcmType(data?.type ?? data?.notificationType)) {
+      await BackgroundSyncDaemon.runHeadlessTask();
     }
   } catch (err) {
     // Background handler errors are swallowed silently; the BE flow

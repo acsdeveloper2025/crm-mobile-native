@@ -172,3 +172,41 @@ export function normalizeFcmType(
     ? (upper as (typeof FCM_NOTIFICATION_TYPES)[number])
     : 'SYSTEM_NOTIFICATION';
 }
+
+// --- background-sync trigger types --------------------------------------
+//
+// 2026-07-01: when the app is backgrounded/killed the WebSocket is dead,
+// so a task-lifecycle push (assign/revoke) lands only in the OS tray with
+// no in-app effect until the next foreground. The index.js
+// setBackgroundMessageHandler uses the predicate below to fire ONE
+// headless sync for these types — a single sync both downloads new
+// assignments AND purges revoked tasks via the sync-download
+// `revokedAssignmentIds` list, so we don't branch per side effect.
+//
+// This set is matched against the RAW `type` string, NOT through
+// normalizeFcmType: `TASK_REVOKED` is intentionally absent from
+// FCM_NOTIFICATION_TYPES (it's a rowless system event) and would coerce
+// to SYSTEM_NOTIFICATION — a normalize-based check would never match it.
+//
+// ponytail: the backend's exact FCM `data.type` strings for assign/submit
+// are unconfirmed from this repo. CASE_ASSIGNED/CASE_REASSIGNED are proven
+// by the foreground path and TASK_REVOKED by the WS path; add the real
+// strings (and a contract-test case) here once backend confirms them.
+export const FCM_BACKGROUND_SYNC_TYPES = new Set<string>([
+  'CASE_ASSIGNED',
+  'CASE_REASSIGNED',
+  'CASE_REVOKED',
+  'TASK_REVOKED',
+]);
+
+/**
+ * True if a data-message of this raw `type` should trigger a background
+ * sync when received while backgrounded/killed. Case-insensitive; any
+ * non-string (or unknown type) returns false so the background handler
+ * stays a no-op for chatty non-task pushes (MESSAGE, REMINDER, …).
+ */
+export function shouldBackgroundSyncForFcmType(raw: unknown): boolean {
+  return (
+    typeof raw === 'string' && FCM_BACKGROUND_SYNC_TYPES.has(raw.toUpperCase())
+  );
+}
