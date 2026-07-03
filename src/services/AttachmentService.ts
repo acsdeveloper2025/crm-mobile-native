@@ -148,13 +148,19 @@ class AttachmentServiceClass {
     const candidateUrls = this.buildAttachmentContentUrls(attachment);
     let lastFailureStatus = 0;
     for (const url of candidateUrls) {
+      // A presigned S3/MinIO URL is self-authenticating via its query params —
+      // sending our Bearer header alongside makes the store reject the request
+      // outright (400 "request has multiple authentication types"), which broke
+      // every office-doc download (CASE-000024, 2026-07-03). Only API URLs get
+      // the Authorization header.
+      const isPresigned = url.includes('X-Amz-Signature');
       let result = await RNFS.downloadFile({
         fromUrl: url,
         toFile: destPath,
-        headers: buildHeaders(token),
+        headers: buildHeaders(isPresigned ? null : token),
       }).promise;
 
-      if (result.statusCode === 401 && !refreshedOnce) {
+      if (result.statusCode === 401 && !isPresigned && !refreshedOnce) {
         refreshedOnce = true;
         try {
           const newToken = await ApiClient.triggerRefresh();
