@@ -129,9 +129,21 @@ jobs:
       - name: Lint source
         run: npm run lint:src
 
+  # One run builds BOTH apps (ADR-0087 environment split): the production APK
+  # and the staging APK (com.crmmobilenative.staging, "CRM Staging", targets
+  # staging.crm.allcheckservices.com). Both attach to the same GitHub release.
   build-apk:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' || startsWith(github.ref, 'refs/tags/v') }}
+    strategy:
+      matrix:
+        include:
+          - app_env: production
+            artifact: apk-production
+            file_base: crm-mobile-native
+          - app_env: staging
+            artifact: apk-staging
+            file_base: crm-mobile-staging
     needs:
       - detect
       - verify
@@ -188,11 +200,12 @@ jobs:
           fi
           printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
 
-      - name: Build release APK
+      - name: Build release APK (${{ matrix.app_env }})
         working-directory: android
         run: |
           chmod +x ./gradlew
           ./gradlew clean assembleRelease \
+            -PappEnv=${{ matrix.app_env }} \
             -PenableAbiSplits=true \
             -PversionName=${{ needs.detect.outputs.version_name }} \
             -PversionCode=${{ needs.detect.outputs.version_code }}
@@ -202,20 +215,21 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${{ needs.detect.outputs.version_name }}"
+          BASE="${{ matrix.file_base }}"
           mkdir -p release-artifacts
           test -f android/app/build/outputs/apk/release/app-universal-release.apk
           cp android/app/build/outputs/apk/release/app-universal-release.apk \
-            "release-artifacts/crm-mobile-native-v${VERSION}.apk"
-          sha256sum "release-artifacts/crm-mobile-native-v${VERSION}.apk" \
-            > "release-artifacts/crm-mobile-native-v${VERSION}.apk.sha256"
+            "release-artifacts/${BASE}-v${VERSION}.apk"
+          sha256sum "release-artifacts/${BASE}-v${VERSION}.apk" \
+            > "release-artifacts/${BASE}-v${VERSION}.apk.sha256"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: apk-release
+          name: ${{ matrix.artifact }}
           path: |
-            release-artifacts/crm-mobile-native-v${{ needs.detect.outputs.version_name }}.apk
-            release-artifacts/crm-mobile-native-v${{ needs.detect.outputs.version_name }}.apk.sha256
+            release-artifacts/${{ matrix.file_base }}-v${{ needs.detect.outputs.version_name }}.apk
+            release-artifacts/${{ matrix.file_base }}-v${{ needs.detect.outputs.version_name }}.apk.sha256
 
       # 2026-05-01 pre-AWS hardening: scrub signing material + Firebase
       # config from the runner workspace. Runners are ephemeral so this
@@ -334,10 +348,11 @@ jobs:
       - build-apk
       - build-aab
     steps:
-      - name: Download APK artifact
+      - name: Download APK artifacts
         uses: actions/download-artifact@v4
         with:
-          name: apk-release
+          pattern: apk-*
+          merge-multiple: true
           path: release-artifacts
 
       - name: Download AAB artifact
@@ -352,16 +367,19 @@ jobs:
           set -euo pipefail
           VERSION="${{ needs.detect.outputs.version_name }}"
           APK_SHA="$(cut -d' ' -f1 "release-artifacts/crm-mobile-native-v${VERSION}.apk.sha256")"
+          STG_SHA="$(cut -d' ' -f1 "release-artifacts/crm-mobile-staging-v${VERSION}.apk.sha256")"
           AAB_SHA="$(cut -d' ' -f1 "release-artifacts/crm-mobile-native-v${VERSION}.aab.sha256")"
           cat > release-notes.md <<EOF
           ## Android Artifacts
 
-          - APK: \`crm-mobile-native-v${VERSION}.apk\`
+          - APK (production): \`crm-mobile-native-v${VERSION}.apk\`
+          - APK (staging, installs beside prod, targets staging server): \`crm-mobile-staging-v${VERSION}.apk\`
           - AAB: \`crm-mobile-native-v${VERSION}.aab\`
 
           ## Checksums
 
           - APK SHA-256: \`${APK_SHA}\`
+          - Staging APK SHA-256: \`${STG_SHA}\`
           - AAB SHA-256: \`${AAB_SHA}\`
 
           ## Release Policy
@@ -381,5 +399,7 @@ jobs:
           files: |
             release-artifacts/crm-mobile-native-v${{ needs.detect.outputs.version_name }}.apk
             release-artifacts/crm-mobile-native-v${{ needs.detect.outputs.version_name }}.apk.sha256
+            release-artifacts/crm-mobile-staging-v${{ needs.detect.outputs.version_name }}.apk
+            release-artifacts/crm-mobile-staging-v${{ needs.detect.outputs.version_name }}.apk.sha256
             release-artifacts/crm-mobile-native-v${{ needs.detect.outputs.version_name }}.aab
             release-artifacts/crm-mobile-native-v${{ needs.detect.outputs.version_name }}.aab.sha256
