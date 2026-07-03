@@ -1,0 +1,221 @@
+# =============================================================================
+# STAGING APK (ADR-0087 environment split) — manual trigger only.
+#
+# Builds the app with -PappEnv=staging:
+#   * applicationId com.crmmobilenative.staging  → installs BESIDE production
+#   * launcher label "CRM Staging"
+#   * JS targets https://staging.crm.allcheckservices.com (src/config/index.ts)
+#
+# Output is a workflow ARTIFACT (Actions → run → Artifacts) — no tag, no GitHub
+# release, no version bump. The production pipeline (android-release.yml) is
+# untouched by this file. Signed with the same release keystore so devices with
+# the production app accept the install (different appId, no conflict).
+# =============================================================================
+name: Android Staging APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      node_version: ${{ steps.detect.outputs.node_version }}
+      compile_sdk: ${{ steps.detect.outputs.compile_sdk }}
+      build_tools_version: ${{ steps.detect.outputs.build_tools_version }}
+      ndk_version: ${{ steps.detect.outputs.ndk_version }}
+      java_version: ${{ steps.detect.outputs.java_version }}
+      version_name: ${{ steps.version.outputs.version_name }}
+      version_code: ${{ steps.version.outputs.version_code }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect project toolchain
+        id: detect
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          root = Path(".")
+          package_json = json.loads((root / "package.json").read_text(encoding="utf-8"))
+          build_gradle = (root / "android/build.gradle").read_text(encoding="utf-8")
+          wrapper_props = (root / "android/gradle/wrapper/gradle-wrapper.properties").read_text(encoding="utf-8")
+
+          nvmrc = root / ".nvmrc"
+          if nvmrc.exists():
+              node_version = nvmrc.read_text(encoding="utf-8").strip()
+          else:
+              engine = package_json.get("engines", {}).get("node", "")
+              match = re.search(r"(\d+(?:\.\d+){0,2})", engine)
+              node_version = match.group(1) if match else "22"
+
+          patterns = {
+              "compile_sdk": r"compileSdkVersion = (\d+)",
+              "build_tools_version": r'buildToolsVersion = "([^"]+)"',
+              "ndk_version": r'ndkVersion = "([^"]+)"',
+              "agp_version": r"com\.android\.tools\.build:gradle:([0-9.]+)",
+              "gradle_version": r"gradle-([0-9][^-/]*)-bin\.zip",
+          }
+
+          sources = {
+              "compile_sdk": build_gradle,
+              "build_tools_version": build_gradle,
+              "ndk_version": build_gradle,
+              "agp_version": build_gradle,
+              "gradle_version": wrapper_props,
+          }
+
+          values = {"node_version": node_version}
+          for key, pattern in patterns.items():
+              match = re.search(pattern, sources[key])
+              if not match:
+                  raise SystemExit(f"Missing {key} in project configuration")
+              values[key] = match.group(1)
+
+          agp_major = int(values["agp_version"].split(".", 1)[0])
+          values["java_version"] = "17" if agp_major >= 8 else "11"
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              for key, value in values.items():
+                  fh.write(f"{key}={value}\n")
+          PY
+
+      - name: Derive staging version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION_NAME="$(node -p "require('./package.json').version")-staging.${{ github.run_number }}"
+          VERSION_CODE="$(date +%s)"
+          echo "version_name=$VERSION_NAME" >> "$GITHUB_OUTPUT"
+          echo "version_code=$VERSION_CODE" >> "$GITHUB_OUTPUT"
+
+  verify:
+    runs-on: ubuntu-latest
+    needs: detect
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ needs.detect.outputs.node_version }}
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint source
+        run: npm run lint:src
+
+  build-staging-apk:
+    runs-on: ubuntu-latest
+    needs:
+      - detect
+      - verify
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ needs.detect.outputs.node_version }}
+          cache: "npm"
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: ${{ needs.detect.outputs.java_version }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK components
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager \
+            "platform-tools" \
+            "platforms;android-${{ needs.detect.outputs.compile_sdk }}" \
+            "build-tools;${{ needs.detect.outputs.build_tools_version }}" \
+            "ndk;${{ needs.detect.outputs.ndk_version }}"
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Restore signing and Firebase files
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          test -n "$GOOGLE_SERVICES_JSON"
+          mkdir -p android/app
+          if [[ -n "$ANDROID_KEYSTORE_BASE64" && -n "$ANDROID_KEYSTORE_PASSWORD" && -n "$ANDROID_KEY_ALIAS" && -n "$ANDROID_KEY_PASSWORD" ]]; then
+            echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/release.keystore
+            printf '%s\n' \
+              "storeFile=release.keystore" \
+              "storePassword=$ANDROID_KEYSTORE_PASSWORD" \
+              "keyAlias=$ANDROID_KEY_ALIAS" \
+              "keyPassword=$ANDROID_KEY_PASSWORD" \
+              > android/keystore.properties
+          fi
+          printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+
+      - name: Build staging APK
+        working-directory: android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew clean assembleRelease \
+            -PappEnv=staging \
+            -PenableAbiSplits=true \
+            -PversionName=${{ needs.detect.outputs.version_name }} \
+            -PversionCode=${{ needs.detect.outputs.version_code }}
+
+      - name: Prepare APK artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${{ needs.detect.outputs.version_name }}"
+          mkdir -p staging-artifacts
+          test -f android/app/build/outputs/apk/release/app-universal-release.apk
+          cp android/app/build/outputs/apk/release/app-universal-release.apk \
+            "staging-artifacts/crm-mobile-staging-v${VERSION}.apk"
+          sha256sum "staging-artifacts/crm-mobile-staging-v${VERSION}.apk" \
+            > "staging-artifacts/crm-mobile-staging-v${VERSION}.apk.sha256"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-staging
+          path: |
+            staging-artifacts/crm-mobile-staging-v${{ needs.detect.outputs.version_name }}.apk
+            staging-artifacts/crm-mobile-staging-v${{ needs.detect.outputs.version_name }}.apk.sha256
+
+      # Same defense-in-depth scrub as android-release.yml.
+      - name: Scrub signing material
+        if: always()
+        run: |
+          rm -f android/keystore.properties
+          rm -f android/app/release.keystore
+          rm -f android/app/google-services.json

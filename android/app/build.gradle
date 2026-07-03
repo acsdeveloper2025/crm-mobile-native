@@ -81,6 +81,14 @@ def abiSplitsEnabled = (project.findProperty("enableAbiSplits") ?: defaultAbiSpl
 def releaseVersionName = project.findProperty("versionName") ?: "1.0"
 def releaseVersionCode = (project.findProperty("versionCode") ?: "1").toString().toInteger()
 
+// appEnv (-PappEnv=staging): builds a STAGING app — own applicationId (installs
+// beside production), "CRM Staging" launcher label, and the JS layer reads it
+// via AppInfo.appEnv to target staging.crm.allcheckservices.com (ADR-0087).
+def appEnv = (project.findProperty("appEnv") ?: "production").toString()
+if (!["production", "staging"].contains(appEnv)) {
+    throw new GradleException("appEnv must be 'production' or 'staging', got '${appEnv}'")
+}
+
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
  *
@@ -129,12 +137,19 @@ android {
             useLegacyPackaging true
         }
     }
+    buildFeatures {
+        // BuildConfig.APP_ENV carries the appEnv into AppInfoModule.
+        buildConfig true
+    }
     defaultConfig {
-        applicationId "com.crmmobilenative"
+        applicationId appEnv == "staging" ? "com.crmmobilenative.staging" : "com.crmmobilenative"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode releaseVersionCode
         versionName releaseVersionName
+        buildConfigField "String", "APP_ENV", "\"${appEnv}\""
+        // app_name lives here (not strings.xml) so the staging build can rename itself.
+        resValue "string", "app_name", appEnv == "staging" ? "CRM Staging" : "CRM Mobile"
     }
     signingConfigs {
         debug {

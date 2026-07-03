@@ -35,7 +35,12 @@ export interface AppConfig {
 
 const nativeAppInfo = (
   NativeModules as {
-    AppInfo?: { versionName?: string; versionCode?: number | string };
+    AppInfo?: {
+      versionName?: string;
+      versionCode?: number | string;
+      /** "production" | "staging" — baked at build time via -PappEnv (android/app/build.gradle). */
+      appEnv?: string;
+    };
   }
 ).AppInfo;
 const resolvedAppVersion = nativeAppInfo?.versionName || '1.0.0';
@@ -75,16 +80,16 @@ const BASE_CONFIG: Omit<AppConfig, 'apiBaseUrl' | 'wsUrl' | 'environment'> = {
 // on Android emulator `localhost` is the emulator itself (not the
 // host), so version-check / telemetry / auth all failed with
 // network errors. Using the deployed URL lets debug APKs talk to a
-// real backend out-of-the-box. Same URL as staging/production until
-// AWS migration introduces an environment split.
+// real backend out-of-the-box. Staging builds (-PappEnv=staging) target the
+// staging box; production targets AWS prod (ADR-0087).
 const ENV_CONFIGS = {
   development: {
     apiBaseUrl: 'http://localhost:4000/api/v2',
     wsUrl: 'ws://localhost:4000',
   },
   staging: {
-    apiBaseUrl: 'https://crm.allcheckservices.com/api/v2',
-    wsUrl: 'wss://crm.allcheckservices.com',
+    apiBaseUrl: 'https://staging.crm.allcheckservices.com/api/v2',
+    wsUrl: 'wss://staging.crm.allcheckservices.com',
   },
   production: {
     apiBaseUrl: 'https://crm.allcheckservices.com/api/v2',
@@ -97,6 +102,10 @@ const resolveEnvironment = (): 'development' | 'staging' | 'production' => {
   // React Native __DEV__ flag is true in debug builds, false in release
   if (__DEV__) {
     return 'development';
+  }
+  // Release builds: the Android build stamps APP_ENV via -PappEnv (AppInfo.appEnv).
+  if (nativeAppInfo?.appEnv === 'staging') {
+    return 'staging';
   }
   return 'production';
 };

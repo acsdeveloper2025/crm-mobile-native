@@ -32,6 +32,8 @@ class AppInfoModule(reactContext: ReactApplicationContext) : ReactContextBaseJav
     return mutableMapOf(
       "versionName" to versionName,
       "versionCode" to versionCode,
+      // "production" | "staging" — set at build time via -PappEnv (build.gradle).
+      "appEnv" to BuildConfig.APP_ENV,
     )
   }
 }
