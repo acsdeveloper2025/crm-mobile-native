@@ -57,6 +57,17 @@ class TaskListProjectionClass {
       return (rows[0]?.count ?? 0) > 0;
     }
 
+    if (statusFilter === 'SUBMITTED') {
+      // Mirrors list(): the Submitted tab includes office-COMPLETED history.
+      const rows = await DatabaseService.query<{ count: number }>(
+        `SELECT COUNT(*) as count
+         FROM tasks
+         WHERE status IN ('SUBMITTED','COMPLETED')
+           AND (is_revoked IS NULL OR is_revoked = 0)`,
+      );
+      return (rows[0]?.count ?? 0) > 0;
+    }
+
     const rows = await DatabaseService.query<{ count: number }>(
       `SELECT COUNT(*) as count
        FROM tasks
@@ -87,6 +98,11 @@ class TaskListProjectionClass {
     } else if (statusFilter === 'ASSIGNED' || statusFilter === 'IN_PROGRESS') {
       sql += ` AND status = ? AND (is_saved IS NULL OR is_saved = 0)`;
       params.push(statusFilter);
+    } else if (statusFilter === 'SUBMITTED') {
+      // Owner 2026-07-03: the Submitted tab is the agent's history — keep a task
+      // visible after the OFFICE completes it (ADR-0047 flips SUBMITTED →
+      // COMPLETED on down-sync, which used to vanish it from every tab).
+      sql += ` AND status IN ('SUBMITTED','COMPLETED')`;
     } else if (statusFilter) {
       sql += ` AND status = ?`;
       params.push(statusFilter);
