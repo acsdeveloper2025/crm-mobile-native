@@ -29,10 +29,18 @@
 //      App.tsx (already wired to RemoteLogService).
 
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Appearance,
+  type ColorSchemeName,
+  type NativeEventSubscription,
+} from 'react-native';
 import { Logger } from '../utils/logger';
 import { RemoteLogService } from '../services/RemoteLogService';
-import { lightTheme } from '../theme/Theme';
+import { lightTheme, darkTheme, type ThemeColors } from '../theme/Theme';
 
 interface Props {
   children: ReactNode;
@@ -46,16 +54,41 @@ interface State {
   hasError: boolean;
   error?: Error;
   retryKey: number;
+  // Appearance API can return null/undefined in some environments; mirror
+  // the SDK signature rather than force-cast. Drives the fallback palette.
+  colorScheme: ColorSchemeName | null | undefined;
 }
 
 class ScreenErrorBoundary extends Component<Props, State> {
+  private appearanceSubscription: NativeEventSubscription | null = null;
+
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, retryKey: 0 };
+    this.state = {
+      hasError: false,
+      retryKey: 0,
+      colorScheme: Appearance.getColorScheme(),
+    };
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error };
+  }
+
+  componentDidMount() {
+    // Runs outside ThemeContext (it may be the thing that crashed), so read
+    // the platform Appearance API directly and live-update if the system
+    // theme flips while the fallback is on screen — mirrors ErrorBoundary.
+    this.appearanceSubscription = Appearance.addChangeListener(
+      ({ colorScheme }) => {
+        this.setState({ colorScheme });
+      },
+    );
+  }
+
+  componentWillUnmount() {
+    this.appearanceSubscription?.remove();
+    this.appearanceSubscription = null;
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -80,6 +113,11 @@ class ScreenErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      const styles = makeStyles(
+        this.state.colorScheme === 'dark'
+          ? darkTheme.colors
+          : lightTheme.colors,
+      );
       const message =
         this.state.error?.message?.slice(0, 200) ||
         'An unexpected error occurred on this screen.';
@@ -126,77 +164,77 @@ class ScreenErrorBoundary extends Component<Props, State> {
   }
 }
 
-// Static palette pulled from the v2 lightTheme tokens (a plain const, NOT
-// ThemeContext — which might be the thing that crashed). Fixed to the light
-// ramp so the crash fallback stays dead-simple; readable in both light and
-// dark system chrome.
-const c = lightTheme.colors;
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: c.surface,
-    padding: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: c.text,
-    marginBottom: 6,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 13,
-    color: c.textMuted,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  message: {
-    fontSize: 14,
-    color: c.textSecondary,
-    marginBottom: 24,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 16,
-  },
-  button: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 8,
-    minHeight: 44,
-    minWidth: 110,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonPrimary: {
-    backgroundColor: c.primary,
-  },
-  buttonPrimaryText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  buttonSecondary: {
-    borderWidth: 1,
-    borderColor: c.border,
-    backgroundColor: c.background,
-  },
-  buttonSecondaryText: {
-    color: c.textSecondary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  hint: {
-    fontSize: 12,
-    color: c.textMuted,
-    textAlign: 'center',
-  },
-});
+// Palette pulled from the v2 theme tokens (plain consts, NOT ThemeContext —
+// which might be the thing that crashed). Keyed on the live system color
+// scheme (see the class's Appearance subscription) so the fallback matches
+// light/dark instead of always painting a bright card.
+const makeStyles = (c: ThemeColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: c.surface,
+      padding: 24,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    title: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: c.text,
+      marginBottom: 6,
+      textAlign: 'center',
+    },
+    subtitle: {
+      fontSize: 13,
+      color: c.textMuted,
+      marginBottom: 16,
+      textAlign: 'center',
+    },
+    message: {
+      fontSize: 14,
+      color: c.textSecondary,
+      marginBottom: 24,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    buttonRow: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 16,
+    },
+    button: {
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+      borderRadius: 8,
+      minHeight: 44,
+      minWidth: 110,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    buttonPrimary: {
+      backgroundColor: c.primary,
+    },
+    buttonPrimaryText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    buttonSecondary: {
+      borderWidth: 1,
+      borderColor: c.border,
+      backgroundColor: c.background,
+    },
+    buttonSecondaryText: {
+      color: c.textSecondary,
+      fontSize: 14,
+      fontWeight: '600',
+    },
+    hint: {
+      fontSize: 12,
+      color: c.textMuted,
+      textAlign: 'center',
+    },
+  });
 
 /**
  * HOC that wraps a screen component in `ScreenErrorBoundary`. Use at
