@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
   type NavigationContainerRef,
   type NavigatorScreenParams,
 } from '@react-navigation/native';
@@ -316,8 +318,24 @@ export const navigationRef =
 
 export const RootNavigator = () => {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
-  const { theme } = useTheme();
+  const { theme, isDark } = useTheme();
   const isNavigationReady = useRef(false);
+
+  // Give react-navigation an app-matched theme. Without it the container falls
+  // back to the built-in white + #007aff DefaultTheme and never goes dark — the
+  // shell shows during screen transitions and overscroll bounce.
+  const navTheme = {
+    ...(isDark ? DarkTheme : DefaultTheme),
+    colors: {
+      ...(isDark ? DarkTheme : DefaultTheme).colors,
+      primary: theme.colors.primary,
+      background: theme.colors.background,
+      card: theme.colors.surface,
+      text: theme.colors.text,
+      border: theme.colors.border,
+      notification: theme.colors.danger,
+    },
+  };
 
   const [versionResult, setVersionResult] = useState<UpdateInfo | null>(null);
   // F-MD12 (audit 2026-04-28 deeper): undefined = checking, true =
@@ -488,7 +506,7 @@ export const RootNavigator = () => {
   // HARD BLOCK: The app is deprecated.
   if (versionResult?.forceUpdate) {
     return (
-      <NavigationContainer>
+      <NavigationContainer theme={navTheme}>
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen
             name="ForceUpdate"
@@ -523,6 +541,7 @@ export const RootNavigator = () => {
 
   return (
     <NavigationContainer
+      theme={navTheme}
       ref={navigationRef}
       linking={linking}
       onReady={() => {

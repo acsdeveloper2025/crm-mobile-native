@@ -101,70 +101,67 @@ const commonTokens = {
 export const lightTheme: Theme = {
   ...commonTokens,
   colors: {
-    primary: '#00A950',
-    primaryLight: '#00C75F',
-    primaryDark: '#008A42',
+    // v2 brand — blue (was ACS green). Values mirror crm2 packages/ui-theme
+    // tokens.css :root; text/border track the v2 slate ramp, which the web
+    // already WCAG-AA tuned (muted darkened for ≥4.5:1). Keep the 3-tier
+    // text → secondary → muted hierarchy visible.
+    primary: '#2463EB', // blue-600 (--primary)
+    primaryLight: '#3B82F6', // blue-500
+    primaryDark: '#1D4FD7', // blue-700 (--primary-hover)
 
     background: '#FFFFFF',
-    surface: '#F9FAFB',
-    surfaceAlt: '#F3F4F6',
+    surface: '#F8FAFC', // slate-50
+    surfaceAlt: '#F1F5F9', // slate-100 (--muted)
 
-    text: '#111827', // gray-900 — 17.7:1 on white, AAA
-    // 2026-04-27 deep-audit fix: original textSecondary '#6B7280' (gray-500)
-    // was 4.83:1 — passed AA, but on white that's the AA floor and felt
-    // visually faint. Bumped to gray-700 (11.6:1, AAA) so the 3-tier hierarchy
-    // (text → secondary → muted) stays visible AND every tier passes AA.
-    textSecondary: '#374151', // gray-700 — 11.6:1 on white, AAA
-    // 2026-04-27 deep-audit fix: was '#9CA3AF' (gray-400) = 2.85:1 — failed
-    // WCAG AA (needs 4.5:1 for normal text at xs:12 / sm:14 sizes used by
-    // timestamps + helper text). Bumped to gray-500 (4.83:1, AA). textMuted
-    // now occupies gray-500 (where textSecondary used to be); textSecondary
-    // moved up to gray-700 to preserve visible hierarchy.
-    textMuted: '#6B7280', // gray-500 — 4.83:1 on white, AA
+    text: '#1D283A', // slate-800 (--foreground)
+    textSecondary: '#344256', // slate-700 (--secondary-foreground)
+    textMuted: '#5C6B7F', // slate-500 darkened (--muted-foreground)
 
-    success: '#10B981', // emerald-500
-    warning: '#F59E0B', // amber-500
-    danger: '#EF4444', // red-500
-    info: '#3B82F6',
-    assigned: '#3B82F6',
+    success: '#1B9D4A', // green-600 (--success)
+    warning: '#F59E0B', // amber-500 (--warning)
+    danger: '#DC2828', // red-600 (--destructive)
+    info: '#0284C5', // sky-600 (--info) — deliberately distinct from primary blue
+    assigned: '#2463EB',
     inProgress: '#F59E0B',
-    submitted: '#8B5CF6', // violet-500 — distinct from completed (green)
-    completed: '#10B981',
-    saved: '#EF4444',
-    revoked: '#EF4444',
+    submitted: '#0E7490', // cyan-700 (--st-submitted) — distinct blue-family shade vs assigned (blue) & completed (green)
+    completed: '#1B9D4A',
+    saved: '#DC2828',
+    revoked: '#DC2828',
 
-    border: '#E5E7EB',
-    borderLight: '#F3F4F6',
+    border: '#E1E7EF', // slate-200 (--border)
+    borderLight: '#F1F5F9', // slate-100
   },
 };
 
 export const darkTheme: Theme = {
   ...commonTokens,
   colors: {
-    primary: '#00A950',
-    primaryLight: '#00C75F',
-    primaryDark: '#008A42',
+    // v2 brand — blue. Values mirror crm2 packages/ui-theme tokens.css .dark
+    // (charcoal-222 surfaces, blue-500 primary), status hues from the web --st-* family.
+    primary: '#3C83F6', // blue-500 (dark --primary)
+    primaryLight: '#61A6FA', // blue-400 (dark --primary-hover)
+    primaryDark: '#2463EB', // blue-600
 
-    background: '#111827', // gray-900
-    surface: '#1F2937', // gray-800
-    surfaceAlt: '#374151', // gray-700
+    background: '#11141D', // charcoal (dark --background)
+    surface: '#171C26', // dark --card
+    surfaceAlt: '#2A2F3C', // dark --secondary / --muted
 
-    text: '#F9FAFB', // gray-50
-    textSecondary: '#D1D5DB', // gray-300
-    textMuted: '#6B7280', // gray-500
+    text: '#E7EBEF', // dark --foreground
+    textSecondary: '#CBD5E1', // slate-300
+    textMuted: '#95A1B2', // dark --muted-foreground
 
-    success: '#34D399', // emerald-400
-    warning: '#FBBF24', // amber-400
-    danger: '#F87171', // red-400
-    info: '#60A5FA', // blue-400
-    assigned: '#60A5FA',
-    inProgress: '#FBBF24',
-    submitted: '#A78BFA', // violet-400 — distinct from completed (green)
-    completed: '#34D399',
-    saved: '#F87171',
-    revoked: '#F87171',
+    success: '#2EB860', // dark --success
+    warning: '#F6A823', // dark --warning
+    danger: '#D02F2F', // dark --destructive
+    info: '#26B2F2', // sky (dark --info) — deliberately distinct from primary blue
+    assigned: '#3C83F6',
+    inProgress: '#F6A823',
+    submitted: '#42DBF0', // cyan (dark --st-submitted) — distinct blue-family shade vs assigned (blue) & completed (green)
+    completed: '#2EB860',
+    saved: '#D02F2F',
+    revoked: '#D02F2F',
 
-    border: '#374151', // gray-700
-    borderLight: '#1F2937', // gray-800
+    border: '#2F3541', // dark --border
+    borderLight: '#232833',
   },
 };

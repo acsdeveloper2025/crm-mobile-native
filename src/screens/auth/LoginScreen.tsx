@@ -28,9 +28,9 @@ const TAG = 'LoginScreen';
 // v1.0.7 (2026-04-22): reversed the M13 decision to hardcode dark chrome.
 // Login now follows the active theme (system-respecting by default). All
 // chrome colors — screen background, form card, inputs, borders, body
-// text — pull from `theme.colors.*`. Only the brand pill (logo circle),
-// the Sign-In button (`#00a950`), and semantic error red stay fixed
-// because they're the same in both themes by design.
+// text — pull from `theme.colors.*`, including the Sign-In button
+// (`theme.colors.primary`, v2 brand blue). Only the brand pill (logo
+// circle) stays fixed and the semantic error red is handled inline.
 
 export const LoginScreen = () => {
   const { login } = useAuth();
@@ -338,7 +338,7 @@ export const LoginScreen = () => {
  *   subtitle                → theme.colors.textMuted   (secondary text)
  *   input border            → theme.colors.border
  *   logoCircle              → pure white pill (brand-neutral, stays same)
- *   Sign-In button          → `#00a950` (brand primary, same in both)
+ *   Sign-In button          → theme.colors.primary (v2 brand blue)
  *   error / required        → theme.colors.danger (handled inline in JSX)
  */
 const makeStyles = (theme: Theme) =>
@@ -427,7 +427,7 @@ const makeStyles = (theme: Theme) =>
       minHeight: 44,
     },
     button: {
-      backgroundColor: '#00a950',
+      backgroundColor: theme.colors.primary,
       borderRadius: 8,
       padding: 14,
       alignItems: 'center',

@@ -124,8 +124,8 @@ export const TaskTimeline: React.FC<TaskTimelineProps> = ({
 
   const getColor = (colorName: string) => {
     if (colorName === 'primary') return theme.colors.primary;
-    if (colorName === 'warning') return theme.colors.warning || '#f59e0b';
-    if (colorName === 'info') return theme.colors.info || '#3b82f6';
+    if (colorName === 'warning') return theme.colors.warning;
+    if (colorName === 'info') return theme.colors.info;
     if (colorName === 'submitted') return theme.colors.submitted;
     if (colorName === 'success') return theme.colors.success;
     return theme.colors.textSecondary;

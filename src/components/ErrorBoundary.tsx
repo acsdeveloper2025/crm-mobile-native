@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { Logger } from '../utils/logger';
 import { RemoteLogService } from '../services/RemoteLogService';
+import { lightTheme, darkTheme } from '../theme/Theme';
 
 interface Props {
   children: ReactNode;
@@ -87,31 +88,20 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   private getThemeColors() {
-    const isDark = this.state.colorScheme === 'dark';
-
-    if (isDark) {
-      return {
-        background: '#111827',
-        card: '#1f2937',
-        text: '#f9fafb',
-        error: '#ef4444',
-        warning: '#fbbf24',
-        info: '#60a5fa',
-        errorLight: '#f87171',
-        primary: '#3b82f6',
-      };
-    } else {
-      return {
-        background: '#ffffff',
-        card: '#f3f4f6',
-        text: '#111827',
-        error: '#dc2626',
-        warning: '#d97706',
-        info: '#2563eb',
-        errorLight: '#ef4444',
-        primary: '#3b82f6',
-      };
-    }
+    // This boundary catches render errors, so it can't use the useTheme() hook.
+    // Derive colors from the same Theme.ts tokens the rest of the app uses, keyed
+    // off the OS color scheme — so it tracks the v2 palette and never drifts.
+    const t = this.state.colorScheme === 'dark' ? darkTheme : lightTheme;
+    return {
+      background: t.colors.background,
+      card: t.colors.surface,
+      text: t.colors.text,
+      error: t.colors.danger,
+      warning: t.colors.warning,
+      info: t.colors.info,
+      errorLight: t.colors.danger,
+      primary: t.colors.primary,
+    };
   }
 
   private handleRecover = () => {

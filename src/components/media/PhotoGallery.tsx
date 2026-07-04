@@ -161,7 +161,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
             style={[
               styles.badge,
               item.componentType === 'selfie'
-                ? styles.badgeSelfie
+                ? { backgroundColor: theme.colors.info }
                 : { backgroundColor: theme.colors.primary },
             ]}
           >
@@ -350,9 +350,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 4,
     marginRight: 4,
-  },
-  badgeSelfie: {
-    backgroundColor: '#0ea5e9',
   },
   badgeText: {
     fontSize: 8,

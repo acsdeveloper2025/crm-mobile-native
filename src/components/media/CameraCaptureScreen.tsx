@@ -290,7 +290,7 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
   if (!device) {
     return (
       <View style={styles.centerContainer}>
-        <Icon name="camera-outline" size={48} color="#9CA3AF" />
+        <Icon name="camera-outline" size={48} color="#94A3B8" />
         <Text style={styles.loadingText}>
           No camera available on this device.
         </Text>

@@ -32,6 +32,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Logger } from '../utils/logger';
 import { RemoteLogService } from '../services/RemoteLogService';
+import { lightTheme } from '../theme/Theme';
 
 interface Props {
   children: ReactNode;
@@ -125,13 +126,15 @@ class ScreenErrorBoundary extends Component<Props, State> {
   }
 }
 
-// Hardcoded colors so the fallback never depends on ThemeContext (which
-// might itself be the thing that crashed). Mid-tone neutrals readable in
-// both light and dark system chrome.
+// Static palette pulled from the v2 lightTheme tokens (a plain const, NOT
+// ThemeContext — which might be the thing that crashed). Fixed to the light
+// ramp so the crash fallback stays dead-simple; readable in both light and
+// dark system chrome.
+const c = lightTheme.colors;
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: c.surface,
     padding: 24,
     alignItems: 'center',
     justifyContent: 'center',
@@ -139,19 +142,19 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#111827',
+    color: c.text,
     marginBottom: 6,
     textAlign: 'center',
   },
   subtitle: {
     fontSize: 13,
-    color: '#6B7280',
+    color: c.textMuted,
     marginBottom: 16,
     textAlign: 'center',
   },
   message: {
     fontSize: 14,
-    color: '#374151',
+    color: c.textSecondary,
     marginBottom: 24,
     textAlign: 'center',
     lineHeight: 20,
@@ -171,7 +174,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonPrimary: {
-    backgroundColor: '#00A950',
+    backgroundColor: c.primary,
   },
   buttonPrimaryText: {
     color: '#FFFFFF',
@@ -180,17 +183,17 @@ const styles = StyleSheet.create({
   },
   buttonSecondary: {
     borderWidth: 1,
-    borderColor: '#D1D5DB',
-    backgroundColor: '#FFFFFF',
+    borderColor: c.border,
+    backgroundColor: c.background,
   },
   buttonSecondaryText: {
-    color: '#374151',
+    color: c.textSecondary,
     fontSize: 14,
     fontWeight: '600',
   },
   hint: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: c.textMuted,
     textAlign: 'center',
   },
 });

@@ -14,6 +14,7 @@ import {
   PermissionsAndroid,
   Platform,
   Alert,
+  useColorScheme,
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from './src/context/ThemeContext';
@@ -182,6 +183,13 @@ const requestStartupPermissionsIfNeeded = async (): Promise<void> => {
 
 function App(): React.JSX.Element {
   const [isInitializing, setIsInitializing] = useState(true);
+  // The bootstrap screens render BEFORE ThemeProvider mounts, so they can't use
+  // useTheme(). Mirror the v2 tokens (Theme.ts) directly off the OS color scheme
+  // so a dark-mode user doesn't get a white flash before the app themes itself.
+  const isDark = useColorScheme() === 'dark';
+  const boot = isDark
+    ? { bg: '#11141D', text: '#95A1B2', danger: '#D02F2F', primary: '#3C83F6', bar: 'light-content' as const }
+    : { bg: '#FFFFFF', text: '#5C6B7F', danger: '#DC2828', primary: '#2463EB', bar: 'dark-content' as const };
   const [initError, setInitError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -358,11 +366,13 @@ function App(): React.JSX.Element {
     return (
       <SafeAreaProvider>
         <View
-          style={[styles.container, styles.center, styles.loadingBackground]}
+          style={[styles.container, styles.center, { backgroundColor: boot.bg }]}
         >
-          <StatusBar barStyle="dark-content" />
-          <ActivityIndicator size="large" color="#00a950" />
-          <Text style={styles.initText}>Initializing...</Text>
+          <StatusBar barStyle={boot.bar} />
+          <ActivityIndicator size="large" color={boot.primary} />
+          <Text style={[styles.initText, { color: boot.text }]}>
+            Initializing...
+          </Text>
         </View>
       </SafeAreaProvider>
     );
@@ -372,11 +382,15 @@ function App(): React.JSX.Element {
     return (
       <SafeAreaProvider>
         <View
-          style={[styles.container, styles.center, styles.loadingBackground]}
+          style={[styles.container, styles.center, { backgroundColor: boot.bg }]}
         >
-          <StatusBar barStyle="dark-content" />
-          <Text style={styles.errorText}>Initialization Error</Text>
-          <Text style={styles.errorDetail}>{initError}</Text>
+          <StatusBar barStyle={boot.bar} />
+          <Text style={[styles.errorText, { color: boot.danger }]}>
+            Initialization Error
+          </Text>
+          <Text style={[styles.errorDetail, { color: boot.text }]}>
+            {initError}
+          </Text>
         </View>
       </SafeAreaProvider>
     );
@@ -408,24 +422,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
-  loadingBackground: {
-    backgroundColor: '#ffffff',
-  },
   initText: {
     marginTop: 16,
     fontSize: 16,
-    color: '#4b5563',
   },
   errorText: {
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 8,
-    color: '#dc2626',
   },
   errorDetail: {
     fontSize: 14,
     textAlign: 'center',
-    color: '#4b5563',
   },
 });
 
