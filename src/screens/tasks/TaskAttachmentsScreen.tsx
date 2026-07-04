@@ -327,8 +327,8 @@ export const TaskAttachmentsScreen = ({ route }: Props) => {
   );
 
   const watermarkText = taskNumber
-    ? `CONFIDENTIAL • CaseFlow Mobile • ${taskNumber}`
-    : 'CONFIDENTIAL • CaseFlow Mobile';
+    ? `CONFIDENTIAL • CRM Mobile • ${taskNumber}`
+    : 'CONFIDENTIAL • CRM Mobile';
   const watermarkRowCount = previewMode === 'text' ? 6 : 8;
 
   return (

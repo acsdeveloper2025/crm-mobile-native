@@ -241,7 +241,7 @@ export const LoginScreen = () => {
                 resizeMode="cover"
               />
             </View>
-            <Text style={styles.title}>CaseFlow Mobile</Text>
+            <Text style={styles.title}>CRM Mobile</Text>
             <Text style={styles.subtitle}>Verification Management System</Text>
           </View>
 

@@ -1,6 +1,6 @@
 # CRM Mobile (Native)
 
-React Native client for the ACS Check Services CRM. Field executives use it to receive case assignments, capture geo-tagged + watermarked verification photos, fill verification forms offline, and sync back to the backend.
+React Native client for the CRM verification platform. Field executives use it to receive case assignments, capture geo-tagged + watermarked verification photos, fill verification forms offline, and sync back to the backend.
 
 Pairs with the monorepo at <https://github.com/acsdeveloper2025/CRM-APP-MONOREPO-PROD> (backend + admin web). Staging backend lives at <https://crm.allcheckservices.com>.
 
