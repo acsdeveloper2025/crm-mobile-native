@@ -25,6 +25,10 @@ import type { MobileLoginResponse } from '../../types/api';
 
 const TAG = 'LoginScreen';
 
+// Resend is disabled for 60s after each code send — mirrors the web
+// (OTP_RESEND_COOLDOWN_S) and the backend (OTP_RESEND_COOLDOWN_MS = 60_000).
+const OTP_RESEND_COOLDOWN_S = 60;
+
 // v1.0.7 (2026-04-22): reversed the M13 decision to hardcode dark chrome.
 // Login now follows the active theme (system-respecting by default). All
 // chrome colors — screen background, form card, inputs, borders, body
@@ -43,6 +47,26 @@ export const LoginScreen = () => {
   // Client-side rate limiting: track failed attempts with exponential backoff
   const failedAttemptsRef = React.useRef(0);
   const lockoutUntilRef = React.useRef<number>(0);
+
+  // ADR-0088 new-device OTP — same /auth/login path as web. A 401 OTP_REQUIRED
+  // after a correct password puts the screen into an in-place code-entry step
+  // (no navigation). `otpChallenge` holds the masked destinations; null = the
+  // normal credential form.
+  const [otpChallenge, setOtpChallenge] = React.useState<{
+    email: string | null;
+    sms: string | null;
+  } | null>(null);
+  const [otpCode, setOtpCode] = React.useState('');
+  const [resendWait, setResendWait] = React.useState(0);
+
+  // 60s resend cooldown countdown (mirrors web).
+  React.useEffect(() => {
+    if (resendWait <= 0) {
+      return;
+    }
+    const t = setTimeout(() => setResendWait(w => w - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendWait]);
 
   const parseCredentials = React.useCallback(() => {
     const cleanUsername = username.trim();
@@ -80,6 +104,9 @@ export const LoginScreen = () => {
     if (status === 401) {
       return 'Invalid username or password.';
     }
+    if (status === 423) {
+      return 'Your account is temporarily locked after too many attempts. Please wait about 15 minutes and try again.';
+    }
     if (status === 429) {
       return 'Too many login attempts. Please wait a few minutes before trying again.';
     }
@@ -101,6 +128,12 @@ export const LoginScreen = () => {
           'This app version is no longer supported. Please update to continue.',
         FORBIDDEN:
           'Your account has been locked or disabled. Please contact your administrator.',
+        ACCOUNT_LOCKED:
+          'Your account is temporarily locked after too many attempts. Please wait about 15 minutes and try again.',
+        // OTP_REQUIRED is intercepted upstream (routed to the code step); this
+        // entry only guards against it ever falling through to the Title-Case
+        // fallback ("Otp Required").
+        OTP_REQUIRED: 'Enter the sign-in code we sent you.',
       };
       const mapped = V2_LOGIN_ERROR_MESSAGES[code];
       if (mapped) {
@@ -136,6 +169,83 @@ export const LoginScreen = () => {
     return 'Login failed. Please check your credentials or internet connection.';
   }, []);
 
+  // The single login POST — identical body for the initial attempt, the OTP
+  // verify (adds otpCode), and the resend (omits otpCode). Same /auth/login
+  // endpoint the web uses; OTP is purely additive (ADR-0088).
+  const postLogin = async (
+    parsed: { username: string; password: string },
+    otpCodeArg?: string,
+  ) => {
+    const deviceInfo = await AuthService.getDeviceInfo();
+    return ApiClient.post<MobileLoginResponse>(
+      ENDPOINTS.AUTH.LOGIN,
+      {
+        username: parsed.username,
+        password: parsed.password,
+        deviceId: deviceInfo.deviceId,
+        deviceInfo,
+        ...(otpCodeArg ? { otpCode: otpCodeArg } : {}),
+      },
+      { headers: { 'Idempotency-Key': uuidv4() } },
+    );
+  };
+
+  // A 401 whose body code is OTP_REQUIRED = the new-device challenge. Returns
+  // the masked destinations (either may be null), or null if it isn't an OTP
+  // challenge. Wire body is `{ error, details: { sentTo } }`.
+  const readOtpChallenge = (
+    e: unknown,
+  ): { email: string | null; sms: string | null } | null => {
+    const ax = e as {
+      response?: {
+        status?: number;
+        data?: {
+          error?: string;
+          details?: { sentTo?: { email?: string | null; sms?: string | null } };
+        };
+      };
+    };
+    if (
+      ax?.response?.status === 401 &&
+      ax?.response?.data?.error === 'OTP_REQUIRED'
+    ) {
+      const sentTo = ax.response.data?.details?.sentTo;
+      return { email: sentTo?.email ?? null, sms: sentTo?.sms ?? null };
+    }
+    return null;
+  };
+
+  // Finalize a successful login response (tokens present). Shared by the
+  // initial, verify, and resend paths. Returns true on success.
+  const finishLogin = async (
+    response: MobileLoginResponse | undefined,
+  ): Promise<boolean> => {
+    // Drift detection at the auth boundary (non-fatal; logs, never blocks).
+    validateResponse(MobileLoginResponseSchema, response, {
+      service: 'auth',
+      endpoint: 'POST /auth/login',
+    });
+    if (response?.tokens) {
+      failedAttemptsRef.current = 0;
+      lockoutUntilRef.current = 0;
+      await login(
+        response.tokens.accessToken,
+        response.user,
+        response.tokens.refreshToken,
+        response.tokens.expiresIn,
+      );
+      return true;
+    }
+    return false;
+  };
+
+  // "We sent a code to r***@x.com and ******7890" — join whichever masked
+  // channels the server actually delivered on (mirrors web otpSentToLabel).
+  const otpSentToLabel = (): string =>
+    otpChallenge
+      ? [otpChallenge.email, otpChallenge.sms].filter(Boolean).join(' and ')
+      : '';
+
   const handleLogin = async () => {
     const parsed = parseCredentials();
     if (!parsed.username || !parsed.password) {
@@ -157,56 +267,26 @@ export const LoginScreen = () => {
     setError('');
 
     try {
-      // S6 (audit 2026-04-21 round 2): the username was interpolated
-      // into the message string (not passed as `data`), so the logger's
-      // redactor couldn't reach it. Ops gets nothing useful from the
-      // username anyway — a plain "Attempting login" line is enough.
+      // S6 (audit 2026-04-21 round 2): plain "Attempting login" — no username
+      // in the message (the logger redactor can't reach interpolated strings).
+      // C20: postLogin adds a per-attempt Idempotency-Key so the backend
+      // collapses duplicate sessions on impatient re-taps.
       Logger.info(TAG, 'Attempting login');
-
-      const deviceInfo = await AuthService.getDeviceInfo();
-      // C20 (audit 2026-04-20): per-attempt Idempotency-Key lets the
-      // backend collapse duplicate sessions when the user impatiently
-      // re-taps login while a request is in flight.
-      const response = await ApiClient.post<MobileLoginResponse>(
-        ENDPOINTS.AUTH.LOGIN,
-        {
-          username: parsed.username,
-          password: parsed.password,
-          deviceId: deviceInfo.deviceId,
-          deviceInfo,
-        },
-        {
-          headers: {
-            'Idempotency-Key': uuidv4(),
-          },
-        },
-      );
-
-      // Drift detection at the auth boundary. Non-strict so a new optional
-      // field on user/tokens never blocks a login, but strict enough to
-      // catch a renamed accessToken field in the next telemetry batch.
-      validateResponse(MobileLoginResponseSchema, response, {
-        service: 'auth',
-        endpoint: 'POST /auth/login',
-      });
-
-      // ADR-0054 Phase 5: /auth/login is v2-native — a BARE body
-      // `{ user, tokens: { accessToken, refreshToken, expiresIn }, ... }`
-      // (no `{ success, data }` wrapper). Read off the top level.
-      if (response?.tokens) {
-        // Reset rate limiting on successful login
-        failedAttemptsRef.current = 0;
-        lockoutUntilRef.current = 0;
-        await login(
-          response.tokens.accessToken,
-          response.user,
-          response.tokens.refreshToken,
-          response.tokens.expiresIn,
-        );
-      } else {
+      const response = await postLogin(parsed);
+      if (!(await finishLogin(response))) {
         setError('Invalid response from server');
       }
     } catch (e: unknown) {
+      // New-device OTP challenge (ADR-0088): correct password, code sent —
+      // switch to the in-place code step. This is NOT a failed attempt, so it
+      // must return BEFORE the client backoff counter below.
+      const challenge = readOtpChallenge(e);
+      if (challenge) {
+        setOtpChallenge(challenge);
+        setOtpCode('');
+        setResendWait(OTP_RESEND_COOLDOWN_S);
+        return;
+      }
       Logger.error(TAG, 'Login failed', e);
       // Exponential backoff: 5s, 10s, 20s, 40s, 60s max
       failedAttemptsRef.current += 1;
@@ -221,6 +301,89 @@ export const LoginScreen = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Answer the OTP challenge: re-POST the SAME credentials plus the code.
+  const handleVerifyOtp = async () => {
+    const code = otpCode.trim();
+    if (!code) {
+      setError('Please enter the code we sent you.');
+      return;
+    }
+    const parsed = parseCredentials();
+    setLoading(true);
+    setError('');
+    try {
+      const response = await postLogin(parsed, code);
+      if (!(await finishLogin(response))) {
+        setError('Invalid response from server');
+      }
+    } catch (e: unknown) {
+      const ax = e as {
+        response?: { status?: number; data?: { error?: string } };
+      };
+      if (
+        ax?.response?.status === 423 ||
+        ax?.response?.data?.error === 'ACCOUNT_LOCKED'
+      ) {
+        // Too many wrong codes (server bounds attempts at 5 → 15-min lock).
+        setOtpCode('');
+        setError(extractErrorMessage(e));
+        return;
+      }
+      const challenge = readOtpChallenge(e);
+      if (challenge) {
+        // Wrong or expired code — the same challenge is re-armed. The server
+        // enforces the attempt cap; no client backoff here (mirrors web).
+        setOtpChallenge(challenge);
+        setOtpCode('');
+        setError('Invalid or expired code. Try again.');
+        return;
+      }
+      Logger.error(TAG, 'OTP verify failed', e);
+      setError(extractErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend the SAME code: re-POST WITHOUT otpCode. The backend re-delivers if
+  // past its 60s cooldown and under the 3-send cap; the client button is also
+  // 60s-gated so the two agree. If the gate has since cleared, this logs in.
+  const handleResendOtp = async () => {
+    if (resendWait > 0 || loading) {
+      return;
+    }
+    const parsed = parseCredentials();
+    setLoading(true);
+    setError('');
+    try {
+      const response = await postLogin(parsed);
+      if (await finishLogin(response)) {
+        return;
+      }
+      setResendWait(OTP_RESEND_COOLDOWN_S);
+    } catch (e: unknown) {
+      const challenge = readOtpChallenge(e);
+      if (challenge) {
+        // Expected: the server re-challenges (401) — reset the cooldown.
+        setOtpChallenge(challenge);
+        setResendWait(OTP_RESEND_COOLDOWN_S);
+        return;
+      }
+      Logger.error(TAG, 'OTP resend failed', e);
+      setError(extractErrorMessage(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Abandon the challenge and return to the credential form.
+  const handleBackToLogin = () => {
+    setOtpChallenge(null);
+    setOtpCode('');
+    setResendWait(0);
+    setError('');
   };
 
   return (
@@ -256,68 +419,167 @@ export const LoginScreen = () => {
               </Text>
             ) : null}
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>
-                Username{' '}
-                <Text style={[styles.required, { color: theme.colors.danger }]}>
-                  *
+            {otpChallenge ? (
+              <>
+                <Text style={styles.otpHint}>
+                  {otpSentToLabel()
+                    ? `We sent a sign-in code to ${otpSentToLabel()}.`
+                    : 'We sent a sign-in code to your registered contact.'}
                 </Text>
-              </Text>
-              <UppercaseTextInput
-                name="username"
-                uppercase={false}
-                style={styles.input}
-                placeholder="Enter your username"
-                placeholderTextColor={theme.colors.textMuted}
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!loading}
-                testID="login-username-input"
-                accessibilityLabel="Username input"
-              />
-            </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>
-                Password{' '}
-                <Text style={[styles.required, { color: theme.colors.danger }]}>
-                  *
-                </Text>
-              </Text>
-              <UppercaseTextInput
-                name="password"
-                uppercase={false}
-                style={styles.input}
-                placeholder="Enter your password"
-                placeholderTextColor={theme.colors.textMuted}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                editable={!loading}
-                testID="login-password-input"
-                accessibilityLabel="Password input"
-              />
-            </View>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>
+                    Sign-in code{' '}
+                    <Text
+                      style={[styles.required, { color: theme.colors.danger }]}
+                    >
+                      *
+                    </Text>
+                  </Text>
+                  <UppercaseTextInput
+                    name="otp"
+                    uppercase={false}
+                    style={styles.input}
+                    placeholder="6-digit code"
+                    placeholderTextColor={theme.colors.textMuted}
+                    value={otpCode}
+                    onChangeText={setOtpCode}
+                    keyboardType="number-pad"
+                    textContentType="oneTimeCode"
+                    autoComplete="sms-otp"
+                    autoFocus
+                    maxLength={6}
+                    editable={!loading}
+                    testID="login-otp-input"
+                    accessibilityLabel="Sign-in code input"
+                  />
+                </View>
 
-            <TouchableOpacity
-              style={[
-                styles.button,
-                { backgroundColor: theme.colors.primary },
-                loading && styles.buttonDisabled,
-              ]}
-              onPress={handleLogin}
-              disabled={loading}
-              testID="login-submit-button"
-              accessibilityLabel="Sign in button"
-            >
-              {loading ? (
-                <ActivityIndicator color="#ffffff" testID="login-loading" />
-              ) : (
-                <Text style={styles.buttonText}>Sign In</Text>
-              )}
-            </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    { backgroundColor: theme.colors.primary },
+                    loading && styles.buttonDisabled,
+                  ]}
+                  onPress={handleVerifyOtp}
+                  disabled={loading}
+                  testID="login-verify-button"
+                  accessibilityLabel="Verify sign-in code button"
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#ffffff" testID="login-loading" />
+                  ) : (
+                    <Text style={styles.buttonText}>Verify &amp; Sign In</Text>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.linkButton}
+                  onPress={handleResendOtp}
+                  disabled={loading || resendWait > 0}
+                  testID="login-resend-button"
+                  accessibilityLabel="Resend sign-in code"
+                >
+                  <Text
+                    style={[
+                      styles.linkText,
+                      {
+                        color:
+                          resendWait > 0
+                            ? theme.colors.textMuted
+                            : theme.colors.primary,
+                      },
+                    ]}
+                  >
+                    {resendWait > 0
+                      ? `Resend code (${resendWait}s)`
+                      : 'Resend code'}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.linkButton}
+                  onPress={handleBackToLogin}
+                  disabled={loading}
+                  accessibilityLabel="Use a different account"
+                >
+                  <Text
+                    style={[styles.linkText, { color: theme.colors.textMuted }]}
+                  >
+                    Use a different account
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>
+                    Username{' '}
+                    <Text
+                      style={[styles.required, { color: theme.colors.danger }]}
+                    >
+                      *
+                    </Text>
+                  </Text>
+                  <UppercaseTextInput
+                    name="username"
+                    uppercase={false}
+                    style={styles.input}
+                    placeholder="Enter your username"
+                    placeholderTextColor={theme.colors.textMuted}
+                    value={username}
+                    onChangeText={setUsername}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    editable={!loading}
+                    testID="login-username-input"
+                    accessibilityLabel="Username input"
+                  />
+                </View>
+
+                <View style={styles.fieldGroup}>
+                  <Text style={styles.fieldLabel}>
+                    Password{' '}
+                    <Text
+                      style={[styles.required, { color: theme.colors.danger }]}
+                    >
+                      *
+                    </Text>
+                  </Text>
+                  <UppercaseTextInput
+                    name="password"
+                    uppercase={false}
+                    style={styles.input}
+                    placeholder="Enter your password"
+                    placeholderTextColor={theme.colors.textMuted}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                    editable={!loading}
+                    testID="login-password-input"
+                    accessibilityLabel="Password input"
+                  />
+                </View>
+
+                <TouchableOpacity
+                  style={[
+                    styles.button,
+                    { backgroundColor: theme.colors.primary },
+                    loading && styles.buttonDisabled,
+                  ]}
+                  onPress={handleLogin}
+                  disabled={loading}
+                  testID="login-submit-button"
+                  accessibilityLabel="Sign in button"
+                >
+                  {loading ? (
+                    <ActivityIndicator color="#ffffff" testID="login-loading" />
+                  ) : (
+                    <Text style={styles.buttonText}>Sign In</Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            )}
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -451,5 +713,21 @@ const makeStyles = (theme: Theme) =>
       color: theme.colors.danger,
       marginBottom: 16,
       textAlign: 'center',
+    },
+    otpHint: {
+      color: theme.colors.textMuted,
+      fontSize: 14,
+      textAlign: 'center',
+      marginBottom: 16,
+    },
+    linkButton: {
+      alignItems: 'center',
+      paddingVertical: 12,
+      minHeight: 44,
+      justifyContent: 'center',
+    },
+    linkText: {
+      fontSize: 14,
+      fontWeight: '600',
     },
   });

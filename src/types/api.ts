@@ -24,6 +24,9 @@ export interface MobileLoginRequest {
   password: string;
   deviceId: string;
   deviceInfo?: Partial<MobileDeviceInfo>;
+  // ADR-0088 new-device OTP: additive to the same /auth/login body. Present
+  // only on the verify re-POST; omitted on the initial attempt and on resend.
+  otpCode?: string;
 }
 
 export interface UserProfile {
