@@ -40,15 +40,15 @@
 		  T0-9 (audit 2026-05-17): iOS SPKI pinning via Apple-native
 		  NSPinnedDomains (iOS 14+; deployment target is 15.1).
 		  Mirrors android/app/src/main/res/xml/network_security_config.xml
-		  pin-set. Both pins verified against the live cert on 2026-05-18.
+		  pin-set. Prod is behind AWS ALB + ACM since 2026-07-04 (ADR-0087).
 
-		  Pins (refreshed 2026-06-18 for the /api/v2 connection):
-		    Primary: SPKI SHA-256 of crm.allcheckservices.com leaf cert
-		             (Let's Encrypt; rotates every ~60 days).
-		    Backup : SPKI SHA-256 of the ISRG Root X1 trust anchor
-		             (valid to 2035). NSPinnedCAIdentities pins a CA in
-		             the verified chain, so the LE leaf/intermediate can
-		             rotate WITHOUT a new release — durable strategy.
+		  Pins (ROOT-pinned 2026-07-05 after the AWS ACM cutover):
+		    Prod   : Amazon Root CA 1 (AWS ACM anchor, valid
+		             to 2038; survives ACM leaf rotation).
+		    Staging: ISRG Root X1 (Let's Encrypt anchor, valid
+		             to 2035). NSPinnedCAIdentities pins a CA in
+		             the verified chain, so the verified chain, so the ROOT pin survives leaf
+		             rotation WITHOUT a new release (pre-AWS leaf pin bricked prod 2026-07-04).
 
 		  Rotation invariant: keep at least TWO pins at all times. With
 		  the ISRG-root backup, leaf rotation no longer bricks the app.
@@ -65,12 +65,12 @@
 				<key>NSPinnedCAIdentities</key>
 				<array>
 					<dict>
-						<!-- Primary: crm.allcheckservices.com leaf cert (Let's Encrypt, refreshed 2026-06-18) -->
+						<!-- Prod: Amazon Root CA 1 (AWS ACM anchor, valid to 2038) -->
 						<key>SPKI-SHA256-BASE64</key>
-						<string>V329rvVf6FFkAnHhuxgqMXVCR9puyLSJbeXYMGVllIc=</string>
+						<string>++MBgDH5WGvL9Bcn5Be30cRcL0f5O+NyoXuWtQdX1aI=</string>
 					</dict>
 					<dict>
-						<!-- Backup: ISRG Root X1 trust anchor (durable; survives LE leaf/intermediate rotation) -->
+						<!-- Staging: ISRG Root X1 (Let's Encrypt anchor, valid to 2035) -->
 						<key>SPKI-SHA256-BASE64</key>
 						<string>C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=</string>
 					</dict>
