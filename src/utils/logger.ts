@@ -199,7 +199,14 @@ class LoggerClass {
 
   error(tag: string, message: string, error?: unknown): void {
     if (LOG_LEVELS[this.level] <= LOG_LEVELS.ERROR) {
-      console.error(`[${tag}] ${message}`, error ?? '');
+      // Redact the console arg too — the buffer path already redacts via
+      // serializeData(). Without this, an AxiosError logged here prints
+      // config.data (the request body, incl. password/otpCode) to logcat;
+      // redactSensitiveFields reduces any Error to {name,message,stack}.
+      console.error(
+        `[${tag}] ${message}`,
+        error == null ? '' : redactSensitiveFields(error, 0, new WeakSet()),
+      );
     }
     this.append('ERROR', tag, message, error);
   }
