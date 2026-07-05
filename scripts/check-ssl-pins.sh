@@ -95,6 +95,100 @@ while IFS= read -r pin; do
   fi
 done <<<"$PINS"
 
+# Live SPKI match against the VERIFIED chain — the 2026-07-04 AWS ACM cutover
+# lesson. Every check above passes for a well-formed pin that no longer matches
+# the live cert, which is exactly how a stale pin shipped in v1.0.76/v1.0.77 and
+# bricked prod against AWS. Here we fetch the served chain for prod + staging,
+# reconstruct the VERIFIED chain (served certs + the trust-store anchor root, so
+# durable ROOT pins are covered even when the server doesn't send the root), and
+# require at least one pinned SPKI to appear in it.
+#
+# Robustness: an unreachable host WARNs (network/CI blip is not a failure); an
+# unresolvable anchor (no CA bundle) with no served-chain match WARNs (can't be
+# sure); only a fully-resolved chain that matches NO pin FAILS. Set
+# SKIP_SSL_PIN_LIVE=1 to skip entirely (offline dev).
+if [[ "${SKIP_SSL_PIN_LIVE:-0}" != "1" ]]; then
+  PINS_CSV=$(tr -s '[:space:]' '\n' <<<"$PINS" | grep -E '.' | paste -sd, -)
+  if ! python3 - "$PINS_CSV" <<'PY'
+import sys, subprocess, base64, hashlib, re, os
+pinned = {p for p in sys.argv[1].split(',') if p}
+HOSTS = ['crm.allcheckservices.com', 'staging.crm.allcheckservices.com']
+CA_CANDIDATES = [
+    '/etc/ssl/certs/ca-certificates.crt',        # Debian/Ubuntu (CI)
+    '/etc/pki/tls/certs/ca-bundle.crt',          # RHEL/Fedora
+    '/usr/local/etc/ca-certificates/cert.pem',   # Homebrew (Intel mac)
+    '/opt/homebrew/etc/ca-certificates/cert.pem',# Homebrew (Apple silicon)
+]
+ca_bundle = next((p for p in CA_CANDIDATES if os.path.exists(p)), None)
+
+def _run(args, inp):
+    return subprocess.run(args, input=inp, capture_output=True).stdout
+
+def spki(pem):  # pem: bytes -> base64 SPKI SHA-256
+    pub = _run(['openssl', 'x509', '-pubkey', '-noout'], pem)
+    der = _run(['openssl', 'pkey', '-pubin', '-outform', 'der'], pub)
+    return base64.b64encode(hashlib.sha256(der).digest()).decode()
+
+def field(pem, flag):  # -subject / -issuer -> normalized DN string
+    out = _run(['openssl', 'x509', '-noout', flag], pem).decode()
+    return out.split('=', 1)[1].strip() if '=' in out else out.strip()
+
+def served(host):
+    try:
+        out = subprocess.run(
+            ['openssl', 's_client', '-connect', f'{host}:443',
+             '-servername', host, '-showcerts'],
+            input=b'', capture_output=True, timeout=15,
+        ).stdout.decode('utf-8', 'ignore')
+    except Exception:
+        return None
+    return re.findall(
+        r'-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----', out, re.S) or None
+
+def anchor(top_issuer):  # SPKI of the trust-store root that issued the top served cert
+    if not ca_bundle:
+        return None
+    data = open(ca_bundle, 'rb').read().decode('utf-8', 'ignore')
+    for c in re.findall(r'-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----', data, re.S):
+        cb = c.encode()
+        if field(cb, '-subject') == top_issuer:
+            return spki(cb)
+    return None
+
+fail = False
+for h in HOSTS:
+    certs = served(h)
+    if certs is None:
+        print(f"   ⚠️  {h}: unreachable — skipped (not a failure)")
+        continue
+    verified = {spki(c.encode()) for c in certs}
+    top = certs[-1].encode()
+    top_issuer, top_subject = field(top, '-issuer'), field(top, '-subject')
+    a = None
+    if top_issuer != top_subject:            # root not self-sent -> resolve anchor
+        a = anchor(top_issuer)
+        if a:
+            verified.add(a)
+    if pinned & verified:
+        print(f"   ✅ {h}: a pinned SPKI is in the verified chain")
+    elif a is None and top_issuer != top_subject:
+        print(f"   ⚠️  {h}: no pin in the served chain and anchor unresolved "
+              f"(no CA bundle?) — can't confirm; served SPKIs: {sorted(verified)}")
+    else:
+        print(f"   ❌ {h}: NONE of the pinned SPKIs match the verified chain")
+        print(f"      verified chain SPKIs: {sorted(verified)}")
+        fail = True
+sys.exit(1 if fail else 0)
+PY
+  then
+    echo "❌ Live pin match FAILED — a pinned SPKI no longer matches the served cert."
+    echo "   The cert rotated to a chain none of the pins cover (an infra/CA move,"
+    echo "   e.g. the 2026-07-04 AWS ACM cutover). Repin <pin-set> to the new"
+    echo "   durable root SPKI — see docs/ssl-pinning.md."
+    FOUND=1
+  fi
+fi
+
 if [[ $FOUND -eq 1 ]]; then
   echo ""
   echo "See docs/ssl-pinning.md for the rotation procedure, including"
@@ -102,4 +196,4 @@ if [[ $FOUND -eq 1 ]]; then
   exit 1
 fi
 
-echo "✅ SSL pin check passed — <pin-set> present (${PIN_COUNT} pins), no placeholders, all digests well-formed."
+echo "✅ SSL pin check passed — <pin-set> present (${PIN_COUNT} pins), no placeholders, all digests well-formed, live verified-chain match OK."
