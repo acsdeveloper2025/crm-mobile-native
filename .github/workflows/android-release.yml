@@ -129,6 +129,14 @@ jobs:
       - name: Lint source
         run: npm run lint:src
 
+      # Gate the release on the TLS pins actually matching the live cert.
+      # build-apk / build-aab both `needs: verify`, so a stale pin (like the
+      # 2026-07-04 AWS ACM cutover that bricked v1.0.76/77) fails the release
+      # here instead of shipping. Live match WARNs (does not fail) if the host
+      # is unreachable from the runner, so a network blip can't block a release.
+      - name: SSL pin check (format + live verified-chain match)
+        run: npm run check:ssl-pins
+
   # One run builds BOTH apps (ADR-0087 environment split): the production APK
   # and the staging APK (com.crmmobilenative.staging, "CRM Staging", targets
   # staging.crm.allcheckservices.com). Both attach to the same GitHub release.

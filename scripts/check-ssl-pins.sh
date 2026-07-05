@@ -107,9 +107,17 @@ done <<<"$PINS"
 # unresolvable anchor (no CA bundle) with no served-chain match WARNs (can't be
 # sure); only a fully-resolved chain that matches NO pin FAILS. Set
 # SKIP_SSL_PIN_LIVE=1 to skip entirely (offline dev).
+LIVE_NOTE="live match SKIPPED (SKIP_SSL_PIN_LIVE)"
 if [[ "${SKIP_SSL_PIN_LIVE:-0}" != "1" ]]; then
-  PINS_CSV=$(tr -s '[:space:]' '\n' <<<"$PINS" | grep -E '.' | paste -sd, -)
-  if ! python3 - "$PINS_CSV" <<'PY'
+  # `|| true`: grep exits 1 on no match; under `set -o pipefail` that would abort
+  # the whole script. Guard it and skip the match if no pins parsed (the format
+  # checks above already flag an empty/malformed pin-set).
+  PINS_CSV=$( { tr -s '[:space:]' '\n' <<<"$PINS" | grep -E '.' | paste -sd, -; } || true )
+  LIVE_NOTE="live verified-chain match OK"
+  if [[ -z "$PINS_CSV" ]]; then
+    echo "   ⚠️  no pins parsed — skipping live match (format checks above cover this)"
+    LIVE_NOTE="live match SKIPPED (no pins parsed)"
+  elif ! python3 - "$PINS_CSV" <<'PY'
 import sys, subprocess, base64, hashlib, re, os
 pinned = {p for p in sys.argv[1].split(',') if p}
 HOSTS = ['crm.allcheckservices.com', 'staging.crm.allcheckservices.com']
@@ -196,4 +204,4 @@ if [[ $FOUND -eq 1 ]]; then
   exit 1
 fi
 
-echo "✅ SSL pin check passed — <pin-set> present (${PIN_COUNT} pins), no placeholders, all digests well-formed, live verified-chain match OK."
+echo "✅ SSL pin check passed — <pin-set> present (${PIN_COUNT} pins), no placeholders, all digests well-formed, ${LIVE_NOTE}."
