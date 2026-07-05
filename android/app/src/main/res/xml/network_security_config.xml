@@ -33,28 +33,28 @@
     </domain-config>
 
     <!--
-      Production API domain — certificate pinning ACTIVE (2026-04-19).
+      Production + staging API domains — certificate pinning ACTIVE.
 
-      Pin set (refreshed 2026-06-18 for the /api/v2 connection):
-        Primary: SPKI SHA-256 of the current leaf cert for
-                 crm.allcheckservices.com (Let's Encrypt leaf, rotates every
-                 ~60 days).
-        Backup : SPKI SHA-256 of the ISRG Root X1 trust anchor (valid to
-                 2035). Android matches the pin set against the VERIFIED chain
-                 incl. the trust anchor, so when the LE leaf/intermediate
-                 rotate the root pin keeps the app reachable WITHOUT a new
-                 release — the durable strategy for a sideloaded field APK.
+      Prod crm.allcheckservices.com moved behind AWS ALB + ACM on 2026-07-04
+      (ADR-0087); its cert now chains  Amazon leaf ← Amazon RSA 2048 M04 ←
+      Amazon Root CA 1. Staging (staging.crm.allcheckservices.com, covered by
+      includeSubdomains) stays on Let's Encrypt ← ISRG Root X1.
 
-      Expiration: 2028-12-31 — pins reviewed/re-validated before this date.
-      Because the backup pins the long-lived ISRG root, leaf rotation no
-      longer bricks the app between releases.
+      Strategy — pin the durable ROOTS, not the leaves. Android matches the pin
+      set against the VERIFIED chain incl. the system trust anchor, so pinning
+      the root keeps the app reachable across ACM/LE leaf + intermediate
+      rotation WITHOUT a new release. This REPLACES the pre-AWS LE-leaf pin,
+      which the 2026-07-04 ACM cutover silently invalidated (neither the LE
+      leaf nor ISRG X1 match an Amazon chain) — bricking every prod APK's TLS
+      handshake until this fix.
 
-      Verified against live server on 2026-06-18: leaf SPKI
-      V329rvVf6FFkAnHhuxgqMXVCR9puyLSJbeXYMGVllIc= (issuer LE YR2 ← ISRG X1).
+      Verified against live prod + staging on 2026-07-05:
+        prod    leaf D66I0OanuKa9eNTBNdHOZUZ+sA4AHbLd4nhjARvcns8= ← Amazon Root CA 1
+        staging leaf M/QuFeWttkucvDYCIUIzrWlRhm5S/s3yuR33hMo8FfY= ← ISRG Root X1
 
-      Release pipeline guard: scripts/check-ssl-pins.sh fails the build if
-      the pin-set element is missing, placeholder values leak through, or
-      pin values are not 44-char base64 SHA-256 digests.
+      Rotation invariant: keep at least TWO pins. Re-validate before 2028-12-31.
+      Release guard: scripts/check-ssl-pins.sh is a FORMAT check only — it does
+      NOT verify a live match, which is why the stale pin shipped (see follow-up).
     -->
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">crm.allcheckservices.com</domain>
@@ -62,9 +62,9 @@
             <certificates src="system" />
         </trust-anchors>
         <pin-set expiration="2028-12-31">
-            <!-- Primary: crm.allcheckservices.com leaf cert (Let's Encrypt, refreshed 2026-06-18) -->
-            <pin digest="SHA-256">V329rvVf6FFkAnHhuxgqMXVCR9puyLSJbeXYMGVllIc=</pin>
-            <!-- Backup: ISRG Root X1 trust anchor (durable; survives LE leaf/intermediate rotation) -->
+            <!-- Prod: Amazon Root CA 1 (AWS ACM anchor, valid to 2038) -->
+            <pin digest="SHA-256">++MBgDH5WGvL9Bcn5Be30cRcL0f5O+NyoXuWtQdX1aI=</pin>
+            <!-- Staging: ISRG Root X1 (Let's Encrypt anchor, valid to 2035) -->
             <pin digest="SHA-256">C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=</pin>
         </pin-set>
     </domain-config>
