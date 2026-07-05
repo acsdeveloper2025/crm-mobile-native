@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useMemo } from 'react';
 import {
   View,
   StyleSheet,
@@ -22,6 +22,8 @@ import Geolocation from '@react-native-community/geolocation';
 import { useFocusEffect } from '@react-navigation/native';
 import { CameraService } from '../../services/CameraService';
 import { Logger } from '../../utils/logger';
+import { useTheme } from '../../context/ThemeContext';
+import type { Theme } from '../../theme/Theme';
 
 const TAG = 'CameraCaptureScreen';
 
@@ -59,6 +61,8 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
   const [isPreparing, setIsPreparing] = useState(true);
   const [gpsWarning, setGpsWarning] = useState<string | null>(null);
   const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
+  const styles = useMemo(() => makeStyles(theme), [theme]);
 
   // 2026-05-31: capture at 1080p class so doorplates / documents stay
   // readable. CameraService downscales to a 1920 long-edge bound (aspect
@@ -309,7 +313,7 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
   if (!hasPermission || isPreparing) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#2563EB" />
+        <ActivityIndicator size="large" color={theme.colors.primary} />
         <Text style={styles.loadingText}>
           {!hasPermission
             ? 'Requesting camera permission...'
@@ -424,159 +428,166 @@ export const CameraCaptureScreen = ({ route, navigation }: any) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: 'black',
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'black',
-  },
-  loadingText: {
-    color: 'white',
-    marginTop: 16,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-  },
-  topBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  iconButton: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: 'rgba(0,0,0,0.45)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  topInfoWrap: {
-    alignItems: 'center',
-    gap: 6,
-  },
-  topSpacer: {
-    width: 42,
-    height: 42,
-  },
-  bottomBar: {
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingBottom: 12,
-  },
-  captureModeBadge: {
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.35)',
-  },
-  captureModeText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '700',
-    letterSpacing: 0.3,
-    textTransform: 'uppercase',
-  },
-  taskHintText: {
-    color: '#d1d5db',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  captureButtonOuter: {
-    width: 82,
-    height: 82,
-    borderRadius: 41,
-    borderWidth: 4,
-    borderColor: 'white',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-  },
-  captureButtonDisabled: {
-    opacity: 0.7,
-  },
-  captureButtonInner: {
-    width: 62,
-    height: 62,
-    borderRadius: 31,
-    backgroundColor: 'white',
-  },
-  capturingState: {
-    backgroundColor: '#cbd5e1',
-    transform: [{ scale: 0.9 }],
-  },
-  captureHint: {
-    marginTop: 12,
-    color: 'white',
-    fontSize: 13,
-    fontWeight: '600',
-    textAlign: 'center',
-    backgroundColor: 'rgba(0,0,0,0.35)',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 10,
-  },
-  captureHintSub: {
-    marginTop: 5,
-    color: '#d1d5db',
-    fontSize: 11,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  capturingOverlay: {
-    alignSelf: 'center',
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    marginTop: 18,
-    gap: 8,
-  },
-  capturingText: {
-    color: 'white',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  goBackButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    backgroundColor: '#2563EB',
-    borderRadius: 8,
-  },
-  goBackButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 16,
-  },
-  gpsWarningBanner: {
-    position: 'absolute',
-    left: 16,
-    right: 16,
-    zIndex: 10,
-    backgroundColor: 'rgba(234, 179, 8, 0.95)',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  gpsWarningText: {
-    color: '#78350F',
-    fontSize: 12,
-    fontWeight: '600',
-    flex: 1,
-  },
-});
+// This screen renders over a live camera preview (or a black backdrop before
+// the camera mounts), so its chrome is a FIXED dark context: white text, black
+// backgrounds, translucent scrims, and the white shutter button stay constant
+// regardless of the app's light/dark theme — theming them would make text
+// invisible over the viewfinder. Only the brand accent (primary) and the
+// semantic GPS-warning banner route through theme.colors.
+const makeStyles = (theme: Theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: 'black',
+    },
+    centerContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'black',
+    },
+    loadingText: {
+      color: 'white',
+      marginTop: 16,
+    },
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+    },
+    topBar: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    iconButton: {
+      width: 42,
+      height: 42,
+      borderRadius: 21,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    topInfoWrap: {
+      alignItems: 'center',
+      gap: 6,
+    },
+    topSpacer: {
+      width: 42,
+      height: 42,
+    },
+    bottomBar: {
+      flexDirection: 'column',
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingBottom: 12,
+    },
+    captureModeBadge: {
+      backgroundColor: 'rgba(15, 23, 42, 0.65)',
+      borderRadius: 999,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.35)',
+    },
+    captureModeText: {
+      color: 'white',
+      fontSize: 12,
+      fontWeight: '700',
+      letterSpacing: 0.3,
+      textTransform: 'uppercase',
+    },
+    taskHintText: {
+      color: '#d1d5db',
+      fontSize: 11,
+      fontWeight: '600',
+    },
+    captureButtonOuter: {
+      width: 82,
+      height: 82,
+      borderRadius: 41,
+      borderWidth: 4,
+      borderColor: 'white',
+      justifyContent: 'center',
+      alignItems: 'center',
+      backgroundColor: 'rgba(255,255,255,0.12)',
+    },
+    captureButtonDisabled: {
+      opacity: 0.7,
+    },
+    captureButtonInner: {
+      width: 62,
+      height: 62,
+      borderRadius: 31,
+      backgroundColor: 'white',
+    },
+    capturingState: {
+      backgroundColor: '#cbd5e1',
+      transform: [{ scale: 0.9 }],
+    },
+    captureHint: {
+      marginTop: 12,
+      color: 'white',
+      fontSize: 13,
+      fontWeight: '600',
+      textAlign: 'center',
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 10,
+    },
+    captureHintSub: {
+      marginTop: 5,
+      color: '#d1d5db',
+      fontSize: 11,
+      fontWeight: '500',
+      textAlign: 'center',
+    },
+    capturingOverlay: {
+      alignSelf: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: 'rgba(0,0,0,0.5)',
+      paddingHorizontal: 12,
+      paddingVertical: 7,
+      borderRadius: 999,
+      marginTop: 18,
+      gap: 8,
+    },
+    capturingText: {
+      color: 'white',
+      fontSize: 12,
+      fontWeight: '600',
+    },
+    goBackButton: {
+      marginTop: 16,
+      paddingHorizontal: 24,
+      paddingVertical: 12,
+      backgroundColor: theme.colors.primary,
+      borderRadius: 8,
+    },
+    goBackButtonText: {
+      color: '#fff',
+      fontWeight: '600',
+      fontSize: 16,
+    },
+    gpsWarningBanner: {
+      position: 'absolute',
+      left: 16,
+      right: 16,
+      zIndex: 10,
+      backgroundColor: theme.colors.warning,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    gpsWarningText: {
+      color: '#78350F',
+      fontSize: 12,
+      fontWeight: '600',
+      flex: 1,
+    },
+  });
