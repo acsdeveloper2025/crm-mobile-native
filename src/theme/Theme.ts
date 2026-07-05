@@ -147,7 +147,10 @@ export const darkTheme: Theme = {
     surfaceAlt: '#2A2F3C', // dark --secondary / --muted
 
     text: '#E7EBEF', // dark --foreground
-    textSecondary: '#CBD5E1', // slate-300
+    // slate-300 — deliberately dimmer than the web dark --secondary-foreground
+    // (#E7EBEF, which equals `text`) so the 3-tier text→secondary→muted ramp
+    // stays visible in dark mode (mirrors the light-mode rationale above).
+    textSecondary: '#CBD5E1',
     textMuted: '#95A1B2', // dark --muted-foreground
 
     success: '#2EB860', // dark --success
