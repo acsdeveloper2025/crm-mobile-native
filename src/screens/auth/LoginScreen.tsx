@@ -459,10 +459,10 @@ export const LoginScreen = () => {
                   style={[
                     styles.button,
                     { backgroundColor: theme.colors.primary },
-                    loading && styles.buttonDisabled,
+                    (loading || !otpCode.trim()) && styles.buttonDisabled,
                   ]}
                   onPress={handleVerifyOtp}
-                  disabled={loading}
+                  disabled={loading || !otpCode.trim()}
                   testID="login-verify-button"
                   accessibilityLabel="Verify sign-in code button"
                 >
@@ -501,6 +501,7 @@ export const LoginScreen = () => {
                   style={styles.linkButton}
                   onPress={handleBackToLogin}
                   disabled={loading}
+                  testID="login-back-button"
                   accessibilityLabel="Use a different account"
                 >
                   <Text
