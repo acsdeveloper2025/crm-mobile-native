@@ -31,6 +31,11 @@ export const ENDPOINTS = {
   ATTACHMENTS: {
     UPLOAD: (taskId: string) => `/verification-tasks/${taskId}/attachments`,
     LIST: (taskId: string) => `/verification-tasks/${taskId}/attachments`,
+    // FIELD_PHOTO delete (same task.execute gate as UPLOAD). 204 on
+    // success, 404 if not the agent's task / not a FIELD_PHOTO / already
+    // deleted / task already SUBMITTED (evidence frozen).
+    DELETE_ONE: (taskId: string, attachmentId: string) =>
+      `/verification-tasks/${taskId}/attachments/${attachmentId}`,
     IMAGES: (taskId: string) =>
       `/verification-tasks/${taskId}/verification-images`,
     BATCH: '/cases/batch/attachments',

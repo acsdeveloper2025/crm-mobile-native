@@ -18,6 +18,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import type { LocalAttachment } from '../../types/mobile';
 import { useTheme } from '../../context/ThemeContext';
 import { AttachmentRepository } from '../../repositories/AttachmentRepository';
+import { attachmentService } from '../../services/AttachmentService';
 
 interface PhotoGalleryProps {
   taskId: string;
@@ -96,20 +97,41 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
     }, [loadPhotos]),
   );
 
-  const handleDelete = (
-    id: string,
-    _localPath: string,
-    _thumbnailPath?: string,
-  ) => {
+  const handleDelete = (item: LocalAttachment) => {
     Alert.alert('Delete Photo', 'Are you sure you want to delete this photo?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
         style: 'destructive',
         onPress: async () => {
+          // A SYNCED photo also lives on the server, so remove the server
+          // copy FIRST (idempotent: a 404 counts as already-gone). Only on
+          // success do we drop the local row/files — a network/5xx failure
+          // keeps the local row so the agent knows it wasn't deleted and
+          // can retry when online, avoiding "gone on device, still on
+          // server". PENDING/FAILED rows have no backend id → local-only.
+          if (item.syncStatus === 'SYNCED' && item.backendAttachmentId) {
+            try {
+              await attachmentService.deleteRemoteFieldPhoto(
+                taskId,
+                item.backendAttachmentId,
+              );
+            } catch (err) {
+              Logger.error(
+                'PhotoGallery',
+                'Failed to delete synced photo from server',
+                err,
+              );
+              Alert.alert(
+                'Not Deleted',
+                'Could not remove this photo from the server. Check your connection and try again when online.',
+              );
+              return;
+            }
+          }
           try {
-            await AttachmentRepository.deleteLocalFilesById(id);
-            await AttachmentRepository.deleteById(id);
+            await AttachmentRepository.deleteLocalFilesById(item.id);
+            await AttachmentRepository.deleteById(item.id);
             loadPhotos();
           } catch {
             Alert.alert('Error', 'Failed to delete photo.');
@@ -181,12 +203,8 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
 
       <TouchableOpacity
         style={styles.deleteButton}
-        onPress={() =>
-          handleDelete(item.id, item.localPath, item.thumbnailPath)
-        }
-        disabled={
-          item.syncStatus === 'UPLOADING' || item.syncStatus === 'SYNCED'
-        }
+        onPress={() => handleDelete(item)}
+        disabled={item.syncStatus === 'UPLOADING'}
       >
         <Icon name="trash" size={18} color="white" />
       </TouchableOpacity>

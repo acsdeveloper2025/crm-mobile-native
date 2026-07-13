@@ -3,6 +3,7 @@
  * Manages task attachments, file downloads, and content retrieval using SQLite and RNFS.
  */
 
+import axios from 'axios';
 import { Platform } from 'react-native';
 import RNFS from 'react-native-fs';
 import piexif from 'piexifjs';
@@ -97,6 +98,39 @@ class AttachmentServiceClass {
         error,
       );
       return [];
+    }
+  }
+
+  /**
+   * Delete a SYNCED field-captured photo from the server (server
+   * soft-deletes the row + purges the object/thumbnail). Auth + gate mirror
+   * the photo UPLOAD (Bearer via the ApiClient interceptor, same
+   * `task.execute`). Covers verification photos AND selfies — both are
+   * stored server-side as kind='FIELD_PHOTO' (photo_type distinguishes
+   * them), so the server deletes either. NOT for office reference
+   * attachments (OFFICE_REF) or the user profile photo — different flows.
+   *
+   * Resolves on 204 (deleted) AND on 404 (already gone server-side →
+   * idempotent). Re-throws on any other failure (network / 5xx) so the
+   * caller keeps the local copy and can retry when online.
+   */
+  async deleteRemoteFieldPhoto(
+    taskId: string,
+    backendAttachmentId: string,
+  ): Promise<void> {
+    try {
+      await ApiClient.delete(
+        ENDPOINTS.ATTACHMENTS.DELETE_ONE(taskId, backendAttachmentId),
+      );
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        Logger.info(
+          TAG,
+          `Field photo ${backendAttachmentId} already gone on server (404) — treating as deleted`,
+        );
+        return;
+      }
+      throw error;
     }
   }
 
