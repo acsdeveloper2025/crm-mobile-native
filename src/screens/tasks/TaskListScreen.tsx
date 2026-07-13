@@ -221,10 +221,18 @@ export const TaskListScreen = ({
   const { setTaskPriority, revokeTask } = useTaskManager();
 
   const statusFilter = lockedFilter ? initialFilter : activeTab.value;
-  const { taskIds, isLoading, error, refetch } = useTasks(
+  const { taskIds, isLoading, error, refetch, syncTasks } = useTasks(
     statusFilter,
     deferredSearchQuery,
   );
+  // Pull-to-refresh / Retry: pull new assignments from the server first,
+  // then re-read locally. performSync() is single-flighted and no-ops when
+  // offline, so the trailing refetch() still runs → offline degrades to the
+  // old local-only behavior. Focus effect stays local-only (see useTasks).
+  const onRefresh = useCallback(async () => {
+    await syncTasks();
+    await refetch();
+  }, [syncTasks, refetch]);
   const canReorder =
     lockedFilter &&
     (initialFilter === 'ASSIGNED' || initialFilter === 'IN_PROGRESS');
@@ -843,7 +851,7 @@ export const TaskListScreen = ({
               styles.retryButton,
               { backgroundColor: theme.colors.primary },
             ]}
-            onPress={refetch}
+            onPress={onRefresh}
             activeOpacity={0.85}
           >
             <Text style={[styles.retryText, { color: theme.colors.surface }]}>
@@ -883,7 +891,7 @@ export const TaskListScreen = ({
             { paddingBottom: Math.max(insets.bottom, 16) + 80 },
           ]}
           refreshing={isLoading}
-          onRefresh={refetch}
+          onRefresh={onRefresh}
         />
       )}
 
