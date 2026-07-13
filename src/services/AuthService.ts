@@ -315,7 +315,7 @@ class AuthServiceClass {
       return null;
     } catch (error) {
       Logger.error(TAG, 'Token refresh failed', error);
-      return null;
+      throw error;
     }
   }
 
