@@ -148,6 +148,15 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
     }
   };
 
+  // Field-executive terminal states: a SAVED task is complete + awaiting submit
+  // (tap routes to the Submit dialog, not the form) and SUBMITTED is the field
+  // agent's done state. Both are read-only — no Accept/Revoke/Info/Attachments.
+  // (COMPLETED has no field tab, kept defensively.)
+  const isReadOnly =
+    task.isSaved === 1 ||
+    task.status === 'SUBMITTED' ||
+    task.status === 'COMPLETED';
+
   return (
     <AnimatedTouchableOpacity
       style={[
@@ -201,25 +210,25 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
          */}
         {(task.status === 'COMPLETED' || task.status === 'SUBMITTED') &&
           task.syncStatus !== 'SYNCED' && (
-          <View
-            style={[
-              styles.savedBadge,
-              {
-                backgroundColor: theme.colors.danger + '20',
-                borderColor: theme.colors.danger + '50',
-              },
-            ]}
-          >
-            <Text
-              numberOfLines={1}
-              style={[styles.savedBadgeText, { color: theme.colors.danger }]}
+            <View
+              style={[
+                styles.savedBadge,
+                {
+                  backgroundColor: theme.colors.danger + '20',
+                  borderColor: theme.colors.danger + '50',
+                },
+              ]}
             >
-              {task.syncStatus === 'CONFLICT'
-                ? 'Sync Conflict'
-                : 'Pending Upload'}
-            </Text>
-          </View>
-        )}
+              <Text
+                numberOfLines={1}
+                style={[styles.savedBadgeText, { color: theme.colors.danger }]}
+              >
+                {task.syncStatus === 'CONFLICT'
+                  ? 'Sync Conflict'
+                  : 'Pending Upload'}
+              </Text>
+            </View>
+          )}
         {/* 2026-05-16: status pill moved here from the footer so the
             action-buttons row (Revoke/Info/Attachments) can own the
             footer width without wrapping the badge below it. */}
@@ -236,13 +245,43 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
       </View>
 
       <Text
-        numberOfLines={1}
-        ellipsizeMode="tail"
-        style={[styles.caseId, { color: theme.colors.text }]}
+        style={[
+          styles.caseId,
+          styles.caseIdFirst,
+          { color: theme.colors.text },
+        ]}
       >
-        Case ID: #{task.caseNumber || task.caseId} | VT ID:{' '}
-        {task.verificationTaskNumber || 'N/A'}
+        Case ID: #{task.caseNumber || task.caseId}
       </Text>
+      <Text style={[styles.caseId, { color: theme.colors.text }]}>
+        VT ID: {task.verificationTaskNumber || 'N/A'}
+      </Text>
+
+      {task.clientName || task.productName ? (
+        <View style={styles.metaContainer}>
+          {task.clientName ? (
+            <View style={styles.metaRow}>
+              <Text style={styles.metaIcon}>🏦</Text>
+              <Text
+                style={[styles.metaText, { color: theme.colors.textSecondary }]}
+              >
+                Client: {task.clientName}
+              </Text>
+            </View>
+          ) : null}
+          {task.productName ? (
+            <View style={styles.metaRow}>
+              <Text style={styles.metaIcon}>📦</Text>
+              <Text
+                style={[styles.metaText, { color: theme.colors.textSecondary }]}
+              >
+                Product: {task.productName}
+              </Text>
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       <Text
         numberOfLines={2}
         ellipsizeMode="tail"
@@ -265,8 +304,6 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
           <Text style={styles.companyIcon}>🏢</Text>
           <Text
             style={[styles.companyText, { color: theme.colors.textSecondary }]}
-            numberOfLines={2}
-            ellipsizeMode="tail"
           >
             Company: {task.companyName}
           </Text>
@@ -278,8 +315,6 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
           <Text style={styles.triggerIcon}>📋</Text>
           <Text
             style={[styles.triggerText, { color: theme.colors.textSecondary }]}
-            numberOfLines={2}
-            ellipsizeMode="tail"
           >
             Trigger: {task.notes}
           </Text>
@@ -305,185 +340,190 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         </View>
       )}
 
-      <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
-        <View style={styles.actionButtons}>
-          {task.status === 'ASSIGNED' && task.isRevoked !== 1 && (
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={handleAccept}
-              disabled={isAccepting}
-              accessibilityRole="button"
-              accessibilityLabel={
-                isAccepting ? 'Accepting task' : 'Accept task'
-              }
-            >
-              {isAccepting ? (
-                <ActivityIndicator size="small" color={theme.colors.success} />
-              ) : (
-                <Icon
-                  name="checkmark-circle"
-                  size={32}
-                  color={theme.colors.success}
-                />
-              )}
-              <Text
-                style={[styles.actionLabel, { color: theme.colors.success }]}
-              >
-                {isAccepting ? 'Accepting...' : 'Accept'}
-              </Text>
-            </TouchableOpacity>
-          )}
-
-          {/* Revoke allowed on ASSIGNED AND IN_PROGRESS (field-rejection
-              semantics per locked workflow model). A field agent may
-              discover wrong pincode / wrong area / not-relevant only
-              AFTER tapping Start, so the action must remain available
-              until COMPLETED. */}
-          {(task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS') &&
-            task.isRevoked !== 1 && (
+      {!isReadOnly && (
+        <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
+          <View style={styles.actionButtons}>
+            {task.status === 'ASSIGNED' && task.isRevoked !== 1 && (
               <TouchableOpacity
                 style={styles.iconButton}
-                onPress={() => onRevokePress?.(task)}
+                onPress={handleAccept}
+                disabled={isAccepting}
                 accessibilityRole="button"
-                accessibilityLabel="Revoke task"
+                accessibilityLabel={
+                  isAccepting ? 'Accepting task' : 'Accept task'
+                }
               >
-                <Icon
-                  name="close-circle"
-                  size={32}
-                  color={theme.colors.danger}
-                />
+                {isAccepting ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={theme.colors.success}
+                  />
+                ) : (
+                  <Icon
+                    name="checkmark-circle"
+                    size={32}
+                    color={theme.colors.success}
+                  />
+                )}
                 <Text
-                  style={[styles.actionLabel, { color: theme.colors.danger }]}
+                  style={[styles.actionLabel, { color: theme.colors.success }]}
                 >
-                  Revoke
+                  {isAccepting ? 'Accepting...' : 'Accept'}
                 </Text>
               </TouchableOpacity>
             )}
 
-          {/* 2026-05-03: hide Info button on COMPLETED tasks (same UX
+            {/* Revoke allowed on ASSIGNED AND IN_PROGRESS (field-rejection
+              semantics per locked workflow model). A field agent may
+              discover wrong pincode / wrong area / not-relevant only
+              AFTER tapping Start, so the action must remain available
+              until COMPLETED. */}
+            {(task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS') &&
+              task.isRevoked !== 1 && (
+                <TouchableOpacity
+                  style={styles.iconButton}
+                  onPress={() => onRevokePress?.(task)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Revoke task"
+                >
+                  <Icon
+                    name="close-circle"
+                    size={32}
+                    color={theme.colors.danger}
+                  />
+                  <Text
+                    style={[styles.actionLabel, { color: theme.colors.danger }]}
+                  >
+                    Revoke
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+            {/* 2026-05-03: hide Info button on COMPLETED tasks (same UX
               rationale as Attachments below — once submitted the task is
               read-only and the Info detail page adds no value). Keep on
               ASSIGNED / IN_PROGRESS / SAVED / REVOKED. */}
-          {task.status !== 'COMPLETED' && (
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => onInfoPress?.(task)}
-              accessibilityRole="button"
-              accessibilityLabel="Task info"
-            >
-              <Icon
-                name="information-circle"
-                size={32}
-                color={theme.colors.info || '#3b82f6'}
-              />
-              <Text
-                style={[
-                  styles.actionLabel,
-                  { color: theme.colors.info || '#3b82f6' },
-                ]}
+            {task.status !== 'COMPLETED' && (
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() => onInfoPress?.(task)}
+                accessibilityRole="button"
+                accessibilityLabel="Task info"
               >
-                Info
-              </Text>
-            </TouchableOpacity>
-          )}
+                <Icon
+                  name="information-circle"
+                  size={32}
+                  color={theme.colors.info || '#3b82f6'}
+                />
+                <Text
+                  style={[
+                    styles.actionLabel,
+                    { color: theme.colors.info || '#3b82f6' },
+                  ]}
+                >
+                  Info
+                </Text>
+              </TouchableOpacity>
+            )}
 
-          {/* UX (2026-04-21): hide the Attachments button on COMPLETED
+            {/* UX (2026-04-21): hide the Attachments button on COMPLETED
               tasks — once the agent submits, the verification is closed
               and the attached documents are no longer relevant to the
               field-app user. Keep the button on ASSIGNED / IN_PROGRESS /
               SAVED / REVOKED so the agent can still reference docs
               while work is ongoing. */}
-          {task.status !== 'COMPLETED' && (
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() =>
-                onAttachmentsPress ? onAttachmentsPress(task) : onPress(task)
-              }
-              accessibilityRole="button"
-              accessibilityLabel={
-                (task.attachmentCount || 0) > 0
-                  ? `Attachments (${task.attachmentCount})`
-                  : 'Attachments'
-              }
-            >
-              <Icon name="attach" size={28} color={theme.colors.primary} />
-              {(task.attachmentCount || 0) > 0 && (
-                <View
-                  style={[
-                    styles.badgeContainer,
-                    { backgroundColor: theme.colors.danger },
-                  ]}
+            {task.status !== 'COMPLETED' && (
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={() =>
+                  onAttachmentsPress ? onAttachmentsPress(task) : onPress(task)
+                }
+                accessibilityRole="button"
+                accessibilityLabel={
+                  (task.attachmentCount || 0) > 0
+                    ? `Attachments (${task.attachmentCount})`
+                    : 'Attachments'
+                }
+              >
+                <Icon name="attach" size={28} color={theme.colors.primary} />
+                {(task.attachmentCount || 0) > 0 && (
+                  <View
+                    style={[
+                      styles.badgeContainer,
+                      { backgroundColor: theme.colors.danger },
+                    ]}
+                  >
+                    <Text style={styles.badgeText}>{task.attachmentCount}</Text>
+                  </View>
+                )}
+                <Text
+                  style={[styles.actionLabel, { color: theme.colors.primary }]}
                 >
-                  <Text style={styles.badgeText}>{task.attachmentCount}</Text>
-                </View>
-              )}
-              <Text
-                style={[styles.actionLabel, { color: theme.colors.primary }]}
-              >
-                Attachments
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
+                  Attachments
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
-        <View style={styles.statusBadgeContainer}>
-          {isReorderEnabled && (
-            <View style={styles.reorderButtons}>
-              <TouchableOpacity
-                style={[
-                  styles.reorderButton,
-                  { backgroundColor: theme.colors.surfaceAlt },
-                  !canMoveUp && styles.reorderButtonDisabled,
-                ]}
-                onPress={() => onMoveTask?.(task.id, 'up')}
-                disabled={!canMoveUp}
-                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                accessibilityRole="button"
-                accessibilityLabel="Move task up"
-              >
-                <Icon
-                  name="chevron-up-outline"
-                  size={18}
-                  color={
-                    canMoveUp
-                      ? theme.colors.textSecondary
-                      : theme.colors.textMuted
-                  }
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[
-                  styles.reorderButton,
-                  { backgroundColor: theme.colors.surfaceAlt },
-                  !canMoveDown && styles.reorderButtonDisabled,
-                ]}
-                onPress={() => onMoveTask?.(task.id, 'down')}
-                disabled={!canMoveDown}
-                hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
-                accessibilityRole="button"
-                accessibilityLabel="Move task down"
-              >
-                <Icon
-                  name="chevron-down-outline"
-                  size={18}
-                  color={
-                    canMoveDown
-                      ? theme.colors.textSecondary
-                      : theme.colors.textMuted
-                  }
-                />
-              </TouchableOpacity>
-            </View>
-          )}
-          {task.status === 'IN_PROGRESS' && (
-            <Icon
-              name="chevron-forward"
-              size={20}
-              color={theme.colors.textMuted}
-            />
-          )}
+          <View style={styles.statusBadgeContainer}>
+            {isReorderEnabled && (
+              <View style={styles.reorderButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.reorderButton,
+                    { backgroundColor: theme.colors.surfaceAlt },
+                    !canMoveUp && styles.reorderButtonDisabled,
+                  ]}
+                  onPress={() => onMoveTask?.(task.id, 'up')}
+                  disabled={!canMoveUp}
+                  hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Move task up"
+                >
+                  <Icon
+                    name="chevron-up-outline"
+                    size={18}
+                    color={
+                      canMoveUp
+                        ? theme.colors.textSecondary
+                        : theme.colors.textMuted
+                    }
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.reorderButton,
+                    { backgroundColor: theme.colors.surfaceAlt },
+                    !canMoveDown && styles.reorderButtonDisabled,
+                  ]}
+                  onPress={() => onMoveTask?.(task.id, 'down')}
+                  disabled={!canMoveDown}
+                  hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Move task down"
+                >
+                  <Icon
+                    name="chevron-down-outline"
+                    size={18}
+                    color={
+                      canMoveDown
+                        ? theme.colors.textSecondary
+                        : theme.colors.textMuted
+                    }
+                  />
+                </TouchableOpacity>
+              </View>
+            )}
+            {task.status === 'IN_PROGRESS' && (
+              <Icon
+                name="chevron-forward"
+                size={20}
+                color={theme.colors.textMuted}
+              />
+            )}
+          </View>
         </View>
-      </View>
+      )}
     </AnimatedTouchableOpacity>
   );
 };
@@ -513,6 +553,8 @@ const areEqual = (prev: TaskCardProps, next: TaskCardProps): boolean => {
     prevTask.verificationTypeName === nextTask.verificationTypeName &&
     prevTask.verificationType === nextTask.verificationType &&
     prevTask.verificationTaskNumber === nextTask.verificationTaskNumber &&
+    prevTask.clientName === nextTask.clientName &&
+    prevTask.productName === nextTask.productName &&
     prev.canMoveUp === next.canMoveUp &&
     prev.canMoveDown === next.canMoveDown &&
     prev.isReorderEnabled === next.isReorderEnabled
@@ -567,6 +609,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
+  },
+  caseIdFirst: {
+    marginBottom: 2,
+  },
+  metaContainer: {
+    marginBottom: 8,
+    gap: 4,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  metaIcon: {
+    fontSize: 15,
+    marginRight: 6,
+  },
+  metaText: {
+    fontSize: 13,
+    flex: 1,
+    lineHeight: 18,
   },
   customerName: {
     fontSize: 18,

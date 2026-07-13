@@ -1,7 +1,7 @@
 // SQLite Database Schema and Migrations
 // Offline-first schema for field verification data
 
-export const DB_VERSION = 21;
+export const DB_VERSION = 22;
 
 /**
  * All CREATE TABLE statements for the local SQLite database.
@@ -256,6 +256,8 @@ CREATE TABLE IF NOT EXISTS task_list_projection (
   completed_at TEXT,
   verification_type TEXT,
   verification_type_name TEXT,
+  client_name TEXT,
+  product_name TEXT,
   is_saved INTEGER NOT NULL DEFAULT 0,
   is_revoked INTEGER NOT NULL DEFAULT 0,
   revoked_at TEXT,
@@ -728,7 +730,7 @@ export const MIGRATIONS: Migration[] = [
   {
     version: 20,
     description:
-      "ADR-0054 Phase 1 (v2-native sync): the down-sync now sends caseId as a case UUID (fed into the existing case_id column) and a separate caseNumber for the user-facing display. Add case_number to tasks + task_list_projection so the case display number survives the caseId-now-uuid change. Backfill case_number from the pre-upgrade numeric case_id (which held the display number before this version); task_detail_projection.task_json picks it up on the next projection rebuild.",
+      'ADR-0054 Phase 1 (v2-native sync): the down-sync now sends caseId as a case UUID (fed into the existing case_id column) and a separate caseNumber for the user-facing display. Add case_number to tasks + task_list_projection so the case display number survives the caseId-now-uuid change. Backfill case_number from the pre-upgrade numeric case_id (which held the display number before this version); task_detail_projection.task_json picks it up on the next projection rebuild.',
     sql: `
       ALTER TABLE tasks ADD COLUMN case_number TEXT;
       ALTER TABLE task_list_projection ADD COLUMN case_number TEXT;
@@ -744,6 +746,20 @@ export const MIGRATIONS: Migration[] = [
       'Add submitted_count to dashboard_projection so the dashboard Submitted card reads from the cached projection (consistent with the Assigned/In-Progress/Saved cards) rather than a live table scan. The projection is a derived cache rebuilt from tasks; the column is appended here and populated on the next rebuild.',
     sql: `
       ALTER TABLE dashboard_projection ADD COLUMN submitted_count INTEGER NOT NULL DEFAULT 0;
+    `,
+  },
+  {
+    version: 22,
+    description:
+      'Show client + product on the task card. Add client_name + product_name to task_list_projection and backfill from tasks (which already carries them). Same pattern as v20 (case_number): the projection is a derived cache; ProjectionUpdater writes these on every rebuild too.',
+    sql: `
+      ALTER TABLE task_list_projection ADD COLUMN client_name TEXT;
+      ALTER TABLE task_list_projection ADD COLUMN product_name TEXT;
+      UPDATE task_list_projection SET client_name = (
+        SELECT t.client_name FROM tasks t WHERE t.id = task_list_projection.id
+      ), product_name = (
+        SELECT t.product_name FROM tasks t WHERE t.id = task_list_projection.id
+      );
     `,
   },
 ];
