@@ -1,9 +1,10 @@
 # SSL pinning — operator runbook
 
-Phase E1 ships the kill-switch infrastructure (`PinningConfigService`
-on the client, `pinning` block on the `/auth/app-config` response).
-This doc covers the platform-specific native configuration that
-actually enforces pinning at the TLS layer.
+Pinning is enforced **only** by the platform-native configuration described
+below — Android `<pin-set>` and iOS `NSPinnedDomains`. There is no client
+library, no app-level check, and **no remote kill switch** (see
+"There is no runtime kill switch" below for why one is not possible, and what
+to do instead when a cert rotates).
 
 ## Rotation invariant
 
@@ -181,41 +182,56 @@ The TrustKit library remains a fallback option if Apple ever
 restricts `NSPinnedDomains` on a future iOS version. Install
 instructions are preserved in git history (commit ~2026-04-19).
 
-## Runtime kill switch
+## There is no runtime kill switch — and there cannot be
 
-The backend's `/auth/app-config` response carries a `pinning` block:
+> **This section previously documented an emergency bypass
+> (`export MOBILE_PINNING_ENABLED=false` + `pm2 restart crm-backend`).
+> It never worked. Every link in it was absent, and an operator following it
+> during a live outage would have changed nothing and believed they had.
+> Removed 2026-07-17.** Nothing in crm2 ever read `MOBILE_PINNING_ENABLED`,
+> `/auth/app-config` does not exist server-side, the app never called it,
+> `PinningConfigService` had zero callers from the commit that introduced it,
+> and `pm2 restart crm-backend` is v1-era ops (crm2 is Docker blue-green on AWS).
 
-```json
-{
-  "pinning": {
-    "enabled": true,
-    "pinSha256s": ["<primary>", "<backup>"]
-  }
-}
-```
+**A remote kill switch is not possible here, by design.** Pinning is enforced by
+the **OS network stack** from build-time configuration — Android's `<pin-set>` in
+`network_security_config.xml`, iOS's `NSPinnedDomains` in `Info.plist`. The TLS
+handshake is rejected inside the OS **before any JavaScript runs**. No JS flag can
+observe or override that; as `src/api/apiClient.ts` puts it, "App-level code
+requires no changes."
 
-`PinningConfigService` on the mobile client caches this. When
-`enabled` is false, the client should route requests through a
-non-pinned transport path. **This is a relaxation channel only** —
-you can disable pinning remotely (e.g. if a rotated cert slipped
-through the overlap window and phones are failing) but you
-cannot enable it on a client that shipped without native pinning
-support. The asymmetry prevents a compromised backend from
-instructing the client to pin an attacker-controlled key.
+The old text even conceded the contradiction — "the native pinning layer stays
+active, but ... request code that honors the flag routes around it." There is
+nothing to route around it *with*: same domain, same OS-enforced pins.
 
-Emergency bypass:
+**Making the switch real would mean moving enforcement out of the OS and into JS
+— a permanent security downgrade that buys a remotely-controlled TLS downgrade.**
+Anyone who compromised the backend or DNS could then switch pinning off for every
+device at once. That is a worse failure mode than the outage it was meant to fix.
 
-```bash
-# 1. Set on the backend env and restart
-export MOBILE_PINNING_ENABLED=false
-pm2 restart crm-backend
+### What to do instead — this is already handled
 
-# 2. Phones refresh their cached config on next /auth/app-config
-#    call (or on next app launch). The native pinning layer stays
-#    active, but PinningConfigService.isEnabled() now returns false
-#    so request code that honors the flag routes around it.
-# 3. Fix the cert issue, set MOBILE_PINNING_ENABLED=true, restart.
-```
+The scenario the bypass existed for (a rotated cert bricking the fleet) **cannot
+happen any more**, because both platforms now pin the **ROOT CA**, not the leaf:
+
+| Environment | Pinned anchor | Valid to |
+|---|---|---|
+| Prod (`crm.allcheckservices.com`) | Amazon Root CA 1 (AWS ACM anchor) | 2038 |
+| Staging | ISRG Root X1 (Let's Encrypt anchor) | 2035 |
+
+A root pin **survives ACM/Let's Encrypt leaf rotation without a new release**.
+This is exactly why the switch was made on 2026-07-05 — a *leaf* pin bricked prod
+on 2026-07-04.
+
+**Rotation invariant: keep at least TWO pins at all times** (current anchor +
+backup). To change anchor: publish the next anchor's pin as the backup in a new
+release, wait for adoption, then switch. That overlap — not a remote switch — is
+the safety mechanism.
+
+If pinning ever *does* brick the fleet, the only real remedy is a new build with
+corrected pins. Plan releases accordingly; `npm run check:ssl-pins` and
+`npm run verify:ssl-pins-live` gate this in `prerelease`, and both check the
+native XML/plist pins directly.
 
 ## Verification
 

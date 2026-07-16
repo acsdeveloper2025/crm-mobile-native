@@ -309,19 +309,13 @@ export interface MobileAppConfigResponse {
     locationAccuracyThreshold: number;
     syncBatchSize: number;
   };
-  /**
-   * Phase E1: SSL pinning kill switch served by the backend. The
-   * mobile app caches this and consults it on every request — when
-   * `enabled` is false the native pinning layer (Android
-   * network_security_config.xml / iOS ATS) falls through to stock
-   * TLS so a rotated cert that slipped through the overlap window
-   * does not brick the app in the field. `pinSha256s` is a set of
-   * public-key SHA256 fingerprints; matching any one is a pass.
-   */
-  pinning?: {
-    enabled: boolean;
-    pinSha256s: string[];
-  };
+  // 2026-07-17: the `pinning` kill-switch field is gone. It described a
+  // response the server never sent, for a Phase E1 switch that was never
+  // wired — and its contract was false: a server flag CANNOT make the native
+  // pinning layer "fall through to stock TLS". Pinning is enforced by the OS
+  // from build-time config (Android <pin-set>, iOS NSPinnedDomains); the
+  // handshake fails before any JS runs. Cert rotation is handled by ROOT
+  // pinning + the two-pin overlap invariant instead. See docs/ssl-pinning.md.
   endpoints: {
     apiBaseUrl: string;
     wsUrl: string;
