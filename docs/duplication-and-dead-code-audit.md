@@ -14,10 +14,13 @@ and was discarded), then per-candidate proof via `grep -rn` across `.ts`/`.tsx` 
 `ios/`, `scripts/`, `package.json`. Extract & unify first (green), delete second (green) — never both
 blind in one step.
 
-Baseline: knip reported **6 unused files, 42 unused exports, 108 unused types**. After this pass:
-**0 unused files**, and the remaining "unused exports" are almost entirely knip false-positives —
-redundant `export default` lines beside a named export every caller already uses, plus in-file-only
-symbols. A tool's verdict is a starting point, not a finding.
+Baseline: knip reported **6 unused files, 42 unused exports, 108 unused types**.
+After this pass: **0 unused files** · **52 types** · 34 exports — and every survivor is triaged below
+(§15), not silently dropped. The survivors are almost entirely knip flagging a redundant `export`
+keyword on symbols used **within their own file**, plus `export default` lines beside a named export
+every caller already uses. **A tool's verdict is a starting point, not a finding** — ~30 of the original
+42 "unused exports" were false positives (schemas nested in a parent schema, `AuthContext` behind
+`useAuth`, side-effect imports from `index.js`).
 
 ---
 
@@ -403,7 +406,48 @@ blob is absent (one earlier recommendation to delete it was wrong).
   so the type boundary checked nothing either. Deleted, with the explanation moved to
   `DatabaseService.normalizeRow`, where camelization actually happens.
 
-## 15. Names that lie — fixed
+## 15. DEAD — the form-option enum catalog (468 → 45 lines)
+
+The **108 unused exported types** were the last untriaged bucket. **56 of them were enums in one
+file**: `src/types/enums.ts` held 57 enums and **exactly one — `TaskStatus` — was ever imported**.
+
+The other 56 were a parallel catalog of every form's option values, and **already drifted from the
+forms they claimed to describe**:
+
+| Enum | says | the form (source of truth) says |
+|---|---|---|
+| `HouseStatus` | `Opened = 'Opened'` | `houseStatus: ['Open', 'Closed']` — every live condition tests `'Open'` |
+| `WorkingStatus` | 8 values (Retired, Unemployed, Student, House Person…) | residence offers **3**; **OFFICE offers a different set** (`'Company Payroll'`…) one enum can't hold |
+| `RevokeReason` | 5 members | a **straight duplicate** of the live enum of the same name in `types/api.ts` |
+
+`'Opened'`, `'Retired'`, `'Unemployed'`, `'Student'`, `'House Person'` — **zero references anywhere
+outside that file**. Phantom options.
+
+**The most dangerous kind of dead code: it *read* as the domain catalog.** Writing
+`HouseStatus.Opened` into a new condition would typecheck and then **silently never match**, because the
+form emits `'Open'`. It also competed with the invariant that the **device form templates are the source
+of truth** for option values.
+
+Also removed: **`TaskStatus.Saved`** and **`TaskStatus.SubmittedPendingSync`** — phantom *statuses*.
+Nothing writes either to `tasks.status`: "saved" is the `is_saved` **column** plus a filter/tab id, and
+`'SUBMITTED_PENDING_SYNC'` appears nowhere at all. `Pending`/`Revoked` stay — real statuses written as
+literals.
+
+**Deleted `MobileAppConfigResponse`** too: a response type for `GET /auth/app-config`, **an endpoint
+that does not exist**. It is the worked example of why an unused DTO isn't harmless — *a contract
+nothing binds is a contract nothing checks*, so it drifts into fiction. By deletion it had accumulated
+the impossible `pinning` kill-switch block, a `biometricAuth` flag for a feature never implemented, and
+`limits`/`features` nothing reads.
+
+**The remaining ~52 unused types are ACCEPTED, not dead logic** — knip is flagging the redundant
+`export` keyword on types used *within their own file* (component `Props`, a use-case's `Result`, a
+service's option bags). Removing the keyword is churn with no runtime effect. The one sub-group worth
+naming: `types/api.ts`'s request DTOs (`MobileLoginRequest`, `MobileSyncUploadRequest`, …) describe
+**real** endpoints but nothing binds them — zod schemas in `src/api/schemas/` are what actually validate
+the wire. They are drift-prone for the same reason `MobileAppConfigResponse` became fiction; left in
+place, recorded here.
+
+## 16. Names that lie — fixed
 
 - **`AttachmentRepository` → `CaptureRepository`** (19 refs, 7 files). It holds **zero attachments**;
   every method handles the agent's captures. It leaked the truth itself — `deleteSyncedForTask` named
