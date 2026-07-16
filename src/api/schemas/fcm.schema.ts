@@ -42,6 +42,11 @@ export const FCM_NOTIFICATION_TYPES = [
   'REMINDER',
 ] as const;
 
+// THE notification priority set. Import `FcmPriority` rather than re-typing the
+// union: before 2026-07-17 this tuple was unused while the same five members were
+// hand-typed in ten places (plus a second full tuple, ALLOWED_PRIORITIES in
+// MobileSocketService). They all agreed — but only by luck, and the copy nobody
+// tests is the one that lies.
 export const FCM_PRIORITIES = [
   'NORMAL',
   'HIGH',
@@ -49,6 +54,11 @@ export const FCM_PRIORITIES = [
   'MEDIUM',
   'LOW',
 ] as const;
+
+export type FcmPriority = (typeof FCM_PRIORITIES)[number];
+
+/** Fallback when the wire value is absent or unrecognised. */
+export const DEFAULT_FCM_PRIORITY: FcmPriority = 'MEDIUM';
 
 /**
  * Data-payload schema. FCM guarantees strings on `data.*` but the

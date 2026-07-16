@@ -15,6 +15,7 @@ import {
   FcmRemoteMessageSchema,
   normalizeFcmType,
   sanitizeFcmActionUrl,
+  type FcmPriority,
 } from '../api/schemas/fcm.schema';
 import {
   handleLocationRequest,
@@ -28,7 +29,7 @@ export interface NotificationData {
   type: string;
   title: string;
   message: string;
-  priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
+  priority?: FcmPriority;
   isRead: boolean;
   taskId?: string;
   /**
@@ -124,7 +125,7 @@ class NotificationServiceImpl {
     type: string;
     title: string;
     message: string;
-    priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
+    priority?: FcmPriority;
     isRead?: boolean;
     taskId?: string | null;
     taskNumber?: string | null;
@@ -273,7 +274,7 @@ class NotificationServiceImpl {
       type: string;
       title: string;
       message: string;
-      priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
+      priority?: FcmPriority;
       isRead?: boolean;
       taskId?: string | null;
       taskNumber?: string | null;
@@ -914,7 +915,7 @@ class NotificationServiceImpl {
       type: string;
       title: string;
       message: string;
-      priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
+      priority?: FcmPriority;
       isRead?: boolean;
       taskId?: string | null;
       taskNumber?: string | null;

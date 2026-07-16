@@ -1,6 +1,11 @@
 import { DeviceEventEmitter } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 import { config } from '../config';
+import {
+  DEFAULT_FCM_PRIORITY,
+  FCM_PRIORITIES,
+  type FcmPriority,
+} from '../api/schemas/fcm.schema';
 import { DatabaseService } from '../database/DatabaseService';
 import { ProjectionUpdater } from '../projections/ProjectionUpdater';
 import { TaskRepository } from '../repositories/TaskRepository';
@@ -44,7 +49,11 @@ type IncomingNotificationPayload = {
   taskId?: string;
   taskNumber?: string;
   actionUrl?: string;
-  priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW' | string;
+  // Raw wire value — the server can send anything, which is why
+  // `normalizePriority` exists. This was written as the FcmPriority union `|
+  // string`, which TypeScript collapses to plain `string` anyway: a constraint
+  // that documented itself but enforced nothing.
+  priority?: string;
   timestamp?: string;
   createdAt?: string;
 };
@@ -319,20 +328,11 @@ class MobileSocketServiceClass {
   }
 }
 
-const ALLOWED_PRIORITIES = [
-  'NORMAL',
-  'HIGH',
-  'URGENT',
-  'MEDIUM',
-  'LOW',
-] as const;
-const normalizePriority = (
-  raw: string | undefined,
-): 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW' => {
-  if (raw && (ALLOWED_PRIORITIES as readonly string[]).includes(raw)) {
-    return raw as 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
+const normalizePriority = (raw: string | undefined): FcmPriority => {
+  if (raw && (FCM_PRIORITIES as readonly string[]).includes(raw)) {
+    return raw as FcmPriority;
   }
-  return 'MEDIUM';
+  return DEFAULT_FCM_PRIORITY;
 };
 
 export const mobileSocketService = new MobileSocketServiceClass();

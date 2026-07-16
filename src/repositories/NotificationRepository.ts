@@ -1,11 +1,12 @@
 import { DatabaseService } from '../database/DatabaseService';
+import type { FcmPriority } from '../api/schemas/fcm.schema';
 
 export interface NotificationRecord {
   id: string;
   type: string;
   title: string;
   message: string;
-  priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
+  priority?: FcmPriority;
   isRead: boolean;
   taskId?: string;
   taskNumber?: string;
@@ -19,7 +20,7 @@ type DbNotification = {
   type: string;
   title: string;
   message: string;
-  priority: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
+  priority: FcmPriority;
   isRead: number;
   taskId: string | null;
   taskNumber: string | null;
@@ -68,7 +69,7 @@ class NotificationRepositoryClass {
       type: string;
       title: string;
       message: string;
-      priority?: 'NORMAL' | 'HIGH' | 'URGENT' | 'MEDIUM' | 'LOW';
+      priority?: FcmPriority;
       isRead?: boolean;
       taskId?: string | null;
       taskNumber?: string | null;
