@@ -16,7 +16,7 @@ class AttachmentRepositoryClass {
     longitude?: number;
     accuracy?: number;
     locationTimestamp?: string | null;
-    componentType: 'photo' | 'selfie' | 'document';
+    componentType: 'photo' | 'selfie';
     /**
      * 2026-04-28 (D6/D17 fix): SHA-256 hex of file bytes at capture.
      * Optional: callers can pass `null` if hash compute failed (we still
@@ -137,49 +137,14 @@ class AttachmentRepositoryClass {
     }
   }
 
-  async updateUploadResult(
-    id: string,
-    backendAttachmentId?: string | null,
-    remotePath?: string | null,
-  ): Promise<void> {
-    await DatabaseService.execute(
-      `UPDATE attachments
-       SET sync_status = 'SYNCED',
-           backend_attachment_id = COALESCE(?, backend_attachment_id),
-           remote_path = COALESCE(?, remote_path),
-           last_sync_attempt_at = ?
-       WHERE id = ?`,
-      [
-        backendAttachmentId || null,
-        remotePath || null,
-        new Date().toISOString(),
-        id,
-      ],
-    );
-  }
-
-  async markMissingAsSynced(id: string): Promise<void> {
-    await DatabaseService.execute(
-      "UPDATE attachments SET sync_status = 'SYNCED' WHERE id = ?",
-      [id],
-    );
-  }
-
-  async getBackendAttachmentIds(taskId: string): Promise<string[]> {
-    const rows = await DatabaseService.query<{
-      backendAttachmentId: string | null;
-    }>(
-      `SELECT backend_attachment_id
-       FROM attachments
-       WHERE task_id = ?
-         AND sync_status = 'SYNCED'
-         AND backend_attachment_id IS NOT NULL`,
-      [taskId],
-    );
-    return rows
-      .map(row => row.backendAttachmentId)
-      .filter((value): value is string => Boolean(value));
-  }
+  // 2026-07-17: `updateUploadResult`, `markMissingAsSynced` and
+  // `getBackendAttachmentIds` were deleted here — all three had ZERO callers
+  // and were stale twins of the SQL the uploaders run inline
+  // (AttachmentUploader.ts:210-223, FormUploader.ts:95-99). Dead-but-armed:
+  // they READ as the upload-completion rule, so an edit here would look
+  // correct and change nothing — the same trap `listOldTerminalTaskIds` set.
+  // If this SQL ever needs to move behind the repository, move the LIVE
+  // uploader statements; do not resurrect a parallel copy.
 
   async getTotalStorageUsed(): Promise<number> {
     const rows = await DatabaseService.query<{ total: number }>(

@@ -86,24 +86,6 @@ export const TaskCardSkeleton = () => {
   );
 };
 
-export const DashboardCardSkeleton = () => {
-  const { theme } = useTheme();
-  return (
-    <View
-      style={[styles.dashboardCard, { backgroundColor: theme.colors.surface }]}
-    >
-      <SkeletonBox
-        width={40}
-        height={40}
-        borderRadius={8}
-        style={styles.mb16}
-      />
-      <SkeletonBox width="40%" height={24} style={styles.mb8} />
-      <SkeletonBox width="70%" height={16} />
-    </View>
-  );
-};
-
 // M15 (audit 2026-04-21): per-screen skeletons replace bare
 // ActivityIndicator spinners so users see a rough layout preview that
 // matches the real page, reducing perceived load time.
@@ -230,17 +212,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingTop: 12,
     borderTopWidth: 1,
-  },
-  dashboardCard: {
-    borderRadius: 16,
-    padding: 20,
-    width: '48%',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
   },
   mb12: { marginBottom: 12 },
   mb16: { marginBottom: 16 },

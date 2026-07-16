@@ -84,7 +84,7 @@ export interface LocalAttachment {
   longitude?: number;
   accuracy?: number;
   locationTimestamp?: string;
-  componentType: 'photo' | 'selfie' | 'document';
+  componentType: 'photo' | 'selfie';
 
   // Sync tracking
   syncStatus: 'PENDING' | 'UPLOADING' | 'SYNCED' | 'FAILED';

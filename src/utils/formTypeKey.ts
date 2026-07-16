@@ -9,18 +9,6 @@ export type FormTypeKey =
   | 'property-individual'
   | 'property-apf';
 
-export const FORM_TYPE_KEYS_IN_ORDER: readonly FormTypeKey[] = [
-  'residence',
-  'residence-cum-office',
-  'office',
-  'business',
-  'builder',
-  'noc',
-  'dsa-connector',
-  'property-individual',
-  'property-apf',
-] as const;
-
 const FORM_TYPE_KEY_TO_BACKEND: Record<FormTypeKey, string> = {
   residence: 'RESIDENCE',
   'residence-cum-office': 'RESIDENCE_CUM_OFFICE',

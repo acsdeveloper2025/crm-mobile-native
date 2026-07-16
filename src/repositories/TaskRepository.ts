@@ -344,28 +344,20 @@ class TaskRepositoryClass {
     await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }
 
+  // 2026-07-17: the `markCompleted` parameter and its branch are gone. It
+  // wrote status='COMPLETED' + completed_at on the DEVICE, which ADR-0047
+  // forbids — COMPLETED is the office's sign-off and only ever arrives via
+  // down-sync (see the note on updateFormData). FormUploader was corrected to
+  // write SUBMITTED; this copy never was. The one caller (TaskContext.tsx:290)
+  // always omitted the flag, so the branch was dead — but armed: it read as
+  // "what a submitted task becomes", so passing `true` would silently
+  // resurrect device-side COMPLETED, stranding the task in a state with no tab
+  // and making it retention-reapable.
   async updateSubmissionMeta(
     taskId: string,
     formData: Record<string, unknown>,
-    markCompleted: boolean = false,
   ): Promise<void> {
     const now = new Date().toISOString();
-    if (markCompleted) {
-      await DatabaseService.execute(
-        `UPDATE tasks
-         SET status = 'COMPLETED',
-             completed_at = ?,
-             sync_status = 'SYNCED',
-             last_synced_at = ?,
-             local_updated_at = ?,
-             form_data_json = ?
-         WHERE id = ?`,
-        [now, now, now, JSON.stringify(formData), taskId],
-      );
-      await ProjectionUpdater.scheduleTaskRebuild(taskId);
-      return;
-    }
-
     await DatabaseService.execute(
       `UPDATE tasks
        SET form_data_json = ?, local_updated_at = ?
