@@ -25,6 +25,7 @@
     "contract:task-revoked": "node --experimental-strip-types --no-warnings src/sync/taskRevoked.contract.test.ts",
     "contract:dashboard-counts": "node --experimental-strip-types --no-warnings src/projections/dashboardCounts.contract.test.ts",
     "contract:schema-version": "node --experimental-strip-types --no-warnings src/database/schemaVersion.contract.test.ts",
+    "contract:all": "npm run contract:mobile && npm run contract:sync-lock && npm run contract:task-identity && npm run contract:sync-metadata && npm run contract:form-completeness && npm run contract:form-prune && npm run contract:relative-time && npm run contract:field-status && npm run contract:evidence-countable && npm run contract:task-revoked && npm run contract:dashboard-counts && npm run contract:schema-version",
     "check:ssl-pins": "bash scripts/check-ssl-pins.sh",
     "verify:ssl-pins-live": "bash scripts/verify-ssl-pins-live.sh",
     "prerelease": "npm run typecheck && npm run lint && npm run check:ssl-pins && npm run verify:ssl-pins-live",

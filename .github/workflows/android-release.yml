@@ -129,6 +129,22 @@ jobs:
       - name: Lint source
         run: npm run lint:src
 
+      # 2026-07-17: gate the release on the contract suites. They existed since
+      # 2026-05 but NO workflow ran them — so every rule they pin (the field
+      # terminal status, evidence countability, the DB_VERSION invariant, the
+      # dashboard counters, the revoke predicate) could regress into a release
+      # unnoticed. That is not hypothetical: v1.0.81 shipped with DB_VERSION
+      # trailing its last migration, which broke EVERY fresh install, and
+      # `contract:schema-version` catches exactly that.
+      #
+      # Runner-free by design (no jest — frozen stack): each suite is a
+      # self-contained assertion script under `node --experimental-strip-types`,
+      # so this needs no extra dependency. Verified against this workflow's own
+      # pinned node (.nvmrc 22.14.0) before wiring in: all 12 suites, 87 checks,
+      # green — including the three that use node:sqlite (unflagged since 22.13).
+      - name: Contract suites
+        run: npm run contract:all
+
       # Gate the release on the TLS pins actually matching the live cert.
       # build-apk / build-aab both `needs: verify`, so a stale pin (like the
       # 2026-07-04 AWS ACM cutover that bricked v1.0.76/77) fails the release
