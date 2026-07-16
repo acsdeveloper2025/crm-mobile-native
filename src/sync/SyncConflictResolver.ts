@@ -1,5 +1,6 @@
 import { DatabaseService } from '../database/DatabaseService';
 import type { MobileCaseResponse } from '../types/api';
+import { isRevokedByServer } from './taskRevoked';
 import { Logger } from '../utils/logger';
 import { TimeService } from '../services/TimeService';
 
@@ -94,6 +95,28 @@ class SyncConflictResolver {
     let savedAt: string | null = null;
     let completedAt = task.completedAt || null;
     let isSaved = 0;
+
+    // 2026-07-17: a server REVOKE is authoritative and must not be masked by
+    // local state. The `hasQueuedChanges` branch below preserves the local
+    // status unconditionally, while SyncDownloadService binds `is_revoked`
+    // straight from the same payload — so a revoke arriving with queued work
+    // wrote is_revoked=1 alongside status='IN_PROGRESS'. That row is invisible
+    // to every list (they filter is_revoked) AND unreapable by retention (which
+    // needs a terminal status): its photos and drafts stayed on the device
+    // forever, and the B-148 wipe (which tests status === 'REVOKED') never
+    // fired. There is no local work worth preserving against a revoke — B-145
+    // requires a reassign to force fresh re-capture. The PENDING branch below
+    // already treats REVOKED as authoritative; this makes the queued branch
+    // agree.
+    if (isRevokedByServer(task)) {
+      return {
+        status: 'REVOKED',
+        inProgressAt,
+        savedAt: null,
+        completedAt,
+        isSaved: 0,
+      };
+    }
 
     if (existing) {
       const localStatus = (existing.status || '').toUpperCase();

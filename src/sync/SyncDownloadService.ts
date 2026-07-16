@@ -4,6 +4,7 @@ import { ENDPOINTS } from '../api/endpoints';
 import { validateResponse } from '../api/schemas/runtime';
 import { MobileSyncDownloadResponseSchema } from '../api/schemas/sync.schema';
 import { config } from '../config';
+import { isRevokedByServer } from './taskRevoked';
 import { DatabaseService } from '../database/DatabaseService';
 import { ProjectionUpdater } from '../projections/ProjectionUpdater';
 import { SyncEngineRepository } from '../repositories/SyncEngineRepository';
@@ -630,7 +631,10 @@ class SyncDownloadServiceClass {
           task.verificationUnit?.name || null,
           task.verificationUnit?.code || null,
           task.formData ? JSON.stringify(task.formData) : null,
-          task.isRevoked ? 1 : 0,
+          // ONE revoke predicate, shared with SyncConflictResolver — this used
+          // to read task.isRevoked while the wipe below read the resolved
+          // status, and the two disagreed (see sync/taskRevoked.ts).
+          isRevokedByServer(task) ? 1 : 0,
           task.revokedAt || null,
           task.revokedByName || null,
           task.revokeReason || null,
