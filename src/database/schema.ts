@@ -70,13 +70,28 @@ CREATE TABLE IF NOT EXISTS tasks (
   in_progress_at TEXT,
   saved_at TEXT,
   is_saved INTEGER NOT NULL DEFAULT 0,
+  -- ATTACHMENT != PHOTO. This is the backend-reported count of ADMIN-uploaded
+  -- reference DOCS (crm2 case_attachments, kind='OFFICE_REF') sent web -> device
+  -- for the agent to READ. It is render-only (the TaskCard badge) and is NEVER a
+  -- count of the agent's own captures: local captures must never bump it, and it
+  -- can never gate Save/Submit. Written only by SyncDownloadService from the
+  -- server payload. The attachments table below is the OPPOSITE thing.
+  -- See the terminology block in src/utils/evidenceCount.ts.
   attachment_count INTEGER NOT NULL DEFAULT 0,
   sync_status TEXT NOT NULL DEFAULT 'PENDING',
   last_synced_at TEXT,
   local_updated_at TEXT NOT NULL
 );
 
--- Attachments (photos, documents)
+-- MISNAMED: this table holds ZERO attachments. It stores the field agent's own
+-- camera CAPTURES (component_type 'photo' or 'selfie') -- the EVIDENCE that the
+-- 5-photo + 1-selfie rule counts. Admin reference docs are never stored here:
+-- they are fetched over HTTP on demand and rendered (AttachmentService), and are
+-- read-only on the device. The only writer here is AttachmentRepository.create,
+-- called solely by CameraService. Do NOT "reconcile" tasks.attachment_count with
+-- COUNT(*) of this table: they are different data flows that must never match.
+-- The honest name is "captures"; renaming needs a migration over live agent
+-- evidence, so it is recorded here instead.
 CREATE TABLE IF NOT EXISTS attachments (
   id TEXT PRIMARY KEY,
   task_id TEXT NOT NULL,
