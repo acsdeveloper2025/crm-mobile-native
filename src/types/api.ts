@@ -290,37 +290,21 @@ export interface MobileSyncDownloadResponse {
   nextCursor: string | null;
 }
 
-export interface MobileAppConfigResponse {
-  apiVersion: string;
-  minSupportedVersion: string;
-  forceUpdateVersion: string;
-  features: {
-    offlineMode: boolean;
-    backgroundSync: boolean;
-    // Phase E4: biometricAuth removed — never implemented on this
-    // client. If re-added it must be behind a real
-    // react-native-biometrics integration, not a config flag.
-    darkMode: boolean;
-    analytics: boolean;
-  };
-  limits: {
-    maxFileSize: number;
-    maxFilesPerCase: number;
-    locationAccuracyThreshold: number;
-    syncBatchSize: number;
-  };
-  // 2026-07-17: the `pinning` kill-switch field is gone. It described a
-  // response the server never sent, for a Phase E1 switch that was never
-  // wired — and its contract was false: a server flag CANNOT make the native
-  // pinning layer "fall through to stock TLS". Pinning is enforced by the OS
-  // from build-time config (Android <pin-set>, iOS NSPinnedDomains); the
-  // handshake fails before any JS runs. Cert rotation is handled by ROOT
-  // pinning + the two-pin overlap invariant instead. See docs/ssl-pinning.md.
-  endpoints: {
-    apiBaseUrl: string;
-    wsUrl: string;
-  };
-}
+// 2026-07-17: `MobileAppConfigResponse` was deleted here — it described the
+// response of `GET /auth/app-config`, an endpoint that DOES NOT EXIST. Nothing
+// in crm2 serves it, the app never called it, and no code referenced the type.
+//
+// It is the worked example of why an unused DTO is not harmless: a contract
+// nothing binds is a contract nothing checks, so it quietly becomes fiction. By
+// the time it was deleted it had accumulated a `pinning` kill-switch block whose
+// documented behaviour was impossible (a server flag cannot make the OS-enforced
+// pinning layer "fall through to stock TLS" — the handshake fails before any JS
+// runs), a `biometricAuth` flag for a feature that was never implemented, and
+// `limits`/`features` nothing reads. See docs/ssl-pinning.md.
+//
+// If a real app-config endpoint is ever built, describe it with a zod schema in
+// src/api/schemas/ like every other live contract — those are validated at the
+// boundary, so they cannot drift into fiction unnoticed.
 
 export interface MobileErrorResponse {
   success: false;

@@ -9,9 +9,14 @@
  *
  * When the local table is empty (fresh install offline, server
  * unreachable since first boot), TaskRevokeModal falls back to the
- * compiled-in `RevokeReason` enum in `src/types/enums.ts`. That
+ * compiled-in `RevokeReason` enum in `src/types/api.ts`. That
  * fallback is intentionally narrow — once the first successful sync
  * runs, the local mirror becomes the source of truth.
+ *
+ * 2026-07-17: this pointed at `src/types/enums.ts`, which held a SECOND,
+ * identical `RevokeReason` enum that nothing imported. That dead twin was
+ * deleted; the live one — the one TaskRevokeModal actually falls back to — is
+ * and always was in `types/api.ts`.
  */
 
 import { DatabaseService } from '../database/DatabaseService';
