@@ -45,6 +45,7 @@ import {
 import { SubmitVerificationUseCase } from '../../usecases/SubmitVerificationUseCase';
 import { resolveFormTypeKey } from '../../utils/formTypeKey';
 import { countCapturedPhotos } from '../../utils/evidenceCount';
+import { isFieldSubmitted } from '../../utils/fieldStatus';
 import { evaluateFormCompleteness } from '../../services/forms/FormValidationEngine';
 import {
   buildLegacyTemplateForFormType,
@@ -58,13 +59,22 @@ import {
 } from '../../store/selectors/taskSelectors';
 import { useSelector } from '../../store/useSelector';
 
-// Updated tab bar filters for tasks to include Saved and Revoked
+// Tab bar filters. NOT dead despite the bar only rendering when the filter is
+// unlocked: `FILTER_TABS` is also the lookup that resolves the active tab from
+// initialFilter/route params (see initialTab below). Verify callers before
+// touching it.
+//
+// 2026-07-17: the 'Completed' tab is gone. The field executive does not complete
+// tasks — the back office does — so they have no Completed tab and must never be
+// shown one. Nothing routed to it (all four wrappers lock the filter, and no
+// caller passes filter='COMPLETED'), so the chip never rendered — but it sat
+// here armed: unlock the bar and a Completed tab appears. An office-signed-off
+// task belongs in Submitted, which is where getCounts and list() already put it.
 const FILTER_TABS = [
   { id: 'ALL', label: 'All', value: undefined },
   { id: 'ASSIGNED', label: 'Assigned', value: 'ASSIGNED' },
   { id: 'IN_PROGRESS', label: 'In Progress', value: 'IN_PROGRESS' },
   { id: 'SUBMITTED', label: 'Submitted', value: 'SUBMITTED' },
-  { id: 'COMPLETED', label: 'Completed', value: 'COMPLETED' },
   { id: 'SAVED', label: 'Saved', value: 'SAVED' },
 ] as const;
 
@@ -299,14 +309,9 @@ export const TaskListScreen = ({
           defaultSearchPlaceholder || 'Search submitted tasks...',
       };
     }
-    if (initialFilter === 'COMPLETED') {
-      return {
-        title: 'Completed Tasks',
-        emptyMessage: 'You have not completed any cases yet.',
-        searchPlaceholder:
-          defaultSearchPlaceholder || 'Search completed tasks...',
-      };
-    }
+    // 2026-07-17: the 'COMPLETED' branch is gone with its tab. It titled a
+    // screen "Completed Tasks" and told the agent "You have not completed any
+    // cases yet" — a screen they can never reach for work they never do.
     return {
       title: 'All Cases',
       emptyMessage: 'No tasks found for this status.',
@@ -464,11 +469,7 @@ export const TaskListScreen = ({
       // (locked read-only, Submit rejects them). On tap, re-check with the
       // same predicate; if incomplete, un-save and reopen the form instead
       // of offering a Submit that can only fail.
-      if (
-        task.isSaved === 1 &&
-        task.status !== 'COMPLETED' &&
-        task.status !== 'SUBMITTED'
-      ) {
+      if (task.isSaved === 1 && !isFieldSubmitted(task.status)) {
         (async () => {
           try {
             const fresh = await TaskRepository.getTaskById(task.id);
@@ -549,8 +550,8 @@ export const TaskListScreen = ({
         return;
       }
       // ADR-0047: SUBMITTED is the field terminal — read-only (the office
-      // completes it), so tap opens the detail view like COMPLETED.
-      if (task.status === 'SUBMITTED' || task.status === 'COMPLETED') {
+      // completes it later), so tap opens the read-only detail view.
+      if (isFieldSubmitted(task.status)) {
         navigation.navigate('TaskDetail', { taskId: task.id });
         return;
       }
