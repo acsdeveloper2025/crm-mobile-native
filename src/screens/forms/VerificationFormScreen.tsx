@@ -28,12 +28,18 @@ import type { FormTemplate } from '../../types/api';
 import { useTaskManager } from '../../context/TaskContext';
 import { Logger } from '../../utils/logger';
 import { resolveFormTypeKey, type FormTypeKey } from '../../utils/formTypeKey';
-import { validateTemplateRequiredFields as validateFormTemplateRequiredFields } from '../../services/forms/FormValidationEngine';
+import {
+  evaluateFormCompleteness,
+  MIN_SELFIE_PHOTOS,
+  MIN_VERIFICATION_PHOTOS,
+  type FormCompleteness,
+} from '../../services/forms/FormValidationEngine';
 import { FormTemplateService } from '../../services/forms/FormTemplateService';
 import { FormSubmissionService } from '../../services/forms/FormSubmissionService';
 import { useFormAutosave } from '../../hooks/forms/useFormAutosave';
 import { NetworkService } from '../../services/NetworkService';
 import { TaskRepository } from '../../repositories/TaskRepository';
+import { countCapturedPhotos } from '../../utils/attachmentCount';
 import { styles } from './VerificationFormScreen.styles';
 import {
   buildLegacyTemplateForFormType,
@@ -171,74 +177,40 @@ export const VerificationFormScreen = ({
     persistAutoSave,
   });
 
+  // 2026-07-16: THE completeness predicate (FormValidationEngine) drives the
+  // Save/Submit gates, the button dimming, the hint line AND the progress
+  // bar. It replaced a local re-implementation of the conditional/required
+  // walk (4 of 10 operators — drifted) and the reason Save shipped with no
+  // validation at all: it never shared Submit's copy.
+  const completeness = useMemo(
+    () =>
+      evaluateFormCompleteness(template, formValues, photoCount, selfieCount),
+    [template, formValues, photoCount, selfieCount],
+  );
+
   const formProgress = useMemo(() => {
-    if (!template) return { filled: 0, total: 0, percent: 0 };
+    const total = completeness.requiredCount;
+    const filled = completeness.filledRequiredCount;
+    const percent = total > 0 ? Math.round((filled / total) * 100) : 0;
+    return { filled, total, percent };
+  }, [completeness]);
 
-    let totalRequired = 0;
-    let filledRequired = 0;
-
-    const evaluateConditionSimple = (
-      condition: any,
-      values: Record<string, any>,
-    ): boolean => {
-      const actual = values[condition.field];
-      switch (condition.operator) {
-        case 'equals':
-          return actual === condition.value;
-        case 'notEquals':
-          return actual !== condition.value;
-        case 'notIn':
-          return (
-            !Array.isArray(condition.value) || !condition.value.includes(actual)
-          );
-        case 'in':
-          return (
-            Array.isArray(condition.value) && condition.value.includes(actual)
-          );
-        default:
-          return true;
-      }
-    };
-
-    for (const section of template.sections) {
-      if (
-        section.conditional &&
-        !evaluateConditionSimple(section.conditional, formValues)
-      )
-        continue;
-      for (const field of section.fields) {
-        if (
-          field.conditional &&
-          !evaluateConditionSimple(field.conditional, formValues)
-        )
-          continue;
-
-        let isRequired = Boolean(field.required);
-        if (!isRequired && field.requiredWhen) {
-          const conditions = Array.isArray(field.requiredWhen)
-            ? field.requiredWhen
-            : [field.requiredWhen];
-          isRequired = conditions.every((c: any) =>
-            evaluateConditionSimple(c, formValues),
-          );
-        }
-
-        if (!isRequired) continue;
-        totalRequired += 1;
-
-        const val = formValues[field.name || field.id];
-        if (val !== null && val !== undefined && String(val).trim() !== '') {
-          filledRequired += 1;
-        }
-      }
-    }
-
-    const percent =
-      totalRequired > 0
-        ? Math.round((filledRequired / totalRequired) * 100)
-        : 0;
-    return { filled: filledRequired, total: totalRequired, percent };
-  }, [template, formValues]);
+  const completenessHint = useMemo(() => {
+    const parts: string[] = [];
+    const fields = completeness.missingKeys.length;
+    if (fields > 0) parts.push(`${fields} field${fields === 1 ? '' : 's'}`);
+    if (completeness.missingPhotos > 0)
+      parts.push(
+        `${completeness.missingPhotos} photo${
+          completeness.missingPhotos === 1 ? '' : 's'
+        }`,
+      );
+    if (completeness.missingSelfies > 0)
+      parts.push(`${completeness.missingSelfies} selfie`);
+    return parts.length > 0
+      ? `To save or submit, complete: ${parts.join(' · ')}`
+      : '';
+  }, [completeness]);
 
   const getLegacyTemplate = React.useCallback(
     (verificationType: FormTypeKey, outcome: string): FormTemplate | null =>
@@ -497,11 +469,99 @@ export const VerificationFormScreen = ({
     return unsubscribe;
   }, [navigation, formValues, isSubmitting, flushAutosaveNow]);
 
+  // photoCount/selfieCount arrive via PhotoGallery's onPhotosLoaded, which
+  // silently leaves them at 0 if its 3s attachment query times out (it
+  // swallows the error). Good enough to LABEL with, but refusing a Save or
+  // Submit on it would trap a user whose evidence is actually there. So
+  // whenever the side-channel says evidence is short, re-count from the
+  // repository — the same source FormSubmissionService trusts — and correct
+  // the on-screen counts with the truth.
+  const resolveCompleteness = async (): Promise<FormCompleteness> => {
+    if (
+      !task ||
+      completeness.isComplete ||
+      (completeness.missingPhotos === 0 && completeness.missingSelfies === 0)
+    ) {
+      return completeness;
+    }
+    try {
+      const counts = await countCapturedPhotos(task.id);
+      if (
+        counts.photoCount === photoCount &&
+        counts.selfieCount === selfieCount
+      ) {
+        return completeness;
+      }
+      setPhotoCount(counts.photoCount);
+      setSelfieCount(counts.selfieCount);
+      return evaluateFormCompleteness(
+        template,
+        formValues,
+        counts.photoCount,
+        counts.selfieCount,
+      );
+    } catch (err) {
+      Logger.warn(
+        'VerificationFormScreen',
+        `Evidence re-count failed for task ${task.id}`,
+        err,
+      );
+      return completeness;
+    }
+  };
+
+  // Shared incomplete-form feedback — Save and Submit behave IDENTICALLY
+  // (owner rule 2026-07-16): red-highlight every missing field, scroll to
+  // the first, and alert; evidence shortfalls get the Missing Evidence alert.
+  const showIncompleteForm = (result: FormCompleteness) => {
+    if (result.missingKeys.length > 0) {
+      const errorMap: Record<string, string> = {};
+      for (const key of result.missingKeys) {
+        errorMap[key] = 'Required';
+      }
+      setValidationErrors(errorMap);
+      formBuilderRef.current?.scrollToFirstError(result.missingKeys);
+
+      const preview = result.missingFields.slice(0, 6).join(', ');
+      const hasMore = result.missingFields.length > 6;
+      Alert.alert(
+        'Validation Error',
+        `Please fill all required fields: ${preview}${hasMore ? ' ...' : ''}`,
+      );
+      return;
+    }
+    // Report the counts the DECISION was made on (result), not screen state —
+    // resolveCompleteness may have just corrected a stale side-channel count.
+    Alert.alert(
+      'Missing Evidence',
+      `You must capture at least ${MIN_VERIFICATION_PHOTOS} location photos (Current: ${
+        MIN_VERIFICATION_PHOTOS - result.missingPhotos
+      }) and ${MIN_SELFIE_PHOTOS} Selfie (Current: ${
+        MIN_SELFIE_PHOTOS - result.missingSelfies
+      }) before continuing.`,
+    );
+  };
+
   const handleSave = async () => {
     if (!task || !selectedOutcome) return;
     // M12 (audit 2026-04-21): defensive in-flight re-check — see
     // handleSubmit for the same pattern.
     if (isSaving || isSubmitting) return;
+
+    // 2026-07-16 (owner rule): Save is gated on the SAME completeness
+    // predicate as Submit — a task may only enter the read-only Saved tab
+    // fully filled with all evidence captured. Partial drafts are protected
+    // by auto-save (useFormAutosave), NOT by this button.
+    if (!template) {
+      Alert.alert('Validation Error', 'Form template is not loaded yet.');
+      return;
+    }
+    const verified = await resolveCompleteness();
+    if (!verified.isComplete) {
+      showIncompleteForm(verified);
+      return;
+    }
+    setValidationErrors({});
 
     try {
       setIsSaving(true);
@@ -521,7 +581,7 @@ export const VerificationFormScreen = ({
       justSavedRef.current = true;
       Alert.alert(
         'Saved',
-        'Your form has been saved locally. You can continue filling it later.',
+        'Form is complete and moved to the Saved tab. Submit it from there when ready.',
         [{ text: 'OK', onPress: () => navigation.goBack() }],
       );
     } catch (err: unknown) {
@@ -542,28 +602,13 @@ export const VerificationFormScreen = ({
       return;
     }
 
-    const templateValidation = validateFormTemplateRequiredFields(
-      template,
-      formValues,
-    );
-    if (!templateValidation.isValid) {
-      // Highlight every missing field in red + scroll to the first one,
-      // alongside the summary alert.
-      const errorMap: Record<string, string> = {};
-      for (const key of templateValidation.missingKeys) {
-        errorMap[key] = 'Required';
-      }
-      setValidationErrors(errorMap);
-      formBuilderRef.current?.scrollToFirstError(
-        templateValidation.missingKeys,
-      );
-
-      const preview = templateValidation.missingFields.slice(0, 6).join(', ');
-      const hasMore = templateValidation.missingFields.length > 6;
-      Alert.alert(
-        'Validation Error',
-        `Please fill all required fields: ${preview}${hasMore ? ' ...' : ''}`,
-      );
+    // Same predicate + feedback as handleSave. This also surfaces a photo/
+    // selfie shortfall BEFORE the offline prompt instead of as a submit
+    // failure (FormSubmissionService still re-checks from the repository as
+    // the authoritative guard).
+    const verified = await resolveCompleteness();
+    if (!verified.isComplete) {
+      showIncompleteForm(verified);
       return;
     }
     // Validation passed — clear any stale red highlights.
@@ -825,11 +870,11 @@ export const VerificationFormScreen = ({
 
             <View style={styles.photoHeader}>
               <Text style={[styles.photoLabel, { color: theme.colors.text }]}>
-                General Photos (min 5){' '}
+                General Photos (min {MIN_VERIFICATION_PHOTOS}){' '}
                 <Text
                   style={{
                     color:
-                      photoCount >= 5
+                      photoCount >= MIN_VERIFICATION_PHOTOS
                         ? theme.colors.success
                         : theme.colors.danger,
                   }}
@@ -855,11 +900,11 @@ export const VerificationFormScreen = ({
 
             <View style={styles.selfieHeader}>
               <Text style={[styles.photoLabel, { color: theme.colors.text }]}>
-                Selfie (min 1){' '}
+                Selfie (min {MIN_SELFIE_PHOTOS}){' '}
                 <Text
                   style={{
                     color:
-                      selfieCount >= 1
+                      selfieCount >= MIN_SELFIE_PHOTOS
                         ? theme.colors.success
                         : theme.colors.danger,
                   }}
@@ -1066,7 +1111,18 @@ export const VerificationFormScreen = ({
                 </Text>
               </View>
             ) : (
-              <View style={styles.actionRow}>
+              <>
+                {completenessHint ? (
+                  <Text
+                    style={[
+                      styles.completenessHint,
+                      { color: theme.colors.danger },
+                    ]}
+                  >
+                    {completenessHint}
+                  </Text>
+                ) : null}
+                <View style={styles.actionRow}>
                 <TouchableOpacity
                   style={[
                     styles.submitButton,
@@ -1075,7 +1131,10 @@ export const VerificationFormScreen = ({
                       backgroundColor: theme.colors.surfaceAlt,
                       borderColor: theme.colors.border,
                     },
-                    isSaving && styles.actionButtonDimmed,
+                    // Dimmed (not `disabled`) while incomplete so a tap
+                    // still explains WHAT is missing via showIncompleteForm.
+                    (isSaving || !completeness.isComplete) &&
+                      styles.actionButtonDimmed,
                   ]}
                   onPress={handleSave}
                   disabled={isSaving || isSubmitting || templateLoading}
@@ -1116,7 +1175,8 @@ export const VerificationFormScreen = ({
                     styles.submitButton,
                     styles.actionButtonPrimary,
                     { backgroundColor: theme.colors.primary },
-                    isSubmitting && styles.actionButtonDimmed,
+                    (isSubmitting || !completeness.isComplete) &&
+                      styles.actionButtonDimmed,
                   ]}
                   onPress={handleSubmit}
                   disabled={isSubmitting || isSaving || templateLoading}
@@ -1152,7 +1212,8 @@ export const VerificationFormScreen = ({
                     </>
                   )}
                 </TouchableOpacity>
-              </View>
+                </View>
+              </>
             )}
           </View>
         </ScrollView>

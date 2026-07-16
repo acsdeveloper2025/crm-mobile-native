@@ -19,6 +19,16 @@ import {
 } from '../utils/formTypeKey';
 import { ENDPOINTS } from '../api/endpoints';
 import { TaskStatus } from '../types/enums';
+import {
+  MIN_SELFIE_PHOTOS,
+  MIN_VERIFICATION_PHOTOS,
+  pruneFormDataToTemplate,
+  validateTemplateRequiredFields,
+} from '../services/forms/FormValidationEngine';
+import {
+  buildLegacyTemplateForFormType,
+  coerceLegacyOutcomeForFormType,
+} from '../screens/forms/LegacyFormTemplateBuilders';
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -117,13 +127,15 @@ export const SubmitVerificationUseCase = {
     const selfiePhotos = attachments.filter(
       attachment => attachment.componentType === 'selfie',
     );
-    if (verificationPhotos.length < 5) {
+    if (verificationPhotos.length < MIN_VERIFICATION_PHOTOS) {
       throw new Error(
-        'At least 5 verification photos are required before submission.',
+        `At least ${MIN_VERIFICATION_PHOTOS} verification photos are required before submission.`,
       );
     }
-    if (selfiePhotos.length < 1) {
-      throw new Error('At least 1 selfie is required before submission.');
+    if (selfiePhotos.length < MIN_SELFIE_PHOTOS) {
+      throw new Error(
+        `At least ${MIN_SELFIE_PHOTOS} selfie is required before submission.`,
+      );
     }
 
     const photos = attachments.map(attachment => {
@@ -168,10 +180,50 @@ export const SubmitVerificationUseCase = {
     // if mergedFormData is empty, fall back to the persisted form data —
     // the snapshot of user values stays intact.
     const existingFormData = parseFormData(task.formDataJson);
-    const submissionFormData =
+    const rawSubmissionFormData =
       Object.keys(mergedFormData).length > 0
         ? mergedFormData
         : existingFormData;
+
+    // 2026-07-16: EVERY submit path funnels through here (form screen,
+    // Saved-tab confirm, auto-submit-on-sync) — so enforce required FIELDS
+    // here too, not just evidence. Previously only the form screen validated
+    // fields, letting a saved-incomplete task reach the server with blank
+    // mandatory fields. Same engine as the screen — never a re-typed copy.
+    const effectiveOutcome =
+      input.verificationOutcome || task.verificationOutcome || null;
+    if (!effectiveOutcome) {
+      throw new Error(
+        'Please fill in all required fields before submitting: Verification Outcome',
+      );
+    }
+    const fieldTemplate = buildLegacyTemplateForFormType(
+      taskFormType,
+      coerceLegacyOutcomeForFormType(taskFormType, effectiveOutcome).outcome,
+    );
+    if (fieldTemplate) {
+      const { isValid, missingFields } = validateTemplateRequiredFields(
+        fieldTemplate,
+        rawSubmissionFormData,
+      );
+      if (!isValid) {
+        throw new Error(
+          `Please fill in all required fields before submitting:\n${missingFields.join(
+            ', ',
+          )}`,
+        );
+      }
+    }
+    // 2026-07-16: send ONLY the chosen outcome's fields. Switching outcome
+    // mid-form leaves the abandoned outcome's answers in the blob (by design —
+    // shared fields carry over and switching back preserves work), and the
+    // report renders any key it finds, so an UNTRACEABLE report could print an
+    // abandoned POSITIVE draft's house status. Local storage below keeps
+    // everything; only the wire payload is pruned. FormUploader prunes the
+    // same way on retry — it re-hydrates from tasks.form_data_json.
+    const submissionFormData = fieldTemplate
+      ? pruneFormDataToTemplate(fieldTemplate, rawSubmissionFormData)
+      : rawSubmissionFormData;
     const persistedFormData = {
       ...existingFormData,
       ...mergedFormData,

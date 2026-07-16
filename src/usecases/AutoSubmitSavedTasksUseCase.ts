@@ -98,7 +98,10 @@ export const AutoSubmitSavedTasksUseCase = {
           message.includes('At least 1 selfie') ||
           message.includes('must include geo-location') ||
           message.includes('Unsupported form type') ||
-          message.includes('Invalid task identifier')
+          message.includes('Invalid task identifier') ||
+          // 2026-07-16: SubmitVerificationUseCase now validates required
+          // FIELDS too — an incomplete draft is a draft, not a failure.
+          message.includes('Please fill in all required fields')
         ) {
           result.skippedDrafts += 1;
           Logger.info(TAG, `Skipped saved task ${task.id} (draft): ${message}`);

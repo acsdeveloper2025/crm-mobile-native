@@ -6,6 +6,11 @@ import { SyncEngineRepository } from '../../repositories/SyncEngineRepository';
 import { SyncQueueRepository } from '../../repositories/SyncQueueRepository';
 import { Logger } from '../../utils/logger';
 import { resolveFormTypeKey, type FormTypeKey } from '../../utils/formTypeKey';
+import { pruneFormDataToTemplate } from '../../services/forms/FormValidationEngine';
+import {
+  buildLegacyTemplateForFormType,
+  coerceLegacyOutcomeForFormType,
+} from '../../screens/forms/LegacyFormTemplateBuilders';
 import { NetworkService } from '../../services/NetworkService';
 import type { SyncOperation } from '../SyncOperationLog';
 import { idempotencyHeaders, type SyncUploadResult } from '../SyncUploadTypes';
@@ -151,8 +156,13 @@ class FormUploaderClass {
       const taskRows = await SyncEngineRepository.query<{
         formDataJson: string | null;
         verificationOutcome: string | null;
+        verificationType: string | null;
+        verificationTypeCode: string | null;
+        verificationTypeName: string | null;
       }>(
-        'SELECT form_data_json, verification_outcome FROM tasks WHERE id = ? LIMIT 1',
+        `SELECT form_data_json, verification_outcome, verification_type,
+                verification_type_code, verification_type_name
+         FROM tasks WHERE id = ? LIMIT 1`,
         [localTaskId],
       );
       const freshFormDataRaw = taskRows[0]?.formDataJson;
@@ -183,6 +193,51 @@ class FormUploaderClass {
                 Object.keys(payloadFormData).length
               } keys → fresh=${Object.keys(freshFormData).length} keys)`,
             );
+          }
+          // 2026-07-16: the re-hydration above merges the FULL local blob,
+          // which carries every outcome the agent passed through — and it
+          // wins the key-count race precisely BECAUSE of those orphans. So
+          // re-apply the same submit-boundary prune the enqueue path uses,
+          // otherwise the first retry silently re-introduces an abandoned
+          // outcome's answers into the report. Prune the wire payload only;
+          // tasks.form_data_json keeps everything.
+          const outcomeForTemplate =
+            (payload.verificationOutcome as string | undefined) ||
+            taskRows[0]?.verificationOutcome ||
+            null;
+          const formTypeForTemplate = resolveFormTypeKey({
+            formType: '',
+            verificationTypeCode: taskRows[0]?.verificationTypeCode || null,
+            verificationTypeName: taskRows[0]?.verificationTypeName || null,
+            verificationType: taskRows[0]?.verificationType || null,
+          });
+          if (outcomeForTemplate && formTypeForTemplate) {
+            const template = buildLegacyTemplateForFormType(
+              formTypeForTemplate,
+              coerceLegacyOutcomeForFormType(
+                formTypeForTemplate,
+                outcomeForTemplate,
+              ).outcome,
+            );
+            if (template) {
+              const beforePrune =
+                (payload.formData as Record<string, unknown> | undefined) || {};
+              const afterPrune = pruneFormDataToTemplate(
+                template,
+                beforePrune,
+              );
+              payload.formData = afterPrune;
+              const before = Object.keys(beforePrune).length;
+              const after = Object.keys(afterPrune).length;
+              if (after < before) {
+                Logger.info(
+                  TAG,
+                  `Pruned ${
+                    before - after
+                  } field(s) not in the ${outcomeForTemplate} form before upload`,
+                );
+              }
+            }
           }
         } catch (err) {
           Logger.warn(TAG, 'Failed to parse fresh form_data_json', err);

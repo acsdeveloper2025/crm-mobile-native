@@ -245,6 +245,30 @@ class TaskRepositoryClass {
     await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }
 
+  // 2026-07-16: un-save a saved-but-incomplete draft WITHOUT writing status.
+  // Unlike toggleSavedState (which sets `status = nextStatus`), this touches
+  // only is_saved and applies solely while the row is still a saved
+  // IN_PROGRESS draft. The self-heal caller reads → counts → decides across
+  // several awaits; auto-submit or a remote revoke can flip the status inside
+  // that window, and writing a stale status back would resurrect a SUBMITTED
+  // or REVOKED task as IN_PROGRESS. Returns false when the row moved on.
+  async unsaveIncompleteDraft(taskId: string): Promise<boolean> {
+    const now = new Date().toISOString();
+    const { rowsAffected } = await DatabaseService.execute(
+      `UPDATE tasks
+       SET is_saved = 0,
+           saved_at = NULL,
+           sync_status = 'PENDING',
+           local_updated_at = ?
+       WHERE id = ? AND is_saved = 1 AND status = 'IN_PROGRESS'`,
+      [now, taskId],
+    );
+    if (rowsAffected > 0) {
+      await ProjectionUpdater.scheduleTaskRebuild(taskId);
+    }
+    return rowsAffected > 0;
+  }
+
   async revokeTask(taskId: string, reason: string): Promise<void> {
     const now = new Date().toISOString();
     await DatabaseService.execute(

@@ -44,6 +44,12 @@ import {
 } from '../../repositories/TaskRepository';
 import { SubmitVerificationUseCase } from '../../usecases/SubmitVerificationUseCase';
 import { resolveFormTypeKey } from '../../utils/formTypeKey';
+import { countCapturedPhotos } from '../../utils/attachmentCount';
+import { evaluateFormCompleteness } from '../../services/forms/FormValidationEngine';
+import {
+  buildLegacyTemplateForFormType,
+  coerceLegacyOutcomeForFormType,
+} from '../forms/LegacyFormTemplateBuilders';
 import { TaskInfoModal } from '../../components/tasks/TaskInfoModal';
 import { TaskRevokeModal } from '../../components/tasks/TaskRevokeModal';
 import {
@@ -388,6 +394,61 @@ export const TaskListScreen = ({
     }, []),
   );
 
+  const showSubmitSavedTaskDialog = useCallback((task: LocalTask) => {
+    Alert.alert(
+      'Submit Saved Task',
+      `Submit verification for ${
+        task.customerName || `#${task.caseNumber || task.caseId}`
+      }?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Submit',
+          onPress: async () => {
+            try {
+              const fresh = await TaskRepository.getTaskById(task.id);
+              if (!fresh) {
+                Alert.alert('Submit Failed', 'Task not found locally.');
+                return;
+              }
+              const formData = fresh.formDataJson
+                ? (JSON.parse(fresh.formDataJson) as Record<string, unknown>)
+                : {};
+              // resolveFormTypeKey returns one of the canonical keys
+              // ('residence', 'office', etc) by introspecting any
+              // task field that carries verification-type info.
+              // SubmitVerificationUseCase.execute also re-resolves
+              // internally, so passing the verificationType value
+              // here is fine even if it's not the canonical key.
+              const formType =
+                resolveFormTypeKey({
+                  formType: '',
+                  verificationTypeCode: fresh.verificationTypeCode || null,
+                  verificationTypeName: fresh.verificationTypeName || null,
+                  verificationType: fresh.verificationType || null,
+                }) ||
+                fresh.verificationType ||
+                '';
+              await SubmitVerificationUseCase.execute({
+                taskId: fresh.id,
+                formType,
+                formData,
+                verificationOutcome: fresh.verificationOutcome,
+              });
+              Alert.alert('Submitted', 'Verification submitted successfully.');
+            } catch (err) {
+              Logger.error('TaskListScreen', 'Submit saved task failed', err);
+              Alert.alert(
+                'Submit Failed',
+                err instanceof Error ? err.message : String(err),
+              );
+            }
+          },
+        },
+      ],
+    );
+  }, []);
+
   const handleTaskPress = useCallback(
     (task: LocalTask) => {
       // 2026-05-02: saved tasks are LOCKED — tapping does not open the
@@ -398,73 +459,89 @@ export const TaskListScreen = ({
       // Check this BEFORE the IN_PROGRESS branch because saved tasks
       // keep status='IN_PROGRESS' (Saved tab filter is by `is_saved=1`,
       // not status).
+      // 2026-07-16 self-heal: Save is now gated on the completeness
+      // predicate, but tasks saved incomplete BEFORE that gate are trapped
+      // (locked read-only, Submit rejects them). On tap, re-check with the
+      // same predicate; if incomplete, un-save and reopen the form instead
+      // of offering a Submit that can only fail.
       if (
         task.isSaved === 1 &&
         task.status !== 'COMPLETED' &&
         task.status !== 'SUBMITTED'
       ) {
-        Alert.alert(
-          'Submit Saved Task',
-          `Submit verification for ${
-            task.customerName || `#${task.caseNumber || task.caseId}`
-          }?`,
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Submit',
-              onPress: async () => {
-                try {
-                  const fresh = await TaskRepository.getTaskById(task.id);
-                  if (!fresh) {
-                    Alert.alert('Submit Failed', 'Task not found locally.');
-                    return;
-                  }
-                  const formData = fresh.formDataJson
-                    ? (JSON.parse(fresh.formDataJson) as Record<
-                        string,
-                        unknown
-                      >)
-                    : {};
-                  // resolveFormTypeKey returns one of the canonical keys
-                  // ('residence', 'office', etc) by introspecting any
-                  // task field that carries verification-type info.
-                  // SubmitVerificationUseCase.execute also re-resolves
-                  // internally, so passing the verificationType value
-                  // here is fine even if it's not the canonical key.
-                  const formType =
-                    resolveFormTypeKey({
-                      formType: '',
-                      verificationTypeCode: fresh.verificationTypeCode || null,
-                      verificationTypeName: fresh.verificationTypeName || null,
-                      verificationType: fresh.verificationType || null,
-                    }) ||
-                    fresh.verificationType ||
-                    '';
-                  await SubmitVerificationUseCase.execute({
-                    taskId: fresh.id,
-                    formType,
-                    formData,
-                    verificationOutcome: fresh.verificationOutcome,
-                  });
-                  Alert.alert(
-                    'Submitted',
-                    'Verification submitted successfully.',
-                  );
-                } catch (err) {
-                  Logger.error(
-                    'TaskListScreen',
-                    'Submit saved task failed',
-                    err,
-                  );
-                  Alert.alert(
-                    'Submit Failed',
-                    err instanceof Error ? err.message : String(err),
-                  );
-                }
-              },
-            },
-          ],
-        );
+        (async () => {
+          try {
+            const fresh = await TaskRepository.getTaskById(task.id);
+            if (!fresh) {
+              return;
+            }
+            const formData = fresh.formDataJson
+              ? (JSON.parse(fresh.formDataJson) as Record<string, unknown>)
+              : {};
+            const formTypeKey = resolveFormTypeKey({
+              formType: '',
+              verificationTypeCode: fresh.verificationTypeCode || null,
+              verificationTypeName: fresh.verificationTypeName || null,
+              verificationType: fresh.verificationType || null,
+            });
+            const template =
+              formTypeKey && fresh.verificationOutcome
+                ? buildLegacyTemplateForFormType(
+                    formTypeKey,
+                    coerceLegacyOutcomeForFormType(
+                      formTypeKey,
+                      fresh.verificationOutcome,
+                    ).outcome,
+                  )
+                : null;
+            // Device-captured photos/selfies — NOT the admin-uploaded
+            // attachments behind the TaskCard badge (read-only on device).
+            const { photoCount, selfieCount } = await countCapturedPhotos(
+              fresh.id,
+            );
+            const completeness = evaluateFormCompleteness(
+              template,
+              formData,
+              photoCount,
+              selfieCount,
+            );
+            if (!completeness.isComplete) {
+              // Atomic + status-preserving: no-op if auto-submit or a remote
+              // revoke moved the task on while we were counting.
+              const unsaved = await TaskRepository.unsaveIncompleteDraft(
+                fresh.id,
+              );
+              if (!unsaved) {
+                await refetch();
+                return;
+              }
+              await refetch();
+              Alert.alert(
+                'Incomplete Saved Task',
+                'This saved task is missing required fields or photos, so it cannot be submitted. It has been moved back to In Progress — complete the form and save it again.',
+                [
+                  {
+                    text: 'Open Form',
+                    onPress: () =>
+                      navigation.navigate('VerificationForm', {
+                        taskId: fresh.id,
+                      }),
+                  },
+                ],
+              );
+              return;
+            }
+          } catch (err) {
+            Logger.error(
+              'TaskListScreen',
+              'Saved-task completeness check failed',
+              err,
+            );
+            // Fall through to the Submit dialog — SubmitVerificationUseCase
+            // still enforces every guard.
+          }
+          showSubmitSavedTaskDialog(task);
+        })();
         return;
       }
       if (task.status === 'IN_PROGRESS') {
@@ -482,7 +559,7 @@ export const TaskListScreen = ({
       }
       navigation.navigate('TaskDetail', { taskId: task.id });
     },
-    [navigation],
+    [navigation, refetch, showSubmitSavedTaskDialog],
   );
 
   const handleAttachmentsPress = useCallback(

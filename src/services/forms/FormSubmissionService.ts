@@ -1,6 +1,9 @@
-import { AttachmentRepository } from '../../repositories/AttachmentRepository';
-import { isCountableAttachment } from '../../utils/attachmentCount';
-import { validateTemplateRequiredFields } from './FormValidationEngine';
+import { countCapturedPhotos } from '../../utils/attachmentCount';
+import {
+  MIN_SELFIE_PHOTOS,
+  MIN_VERIFICATION_PHOTOS,
+  validateTemplateRequiredFields,
+} from './FormValidationEngine';
 import type { FormTemplate } from '../../types/api';
 import type { LocalTask } from '../../types/mobile';
 import type { FormTypeKey } from '../../utils/formTypeKey';
@@ -46,24 +49,13 @@ class FormSubmissionServiceClass {
 
     // H3/M4 (audit 2026-04-21): only count photos that are actually
     // uploadable toward the submission minimum. ABANDONED / SKIPPED
-    // are excluded. Shared helper `isCountableAttachment` keeps this
-    // in sync with the PhotoGallery display count.
-    const attachments = await AttachmentRepository.listForTask(task.id);
-    let photoCount = 0;
-    let selfieCount = 0;
-    attachments.forEach(row => {
-      if (!isCountableAttachment(row)) {
-        return;
-      }
-      const raw = row as unknown as Record<string, unknown>;
-      const ct = raw.componentType ?? row.componentType;
-      if (ct === 'photo') photoCount += 1;
-      if (ct === 'selfie') selfieCount += 1;
-    });
+    // are excluded. Shared helper `countCapturedPhotos` keeps this in sync
+    // with the PhotoGallery display count and the form-screen gate.
+    const { photoCount, selfieCount } = await countCapturedPhotos(task.id);
 
-    if (photoCount < 5 || selfieCount < 1) {
+    if (photoCount < MIN_VERIFICATION_PHOTOS || selfieCount < MIN_SELFIE_PHOTOS) {
       throw new Error(
-        `You must capture at least 5 location photos (Current: ${photoCount}) and 1 Selfie (Current: ${selfieCount}) before submitting.`,
+        `You must capture at least ${MIN_VERIFICATION_PHOTOS} location photos (Current: ${photoCount}) and ${MIN_SELFIE_PHOTOS} Selfie (Current: ${selfieCount}) before submitting.`,
       );
     }
 

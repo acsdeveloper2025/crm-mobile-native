@@ -246,6 +246,14 @@ export const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
+  // 2026-07-16: "N fields · M photos · 1 selfie" line above Save/Submit —
+  // explains WHY the buttons render dimmed while the form is incomplete.
+  completenessHint: {
+    fontSize: 12,
+    fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
   actionButtonSecondary: {
     flex: 1,
     borderWidth: 1,
