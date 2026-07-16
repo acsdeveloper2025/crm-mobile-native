@@ -245,6 +245,37 @@ class TaskRepositoryClass {
     await ProjectionUpdater.scheduleTaskRebuild(taskId);
   }
 
+  // 2026-07-17: save a draft's form data WITHOUT reading the status first.
+  //
+  // The only status change a draft-save may make is ASSIGNED -> IN_PROGRESS, so
+  // it is decided inside the UPDATE. SaveDraftUseCase used to read the status
+  // (through the ASYNC task_detail_projection, no less) and pass it back to
+  // `updateFormData`, which writes `status = ?` unconditionally — so a remote
+  // revoke landing between the read and the write was overwritten with a stale
+  // IN_PROGRESS, resurrecting a REVOKED task. This is the same hazard
+  // `unsaveIncompleteDraft` below was built for; the autosave path never got the
+  // fix, and it fires on every debounce, unmount and background flush.
+  //
+  // Any other status (SUBMITTED, COMPLETED, REVOKED) is left exactly as found —
+  // a draft save must never move a task out of a terminal state.
+  async saveDraftFormData(
+    taskId: string,
+    formData: Record<string, unknown>,
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    await DatabaseService.execute(
+      `UPDATE tasks
+       SET form_data_json = ?,
+           status = CASE WHEN status = 'ASSIGNED' THEN 'IN_PROGRESS' ELSE status END,
+           in_progress_at = CASE WHEN in_progress_at IS NULL AND status = 'ASSIGNED' THEN ? ELSE in_progress_at END,
+           sync_status = 'PENDING',
+           local_updated_at = ?
+       WHERE id = ?`,
+      [JSON.stringify(formData), now, now, taskId],
+    );
+    await ProjectionUpdater.scheduleTaskRebuild(taskId);
+  }
+
   // 2026-07-16: un-save a saved-but-incomplete draft WITHOUT writing status.
   // Unlike toggleSavedState (which sets `status = nextStatus`), this touches
   // only is_saved and applies solely while the row is still a saved
