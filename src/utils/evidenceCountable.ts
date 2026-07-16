@@ -1,7 +1,7 @@
 // THE "does this capture count as evidence?" predicate.
 //
 // Split out of attachmentCount.ts on 2026-07-17 for one reason: that module
-// imports AttachmentRepository → DatabaseService → op-sqlite, so it cannot be
+// imports CaptureRepository → DatabaseService → op-sqlite, so it cannot be
 // loaded by the contract harness (`node --experimental-strip-types`). A rule
 // this shared needs a test that fails on revert, and a rule can only be tested
 // if it is importable without a native module. Keep this file dependency-free.

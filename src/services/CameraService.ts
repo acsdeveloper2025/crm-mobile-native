@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from 'uuid';
 import RNFS from 'react-native-fs';
 import ImageResizer from '@bam.tech/react-native-image-resizer';
 import piexif from 'piexifjs';
-import { AttachmentRepository } from '../repositories/AttachmentRepository';
+import { CaptureRepository } from '../repositories/CaptureRepository';
 import { TaskRepository } from '../repositories/TaskRepository';
 import { DatabaseService } from '../database/DatabaseService';
 import { SyncGateway } from './SyncGateway';
@@ -198,7 +198,7 @@ class CameraServiceClass {
 
       // Enforce maxFilesPerTask limit to prevent storage bloat
       const { config } = await import('../config');
-      const existingCount = await AttachmentRepository.countByTaskId(taskId);
+      const existingCount = await CaptureRepository.countByTaskId(taskId);
       if (existingCount >= config.maxFilesPerTask) {
         Logger.warn(
           TAG,
@@ -338,7 +338,7 @@ class CameraServiceClass {
       // (`hasEnoughSpace`) is filesystem-only and does not touch the
       // DB connection.
       await DatabaseService.transaction(async () => {
-        await AttachmentRepository.create({
+        await CaptureRepository.create({
           id,
           taskId,
           filename,
@@ -677,7 +677,7 @@ class CameraServiceClass {
   }
 
   // 2026-07-17: `getPhotosForTask` was deleted here — zero callers. It wrapped
-  // AttachmentRepository.listForTask and remapped the rows into CapturedPhoto;
+  // CaptureRepository.listForTask and remapped the rows into CapturedPhoto;
   // every live reader (PhotoGallery, the gates, the self-heal) goes to the
   // repository directly. Note the honest name it leaked: the "attachments"
   // table holds the agent's PHOTOS.
@@ -686,15 +686,15 @@ class CameraServiceClass {
    * Delete a photo from local storage and database
    */
   async deletePhoto(photoId: string): Promise<void> {
-    await AttachmentRepository.deleteLocalFilesById(photoId);
-    await AttachmentRepository.deleteById(photoId);
+    await CaptureRepository.deleteLocalFilesById(photoId);
+    await CaptureRepository.deleteById(photoId);
   }
 
   /**
    * Get total storage used by photos (in bytes)
    */
   async getStorageUsed(): Promise<number> {
-    return AttachmentRepository.getTotalStorageUsed();
+    return CaptureRepository.getTotalStorageUsed();
   }
 
   /**

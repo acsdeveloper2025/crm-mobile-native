@@ -3,7 +3,7 @@
 // can't drift. H3 first introduced the filter in both places; this
 // module is the single source of truth going forward.
 
-import { AttachmentRepository } from '../repositories/AttachmentRepository';
+import { CaptureRepository } from '../repositories/CaptureRepository';
 // The predicate itself lives in a dependency-free module so the contract
 // harness can load it — this file pulls in op-sqlite and cannot be tested.
 // Re-exported here so existing importers keep working.
@@ -28,7 +28,7 @@ import { isCountableEvidence } from './evidenceCountable';
 export const countCapturedPhotos = async (
   taskId: string,
 ): Promise<{ photoCount: number; selfieCount: number }> => {
-  const rows = await AttachmentRepository.listForTask(taskId);
+  const rows = await CaptureRepository.listForTask(taskId);
   let photoCount = 0;
   let selfieCount = 0;
   for (const row of rows) {

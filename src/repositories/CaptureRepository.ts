@@ -2,7 +2,21 @@ import RNFS from 'react-native-fs';
 import { DatabaseService } from '../database/DatabaseService';
 import type { LocalAttachment } from '../types/mobile';
 
-class AttachmentRepositoryClass {
+// ⚠️ ATTACHMENT != PHOTO. Despite the table it reads, this repository holds ZERO
+// attachments: it is the store for the field agent's own camera CAPTURES
+// (component_type 'photo' | 'selfie') — the EVIDENCE the 5-photo + 1-selfie rule
+// counts. An ATTACHMENT is an admin-uploaded reference doc, fetched over HTTP on
+// demand by AttachmentService, never stored here, and read-only on the device —
+// so it can never gate the agent's work.
+//
+// 2026-07-17: renamed from `AttachmentRepository`. The name was the trap: it
+// invited a reader to reason about admin docs while every method handles the
+// agent's photos. It leaked the truth itself — `deleteSyncedForTask` named its
+// own rows `photos`, and CameraService wrapped `listForTask` as
+// `getPhotosForTask`. The physical table is still called `attachments`; renaming
+// it needs a migration over live SQLCipher evidence, so the honest name is
+// recorded in src/database/schema.ts instead.
+class CaptureRepositoryClass {
   async create(input: {
     id: string;
     taskId: string;
@@ -143,4 +157,4 @@ class AttachmentRepositoryClass {
   }
 }
 
-export const AttachmentRepository = new AttachmentRepositoryClass();
+export const CaptureRepository = new CaptureRepositoryClass();

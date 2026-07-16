@@ -17,7 +17,7 @@ import { isCountableEvidence } from '../../utils/evidenceCount';
 import { useFocusEffect } from '@react-navigation/native';
 import type { LocalAttachment } from '../../types/mobile';
 import { useTheme } from '../../context/ThemeContext';
-import { AttachmentRepository } from '../../repositories/AttachmentRepository';
+import { CaptureRepository } from '../../repositories/CaptureRepository';
 import { attachmentService } from '../../services/AttachmentService';
 
 interface PhotoGalleryProps {
@@ -55,7 +55,7 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
       setIsLoading(true);
 
       const results = await Promise.race<LocalAttachment[]>([
-        AttachmentRepository.listForTask(taskId, componentType),
+        CaptureRepository.listForTask(taskId, componentType),
         new Promise<LocalAttachment[]>((_, reject) =>
           setTimeout(
             () => reject(new Error('Attachment query timed out')),
@@ -130,8 +130,8 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
             }
           }
           try {
-            await AttachmentRepository.deleteLocalFilesById(item.id);
-            await AttachmentRepository.deleteById(item.id);
+            await CaptureRepository.deleteLocalFilesById(item.id);
+            await CaptureRepository.deleteById(item.id);
             loadPhotos();
           } catch {
             Alert.alert('Error', 'Failed to delete photo.');

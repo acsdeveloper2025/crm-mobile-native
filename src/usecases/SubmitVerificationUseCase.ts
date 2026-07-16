@@ -1,5 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
-import { AttachmentRepository } from '../repositories/AttachmentRepository';
+import { CaptureRepository } from '../repositories/CaptureRepository';
 import { FormRepository } from '../repositories/FormRepository';
 // LocationRepository removed — GPS comes from photo attachments only
 import { SyncQueueRepository } from '../repositories/SyncQueueRepository';
@@ -131,7 +131,7 @@ export const SubmitVerificationUseCase = {
     // upload. The screen path masked it (FormSubmissionService rejects first);
     // auto-submit calls straight into here.
     const attachments = (
-      await AttachmentRepository.listForSubmission(task.id)
+      await CaptureRepository.listForSubmission(task.id)
     ).filter(isCountableEvidence);
     const verificationPhotos = attachments.filter(
       attachment => attachment.componentType === 'photo',
