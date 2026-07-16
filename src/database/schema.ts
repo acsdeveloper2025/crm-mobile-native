@@ -1,7 +1,16 @@
 // SQLite Database Schema and Migrations
 // Offline-first schema for field verification data
 
-export const DB_VERSION = 22;
+// MUST equal the highest MIGRATIONS[].version below. A fresh install stamps
+// user_version = DB_VERSION and runs NO migrations (the CREATE TABLEs above
+// already carry every column), so if this trails the last migration, that
+// migration fires on the fresh install's SECOND launch against a schema that
+// already has the change — `ALTER TABLE ... ADD COLUMN` then dies on
+// "duplicate column name", the transaction rolls back, user_version never
+// advances, and it re-fails on EVERY launch. Upgrades are unaffected (their
+// older table really is missing the column), which is exactly why leaving this
+// at 22 while adding v23 passed every on-device upgrade test.
+export const DB_VERSION = 23;
 
 /**
  * All CREATE TABLE statements for the local SQLite database.
