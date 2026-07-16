@@ -203,18 +203,23 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
           Alert.alert('Resubmitted', 'Form has been queued for upload.');
         }
       } else {
-        // No local data to resubmit — open form to fill and submit again
+        // 2026-07-17: this used to offer "Would you like to fill the form
+        // again?" → navigate('VerificationForm'). That broke the owner's rule
+        // outright: a field agent may NOT open or edit a submitted form — once
+        // sent, it is the office's. It was also the only door into the form
+        // editor for a submitted task; every legitimate entry is gated
+        // (handleStartVisit → ASSIGNED, handleFillForm → IN_PROGRESS), and
+        // TaskListScreen routes a submitted tap to this detail view instead.
+        //
+        // It fired on a FALSE premise, too: reaching here means no FAILED queue
+        // item exists, which after a fresh install / re-login / a submit from
+        // another device is simply "this device has no local record" — not
+        // "the server never got it". The server plainly has it: we only render
+        // this block when isFieldSubmitted(task.status), and that status came
+        // from down-sync.
         Alert.alert(
-          'No Local Data',
-          'No saved submission found for this task. Would you like to fill the form again?',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Open Form',
-              onPress: () =>
-                navigation.navigate('VerificationForm', { taskId: task.id }),
-            },
-          ],
+          'Already Submitted',
+          'This task was submitted and the office has it. There is nothing on this device left to upload.',
         );
       }
     } catch (err: unknown) {
@@ -800,33 +805,53 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
                   </Text>
                 </View>
               ) : (
+                /*
+                 * 2026-07-17: no LOCAL submission row. This used to render a
+                 * grey "No Submission Found", which was simply untrue: we are
+                 * inside isFieldSubmitted(task.status), so the SERVER told us
+                 * this task is submitted (or the office has already completed
+                 * it). `form_submissions` is a device-local OUTBOX —
+                 * SyncDownloadService only ever DELETEs from it and never
+                 * inserts — so it is empty for every task after a fresh
+                 * install, a re-login, or a submit made on another device. An
+                 * empty outbox means "this device has no pending upload", which
+                 * is the same thing as done.
+                 */
                 <View
                   style={[
                     styles.completedBanner,
                     {
-                      backgroundColor: theme.colors.textMuted + '10',
-                      borderColor: theme.colors.textMuted,
+                      backgroundColor: theme.colors.success + '10',
+                      borderColor: theme.colors.success,
                     },
                   ]}
                 >
                   <Icon
-                    name="help-circle-outline"
+                    name="checkmark-circle"
                     size={24}
-                    color={theme.colors.textMuted}
+                    color={theme.colors.success}
                   />
                   <Text
                     style={[
                       styles.completedText,
-                      { color: theme.colors.textMuted },
+                      { color: theme.colors.success },
                     ]}
                   >
-                    No Submission Found
+                    Submitted to Server
                   </Text>
                 </View>
               )}
 
-              {/* Resubmit button — show when sync failed, pending, or no submission found */}
-              {(!submissionSync || submissionSync.syncStatus !== 'SYNCED') && (
+              {/*
+               * Resubmit ONLY when THIS DEVICE is holding a submission that has
+               * not reached the server. The old gate included `!submissionSync`
+               * — no local outbox row — which is the normal state after a fresh
+               * install or a submit from another device, so it offered Resubmit
+               * on work the office already had (93 of this agent's 97 tasks).
+               * The outbox can only ever tell us about a submission made HERE;
+               * absent means nothing to upload, not "the server missed it".
+               */}
+              {submissionSync && submissionSync.syncStatus !== 'SYNCED' && (
                 <TouchableOpacity
                   style={[
                     styles.primaryButton,
