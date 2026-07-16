@@ -382,7 +382,20 @@ export const SubmitVerificationUseCase = {
     }
 
     await SyncGateway.enqueueFormSubmission(submissionId, submissionPayload);
-    // Don't delete autosave here — FormUploader deletes it only after successful backend sync
+    // Don't delete the autosave here — it is deliberately kept after submit so a
+    // failed/rejected submission can still be resubmitted (FormUploader.ts:496).
+    //
+    // 2026-07-17: this used to claim "FormUploader deletes it only after
+    // successful backend sync". It does not — FormUploader deletes nothing, and
+    // says so itself. What actually reaps an autosave blob:
+    //   * DataCleanupRepository.deleteTaskGraph — auto, daily, but only once the
+    //     TASK is terminal + synced and past the 45-day window; or
+    //   * the 7-day key_value_store purge — reachable ONLY by a manual
+    //     "Erase Details" tap in DataCleanupManager, no scheduler calls it.
+    // So a task that never reaches a terminal synced state keeps its autosaved
+    // PII (names, family, employment, GPS) indefinitely. Recorded in
+    // docs/duplication-and-dead-code-audit.md; retention policy is an owner call,
+    // not something to change quietly here.
 
     try {
       await SyncService.performSync();

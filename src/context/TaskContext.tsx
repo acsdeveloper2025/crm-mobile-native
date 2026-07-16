@@ -63,7 +63,6 @@ interface TaskContextValue {
     taskId: string,
     formType: string,
   ) => Promise<Record<string, unknown> | null>;
-  clearAutoSave: (taskId: string) => Promise<void>;
   updateTaskSubmissionStatus: (
     taskId: string,
     status: 'pending' | 'submitting' | 'success' | 'failed',
@@ -239,9 +238,12 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({
     [getTask],
   );
 
-  const clearAutoSave = useCallback(async (taskId: string) => {
-    await StorageService.remove(AUTO_SAVE_KEY(taskId));
-  }, []);
+  // 2026-07-17: `clearAutoSave` was removed here. It had ZERO consumers — no
+  // screen, hook or usecase ever called it — while its would-be caller
+  // (SubmitVerificationUseCase) carried a comment claiming FormUploader did the
+  // deletion instead. Neither was true. The autosave blob is deliberately KEPT
+  // after submit so a rejected submission can be resubmitted; it is reaped by
+  // DataCleanupRepository. Do not re-add a manual clear without a caller.
 
   const persistAutoSave = useCallback(
     async (taskId: string, payload: AutoSavePayload) => {
@@ -333,13 +335,11 @@ export const TaskProvider: React.FC<{ children: React.ReactNode }> = ({
       submitTaskForm,
       persistAutoSave,
       getAutoSavedForm,
-      clearAutoSave,
       updateTaskSubmissionStatus,
       verifyTaskSubmissionStatus,
       syncTasks,
     }),
     [
-      clearAutoSave,
       getAutoSavedForm,
       getTask,
       persistAutoSave,
