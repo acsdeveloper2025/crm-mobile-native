@@ -3,7 +3,7 @@ import { TaskRepository } from '../repositories/TaskRepository';
 import { SubmitVerificationUseCase } from './SubmitVerificationUseCase';
 import { resolveFormTypeKey } from '../utils/formTypeKey';
 import { DatabaseService } from '../database/DatabaseService';
-import { mapSqliteTask } from '../utils/mapSqliteTask';
+import type { LocalTask } from '../types/mobile';
 
 const TAG = 'AutoSubmitSavedTasksUseCase';
 
@@ -62,7 +62,7 @@ export const AutoSubmitSavedTasksUseCase = {
           'SELECT * FROM tasks WHERE id = ? LIMIT 1',
           [task.id],
         );
-        const fresh = rawRows[0] ? mapSqliteTask(rawRows[0] as never) : null;
+        const fresh = (rawRows[0] as unknown as LocalTask) ?? null;
         if (!fresh) {
           continue;
         }

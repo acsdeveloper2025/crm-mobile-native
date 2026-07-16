@@ -2,7 +2,6 @@ import { DatabaseService } from '../database/DatabaseService';
 import { ProjectionUpdater } from './ProjectionUpdater';
 import { Logger } from '../utils/logger';
 import type { LocalTask } from '../types/mobile';
-import { mapSqliteTasks } from '../utils/mapSqliteTask';
 
 const TAG = 'TaskListProjection';
 
@@ -114,7 +113,7 @@ class TaskListProjectionClass {
       sql,
       params,
     );
-    const projected = mapSqliteTasks(rawProjected as never[]);
+    const projected = rawProjected as unknown as LocalTask[];
     const filtered = projected.filter(task =>
       this.matchesSearch(task, searchQuery),
     );
@@ -138,7 +137,7 @@ class TaskListProjectionClass {
       sql,
       params,
     );
-    return mapSqliteTasks(rawRefreshed as never[]).filter(task =>
+    return (rawRefreshed as unknown as LocalTask[]).filter(task =>
       this.matchesSearch(task, searchQuery),
     );
   }

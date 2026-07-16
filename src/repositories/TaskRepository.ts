@@ -5,7 +5,6 @@ import { ProjectionUpdater } from '../projections/ProjectionUpdater';
 import { TaskDetailProjection } from '../projections/TaskDetailProjection';
 import { TaskListProjection } from '../projections/TaskListProjection';
 import type { LocalTask } from '../types/mobile';
-import { mapSqliteTask } from '../utils/mapSqliteTask';
 
 export interface DashboardStats {
   assignedCount: number;
@@ -116,7 +115,9 @@ class TaskRepositoryClass {
       'SELECT * FROM tasks WHERE id = ? LIMIT 1',
       [taskId],
     );
-    return rows[0] ? mapSqliteTask(rows[0] as never) : null;
+    // Rows arrive camelCase already (DatabaseService.normalizeRow), so this
+    // is a boundary cast, not a mapping.
+    return (rows[0] as unknown as LocalTask) ?? null;
   }
 
   async getTaskCoordinates(

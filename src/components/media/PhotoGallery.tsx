@@ -201,10 +201,15 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
         </View>
       </View>
 
+      {/* 2026-07-17: dropped `disabled={item.syncStatus === 'UPLOADING'}`.
+          Nothing ever writes UPLOADING to an attachment, so the guard was
+          always false and disabled nothing — a mid-upload delete was never
+          actually blocked. Typing syncStatus honestly surfaced it. There is no
+          intent left to restore either: deleting a SYNCED photo became a
+          deliberate feature (2026-07-13), and deleting a PENDING one is fine. */}
       <TouchableOpacity
         style={styles.deleteButton}
         onPress={() => handleDelete(item)}
-        disabled={item.syncStatus === 'UPLOADING'}
       >
         <Icon name="trash" size={18} color="white" />
       </TouchableOpacity>

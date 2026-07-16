@@ -86,8 +86,17 @@ export interface LocalAttachment {
   locationTimestamp?: string;
   componentType: 'photo' | 'selfie';
 
-  // Sync tracking
-  syncStatus: 'PENDING' | 'UPLOADING' | 'SYNCED' | 'FAILED';
+  // Sync tracking.
+  // 2026-07-17: this said 'PENDING' | 'UPLOADING' | 'SYNCED' | 'FAILED', which
+  // was wrong at both ends — verified by enumerating every writer of
+  // attachments.sync_status. UPLOADING and FAILED are NEVER written to an
+  // attachment (FormRepository's FAILED is form_submissions, a different
+  // table), and SKIPPED — the one status that means "not evidence", set by
+  // AttachmentUploader when the file is missing from disk — was missing
+  // entirely, so the type omitted the only value the countability rule turns
+  // on. ABANDONED is legacy: SyncDownloadService now DELETEs pending children
+  // on revoke instead of marking them, but old rows may still carry it.
+  syncStatus: 'PENDING' | 'SYNCED' | 'SKIPPED' | 'ABANDONED';
   syncAttempts: number;
   lastSyncAttemptAt?: string;
   syncError?: string;

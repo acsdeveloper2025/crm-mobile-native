@@ -52,6 +52,20 @@ class DatabaseServiceClass {
     return key.replace(/_([a-z])/g, (_, char: string) => char.toUpperCase());
   }
 
+  /**
+   * THIS is where snake_case columns become camelCase — every `query()` result
+   * gets camelCase keys added alongside the raw ones. The other camelizer is
+   * the detail projection's `json_object`, whose keys are written camelCase by
+   * hand (ProjectionUpdater).
+   *
+   * 2026-07-17: `utils/mapSqliteTask` used to claim this job ("maps a raw
+   * SQLite row (snake_case columns) to LocalTask (camelCase)"). It never did:
+   * its body destructured 8 fields and reassigned each to itself
+   * (`isRevoked: isRevoked`), so it was an identity function — it could only
+   * have worked on a row that was ALREADY camelCase, i.e. one this method had
+   * handled. It is deleted; if a field arrives undefined, look here or at the
+   * json_object key list, not at a mapper.
+   */
   private normalizeRow<T>(row: Record<string, unknown>): T {
     const normalized: Record<string, unknown> = { ...row };
 

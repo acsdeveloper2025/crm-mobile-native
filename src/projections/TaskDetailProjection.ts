@@ -1,6 +1,5 @@
 import { DatabaseService } from '../database/DatabaseService';
 import type { LocalTask } from '../types/mobile';
-import { mapSqliteTask } from '../utils/mapSqliteTask';
 
 class TaskDetailProjectionClass {
   async getTaskById(taskId: string): Promise<LocalTask | null> {
@@ -13,7 +12,9 @@ class TaskDetailProjectionClass {
       return null;
     }
     try {
-      return mapSqliteTask(JSON.parse(raw) as never);
+      // task_json's keys are emitted camelCase by json_object
+      // (ProjectionUpdater), so this is a boundary cast, not a mapping.
+      return JSON.parse(raw) as LocalTask;
     } catch {
       return null;
     }
