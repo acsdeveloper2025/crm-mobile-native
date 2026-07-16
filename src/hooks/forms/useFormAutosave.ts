@@ -121,40 +121,41 @@ export const useFormAutosave = ({
 
     const initializeDraft = async () => {
       try {
+        // 2026-07-17: the rule is "the DB copy wins; the auto-save blob is the
+        // FALLBACK when it is absent".
+        //
+        // This used to try "use whichever draft is newer", comparing timestamps
+        // on both sides. That branch was unreachable, in both directions:
+        //   * savedDraftTimestamp read `savedDraft.timestamp` — but
+        //     getAutoSavedForm returns `local.formData`, and persistAutoSave
+        //     stores the timestamp on the ENVELOPE around it, so it was thrown
+        //     away before this line ever saw it. No form field is named
+        //     `timestamp` either.
+        //   * both sides also read `__autosave.timestamp`, a key NOTHING has
+        //     ever written.
+        // So control always fell through to "the DB copy, if any" — which is
+        // the correct rule anyway, and is now simply stated.
+        //
+        // Nor is "newer wins" worth reviving: both copies are written on the
+        // same paths, through the SAME SQLite connection (StorageService writes
+        // key_value_store). A failure that loses the task write loses the
+        // backup write too, so the backup can never meaningfully be the newer
+        // of the two. Its real job is the case below — the task blob is empty
+        // or absent and the backup still holds the agent's answers.
         const localDraft = taskFormDataJson
           ? JSON.parse(taskFormDataJson)
           : null;
-        const localDraftTimestamp =
-          localDraft?.__submission?.updatedAt ||
-          localDraft?.__autosave?.timestamp;
 
-        // Also check autosave storage for potentially newer data
         let savedDraft: Record<string, unknown> | null = null;
-        let savedDraftTimestamp: string | undefined;
         if (taskFormTypeKey) {
           savedDraft = await getAutoSavedForm(taskId, taskFormTypeKey);
-          savedDraftTimestamp =
-            (savedDraft as any)?.timestamp ||
-            (savedDraft as any)?.__autosave?.timestamp;
         }
 
-        // Use whichever draft is newer (compare timestamps if both exist)
         const useLocalDraft = localDraft && typeof localDraft === 'object';
         const useSavedDraft = savedDraft && typeof savedDraft === 'object';
         let chosenDraft: Record<string, unknown> | null = null;
 
-        if (
-          useLocalDraft &&
-          useSavedDraft &&
-          localDraftTimestamp &&
-          savedDraftTimestamp
-        ) {
-          // Both exist with timestamps — use the newer one
-          chosenDraft =
-            new Date(savedDraftTimestamp) > new Date(localDraftTimestamp)
-              ? savedDraft
-              : localDraft;
-        } else if (useLocalDraft) {
+        if (useLocalDraft) {
           chosenDraft = localDraft;
         } else if (useSavedDraft) {
           chosenDraft = savedDraft;
@@ -250,11 +251,25 @@ export const useFormAutosave = ({
 
     const timeoutId = setTimeout(async () => {
       try {
-        await updateTaskFormData(taskId, formValues);
-        await persistAutoSave(taskId, {
-          formType: taskFormTypeKey || 'DEFAULT',
-          formData: formValues,
-        });
+        // 2026-07-17: fire BOTH writes, independently. This used to await the
+        // task write and THEN the backup inside one try, so a task-write
+        // failure skipped persistAutoSave entirely — neither copy was written,
+        // and the backup failed to exist in precisely the case it exists for.
+        // (The unmount and background paths already fired both independently;
+        // only the debounce and flushNow paths — the common ones — did not.)
+        // Still reports failure if either write fails, but never lets the first
+        // failure suppress the second write.
+        const results = await Promise.allSettled([
+          updateTaskFormData(taskId, formValues),
+          persistAutoSave(taskId, {
+            formType: taskFormTypeKey || 'DEFAULT',
+            formData: formValues,
+          }),
+        ]);
+        const rejected = results.find(r => r.status === 'rejected');
+        if (rejected) {
+          throw rejected.reason;
+        }
         // Clear error flag on successful save
         if (isMountedRef.current) {
           setAutoSaveError(false);
@@ -295,11 +310,21 @@ export const useFormAutosave = ({
       return;
     }
     try {
-      await updateTaskFormData(currentTaskId, latestValues);
-      await persistAutoSave(currentTaskId, {
-        formType: latestTaskFormTypeRef.current || 'DEFAULT',
-        formData: latestValues,
-      });
+      // 2026-07-17: both writes fire independently — see the debounce path.
+      // This is the navigation-guard flush ("your draft will be auto-saved"),
+      // so letting a failed task write skip the backup was the worst place for
+      // that bug: the user is leaving the screen as it happens.
+      const results = await Promise.allSettled([
+        updateTaskFormData(currentTaskId, latestValues),
+        persistAutoSave(currentTaskId, {
+          formType: latestTaskFormTypeRef.current || 'DEFAULT',
+          formData: latestValues,
+        }),
+      ]);
+      const rejected = results.find(r => r.status === 'rejected');
+      if (rejected) {
+        throw rejected.reason;
+      }
     } catch (err) {
       Logger.error(TAG, 'Autosave flushNow failed', err);
     }
