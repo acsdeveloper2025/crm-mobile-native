@@ -29,9 +29,9 @@ import {
   PermissionsAndroid,
   Platform,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import RNFS from 'react-native-fs';
 import { useTheme } from '../../context/ThemeContext';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { config } from '../../config';
 import { AuthService } from '../../services/AuthService';
 import { NetworkService } from '../../services/NetworkService';
@@ -40,6 +40,7 @@ import { SyncQueueRepository } from '../../repositories/SyncQueueRepository';
 import { SyncStateService } from '../../sync/SyncStateService';
 import { RemoteLogService } from '../../services/RemoteLogService';
 import { Logger, type LogBufferEntry } from '../../utils/logger';
+import { formatRelativeTime } from '../../utils/relativeTime';
 import { PreserveCase } from '../../components/ui/PreserveCase';
 
 const TAG = 'DiagnosticsScreen';
@@ -100,23 +101,15 @@ const formatBytes = (bytes: number): string => {
   return `${(mb / 1024).toFixed(2)} GB`;
 };
 
-const formatRelative = (iso: string | null | undefined): string => {
-  if (!iso) return 'never';
-  try {
-    const then = new Date(iso).getTime();
-    const diffSec = Math.max(0, Math.round((Date.now() - then) / 1000));
-    if (diffSec < 60) return `${diffSec}s ago`;
-    if (diffSec < 3600) return `${Math.round(diffSec / 60)}m ago`;
-    if (diffSec < 86400) return `${Math.round(diffSec / 3600)}h ago`;
-    return `${Math.round(diffSec / 86400)}d ago`;
-  } catch {
-    return NA;
-  }
-};
+// 2026-07-16: relative time moved to utils/relativeTime (pure + unit-tested).
+// The old local copy only handled the past — it clamped negatives to zero —
+// and the token line faked the future by replacing " ago" with " from now",
+// so a valid token always read "0s from now" and an expired one read
+// "35m from now". Both inverted, on the screen support reads aloud.
+const formatRelative = formatRelativeTime;
 
 export const DiagnosticsScreen: React.FC = () => {
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
   const [snap, setSnap] = useState<Snapshot>(initialSnapshot);
   const [refreshing, setRefreshing] = useState(false);
   const [sendingLogs, setSendingLogs] = useState(false);
@@ -260,9 +253,13 @@ export const DiagnosticsScreen: React.FC = () => {
     <View
       style={[
         styles.container,
-        { backgroundColor: theme.colors.background, paddingTop: insets.top },
+        { backgroundColor: theme.colors.background },
       ]}
     >
+      {/* 2026-07-16: was a bare in-scroll <Text> title with no way back —
+          the navigator sets headerShown:false, so a screen that doesn't
+          render ScreenHeader has no back affordance at all. */}
+      <ScreenHeader title="Diagnostics" />
       <ScrollView
         contentContainerStyle={styles.scroll}
         refreshControl={
@@ -273,9 +270,6 @@ export const DiagnosticsScreen: React.FC = () => {
           />
         }
       >
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Diagnostics
-        </Text>
         <Text style={[styles.subtitle, { color: theme.colors.textSecondary }]}>
           Pull down to refresh
         </Text>
@@ -290,13 +284,20 @@ export const DiagnosticsScreen: React.FC = () => {
         {/* Auth */}
         <Section title="Account" theme={theme} cardStyle={cardStyle}>
           <Row label="User ID" value={snap.userId} theme={theme} mono />
+          {/* 2026-07-16: labelled "Token Expires" this read as "you are about
+              to be logged out" — it is only the 15-minute ACCESS token, which
+              the client renews silently on the next 401 (ApiClient's refresh
+              interceptor). The session itself is the 30-day refresh token
+              (AUTH_REFRESH_TTL_S), and FIELD_AGENT has no absolute session
+              cap. Name it precisely so nobody reads a routine value as an
+              outage during a support call. */}
           <Row
-            label="Token Expires"
+            label="Access Token"
             value={
               snap.tokenExpiresAt && snap.tokenExpiresAt !== NA
                 ? `${snap.tokenExpiresAt} (${formatRelative(
                     snap.tokenExpiresAt,
-                  ).replace(' ago', ' from now')})`
+                  )}) — auto-renews`
                 : snap.tokenExpiresAt
             }
             theme={theme}
@@ -536,7 +537,6 @@ const Row: React.FC<RowProps> = ({ label, value, theme, mono, highlight }) => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { padding: 16, paddingBottom: 32 },
-  title: { fontSize: 22, fontWeight: '700', marginBottom: 4 },
   subtitle: { fontSize: 12, marginBottom: 16 },
   card: {
     borderRadius: 12,

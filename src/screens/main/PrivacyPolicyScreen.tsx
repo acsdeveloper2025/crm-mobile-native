@@ -18,8 +18,8 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/ThemeContext';
+import { ScreenHeader } from '../../components/ScreenHeader';
 import { PreserveCase } from '../../components/ui/PreserveCase';
 import { useAuth } from '../../context/AuthContext';
 import { Logger } from '../../utils/logger';
@@ -33,7 +33,6 @@ const SUPPORT_EMAIL = 'support@allcheckservices.com';
 
 export const PrivacyPolicyScreen: React.FC = () => {
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
   const { user } = useAuth();
 
   // F-MD12: DPDP right-to-erasure / right-to-access. Both flows route
@@ -76,18 +75,16 @@ export const PrivacyPolicyScreen: React.FC = () => {
 
   return (
     <View
-      style={[
-        styles.container,
-        { backgroundColor: theme.colors.background, paddingTop: insets.top },
-      ]}
+      style={[styles.container, { backgroundColor: theme.colors.background }]}
     >
+      {/* 2026-07-16: was a bare in-scroll <Text> title with no way back —
+          the navigator sets headerShown:false, so a screen that doesn't
+          render ScreenHeader has no back affordance at all. */}
+      <ScreenHeader title="Privacy Policy" />
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={[styles.title, { color: theme.colors.text }]}>
-          Privacy Policy
-        </Text>
         {/* PreserveCase IS a Text replacement (not a wrapper). It applies
             textTransform:'none' so the global UPPERCASE policy doesn't
             mangle legal text — readability matters here. */}
@@ -148,7 +145,6 @@ export const PrivacyPolicyScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   scroll: { padding: 16, paddingBottom: 32 },
-  title: { fontSize: 22, fontWeight: '700', marginBottom: 16 },
   body: { fontSize: 14, lineHeight: 22 },
   actions: { marginTop: 24 },
   actionsTitle: { fontSize: 16, fontWeight: '600', marginBottom: 12 },
