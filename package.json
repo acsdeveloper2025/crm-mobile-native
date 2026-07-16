@@ -22,6 +22,7 @@
     "contract:relative-time": "node --experimental-strip-types --no-warnings src/utils/relativeTime.contract.test.ts",
     "contract:field-status": "node --experimental-strip-types --no-warnings src/utils/fieldStatus.contract.test.ts",
     "contract:evidence-countable": "node --experimental-strip-types --no-warnings src/utils/evidenceCountable.contract.test.ts",
+    "contract:dashboard-counts": "node --experimental-strip-types --no-warnings src/projections/dashboardCounts.contract.test.ts",
     "contract:schema-version": "node --experimental-strip-types --no-warnings src/database/schemaVersion.contract.test.ts",
     "check:ssl-pins": "bash scripts/check-ssl-pins.sh",
     "verify:ssl-pins-live": "bash scripts/verify-ssl-pins-live.sh",

@@ -1,23 +1,9 @@
 import { DatabaseService } from '../database/DatabaseService';
+import { DASHBOARD_COUNTS_SELECT } from './dashboardCountsSql';
 import { Logger } from '../utils/logger';
 
 const TAG = 'ProjectionUpdater';
 
-// 2026-07-16: THE dashboard counter definition. Feeds `dashboard_projection`
-// (column order: id, assigned, in_progress, completed, saved, active,
-// last_sync_at, updated_at, submitted).
-//
-// It used to be two hand-typed copies — `rebuildAll` and `rebuildDashboard` —
-// and they had ALREADY drifted: the Bug-31 `is_saved` exclusion was applied to
-// the rebuildAll copy only, so a saved-but-IN_PROGRESS task was counted in
-// BOTH IN_PROGRESS and SAVED or in SAVED alone, depending purely on which
-// rebuild path happened to run last. One definition, imported by both.
-//
-// `submitted_count` counts SUBMITTED + COMPLETED so the Dashboard card matches
-// the Submitted tab (TaskListProjection.list's SUBMITTED branch): the device
-// has no Completed tab, so the office signing a task off (ADR-0047) must not
-// make it vanish from the agent's count. `completed_count` still tracks the
-// office-signed-off subset on its own.
 // 2026-07-16: THE task_list_projection writer. Was two hand-typed copies
 // (rebuildAll + rebuildTask) differing only by a WHERE — the pair that let
 // `sync_status` be forgotten here while `tasks` had it, so every SUBMITTED /
@@ -48,17 +34,9 @@ const TASK_LIST_PROJECTION_INSERT = `INSERT INTO task_list_projection (
      COALESCE(NULLIF(notes, ''), description)
    FROM tasks`;
 
-const DASHBOARD_COUNTS_SELECT = `SELECT
-     1,
-     COALESCE(SUM(CASE WHEN status = 'ASSIGNED' AND (is_revoked IS NULL OR is_revoked = 0) AND (is_saved IS NULL OR is_saved = 0) THEN 1 ELSE 0 END), 0),
-     COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' AND (is_revoked IS NULL OR is_revoked = 0) AND (is_saved IS NULL OR is_saved = 0) THEN 1 ELSE 0 END), 0),
-     COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END), 0),
-     COALESCE(SUM(CASE WHEN is_saved = 1 AND status != 'COMPLETED' THEN 1 ELSE 0 END), 0),
-     COALESCE(SUM(CASE WHEN (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
-     (SELECT last_download_sync_at FROM sync_metadata WHERE id = 1),
-     CURRENT_TIMESTAMP,
-     COALESCE(SUM(CASE WHEN status IN ('SUBMITTED','COMPLETED') AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0)
-   FROM tasks`;
+// Lives in ./dashboardCountsSql so the contract harness (which cannot load this
+// module — it imports op-sqlite) can run the real query against real SQLite.
+
 
 export type ProjectionChangeEvent =
   | { type: 'all' }
