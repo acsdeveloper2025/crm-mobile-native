@@ -3,6 +3,63 @@ import { Logger } from '../utils/logger';
 
 const TAG = 'ProjectionUpdater';
 
+// 2026-07-16: THE dashboard counter definition. Feeds `dashboard_projection`
+// (column order: id, assigned, in_progress, completed, saved, active,
+// last_sync_at, updated_at, submitted).
+//
+// It used to be two hand-typed copies — `rebuildAll` and `rebuildDashboard` —
+// and they had ALREADY drifted: the Bug-31 `is_saved` exclusion was applied to
+// the rebuildAll copy only, so a saved-but-IN_PROGRESS task was counted in
+// BOTH IN_PROGRESS and SAVED or in SAVED alone, depending purely on which
+// rebuild path happened to run last. One definition, imported by both.
+//
+// `submitted_count` counts SUBMITTED + COMPLETED so the Dashboard card matches
+// the Submitted tab (TaskListProjection.list's SUBMITTED branch): the device
+// has no Completed tab, so the office signing a task off (ADR-0047) must not
+// make it vanish from the agent's count. `completed_count` still tracks the
+// office-signed-off subset on its own.
+// 2026-07-16: THE task_list_projection writer. Was two hand-typed copies
+// (rebuildAll + rebuildTask) differing only by a WHERE — the pair that let
+// `sync_status` be forgotten here while `tasks` had it, so every SUBMITTED /
+// COMPLETED card in a LIST read `syncStatus === undefined`, and TaskCard's
+// `syncStatus !== 'SYNCED'` test rendered a red "Pending Upload" badge on
+// fully-synced work (92 such cards on the test device). Only cards whose
+// DETAIL had been loaded escaped, which is why it looked random.
+// Append a WHERE to scope it; never re-type the column list.
+const TASK_LIST_PROJECTION_INSERT = `INSERT INTO task_list_projection (
+     id, case_id, case_number, verification_task_id, verification_task_number, title, customer_name, company_name,
+     address_street, address_city, address_state, address_pincode, status, priority,
+     assigned_at, updated_at, completed_at, verification_type, verification_type_name, client_name, product_name,
+     is_saved, is_revoked, revoked_at, in_progress_at, saved_at, attachment_count, sync_status, search_text, notes
+   )
+   SELECT
+     id, case_id, case_number, verification_task_id, verification_task_number, title, customer_name, company_name,
+     address_street, address_city, address_state, address_pincode, status, priority,
+     assigned_at, updated_at, completed_at, verification_type, verification_type_name, client_name, product_name,
+     is_saved, is_revoked, revoked_at, in_progress_at, saved_at, attachment_count, sync_status,
+     TRIM(
+       LOWER(
+         COALESCE(customer_name, '') || ' ' ||
+         COALESCE(address_city, '') || ' ' ||
+         COALESCE(verification_task_number, '') || ' ' ||
+         COALESCE(case_number, '')
+       )
+     ),
+     COALESCE(NULLIF(notes, ''), description)
+   FROM tasks`;
+
+const DASHBOARD_COUNTS_SELECT = `SELECT
+     1,
+     COALESCE(SUM(CASE WHEN status = 'ASSIGNED' AND (is_revoked IS NULL OR is_revoked = 0) AND (is_saved IS NULL OR is_saved = 0) THEN 1 ELSE 0 END), 0),
+     COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' AND (is_revoked IS NULL OR is_revoked = 0) AND (is_saved IS NULL OR is_saved = 0) THEN 1 ELSE 0 END), 0),
+     COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END), 0),
+     COALESCE(SUM(CASE WHEN is_saved = 1 AND status != 'COMPLETED' THEN 1 ELSE 0 END), 0),
+     COALESCE(SUM(CASE WHEN (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
+     (SELECT last_download_sync_at FROM sync_metadata WHERE id = 1),
+     CURRENT_TIMESTAMP,
+     COALESCE(SUM(CASE WHEN status IN ('SUBMITTED','COMPLETED') AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0)
+   FROM tasks`;
+
 export type ProjectionChangeEvent =
   | { type: 'all' }
   | { type: 'task'; taskId: string }
@@ -108,27 +165,7 @@ class ProjectionUpdaterClass {
       await DatabaseService.transaction(async tx => {
         await tx.execute('DELETE FROM task_list_projection');
         await tx.execute(
-          `INSERT INTO task_list_projection (
-             id, case_id, case_number, verification_task_id, verification_task_number, title, customer_name, company_name,
-             address_street, address_city, address_state, address_pincode, status, priority,
-             assigned_at, updated_at, completed_at, verification_type, verification_type_name, client_name, product_name,
-             is_saved, is_revoked, revoked_at, in_progress_at, saved_at, attachment_count, search_text, notes
-           )
-           SELECT
-             id, case_id, case_number, verification_task_id, verification_task_number, title, customer_name, company_name,
-             address_street, address_city, address_state, address_pincode, status, priority,
-             assigned_at, updated_at, completed_at, verification_type, verification_type_name, client_name, product_name,
-             is_saved, is_revoked, revoked_at, in_progress_at, saved_at, attachment_count,
-             TRIM(
-               LOWER(
-                 COALESCE(customer_name, '') || ' ' ||
-                 COALESCE(address_city, '') || ' ' ||
-                 COALESCE(verification_task_number, '') || ' ' ||
-                 COALESCE(case_number, '')
-               )
-             ),
-             COALESCE(NULLIF(notes, ''), description)
-           FROM tasks`,
+          TASK_LIST_PROJECTION_INSERT,
         );
 
         await tx.execute('DELETE FROM task_detail_projection');
@@ -200,23 +237,10 @@ class ProjectionUpdaterClass {
         );
 
         await tx.execute('DELETE FROM dashboard_projection');
+        // Bug 31 (2026-05-03): saved-but-still-IN_PROGRESS tasks count ONLY in
+        // SAVED, not both — see DASHBOARD_COUNTS_SELECT, the single definition.
         await tx.execute(
-          `INSERT INTO dashboard_projection
-           SELECT
-             1,
-             -- Bug 31 (2026-05-03): exclude is_saved=1 from ASSIGNED + IN_PROGRESS
-             -- so saved-but-still-IN_PROGRESS tasks count ONLY in SAVED, not both.
-             -- Mirrors TaskListProjection.list partitioning. COMPLETED stays
-             -- inclusive because markCompleted clears is_saved to 0.
-             COALESCE(SUM(CASE WHEN status = 'ASSIGNED' AND (is_revoked IS NULL OR is_revoked = 0) AND (is_saved IS NULL OR is_saved = 0) THEN 1 ELSE 0 END), 0),
-             COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' AND (is_revoked IS NULL OR is_revoked = 0) AND (is_saved IS NULL OR is_saved = 0) THEN 1 ELSE 0 END), 0),
-             COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END), 0),
-             COALESCE(SUM(CASE WHEN is_saved = 1 AND status != 'COMPLETED' THEN 1 ELSE 0 END), 0),
-             COALESCE(SUM(CASE WHEN (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
-             (SELECT last_download_sync_at FROM sync_metadata WHERE id = 1),
-             CURRENT_TIMESTAMP,
-             COALESCE(SUM(CASE WHEN status = 'SUBMITTED' AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0)
-           FROM tasks`,
+          `INSERT INTO dashboard_projection ${DASHBOARD_COUNTS_SELECT}`,
         );
       });
     } catch (error) {
@@ -239,28 +263,7 @@ class ProjectionUpdaterClass {
           taskId,
         ]);
         await tx.execute(
-          `INSERT INTO task_list_projection (
-             id, case_id, case_number, verification_task_id, verification_task_number, title, customer_name, company_name,
-             address_street, address_city, address_state, address_pincode, status, priority,
-             assigned_at, updated_at, completed_at, verification_type, verification_type_name, client_name, product_name,
-             is_saved, is_revoked, revoked_at, in_progress_at, saved_at, attachment_count, search_text, notes
-           )
-           SELECT
-             id, case_id, case_number, verification_task_id, verification_task_number, title, customer_name, company_name,
-             address_street, address_city, address_state, address_pincode, status, priority,
-             assigned_at, updated_at, completed_at, verification_type, verification_type_name, client_name, product_name,
-             is_saved, is_revoked, revoked_at, in_progress_at, saved_at, attachment_count,
-             TRIM(
-               LOWER(
-                 COALESCE(customer_name, '') || ' ' ||
-                 COALESCE(address_city, '') || ' ' ||
-                 COALESCE(verification_task_number, '') || ' ' ||
-                 COALESCE(case_number, '')
-               )
-             ),
-             COALESCE(NULLIF(notes, ''), description)
-           FROM tasks
-           WHERE id = ?`,
+          `${TASK_LIST_PROJECTION_INSERT} WHERE id = ?`,
           [taskId],
         );
         await tx.execute('DELETE FROM task_detail_projection WHERE id = ?', [
@@ -349,19 +352,11 @@ class ProjectionUpdaterClass {
     // Wrap in transaction so dashboard is never empty between DELETE and INSERT
     await DatabaseService.transaction(async tx => {
       await tx.execute('DELETE FROM dashboard_projection WHERE id = 1');
+      // 2026-07-16: this copy silently LACKED the Bug-31 is_saved exclusion the
+      // rebuildAll copy had, so the ASSIGNED/IN_PROGRESS cards changed value
+      // depending on which rebuild ran last. Same definition as everyone else.
       await tx.execute(
-        `INSERT INTO dashboard_projection
-         SELECT
-           1,
-           COALESCE(SUM(CASE WHEN status = 'ASSIGNED' AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
-           COALESCE(SUM(CASE WHEN status = 'IN_PROGRESS' AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
-           COALESCE(SUM(CASE WHEN status = 'COMPLETED' THEN 1 ELSE 0 END), 0),
-           COALESCE(SUM(CASE WHEN is_saved = 1 AND status != 'COMPLETED' THEN 1 ELSE 0 END), 0),
-           COALESCE(SUM(CASE WHEN (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0),
-           (SELECT last_download_sync_at FROM sync_metadata WHERE id = 1),
-           CURRENT_TIMESTAMP,
-           COALESCE(SUM(CASE WHEN status = 'SUBMITTED' AND (is_revoked IS NULL OR is_revoked = 0) THEN 1 ELSE 0 END), 0)
-         FROM tasks`,
+        `INSERT INTO dashboard_projection ${DASHBOARD_COUNTS_SELECT}`,
       );
     });
     if (shouldNotify) {

@@ -87,6 +87,15 @@ class TaskListProjectionClass {
     } else if (statusFilter === 'ASSIGNED' || statusFilter === 'IN_PROGRESS') {
       sql += ` AND status = ? AND (is_saved IS NULL OR is_saved = 0)`;
       params.push(statusFilter);
+    } else if (statusFilter === 'SUBMITTED') {
+      // 2026-07-16 (owner rule): the Submitted tab is the agent's record of
+      // work they finished. ADR-0047 makes the OFFICE flip SUBMITTED →
+      // COMPLETED, and there is NO Completed tab on the device — so an exact
+      // `status = 'SUBMITTED'` match meant the agent's work silently vanished
+      // the moment the office signed it off, with no screen able to reach it
+      // again (92 such tasks were sitting invisible on the test device).
+      // COMPLETED is submitted work, seen from the office's side — show both.
+      sql += ` AND status IN ('SUBMITTED','COMPLETED')`;
     } else if (statusFilter) {
       sql += ` AND status = ?`;
       params.push(statusFilter);
@@ -170,10 +179,16 @@ class TaskListProjectionClass {
         assigned += row.count;
       } else if (row.status === 'IN_PROGRESS') {
         inProgress += row.count;
-      } else if (row.status === 'SUBMITTED') {
+      } else if (row.status === 'SUBMITTED' || row.status === 'COMPLETED') {
+        // 2026-07-16: keep this in lockstep with the SUBMITTED branch of
+        // `list()` above — the Submitted tab now lists SUBMITTED + COMPLETED,
+        // so the Dashboard card must count the same rows or the badge and the
+        // list disagree. COMPLETED is still tallied separately below for any
+        // caller that wants the office-signed-off subset.
         submitted += row.count;
-      } else if (row.status === 'COMPLETED') {
-        completed += row.count;
+        if (row.status === 'COMPLETED') {
+          completed += row.count;
+        }
       }
       all += row.count;
     });

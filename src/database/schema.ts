@@ -264,6 +264,9 @@ CREATE TABLE IF NOT EXISTS task_list_projection (
   in_progress_at TEXT,
   saved_at TEXT,
   attachment_count INTEGER NOT NULL DEFAULT 0,
+  -- TaskCard shows "Pending Upload" whenever syncStatus is not SYNCED; without
+  -- this column every list-hydrated card read undefined and cried wolf.
+  sync_status TEXT,
   search_text TEXT,
   notes TEXT
 );
@@ -759,6 +762,17 @@ export const MIGRATIONS: Migration[] = [
         SELECT t.client_name FROM tasks t WHERE t.id = task_list_projection.id
       ), product_name = (
         SELECT t.product_name FROM tasks t WHERE t.id = task_list_projection.id
+      );
+    `,
+  },
+  {
+    version: 23,
+    description:
+      'Add sync_status to task_list_projection. TaskCard shows the red "Pending Upload" badge when `syncStatus !== SYNCED`, but the list projection never carried the column — so every SUBMITTED/COMPLETED card hydrated from a LIST read undefined and cried wolf on fully-synced work (92 false badges on a test device); only cards whose DETAIL projection had been loaded escaped, which made it look random. Same pattern as v20/v22: the projection is a derived cache, appended here and backfilled from tasks; ProjectionUpdater writes it on every rebuild too.',
+    sql: `
+      ALTER TABLE task_list_projection ADD COLUMN sync_status TEXT;
+      UPDATE task_list_projection SET sync_status = (
+        SELECT t.sync_status FROM tasks t WHERE t.id = task_list_projection.id
       );
     `,
   },
