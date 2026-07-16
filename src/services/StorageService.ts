@@ -4,6 +4,7 @@
 import RNFS from 'react-native-fs';
 import { KeyValueRepository } from '../repositories/KeyValueRepository';
 import { MaintenanceRepository } from '../repositories/MaintenanceRepository';
+import { DataCleanupService } from './DataCleanupService';
 import { Logger } from '../utils/logger';
 
 const TAG = 'StorageService';
@@ -78,25 +79,25 @@ class StorageServiceClass {
     let deletedSyncItems = 0;
 
     try {
-      // Delete synced photo files
-      const syncedPhotos =
-        await MaintenanceRepository.listSyncedAttachmentsOlderThan(cutoff);
-
-      for (const photo of syncedPhotos) {
-        try {
-          const exists = await RNFS.exists(photo.localPath);
-          if (exists) {
-            await RNFS.unlink(photo.localPath);
-          }
-          if (photo.thumbnailPath && (await RNFS.exists(photo.thumbnailPath))) {
-            await RNFS.unlink(photo.thumbnailPath);
-          }
-          await MaintenanceRepository.deleteAttachmentById(photo.id);
-          deletedPhotos++;
-        } catch (err) {
-          Logger.warn(TAG, `Failed to delete photo ${photo.id}`, err);
-        }
-      }
+      // 2026-07-17: reclaim photo files through the ONE retention reaper
+      // (DataCleanupService tier-1) instead of a second, laxer copy.
+      //
+      // This path had its own query + a row DELETE, and had drifted twice:
+      //   * it required only sync_status='SYNCED', dropping the
+      //     `backend_attachment_id IS NOT NULL` guard — the whole reason the
+      //     local file is dispensable is that the backend holds the copy;
+      //   * it DELETED the attachments row, where tier-1 deliberately keeps
+      //     the row and blanks the path columns.
+      // Rows are what countCapturedPhotos counts. This runs on ANY enqueue
+      // when free disk < 50MB (SyncQueue.enqueue), so a task still in progress
+      // whose photos synced over a day ago lost its evidence ROWS — the
+      // 5-photo/1-selfie gate then permanently blocked a form the agent had
+      // already finished, while the photos sat safe on the server.
+      // Unlinking the files is what frees the disk; the rows are bytes.
+      const reclaimed = await DataCleanupService.cleanupOldAttachmentFiles(
+        daysOld,
+      );
+      deletedPhotos = reclaimed.blankedRows;
 
       // Delete synced locations
       deletedLocations =

@@ -15,28 +15,12 @@ class MaintenanceRepositoryClass {
     return rows[0]?.count ?? 0;
   }
 
-  async listSyncedAttachmentsOlderThan(cutoffIso: string): Promise<
-    Array<{
-      id: string;
-      localPath: string;
-      thumbnailPath: string | null;
-    }>
-  > {
-    return DatabaseService.query<{
-      id: string;
-      localPath: string;
-      thumbnailPath: string | null;
-    }>(
-      `SELECT id, local_path as localPath, thumbnail_path as thumbnailPath
-       FROM attachments
-       WHERE sync_status = 'SYNCED' AND uploaded_at < ?`,
-      [cutoffIso],
-    );
-  }
-
-  async deleteAttachmentById(id: string): Promise<void> {
-    await DatabaseService.execute('DELETE FROM attachments WHERE id = ?', [id]);
-  }
+  // 2026-07-17: `listSyncedAttachmentsOlderThan` + `deleteAttachmentById`
+  // lived here as a second, laxer copy of the retention reaper and were
+  // deleted with their only caller (StorageService.cleanupSyncedData), which
+  // now routes through DataCleanupService tier-1. The guarded pair is
+  // DataCleanupRepository.listOldDispensableAttachments +
+  // clearAttachmentLocalPaths — attachment reclaim belongs there, not here.
 
   async deleteSyncedLocationsOlderThan(cutoffIso: string): Promise<number> {
     const result = await DatabaseService.execute(
