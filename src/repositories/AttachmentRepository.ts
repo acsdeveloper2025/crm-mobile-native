@@ -82,21 +82,6 @@ class AttachmentRepositoryClass {
     );
   }
 
-  async listSyncedForTask(
-    taskId: string,
-  ): Promise<
-    Array<{ id: string; localPath: string; thumbnailPath: string | null }>
-  > {
-    return DatabaseService.query<{
-      id: string;
-      localPath: string;
-      thumbnailPath: string | null;
-    }>(
-      "SELECT id, local_path, thumbnail_path FROM attachments WHERE task_id = ? AND sync_status = 'SYNCED'",
-      [taskId],
-    );
-  }
-
   async getById(
     id: string,
   ): Promise<{ localPath: string; thumbnailPath: string | null } | null> {
@@ -124,18 +109,15 @@ class AttachmentRepositoryClass {
     }
   }
 
-  async deleteSyncedForTask(taskId: string): Promise<void> {
-    const photos = await this.listSyncedForTask(taskId);
-    for (const photo of photos) {
-      if (await RNFS.exists(photo.localPath)) {
-        await RNFS.unlink(photo.localPath);
-      }
-      if (photo.thumbnailPath && (await RNFS.exists(photo.thumbnailPath))) {
-        await RNFS.unlink(photo.thumbnailPath);
-      }
-      await this.deleteById(photo.id);
-    }
-  }
+  // 2026-07-17: `deleteSyncedForTask` and its only caller-of-one,
+  // `listSyncedForTask`, were deleted here — both had ZERO callers, and the
+  // pair was a DRIFTED twin of the live rule (FormUploader.ts:110). It filtered
+  // on sync_status='SYNCED' alone, dropping the `backend_attachment_id IS NOT
+  // NULL` guard that is the whole reason a local file is dispensable, and it
+  // HARD-DELETED the row where the live path only clears local_path. Wiring it
+  // up would have unlinked and deleted evidence the server never confirmed.
+  // Same shape as the reaper fixed in StorageService.cleanupSyncedData, and the
+  // same trap `listOldTerminalTaskIds` set: dead, but it reads as the rule.
 
   // 2026-07-17: `updateUploadResult`, `markMissingAsSynced` and
   // `getBackendAttachmentIds` were deleted here — all three had ZERO callers

@@ -676,26 +676,11 @@ class CameraServiceClass {
     }
   }
 
-  /**
-   * Get all photos for a task
-   */
-  async getPhotosForTask(taskId: string): Promise<CapturedPhoto[]> {
-    const rows = await AttachmentRepository.listForTask(taskId);
-
-    return rows.map(row => ({
-      id: row.id,
-      localPath: row.localPath,
-      thumbnailPath: row.thumbnailPath ?? undefined,
-      filename: row.filename,
-      mimeType: row.mimeType,
-      size: row.size,
-      latitude: row.latitude ?? undefined,
-      longitude: row.longitude ?? undefined,
-      accuracy: row.accuracy ?? undefined,
-      timestamp: row.uploadedAt,
-      componentType: row.componentType as 'photo' | 'selfie',
-    }));
-  }
+  // 2026-07-17: `getPhotosForTask` was deleted here — zero callers. It wrapped
+  // AttachmentRepository.listForTask and remapped the rows into CapturedPhoto;
+  // every live reader (PhotoGallery, the gates, the self-heal) goes to the
+  // repository directly. Note the honest name it leaked: the "attachments"
+  // table holds the agent's PHOTOS.
 
   /**
    * Delete a photo from local storage and database

@@ -32,13 +32,19 @@ export const DataCleanupManager = () => {
   };
 
   const handleManualCleanup = async () => {
-    // 2026-07-16: the copy said "completed or revoked", but the query this
-    // runs (listOldTaskIdsHybrid) has NO status filter — it removes ANY case
-    // older than 45 days once nothing is left to upload, submitted ones
-    // included. Describe the real rule: age + fully-synced.
+    // The copy must follow listOldTaskIdsHybrid — this is a destructive confirm,
+    // so it has to describe what the query actually deletes.
+    //
+    // 2026-07-17: it said "every case older than 45 days whose work is fully
+    // synced". That was written on 2026-07-16 to fix an earlier lie ("completed
+    // or revoked") — but the SAME DAY, 5f515d6 added
+    // `AND status IN ('SUBMITTED','COMPLETED','REVOKED')` to the query, because
+    // deleting live ASSIGNED work the agent still owed was the bug. Two edits,
+    // opposite directions: the dialog was left describing the behaviour that had
+    // just been removed, promising to delete work it now keeps.
     Alert.alert(
       'Manual Cleanup',
-      'This will delete every case older than 45 days whose work is fully synced — nothing still waiting to upload is ever removed — AND clear every cached attachment file on this device. Proceed?',
+      'This will delete cases you have already submitted, or that were revoked, once they are more than 45 days old and fully synced. Work you still have to do is never removed, and nothing still waiting to upload is ever removed. It will also clear every cached attachment file on this device. Proceed?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -164,11 +170,18 @@ export const DataCleanupManager = () => {
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
         Data Management
       </Text>
-      {/* 2026-07-16: the old copy promised "cleanup never removes data newer
-          than 45 days" — not true: Clear App Cache & Sync also drops
-          auto-save BACKUPS older than 7 days. State the invariant the code
-          actually enforces (every delete path requires sync_status='SYNCED'),
-          which is the stronger and more useful promise anyway. */}
+      {/* Two different retention windows live behind this screen — keep them
+          straight when editing this copy:
+            * TASKS: 45 days, and only SUBMITTED / COMPLETED / REVOKED ones
+              (DataCleanupRepository.listOldTaskIdsHybrid).
+            * AUTO-SAVE BACKUPS: 7 days, dropped by Clear Cache & Sync only
+              (clearCacheAndSyncTables) — a backup GC, since the draft itself
+              lives in tasks.form_data_json, which is what restore reads.
+          Every delete path additionally requires sync_status='SYNCED', which is
+          the stronger promise and the one worth leading with.
+          2026-07-17: the note here used to call the 45-day claim below "not
+          true", citing the 7-day backup purge. That conflated the two windows —
+          the claim is true OF TASKS, which is what it says. */}
       <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
         Manage your local storage and sync preferences. Cleanup never removes
         work that has not synced yet, and never removes tasks newer than 45
