@@ -39,7 +39,7 @@ import { FormSubmissionService } from '../../services/forms/FormSubmissionServic
 import { useFormAutosave } from '../../hooks/forms/useFormAutosave';
 import { NetworkService } from '../../services/NetworkService';
 import { TaskRepository } from '../../repositories/TaskRepository';
-import { countCapturedPhotos } from '../../utils/attachmentCount';
+import { countCapturedPhotos } from '../../utils/evidenceCount';
 import { styles } from './VerificationFormScreen.styles';
 import {
   buildLegacyTemplateForFormType,

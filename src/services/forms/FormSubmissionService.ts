@@ -1,4 +1,4 @@
-import { countCapturedPhotos } from '../../utils/attachmentCount';
+import { countCapturedPhotos } from '../../utils/evidenceCount';
 import {
   MIN_SELFIE_PHOTOS,
   MIN_VERIFICATION_PHOTOS,

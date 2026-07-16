@@ -13,7 +13,7 @@ import {
 import Icon from 'react-native-vector-icons/Ionicons';
 import RNFS from 'react-native-fs';
 import { Logger } from '../../utils/logger';
-import { isCountableAttachment } from '../../utils/attachmentCount';
+import { isCountableEvidence } from '../../utils/evidenceCount';
 import { useFocusEffect } from '@react-navigation/native';
 import type { LocalAttachment } from '../../types/mobile';
 import { useTheme } from '../../context/ThemeContext';
@@ -71,8 +71,8 @@ export const PhotoGallery: React.FC<PhotoGalleryProps> = ({
         // 5-photo minimum. It must match what FormSubmissionService
         // counts toward the submit validator — ABANDONED (C10) and
         // SKIPPED (file missing) are excluded. Shared helper
-        // `isCountableAttachment` keeps the two call-sites in sync.
-        const countable = photoList.filter(isCountableAttachment);
+        // `isCountableEvidence` keeps the two call-sites in sync.
+        const countable = photoList.filter(isCountableEvidence);
         Logger.debug(
           'PhotoGallery',
           `loadPhotos taskId=${taskId} type=${componentType} found=${photoList.length} countable=${countable.length}`,

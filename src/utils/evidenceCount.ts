@@ -2,28 +2,13 @@
 // "(N captured)" count and FormSubmissionService's submit validator
 // can't drift. H3 first introduced the filter in both places; this
 // module is the single source of truth going forward.
-//
-// An attachment is "countable" toward the minimum-photos rule when
-// it is in a sync-status we can still upload (PENDING / UPLOADING /
-// SYNCED). Rows with status ABANDONED (task revoked while PENDING —
-// C10) or SKIPPED (file missing on disk — AttachmentUploader) are
-// displayed in the gallery but excluded from the count.
 
 import { AttachmentRepository } from '../repositories/AttachmentRepository';
-
-const COUNTABLE_ATTACHMENT_STATUSES = new Set([
-  'PENDING',
-  'UPLOADING',
-  'SYNCED',
-]);
-
-export const isCountableAttachment = (row: unknown): boolean => {
-  const raw = (row ?? {}) as Record<string, unknown>;
-  const status = String(
-    raw.syncStatus ?? raw.sync_status ?? 'PENDING',
-  ).toUpperCase();
-  return COUNTABLE_ATTACHMENT_STATUSES.has(status);
-};
+// The predicate itself lives in a dependency-free module so the contract
+// harness can load it — this file pulls in op-sqlite and cannot be tested.
+// Re-exported here so existing importers keep working.
+export { isCountableEvidence } from './evidenceCountable';
+import { isCountableEvidence } from './evidenceCountable';
 
 // 2026-07-16: the authoritative count of DEVICE-CAPTURED field photos.
 //
@@ -47,7 +32,7 @@ export const countCapturedPhotos = async (
   let photoCount = 0;
   let selfieCount = 0;
   for (const row of rows) {
-    if (!isCountableAttachment(row)) {
+    if (!isCountableEvidence(row)) {
       continue;
     }
     const raw = row as unknown as Record<string, unknown>;

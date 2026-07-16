@@ -12,6 +12,7 @@ import { StorageService } from '../services/StorageService';
 import { SyncService } from '../services/SyncService';
 import type { GeoLocation, MobileFormSubmissionRequest } from '../types/api';
 import type { LocalAttachment } from '../types/mobile';
+import { isCountableEvidence } from '../utils/evidenceCount';
 import {
   resolveFormTypeKey,
   toBackendFormType as toBackendFormTypeKey,
@@ -120,7 +121,18 @@ export const SubmitVerificationUseCase = {
       throw new Error(`Unsupported form type: ${input.formType}`);
     }
 
-    const attachments = await AttachmentRepository.listForSubmission(task.id);
+    // 2026-07-17: route through the SAME countability predicate the form
+    // screen, the self-heal and FormSubmissionService use. `listForSubmission`
+    // filters on component_type only, so ABANDONED (task revoked mid-capture)
+    // and SKIPPED (file missing on disk) rows counted as evidence here while
+    // every other gate excluded them: 5 photos with one SKIPPED was
+    // "incomplete" to the screen and submittable here — and the SKIPPED id
+    // still shipped in attachmentIds, pointing at a file that can never
+    // upload. The screen path masked it (FormSubmissionService rejects first);
+    // auto-submit calls straight into here.
+    const attachments = (
+      await AttachmentRepository.listForSubmission(task.id)
+    ).filter(isCountableEvidence);
     const verificationPhotos = attachments.filter(
       attachment => attachment.componentType === 'photo',
     );

@@ -44,7 +44,7 @@ import {
 } from '../../repositories/TaskRepository';
 import { SubmitVerificationUseCase } from '../../usecases/SubmitVerificationUseCase';
 import { resolveFormTypeKey } from '../../utils/formTypeKey';
-import { countCapturedPhotos } from '../../utils/attachmentCount';
+import { countCapturedPhotos } from '../../utils/evidenceCount';
 import { evaluateFormCompleteness } from '../../services/forms/FormValidationEngine';
 import {
   buildLegacyTemplateForFormType,
