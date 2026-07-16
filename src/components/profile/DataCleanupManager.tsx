@@ -32,9 +32,13 @@ export const DataCleanupManager = () => {
   };
 
   const handleManualCleanup = async () => {
+    // 2026-07-16: the copy said "completed or revoked", but the query this
+    // runs (listOldTaskIdsHybrid) has NO status filter — it removes ANY case
+    // older than 45 days once nothing is left to upload, submitted ones
+    // included. Describe the real rule: age + fully-synced.
     Alert.alert(
       'Manual Cleanup',
-      'This will delete completed or revoked cases older than 45 days that are already synced AND clear every cached attachment file on this device. Proceed?',
+      'This will delete every case older than 45 days whose work is fully synced — nothing still waiting to upload is ever removed — AND clear every cached attachment file on this device. Proceed?',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -72,9 +76,15 @@ export const DataCleanupManager = () => {
   };
 
   const handleClearCacheAndSync = () => {
+    // 2026-07-16: this path also purges auto-save BACKUPS older than 7 days
+    // (DataCleanupRepository.clearCacheAndSyncTables) — the old copy only
+    // mentioned "lists/templates", so a user clearing a cache to fix a sync
+    // glitch had no idea drafts were in scope. The draft itself survives in
+    // tasks.form_data_json (that is the copy restore actually reads), so this
+    // is a backup GC, not data loss — say exactly that.
     Alert.alert(
       'Clear Cache & Sync',
-      'This will clear cached lists/templates and refresh from the server. Tasks within the last 45 days are preserved.',
+      'This will clear cached lists and form templates, then refresh from the server. Your tasks and in-progress form data are preserved. Auto-save backups older than 7 days are also removed.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -154,9 +164,15 @@ export const DataCleanupManager = () => {
       <Text style={[styles.sectionTitle, { color: theme.colors.text }]}>
         Data Management
       </Text>
+      {/* 2026-07-16: the old copy promised "cleanup never removes data newer
+          than 45 days" — not true: Clear App Cache & Sync also drops
+          auto-save BACKUPS older than 7 days. State the invariant the code
+          actually enforces (every delete path requires sync_status='SYNCED'),
+          which is the stronger and more useful promise anyway. */}
       <Text style={[styles.description, { color: theme.colors.textSecondary }]}>
         Manage your local storage and sync preferences. Cleanup never removes
-        data newer than 45 days.
+        work that has not synced yet, and never removes tasks newer than 45
+        days.
       </Text>
 
       {/* U3 (audit 2026-04-21 round 2): override static

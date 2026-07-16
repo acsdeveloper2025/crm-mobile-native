@@ -1,33 +1,11 @@
 import { DatabaseService } from '../database/DatabaseService';
 
 class DataCleanupRepositoryClass {
-  async listOldTerminalTaskIds(cutoffIso: string): Promise<string[]> {
-    const rows = await DatabaseService.query<{ id: string }>(
-      `SELECT id FROM tasks
-       WHERE (updated_at < ? OR completed_at < ?)
-       AND status IN ('COMPLETED', 'REVOKED')
-       AND sync_status = 'SYNCED'
-       AND NOT EXISTS (
-         SELECT 1 FROM attachments
-         WHERE task_id = tasks.id
-           AND sync_status != 'SYNCED'
-       )
-       AND NOT EXISTS (
-         SELECT 1 FROM form_submissions
-         WHERE task_id = tasks.id
-           AND sync_status != 'SYNCED'
-       )
-       AND NOT EXISTS (
-         SELECT 1 FROM sync_queue
-         WHERE entity_id = tasks.id
-            OR json_extract(payload_json, '$.localTaskId') = tasks.id
-            OR json_extract(payload_json, '$.taskId') = tasks.id
-            OR json_extract(payload_json, '$.visitId') = tasks.id
-       )`,
-      [cutoffIso, cutoffIso],
-    );
-    return rows.map(row => row.id);
-  }
+  // 2026-07-16: `listOldTerminalTaskIds` lived here with ZERO callers — a
+  // status-filtered (COMPLETED/REVOKED only) near-twin of the real
+  // `listOldTaskIdsHybrid` below. It read as the retention rule, so editing it
+  // to change cleanup behaviour silently does nothing. Deleted; the hybrid
+  // query is the only retention rule.
 
   /**
    * 2026-05-01 retention v2 (option 2C hybrid): list ALL tasks across all
@@ -38,12 +16,26 @@ class DataCleanupRepositoryClass {
    */
   async listOldTaskIdsHybrid(cutoffIso: string): Promise<string[]> {
     const rows = await DatabaseService.query<{ id: string }>(
+      // 2026-07-16 (owner rule): reap TERMINAL work only. This used to have no
+      // status filter, so a job ASSIGNED 46+ days ago that the agent had never
+      // done was deleted off the device — and because down-sync is incremental
+      // (`?lastSyncTimestamp=`), an unchanged task is never re-sent, so it
+      // never came back. The agent silently lost work they still owed, and the
+      // office was never told.
+      //
+      // Stale live work is now the SERVER's job: crm2 auto-revokes ASSIGNED /
+      // IN_PROGRESS past the window so a backend user can SEE it was
+      // auto-revoked and reassign. That lands here as REVOKED via down-sync
+      // and gets reaped by this same query. Until that ships, an old assigned
+      // task simply stays on the device — visible and workable, which is the
+      // safe failure.
       `SELECT id FROM tasks
        WHERE (
          (updated_at IS NOT NULL AND updated_at < ?)
          OR (completed_at IS NOT NULL AND completed_at < ?)
          OR (assigned_at IS NOT NULL AND assigned_at < ?)
        )
+       AND status IN ('SUBMITTED', 'COMPLETED', 'REVOKED')
        AND sync_status = 'SYNCED'
        AND NOT EXISTS (
          SELECT 1 FROM attachments
