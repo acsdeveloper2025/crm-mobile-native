@@ -22,6 +22,7 @@ import { Logger } from '../../utils/logger';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { TaskRepository } from '../../repositories/TaskRepository';
+import { toFieldStatus } from '../../utils/fieldStatus';
 import { SyncTasksUseCase } from '../../usecases/SyncTasksUseCase';
 import { AutoSubmitSavedTasksUseCase } from '../../usecases/AutoSubmitSavedTasksUseCase';
 import { DashboardProjection } from '../../projections/DashboardProjection';
@@ -109,10 +110,16 @@ export const DashboardScreen = () => {
           : '';
         items.push({
           id: row.id,
-          text: `${taskLabel} - ${row.customerName} - ${row.status.replace(
-            '_',
-            ' ',
-          )}${when}`,
+          // 2026-07-17: normalise at the DISPLAY boundary, like every other
+          // agent-facing surface. This rendered `row.status` RAW, so Recent
+          // Activity printed "... - COMPLETED" — the office's sign-off, which
+          // the agent takes no part in and must never be shown
+          // (utils/fieldStatus.ts). Found on-device: 93 of this agent's 97
+          // tasks are COMPLETED in the DB, so the feed was full of it while
+          // the cards and tabs correctly said SUBMITTED.
+          text: `${taskLabel} - ${row.customerName} - ${toFieldStatus(
+            row.status,
+          ).replace('_', ' ')}${when}`,
         });
       }
 
