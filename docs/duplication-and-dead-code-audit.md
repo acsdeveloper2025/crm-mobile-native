@@ -15,8 +15,9 @@ and was discarded), then per-candidate proof via `grep -rn` across `.ts`/`.tsx` 
 blind in one step.
 
 Baseline: knip reported **6 unused files, 42 unused exports, 108 unused types**. After this pass:
-**1 unused file** (held for an owner decision), 35 unused exports (mostly redundant `export default`
-lines beside a named export, plus knip false-positives on in-file-only symbols).
+**0 unused files**, and the remaining "unused exports" are almost entirely knip false-positives —
+redundant `export default` lines beside a named export every caller already uses, plus in-file-only
+symbols. A tool's verdict is a starting point, not a finding.
 
 ---
 
@@ -82,14 +83,14 @@ Revert-verified: removing the M1 guard **fails** the suite.
 
 | | rule | used by |
 |---|---|---|
-| **strict** | `isCountableAttachment` — only `PENDING`/`UPLOADING`/`SYNCED` | form screen, self-heal, `FormSubmissionService` |
+| **strict** | `isCountableEvidence` — only `PENDING`/`UPLOADING`/`SYNCED` | form screen, self-heal, `FormSubmissionService` |
 | **loose** | `listForSubmission` — `component_type IN ('photo','selfie')`, **no status filter** | `SubmitVerificationUseCase` |
 
 5 photos with one `SKIPPED` was **incomplete** to the screen and **submittable** to the use case — and
 the `SKIPPED` id still shipped in `attachmentIds`, pointing at a file that can never upload. The screen
 path masked it (`FormSubmissionService` rejects first); **auto-submit calls the use case directly**.
 
-**Fix:** `SubmitVerificationUseCase` filters through the same `isCountableAttachment`. Chosen over
+**Fix:** `SubmitVerificationUseCase` filters through the same `isCountableEvidence`. Chosen over
 adding `AND sync_status IN (...)` to the SQL, which would re-type the status set in a second language —
 the exact disease.
 
@@ -98,9 +99,9 @@ written `PENDING` (insert default), `SYNCED`, or `SKIPPED`.
 `UPLOADING`/`FAILED` are **never** written to an attachment (`FormRepository`'s `FAILED` is
 `form_submissions`). So there is no retryable-`FAILED` photo to lose.
 
-**Check:** new `npm run contract:attachment-countable` — 7 checks. Revert-verified: letting `SKIPPED`
-count fails 3 of them. The predicate was split into `utils/attachmentCountable.ts` (dependency-free)
-because `attachmentCount.ts` imports the repository → op-sqlite → **cannot load in the contract
+**Check:** new `npm run contract:evidence-countable` — 7 checks. Revert-verified: letting `SKIPPED`
+count fails 3 of them. The predicate was split into `utils/evidenceCountable.ts` (dependency-free)
+because `evidenceCount.ts` imports the repository → op-sqlite → **cannot load in the contract
 harness**. Pure logic must be extractable to be testable.
 
 ## 3. UNIFIED — two attachment reapers; the laxer one deleted evidence rows (**was live**)
@@ -125,7 +126,8 @@ the photos sit safe on the server.
 **Fix:** `cleanupSyncedData` now calls `DataCleanupService.cleanupOldAttachmentFiles(daysOld)` — the one
 reaper. Unlinking the **files** is what frees the disk; the rows are bytes.
 `MaintenanceRepository.listSyncedAttachmentsOlderThan` + `deleteAttachmentById` deleted with their only
-caller.
+caller. (A THIRD copy of this same rule — `deleteSyncedForTask`, dead and drifted the same way — is in
+§14.)
 
 Note the narrowing is deliberate: a row can be `SYNCED` with `backend_attachment_id` NULL
 (`backend_attachment_id = COALESCE(?, backend_attachment_id)` — the upload response may carry no id).
@@ -226,10 +228,34 @@ and the only `requiredAttachments` gate (`cases/service.ts:504`) is reachable **
 `field_review.complete` — a permission FIELD_AGENT never holds. Reverse direction is clean too: no agent
 evidence is excluded by admin-doc confusion.
 
-⚠️ **Coverage gap, stated honestly:** the agent auditing crm2's `case_attachments` **`kind`-filter surface
-died on an API error**. The `attachmentsForDeviceTask` result above came via another finder. **The
-exhaustive "every reader filters `kind`" sweep did not complete** and should be re-run before anyone
-treats that surface as fully audited.
+### The crm2 `kind`-filter sweep (re-run — the first attempt died on an API error)
+
+Now complete. **Every reader of `case_attachments` filters `kind` except one**, and that one is a real
+hole. ~25 call sites checked across repositories, services, MIS, KYC, exports, the report snapshot and
+the migrations. The CASE-000024 fix is confirmed present (`attachmentsForDeviceTask` carries
+`AND ca.kind = 'OFFICE_REF'`), and every `photo_type` read sits inside a `kind='FIELD_PHOTO'` query.
+
+> 🔴 **`DELETE /api/v2/cases/:id/attachments/:attachmentId` can destroy frozen field evidence.**
+> `cases/repository.ts:1870` (`attachmentForAccess`) has **no kind predicate** and serves **two**
+> callers: the presigned-URL route (kind-blind **by design** — the web Field Photos card fetches images
+> through it) and the **soft-delete** route. So a `case.create` holder can enumerate photo ids from
+> `GET /cases/:id/field-photos` and delete them through the *docs* endpoint — **bypassing the SUBMITTED
+> freeze** the device path enforces (`deletableFieldPhotoForDeviceTask` requires
+> `ct.status IN ('ASSIGNED','IN_PROGRESS')`). The photo vanishes from the Field Photos card, the zip and
+> the case report. Not UI-reachable (no delete button is rendered for a photo) — an **API-level** hole,
+> with **zero test coverage** for a FIELD_PHOTO id on that route. Same path also orphans the photo's
+> `thumbnail_key` (it selects only `storage_key`).
+> **UNCERTAIN on intent, not behaviour:** `service.ts:331` calls the device delete *"DPDP-erasure parity
+> with the admin path"*, which may mean an admin is *meant* to erase a photo. **Owner call:** if yes, the
+> path still needs its own status/permission gate + thumbnail purge (it has neither); if no, add
+> `AND ca.kind = 'OFFICE_REF'` to `attachmentForAccess` and split a separate reader for the URL route.
+
+> **MIS "Field Photos" counts soft-deleted photos.** `mis/reportTypes.ts:326` filters `kind` but omits
+> `AND a.deleted_at IS NULL`, which every other reader carries — so MIS over-reports whenever an agent
+> dropped a bad capture pre-submit, and disagrees with both the report's own `totals.photoCount` and the
+> Field Photos card.
+
+Both are **crm2**, not mobile, and land on a frozen surface — recorded here, not actioned.
 
 ### Fixed — names that lied
 
@@ -246,10 +272,10 @@ treats that surface as fully audited.
 - **`componentType: 'photo' | 'selfie' | 'document'`** → `'photo' | 'selfie'`. `'document'` **never had a
   writer** — a dead third value that made the table look like it stores documents.
 
-Deliberately **not** renamed: the physical `attachments` table (honest name: `captures`) — ~35 raw-SQL
-sites across 10 files over a live SQLCipher DB holding real agent evidence. The honest name is recorded in
-the schema comment instead. Recommended next, cheap and mechanical: `AttachmentRepository` →
-`CaptureRepository` (11 call sites, 5 files) — it already leaks the truth by naming its own rows `photos`.
+`AttachmentRepository` → **`CaptureRepository`** (done — see §15). Deliberately **not** renamed: the
+physical `attachments` table (honest name: `captures`) — ~35 raw-SQL sites across 10 files over a live
+SQLCipher DB holding real agent evidence. That one needs a migration; the honest name is recorded in the
+schema comment instead.
 
 ## 9. LIVE — `DB_VERSION` trailed the last migration; **fresh installs broke**
 
@@ -280,59 +306,167 @@ plus uniqueness, contiguity, and — generalising the trap — that **no pending
 
 ---
 
+## 10. UNIFIED — SUBMITTED is the field executive's final status
+
+**Owner rule (2026-07-17):** *the field agent does not complete tasks — that is the back-office
+executive's work. They only submit, and neither see nor act on completion.* So **SUBMITTED is their
+final status**, and any UI gated on `status === 'COMPLETED'` is gated on **a status the device never
+writes** (it only arrives via down-sync at sign-off). `TaskCard` was corrected for ADR-0047; nothing
+else was, and each copy drifted its own way:
+
+- **`TaskDetailScreen`** — the sync banner **and the Resubmit button** both sat behind
+  `task.status === 'COMPLETED'`, so they were unreachable for the entire submit→sign-off window,
+  i.e. **exactly when a DLQ'd submission needs resubmitting**. By the time COMPLETED arrives the
+  submission has obviously reached the server, so the banner could only ever say "synced". Meanwhile
+  `TaskCard` shows the red "Pending Upload" badge and its comment says the agent sees the failure
+  *"unless they tap into TaskDetailScreen"* — **the documented escape hatch was a dead end.**
+- **`TaskTimeline`** (rendered to the agent) showed a green **"Completed"** row. Deleted — the agent's
+  timeline ends at Submitted. Its "Submitted" row also tested `status === 'SUBMITTED'`, so it
+  **blanked when the office signed off**: the agent watched their own entry vanish and a completion
+  they had no part in light up instead. "In Progress" tested `IN_PROGRESS || COMPLETED || SAVED` —
+  omitting SUBMITTED (so it blanked too) and testing `SAVED`, which is **never written to
+  `tasks.status`**; it now reads the `inProgressAt` stamp. **Total Duration** read `completedAt || now`,
+  so it **ticked upward while the agent waited on the office** — inflating their number with
+  back-office turnaround — then froze at sign-off; it now stops when they submit.
+- **A "Completed" tab** in `FILTER_TABS` + a "Completed Tasks" copy block. Invisible (all four
+  wrappers lock the filter, nothing passes `filter='COMPLETED'`) but **armed**: unlock the bar and it
+  appears.
+
+**Fix:** one `isFieldSubmitted` predicate in `utils/fieldStatus.ts` (true for SUBMITTED *and* the
+office's COMPLETED), imported by `TaskCard`, `TaskDetailScreen`, `TaskTimeline` and `TaskListScreen`
+(which held two more re-typed copies). All dead `COMPLETED` arms removed — including two
+`fieldStatus !== 'COMPLETED'` guards that were **always true and hid nothing** (the `!isReadOnly`
+wrapper already enforced what they claimed to).
+**Check:** `contract:field-status` 5 → **9 checks**; reverting to the old `=== 'COMPLETED'` test fails it.
+
+## 11. UNIFIED — the dashboard "Saved" count vs the tab badge
+
+`saved_count` read `is_saved = 1 AND status != 'COMPLETED'`; the JS copy feeding the badge
+(`TaskListProjection.getCounts`) skips revoked rows **and** excludes SUBMITTED. **Reachable:** save a
+draft → office revokes → down-sync binds `is_revoked=1` while the resolver preserves the local status
+⇒ `is_revoked=1, is_saved=1, status=IN_PROGRESS`. Dashboard said **"Saved: 1"**, badge said **0**, tab
+was **empty** — the agent tapping a card that leads nowhere. The JS copy was right.
+
+SQL and JS cannot share an implementation, so both sides now point at each other, and the SQL moved to
+`projections/dashboardCountsSql.ts` (dependency-free) so it can be tested.
+**Check:** new `contract:dashboard-counts` runs the **real query against real SQLite** over the **real**
+`CREATE TABLE`, via the actual `dashboard_projection` INSERT (so positional column order is exercised).
+Nothing re-types the rule. Reverting `saved_count` fails 2 checks with the production symptom.
+
+## 12. UNIFIED — "is this revoked?" answered two ways (**was live**)
+
+`SyncDownloadService` bound `is_revoked` from `task.isRevoked`, but read `justRevoked` — which gates
+the B-148 wipe of local photos/drafts — off the **conflict-resolved status**. The resolver preserves the
+local status whenever anything is queued, so an office revoke arriving with queued work wrote
+`is_revoked=1` **and** `status='IN_PROGRESS'`. That row is **invisible** to every list (they filter
+`is_revoked`) **and unreapable** by retention (which needs a terminal status) — its photos and drafts
+stay on the device **forever**, defeating B-145's "a reassign forces fresh re-capture" — and the wipe
+never fired.
+
+On the wire these are **one fact**: crm2 derives `isRevoked` from `status === 'REVOKED'`. New
+`sync/taskRevoked.ts` is the single predicate, called by both readers; the resolver now lets a server
+revoke through (its own PENDING branch already treated REVOKED as authoritative — the drift was *inside
+one file*). **Check:** `contract:task-revoked`, 6 checks, revert-verified.
+
+## 13. FIXED — the autosave path (two bugs, both pre-existing)
+
+`SaveDraftUseCase` is the write path behind **every** autosave debounce, unmount and background flush:
+- it read through the **async projection**, so the merge could fold the patch into a stale/empty blob
+  and **silently drop the agent's earlier answers** (bug 37/39, which `AutoSubmitSavedTasksUseCase`
+  explicitly bypasses — this path never got it);
+- it read `task.status` and passed it to `updateFormData`, which writes `status = ?` unconditionally, so
+  **a revoke landing mid-save was overwritten with a stale IN_PROGRESS**, resurrecting a REVOKED task —
+  precisely the hazard `unsaveIncompleteDraft` was built to dodge.
+
+New `TaskRepository.saveDraftFormData` takes **no status**: the only legal transition
+(ASSIGNED → IN_PROGRESS) is decided **inside the UPDATE**. Verified against real SQLite over the real
+schema: ASSIGNED → IN_PROGRESS (stamping `in_progress_at`), while IN_PROGRESS / REVOKED / SUBMITTED /
+COMPLETED are all preserved and the data still saves.
+
+`useFormAutosave` awaited the task write **then** the backup in one `try`, so a task-write failure
+skipped the backup — it failed to exist in the exact case it exists for. Both hot paths now use
+`Promise.allSettled`. The unreachable "use whichever draft is newer" branch is deleted: `savedDraft`
+**is** `formData`, and `persistAutoSave` stores the timestamp on the **envelope** that
+`getAutoSavedForm` throws away; both sides also read `__autosave.timestamp`, **a key nothing ever
+writes**. Not worth reviving — both copies go through the **same SQLite connection**, so the backup can
+never meaningfully be the newer one. **The store copy is KEPT**: it is the real fallback when the task
+blob is absent (one earlier recommendation to delete it was wrong).
+
+## 14. DEAD — more armed twins
+
+- **`AttachmentRepository.deleteSyncedForTask` + `listSyncedForTask`** — 0 callers, and a **drifted**
+  twin of the live rule: filtered `SYNCED` alone (no `backend_attachment_id` guard) and **hard-deleted
+  the row**. Wiring it up would have destroyed evidence the server never confirmed.
+- **`CameraService.getPhotosForTask`** — 0 callers.
+- **`utils/mapSqliteTask`** — claimed to map snake_case → camelCase; its body reassigned 8 fields **to
+  themselves** (`isRevoked: isRevoked`) — an **identity function**, and all 5 call sites cast `as never`
+  so the type boundary checked nothing either. Deleted, with the explanation moved to
+  `DatabaseService.normalizeRow`, where camelization actually happens.
+
+## 15. Names that lie — fixed
+
+- **`AttachmentRepository` → `CaptureRepository`** (19 refs, 7 files). It holds **zero attachments**;
+  every method handles the agent's captures. It leaked the truth itself — `deleteSyncedForTask` named
+  its own rows `photos`; `CameraService` wrapped `listForTask` as `getPhotosForTask`.
+- **`LocalAttachment.syncStatus`** said `'PENDING' | 'UPLOADING' | 'SYNCED' | 'FAILED'`. Verified
+  against every writer: **UPLOADING and FAILED are never written to an attachment**, while **SKIPPED**
+  — the one status meaning "not evidence" — **was missing entirely**. Typing it honestly immediately
+  found dead UI: `PhotoGallery` disabled its delete button on `syncStatus === 'UPLOADING'`, a guard
+  that was **always false**.
+- Still **not** renamed: the physical `attachments` table (honest name `captures`) — needs a migration
+  over live SQLCipher evidence.
+
+---
+
 ## OPEN — needs an owner decision
 
-1. **`services/PinningConfigService.ts` (142 LOC) — born dead, and its runbook is fiction.**
-   The commit that added it ("consumes backend pinning kill switch") wired nothing; `git log -S` finds no
-   commit that ever did. Actual pinning is enforced natively (`network_security_config.xml`,
-   `NSPinnedDomains`). But `docs/ssl-pinning.md` gives operators an emergency cert-rotation bypass
-   (`export MOBILE_PINNING_ENABLED=false` + `pm2 restart crm-backend`) where **every link is absent**:
-   nothing in crm2 reads that env var, `/auth/app-config` does not exist server-side, the app never calls
-   it, and `pm2 restart` is v1-era ops (crm2 is Docker blue-green on AWS). **An operator following that
-   runbook mid-outage would change nothing and believe they had.**
-   → Either **wire it** (build the endpoint, consult it before requests) or **delete the service + the
-   orphan `pinning?` field in `types/api.ts:321` + the bypass section of the doc together**. Deleting the
-   file alone leaves the misleading runbook standing. *Not actioned — this is a security kill switch.*
+> **RESOLVED since first draft** — kept here as the record of what was decided and why.
+>
+> 1. ~~**SSL-pinning kill switch**~~ → **DELETED, deliberately not wired.** A remote kill switch is not
+>    possible: pinning is enforced by the **OS network stack** from build-time config (Android
+>    `<pin-set>`, iOS `NSPinnedDomains`) — the handshake fails **before any JS runs**, so no flag can
+>    override it (`apiClient.ts`: *"App-level code requires no changes"*). The old doc conceded the
+>    contradiction itself — *"the native pinning layer stays active, but ... request code routes around
+>    it"* — and there is nothing to route around it with. Wiring it would mean moving enforcement **into
+>    JS**: a permanent downgrade buying a **remotely-controlled TLS downgrade** for anyone who compromised
+>    the backend or DNS. It also solved a problem that no longer exists — both platforms now pin the
+>    **ROOT CA** (Amazon Root CA 1 → 2038, ISRG Root X1 → 2035), which survives leaf rotation with no new
+>    release (the 2026-07-05 change made after a *leaf* pin bricked prod on 2026-07-04). The two-pin
+>    overlap is the real safety mechanism. Service + orphan `pinning?` type + the doc's bypass section all
+>    removed together; `check:ssl-pins` still passes and verifies the **live** chain.
+> 2. ~~**`clearAutoSave`**~~ → **deleted** (zero consumers) and its comment corrected. It claimed
+>    "FormUploader deletes it only after successful backend sync"; FormUploader deletes nothing and says
+>    the opposite — the autosave is deliberately **kept** so a rejected submission can be resubmitted. The
+>    retention gap is recorded below, not silently changed.
+> 3. ~~**Version drift**~~ → `package.json` + `gradle.properties` reconciled to **1.0.81**, and the dead
+>    *"10000+minor scheme"* comment deleted (CI uses `date +%s`).
+> 4. ~~**`FCM_PRIORITIES`**~~ → **unified.** `FcmPriority` is exported from the tuple and replaces all ten
+>    hand-typed copies (including the second tuple, `ALLOWED_PRIORITIES`). The socket's raw field is now
+>    plain `string` — it was written as the union `| string`, which TypeScript collapses to `string`
+>    anyway: a constraint that documented itself and enforced nothing.
 
-2. **`clearAutoSave` is dead and its comment lies (DPDP retention).**
-   Zero callers. `SubmitVerificationUseCase.ts:373` claims *"FormUploader deletes it only after successful
-   backend sync"* — `FormUploader` contains **no** autosave deletion (`grep` over `src/sync/` finds none).
-   → **My earlier "PII persists indefinitely" claim was WRONG and is retracted**: a 45-day auto-reap does
-   exist (`DataCleanupRepository.ts:38` via `AuthContext` → `initializeAutoCleanup`). Retention is
-   genuinely unbounded **only for tasks that never reach a terminal SYNCED state** (an abandoned
-   ASSIGNED/IN_PROGRESS task keeps its autosaved names/family/employment/GPS forever).
-   → Decide: wire deletion into FormUploader's ack path (one line, where the comment already claims it),
-   or delete the dead function and own retention elsewhere.
+1. **Auto-save retention is unbounded for non-terminal tasks (DPDP).**
+   What actually reaps an auto-save blob: `deleteTaskGraph` (auto, daily) — but only once the **task** is
+   terminal + synced and past **45 days**; or the **7-day** `key_value_store` purge, which **no scheduler
+   calls** (it needs a manual "Erase Details" tap). So a task that never reaches a terminal synced state
+   — an abandoned ASSIGNED/IN_PROGRESS one — keeps its autosaved names, family, employment and GPS
+   **forever**. *(My earlier "PII persists indefinitely" claim in general was **wrong and is retracted**:
+   for terminal tasks the 45-day reap does exist.)*
+   → Owner call: schedule the 7-day purge, or accept and document.
 
-3. **Version numbers: `package.json` + `gradle.properties` say `1.0.73`; last release was `v1.0.81`.**
-   No runtime bug on the normal path — CI derives the version from the git tag. **But**
-   `VERSION_NAME="${RELEASE_TAG#v}"` is a no-op on a tag without the `v` prefix, so CI falls back to
-   `package.json` → a tag like `1.0.82` would ship bytes **labelled 1.0.73**.
-   Also `gradle.properties:51` documents a *"10000+minor scheme (1.0.73 → 10073)"* that CI ignores —
-   it sets `VERSION_CODE="$(date +%s)"`. The comment and the checked-in `versionCode=10073` are both
-   fiction.
-   → Reconcile both files to the real version and delete the dead scheme comment.
-
-4. **`FCM_PRIORITIES` — dead constant, 10 live hand-typed copies.**
-   The `as const` tuple (`fcm.schema.ts:45`) is unreferenced while the same 5-member set is re-typed
-   inline across `MobileSocketService` (incl. a full second tuple, `ALLOWED_PRIORITIES` at `:322`),
-   `NotificationRepository` and `NotificationService`. **Values agree today — no drift yet.**
-   → Either delete the tuple, or export `type FcmPriority = (typeof FCM_PRIORITIES)[number]` and replace
-   the copies. Deferred: it is the only finding here with real duplication cost but zero current drift.
-
-5. **`CURRENT_PRIVACY_POLICY_VERSION = 2` has a hand-typed prose twin.**
+2. **`CURRENT_PRIVACY_POLICY_VERSION = 2` has a hand-typed prose twin.**
    `constants/fieldExecutiveAcknowledgement.ts:11` renders *"Policy version: 2"* to the user.
    Currently agree; coupling is a comment, not a constraint. A consent-version mismatch already caused a
    production logout loop (mig 0117).
 
-6. **`crm2/docs/plans/2026-07-16-mobile-save-button-validation-kickoff.md:44,99-101` still points the next
+3. **`crm2/docs/plans/2026-07-16-mobile-save-button-validation-kickoff.md:44,99-101` still points the next
    implementer at the trap** — it suggests sourcing the photo bar from `requiredAttachments`. The impact is
    the **opposite** of what was assumed: all 9 FIELD verification units have `required_attachments='[]'`, so
    `requiredDocs = 0` — following the doc makes the gate a **no-op**, reinstating the original
    incomplete-form bug *with template-read legitimacy*. `requiredAttachments` has zero mobile consumers.
    → Amend the doc.
 
-7. **Device submit has no server-side evidence gate.** `verification-tasks/service.ts:202` (`submitForm`,
+4. **Device submit has no server-side evidence gate.** `verification-tasks/service.ts:202` (`submitForm`,
    the path the app uses) evaluates zero requirements; `submitTaskByDevice` guards status only. The 5+1
    rule is **client-enforced** — a stale APK or a direct HTTP call submits with zero photos. This is *why*
    the owner's rule is structurally safe, but it means the DB-CHECKed `required_photos >= 5` invariant is
@@ -340,36 +474,34 @@ plus uniqueness, contiguity, and — generalising the trap — that **no pending
    zero runtime readers, and its floor of 5 agrees with mobile's `MIN_VERIFICATION_PHOTOS = 5` **by
    coincidence**; nothing links them.
 
-8. **Known-open, verified, not yet fixed** (each real, each a separate diff):
-   - **`SaveDraftUseCase` reads the async projection** (`getTaskById` → `task_detail_projection`) — the
-     staleness `AutoSubmitSavedTasksUseCase` explicitly bypasses for bugs 37/39. It writes `task.status`
-     back unconditionally, so a remote revoke landing during a pending 300 ms autosave can **resurrect a
-     REVOKED task as IN_PROGRESS**.
-   - **The autosave pair**: `useFormAutosave` awaits the DB write *then* the store write, so a DB failure
-     writes **neither** (only on the debounce/`flushNow` paths — unmount/background fire both
-     independently). And `getAutoSavedForm` **strips the timestamp**, so the "use whichever draft is
-     newer" branch is unreachable — the DB copy always wins. *Do not simply delete the store copy: it is
-     the real fallback when the DB copy is missing.*
-   - **`TaskDetailScreen` tests `task.status === 'COMPLETED'`** (`:105`, `:715`) — a status **the device
-     never writes**. So the sync banner **and the Resubmit button** are unreachable for a SUBMITTED task,
-     while `TaskCard` correctly shows red "Pending Upload" and tells the agent to *"tap into
-     TaskDetailScreen"*. The documented escape hatch for a DLQ'd submission is a dead end. `TaskCard` is
-     right.
-   - **Dashboard "Saved" count vs the Saved-tab badge** disagree on a reachable row (revoked + saved):
-     the dashboard SQL lacks the `is_revoked` guard and the SUBMITTED exclusion the JS copy has. Dashboard
-     says *Saved: 1*, badge says *0*, tab is empty.
-   - **`SyncDownloadService` answers "is this revoked?" two ways 25 lines apart** (`:633` payload flag vs
-     `:657` merged status) — the disagreeing row is invisible **and** unreapable, so its photos and drafts
-     stay on disk forever.
-   - **`DataCleanupManager.tsx:35-41`** describes the retention rule *"NO status filter … every case"* —
-     the filter was **added the same day** (`5f515d6`). The destructive-confirm dialog now documents
-     behaviour that no longer exists.
-   - **`TaskTimeline.tsx:105-113`** renders a literal **"Completed"** row to the agent, bypassing
-     `toFieldStatus` — whose stated owner rule is that COMPLETED "must never reach their eyes."
+5. **The auto-save envelope is write-only.** `persistAutoSave` stores a `timestamp` that
+   `getAutoSavedForm` throws away (it returns `local.formData`). Harmless now — the "newer wins" branch
+   that read it is deleted, and the rule is simply "the DB copy, else the backup" — but the write is
+   still pointless. Left as-is: removing it changes a stored shape for no gain.
+
+6. **`TaskListCounts.COMPLETED` is now unread.** The projection still tallies the office-signed-off
+   subset correctly and documents it; nothing consumes it since the Completed tab went. Repository data,
+   not agent UI — left alone rather than rippling the interface.
 
 ---
 
 ## Retractions (claims that did not survive verification)
+
+Also retracted, from later in the audit:
+
+- ~~"gate vs payload are different contracts, leave `listForSubmission` alone"~~ — **two agents
+  contradicted each other** on this. Settled by enumerating **every writer** of
+  `attachments.sync_status` rather than picking a side: only PENDING / SYNCED / SKIPPED are ever
+  written, so there is no retryable-`FAILED` photo the filter could drop, and a SKIPPED row's file is
+  gone from disk — shipping its id is a dangling reference. Filtering is correct.
+- ~~"delete the auto-save store copy entirely"~~ — **wrong**: it is the real fallback when the task blob
+  is absent. Only the unreachable "newer wins" branch was dead.
+- ~~"`FILTER_TABS`'s Completed chip never renders, so the array is dead"~~ — the *chip* never renders
+  (all four wrappers lock the filter), but `FILTER_TABS` is **also** the lookup resolving the active tab
+  from route params. Only the COMPLETED **entry** was removed.
+- ~~"the `DataCleanupManager` note contradicts itself about 45 days"~~ — it conflated **two** windows:
+  45 days for TASKS, 7 days for auto-save BACKUPS. The user-facing claim was true of tasks; only the
+  code comment was wrong.
 
 Recorded deliberately — each was believed at some point in this audit and proved false:
 
