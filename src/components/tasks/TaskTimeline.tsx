@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { LocalTask } from '../../types/mobile';
+import { isFieldSubmitted } from '../../utils/fieldStatus';
 import { useTheme } from '../../context/ThemeContext';
 import Icon from 'react-native-vector-icons/Ionicons';
 
@@ -73,13 +74,14 @@ export const TaskTimeline: React.FC<TaskTimelineProps> = ({
         description: 'Case was assigned to you',
       },
       {
+        // 2026-07-17: read the in-progress STAMP rather than re-deriving it from
+        // status. The status test listed IN_PROGRESS || COMPLETED || SAVED — it
+        // omitted SUBMITTED, so this row went blank the moment the agent
+        // submitted, and 'SAVED' is never written to tasks.status at all (it is
+        // only a filter/tab value). `inProgressAt` is what actually records it,
+        // and is what TaskCard already uses.
         label: 'In Progress',
-        timestamp:
-          task.status === 'IN_PROGRESS' ||
-          task.status === 'COMPLETED' ||
-          task.status === 'SAVED'
-            ? task.updatedAt
-            : undefined,
+        timestamp: task.inProgressAt || undefined,
         icon: 'rocket-outline',
         colorName: 'warning', // fallback to warning color
         description: 'Case moved to in-progress status',
@@ -92,25 +94,25 @@ export const TaskTimeline: React.FC<TaskTimelineProps> = ({
         description: 'Case data was last updated',
       },
       {
-        // ADR-0047: SUBMITTED is the field terminal (office completes later).
+        // SUBMITTED is the field executive's FINAL state (owner rule, ADR-0047).
+        // Gate on isFieldSubmitted, not `status === 'SUBMITTED'`: the office
+        // later flips the row to COMPLETED, and the old test then blanked this
+        // row — the agent watched their own "Submitted" entry disappear and a
+        // "Completed" one they had no part in light up instead.
         // LocalTask has no submittedAt column (no migration), so fall back to
-        // updatedAt when the task is currently SUBMITTED.
+        // updatedAt.
         label: 'Submitted',
-        timestamp:
-          task.status === 'SUBMITTED' ? task.updatedAt : undefined,
+        timestamp: isFieldSubmitted(task.status) ? task.updatedAt : undefined,
         icon: 'cloud-upload-outline',
         colorName: 'submitted',
-        description: 'Case was submitted for office completion',
+        description: 'Case was submitted to the office',
       },
-      {
-        label: 'Completed',
-        timestamp:
-          task.completedAt ||
-          (task.status === 'COMPLETED' ? task.updatedAt : undefined),
-        icon: 'checkmark-circle-outline',
-        colorName: 'success',
-        description: 'Case was marked as complete',
-      },
+      // 2026-07-17: the 'Completed' row is GONE. Completion is the back-office
+      // executive's work: the agent does not do it, cannot act on it, and has no
+      // Completed tab — so it must never reach their eyes (utils/fieldStatus.ts).
+      // This row lit up green off `completedAt` the moment the office signed off,
+      // which is exactly the status the rest of the app is careful to hide. The
+      // agent's timeline ends at Submitted.
     ];
 
     // Filter out events that don't have timestamps (except for assigned which should always exist)
@@ -299,9 +301,21 @@ export const TaskTimeline: React.FC<TaskTimelineProps> = ({
             Total Duration:
           </Text>
           <Text style={[styles.summaryValue, { color: theme.colors.text }]}>
+            {/*
+             * 2026-07-17: the agent's clock stops when THEY submit. This read
+             * `task.completedAt || now`, which was wrong in both directions:
+             * for a submitted task completedAt is null, so the duration kept
+             * ticking up while the agent waited on the office — inflating their
+             * number with back-office turnaround they do not control — and then
+             * froze once the office signed off, leaking the completion the rest
+             * of the app hides. LocalTask has no submittedAt column, so
+             * updatedAt is the stand-in (same source as the Submitted row).
+             */}
             {calculateDuration(
               task.assignedAt,
-              task.completedAt || new Date().toISOString(),
+              isFieldSubmitted(task.status)
+                ? task.updatedAt
+                : new Date().toISOString(),
             )}
           </Text>
         </View>

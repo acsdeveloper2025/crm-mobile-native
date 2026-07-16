@@ -20,7 +20,7 @@ import { TaskTimeline } from '../../components/tasks/TaskTimeline';
 import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
 import { FormRepository } from '../../repositories/FormRepository';
 import { Logger } from '../../utils/logger';
-import { toFieldStatus } from '../../utils/fieldStatus';
+import { isFieldSubmitted, toFieldStatus } from '../../utils/fieldStatus';
 import { SyncService } from '../../services/SyncService';
 import { notificationService } from '../../services/NotificationService';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
@@ -102,7 +102,9 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
   };
 
   useEffect(() => {
-    if (task?.status === 'COMPLETED' && task?.id) {
+    // 2026-07-17: was `task?.status === 'COMPLETED'` — a status the device
+    // never writes, so submissionSync never loaded for a just-submitted task.
+    if (isFieldSubmitted(task?.status) && task?.id) {
       // H14 (audit 2026-04-21): was .catch(() => {}) — silent. Log
       // the failure so a broken sync-status read doesn't leave the
       // UI in a stale "unknown" state without any record.
@@ -119,6 +121,10 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
   }, [task?.status, task?.id]);
 
   // Helper to map status to UI colors
+  // Takes a FIELD status — the only call site passes toFieldStatus(task.status),
+  // so COMPLETED can never arrive here. The old `case 'COMPLETED'` arm was dead,
+  // and had it ever fired it would have shown the agent a green completion pill
+  // for back-office work they take no part in. 2026-07-17.
   const getStatusColor = (status: string) => {
     if (!status) return theme.colors.textMuted;
     switch (status.toUpperCase()) {
@@ -128,8 +134,6 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
         return theme.colors.warning;
       case 'SUBMITTED':
         return theme.colors.submitted;
-      case 'COMPLETED':
-        return theme.colors.success;
       default:
         return theme.colors.textMuted;
     }
@@ -712,7 +716,15 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
             </TouchableOpacity>
           )}
 
-          {task.status === 'COMPLETED' && (
+          {/*
+           * 2026-07-17: gate on the FIELD-terminal set, not `status ===
+           * 'COMPLETED'`. The device never writes COMPLETED, so this block —
+           * the sync banner AND the Resubmit button — was unreachable for the
+           * whole submit-to-sign-off window, i.e. exactly when a DLQ'd
+           * submission needs resubmitting. TaskCard shows the red "Pending
+           * Upload" badge and points the agent here; this made that a dead end.
+           */}
+          {isFieldSubmitted(task.status) && (
             <View>
               {/* Sync Status Banner */}
               {submissionSync?.syncStatus === 'SYNCED' ? (

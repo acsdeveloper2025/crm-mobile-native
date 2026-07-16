@@ -14,7 +14,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
-import { toFieldStatus } from '../../utils/fieldStatus';
+import { isFieldSubmitted, toFieldStatus } from '../../utils/fieldStatus';
 
 interface TaskCardProps {
   task: LocalTask;
@@ -86,6 +86,11 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
     ]).start();
   }, [fadeAnim, slideAnim, reduceMotion]);
 
+  // Both take a FIELD status (they are only ever called with `fieldStatus`), so
+  // there is no COMPLETED case: toFieldStatus already mapped it to SUBMITTED.
+  // The old `case 'COMPLETED'` arms returned success/completed green and were
+  // unreachable — if one ever did fire it would paint the agent a completion
+  // pill, which is the very thing the field rule forbids. 2026-07-17.
   const getStatusColor = (status: string) => {
     if (!status) return theme.colors.textMuted;
     switch (status.toUpperCase()) {
@@ -95,8 +100,6 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         return theme.colors.warning;
       case 'SUBMITTED':
         return theme.colors.submitted;
-      case 'COMPLETED':
-        return theme.colors.success;
       default:
         return theme.colors.textMuted;
     }
@@ -110,8 +113,6 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         return theme.colors.inProgress;
       case 'SUBMITTED':
         return theme.colors.submitted;
-      case 'COMPLETED':
-        return theme.colors.completed;
       default:
         return theme.colors.border;
     }
@@ -157,13 +158,11 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
   };
 
   // Field-executive terminal states: a SAVED task is complete + awaiting submit
-  // (tap routes to the Submit dialog, not the form) and SUBMITTED is the field
-  // agent's done state. Both are read-only — no Accept/Revoke/Info/Attachments.
-  // (COMPLETED has no field tab, kept defensively.)
-  const isReadOnly =
-    task.isSaved === 1 ||
-    fieldStatus === 'SUBMITTED' ||
-    fieldStatus === 'COMPLETED';
+  // (tap routes to the Submit dialog, not the form), and SUBMITTED is the field
+  // agent's done state — their FINAL one. Completion is back-office work the
+  // agent never does, so `isFieldSubmitted` covers the office's COMPLETED too.
+  // Both are read-only — no Accept/Revoke/Info/Attachments.
+  const isReadOnly = task.isSaved === 1 || isFieldSubmitted(task.status);
 
   return (
     <AnimatedTouchableOpacity
@@ -176,8 +175,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         },
         (fieldStatus === 'ASSIGNED' ||
           fieldStatus === 'IN_PROGRESS' ||
-          fieldStatus === 'SUBMITTED' ||
-          fieldStatus === 'COMPLETED') &&
+          fieldStatus === 'SUBMITTED') &&
           styles.cardStatusAccent,
         { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
       ]}
@@ -216,8 +214,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
          * to a successfully synced one — agent never sees the failure
          * unless they tap into TaskDetailScreen.
          */}
-        {(fieldStatus === 'COMPLETED' || fieldStatus === 'SUBMITTED') &&
-          task.syncStatus !== 'SYNCED' && (
+        {isFieldSubmitted(task.status) && task.syncStatus !== 'SYNCED' && (
             <View
               style={[
                 styles.savedBadge,
@@ -407,70 +404,72 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
                 </TouchableOpacity>
               )}
 
-            {/* 2026-05-03: hide Info button on COMPLETED tasks (same UX
-              rationale as Attachments below — once submitted the task is
-              read-only and the Info detail page adds no value). Keep on
-              ASSIGNED / IN_PROGRESS / SAVED / REVOKED. */}
-            {fieldStatus !== 'COMPLETED' && (
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() => onInfoPress?.(task)}
-                accessibilityRole="button"
-                accessibilityLabel="Task info"
+            {/* 2026-05-03: hide the Info button once the task is done — it is
+              read-only and the Info detail page adds no value. Keep on
+              ASSIGNED / IN_PROGRESS / REVOKED.
+              2026-07-17: this was `fieldStatus !== 'COMPLETED'`, which is always
+              true (toFieldStatus never yields COMPLETED) — it hid nothing. The
+              rule it meant is already enforced by the `!isReadOnly` wrapper
+              above, which covers SAVED and SUBMITTED, so the dead test is gone
+              rather than "repaired" into a second copy of that rule. */}
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => onInfoPress?.(task)}
+              accessibilityRole="button"
+              accessibilityLabel="Task info"
+            >
+              <Icon
+                name="information-circle"
+                size={32}
+                color={theme.colors.info || '#3b82f6'}
+              />
+              <Text
+                style={[
+                  styles.actionLabel,
+                  { color: theme.colors.info || '#3b82f6' },
+                ]}
               >
-                <Icon
-                  name="information-circle"
-                  size={32}
-                  color={theme.colors.info || '#3b82f6'}
-                />
-                <Text
+                Info
+              </Text>
+            </TouchableOpacity>
+
+            {/* UX (2026-04-21): hide the Attachments button once the agent is
+              done — the verification is closed and the admin reference docs are
+              no longer relevant to them. Keep it on ASSIGNED / IN_PROGRESS /
+              REVOKED so they can reference docs while work is ongoing.
+              2026-07-17: same dead test as Info above — `fieldStatus !==
+              'COMPLETED'` never hid anything. The `!isReadOnly` wrapper already
+              enforces it. (`attachmentCount` here is the ADMIN doc count, not
+              the agent's photos — see the note in src/database/schema.ts.) */}
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() =>
+                onAttachmentsPress ? onAttachmentsPress(task) : onPress(task)
+              }
+              accessibilityRole="button"
+              accessibilityLabel={
+                (task.attachmentCount || 0) > 0
+                  ? `Attachments (${task.attachmentCount})`
+                  : 'Attachments'
+              }
+            >
+              <Icon name="attach" size={28} color={theme.colors.primary} />
+              {(task.attachmentCount || 0) > 0 && (
+                <View
                   style={[
-                    styles.actionLabel,
-                    { color: theme.colors.info || '#3b82f6' },
+                    styles.badgeContainer,
+                    { backgroundColor: theme.colors.danger },
                   ]}
                 >
-                  Info
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* UX (2026-04-21): hide the Attachments button on COMPLETED
-              tasks — once the agent submits, the verification is closed
-              and the attached documents are no longer relevant to the
-              field-app user. Keep the button on ASSIGNED / IN_PROGRESS /
-              SAVED / REVOKED so the agent can still reference docs
-              while work is ongoing. */}
-            {fieldStatus !== 'COMPLETED' && (
-              <TouchableOpacity
-                style={styles.iconButton}
-                onPress={() =>
-                  onAttachmentsPress ? onAttachmentsPress(task) : onPress(task)
-                }
-                accessibilityRole="button"
-                accessibilityLabel={
-                  (task.attachmentCount || 0) > 0
-                    ? `Attachments (${task.attachmentCount})`
-                    : 'Attachments'
-                }
+                  <Text style={styles.badgeText}>{task.attachmentCount}</Text>
+                </View>
+              )}
+              <Text
+                style={[styles.actionLabel, { color: theme.colors.primary }]}
               >
-                <Icon name="attach" size={28} color={theme.colors.primary} />
-                {(task.attachmentCount || 0) > 0 && (
-                  <View
-                    style={[
-                      styles.badgeContainer,
-                      { backgroundColor: theme.colors.danger },
-                    ]}
-                  >
-                    <Text style={styles.badgeText}>{task.attachmentCount}</Text>
-                  </View>
-                )}
-                <Text
-                  style={[styles.actionLabel, { color: theme.colors.primary }]}
-                >
-                  Attachments
-                </Text>
-              </TouchableOpacity>
-            )}
+                Attachments
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.statusBadgeContainer}>
