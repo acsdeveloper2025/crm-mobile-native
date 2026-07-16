@@ -107,6 +107,29 @@ done <<<"$PINS"
 # unresolvable anchor (no CA bundle) with no served-chain match WARNs (can't be
 # sure); only a fully-resolved chain that matches NO pin FAILS. Set
 # SKIP_SSL_PIN_LIVE=1 to skip entirely (offline dev).
+#
+# 2026-07-17 — WHY THE ANCHOR-ONLY MATCH IS NOT ENOUGH (this check PASSED while
+# v1.0.82's staging APK could not connect at all):
+#
+# "Reconstruct the verified chain" above resolves the ISSUER of the last served
+# cert and counts a pin that matches it. That models ONE of the paths a client
+# might build — the longest one. It is not the path every client builds.
+#
+# Staging serves:  leaf <- YE1 <- ISRG Root YE <- ISRG Root X2 (cross-signed by X1)
+# The last served cert (X2) is itself a ROOT. So:
+#   * a device that trusts X2       -> path STOPS at X2; X1 is never in the chain
+#   * a device that does not        -> path follows the cross-sign up to X1
+# This script's openssl took the second path, resolved X1, matched the X1 pin,
+# and printed ✅ — while a real phone took the first path and rejected the
+# connection ("Unable to reach server"). A green gate over a bricked app.
+#
+# The safe rule: pin something in the INTERSECTION of every possible verified
+# chain. The SERVED certs are that intersection — they are sent on the wire and
+# are in the chain however the client terminates it. So a pin matching a SERVED
+# cert is definitive; a pin matching ONLY a resolved anchor above a served ROOT
+# is not, and is now reported as a failure telling you to pin the served root
+# instead. (Anchor resolution is still honoured when the top served cert is an
+# INTERMEDIATE — there the client genuinely must supply the root itself.)
 LIVE_NOTE="live match SKIPPED (SKIP_SSL_PIN_LIVE)"
 if [[ "${SKIP_SSL_PIN_LIVE:-0}" != "1" ]]; then
   # `|| true`: grep exits 1 on no match; under `set -o pipefail` that would abort
@@ -163,28 +186,67 @@ def anchor(top_issuer):  # SPKI of the trust-store root that issued the top serv
             return spki(cb)
     return None
 
+
+def is_known_root(subject):
+    """Is this served cert a PUBLIC ROOT a device might trust directly?
+
+    A cross-signed root (e.g. ISRG Root X2 signed by ISRG Root X1) is NOT
+    self-signed, so `issuer == subject` misses it — yet a device that carries
+    that root will still stop the path there and never see the cross-signer.
+    Detect it by asking whether the subject appears as a trusted root in the
+    local CA bundle. Conservative: unknown -> treated as an intermediate.
+    """
+    if not ca_bundle:
+        return False
+    data = open(ca_bundle, 'rb').read().decode('utf-8', 'ignore')
+    for c in re.findall(r'-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----', data, re.S):
+        cb = c.encode()
+        if field(cb, '-subject') == subject:
+            return True
+    return False
+
 fail = False
 for h in HOSTS:
     certs = served(h)
     if certs is None:
         print(f"   ⚠️  {h}: unreachable — skipped (not a failure)")
         continue
-    verified = {spki(c.encode()) for c in certs}
+    # SERVED certs = the intersection of every verified chain the client can
+    # build. A pin here holds no matter where the client terminates the path.
+    served_spkis = {spki(c.encode()) for c in certs}
     top = certs[-1].encode()
     top_issuer, top_subject = field(top, '-issuer'), field(top, '-subject')
-    a = None
-    if top_issuer != top_subject:            # root not self-sent -> resolve anchor
-        a = anchor(top_issuer)
-        if a:
-            verified.add(a)
-    if pinned & verified:
-        print(f"   ✅ {h}: a pinned SPKI is in the verified chain")
+    top_is_root = top_issuer == top_subject or is_known_root(top_subject)
+
+    if pinned & served_spkis:
+        print(f"   ✅ {h}: a pinned SPKI is in the SERVED chain "
+              f"(holds however the device builds the path)")
+        continue
+
+    # No served match. The only hope is an anchor ABOVE the last served cert.
+    a = anchor(top_issuer) if top_issuer != top_subject else None
+
+    if a and a in pinned and top_is_root:
+        # The v1.0.82 staging bug, caught. The top served cert is itself a root
+        # (cross-signed), so a device trusting it stops there and never reaches
+        # the pinned cross-signer.
+        print(f"   ❌ {h}: the only pin match is {a[:16]}…, the CROSS-SIGNER above "
+              f"a served ROOT — devices that trust that root directly will REJECT "
+              f"the connection.")
+        print(f"      Pin the served root instead. Served SPKIs (top last): "
+              f"{[spki(c.encode()) for c in certs]}")
+        fail = True
+    elif a and a in pinned:
+        # Top served cert is an INTERMEDIATE: every client must supply the root
+        # from its own store, so the anchor really is in every chain.
+        print(f"   ✅ {h}: a pinned SPKI is the trust anchor above the served "
+              f"intermediate chain")
     elif a is None and top_issuer != top_subject:
         print(f"   ⚠️  {h}: no pin in the served chain and anchor unresolved "
-              f"(no CA bundle?) — can't confirm; served SPKIs: {sorted(verified)}")
+              f"(no CA bundle?) — can't confirm; served SPKIs: {sorted(served_spkis)}")
     else:
-        print(f"   ❌ {h}: NONE of the pinned SPKIs match the verified chain")
-        print(f"      verified chain SPKIs: {sorted(verified)}")
+        print(f"   ❌ {h}: NONE of the pinned SPKIs match the served chain")
+        print(f"      served chain SPKIs: {sorted(served_spkis)}")
         fail = True
 sys.exit(1 if fail else 0)
 PY

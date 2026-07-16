@@ -62,9 +62,30 @@
             <certificates src="system" />
         </trust-anchors>
         <pin-set expiration="2028-12-31">
-            <!-- Prod: Amazon Root CA 1 (AWS ACM anchor, valid to 2038) -->
+            <!-- Prod: Amazon Root CA 1 (AWS ACM anchor, valid to 2038).
+                 SERVED directly by prod, so every device has it in the chain
+                 no matter how it builds the path. -->
             <pin digest="SHA-256">++MBgDH5WGvL9Bcn5Be30cRcL0f5O+NyoXuWtQdX1aI=</pin>
-            <!-- Staging: ISRG Root X1 (Let's Encrypt anchor, valid to 2035) -->
+
+            <!-- Staging: ISRG Root X2 (valid to 2035).
+                 2026-07-17 — THIS PIN IS WHY STAGING WORKS. Let's Encrypt now
+                 issues staging's leaf under the ECDSA hierarchy:
+                   leaf ← YE1 ← ISRG Root YE ← ISRG Root X2 (cross-signed by X1)
+                 The device decides where that path STOPS:
+                   * trusts X2 directly  -> chain ends at X2. X1 is NEVER in the
+                     chain, so pinning X1 alone REJECTS the connection.
+                   * doesn't trust X2    -> follows the cross-sign up to X1, and
+                     X1 IS in the chain, so pinning X1 alone happens to work.
+                 That is exactly the split we shipped in v1.0.82: it worked on an
+                 API-36 emulator and failed on a real phone with "Unable to reach
+                 server". X2 is in BOTH paths, so pin X2 — not the cross-signer
+                 above it. Keep X1 below as the second pin (rotation invariant,
+                 and it covers the older path). -->
+            <pin digest="SHA-256">diGVwiVYbubAI3RW4hB9xU8e/CH2GnkuvVFZE8zmgzI=</pin>
+
+            <!-- Staging fallback: ISRG Root X1 (valid to 2035) — the cross-signer
+                 above X2. Only present in the chain on devices that do not trust
+                 X2; harmless where they do. -->
             <pin digest="SHA-256">C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=</pin>
         </pin-set>
     </domain-config>

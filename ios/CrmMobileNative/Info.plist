@@ -70,7 +70,21 @@
 						<string>++MBgDH5WGvL9Bcn5Be30cRcL0f5O+NyoXuWtQdX1aI=</string>
 					</dict>
 					<dict>
-						<!-- Staging: ISRG Root X1 (Let's Encrypt anchor, valid to 2035) -->
+						<!-- Staging: ISRG Root X2 (valid to 2035). 2026-07-17 — mirrors
+						     the Android pin-set. Let's Encrypt issues staging's leaf as
+						     leaf <- YE1 <- ISRG Root YE <- ISRG Root X2 (cross-signed by
+						     X1). A device that trusts X2 ends the chain THERE and never
+						     sees X1, so pinning X1 alone rejects the connection; a device
+						     that doesn't trust X2 follows the cross-sign to X1 and works.
+						     X2 is in both paths — pin it, not the cross-signer above it.
+						     v1.0.82 shipped with X1 only and failed on a real phone. -->
+						<key>SPKI-SHA256-BASE64</key>
+						<string>diGVwiVYbubAI3RW4hB9xU8e/CH2GnkuvVFZE8zmgzI=</string>
+					</dict>
+					<dict>
+						<!-- Staging fallback: ISRG Root X1 (valid to 2035) — the
+						     cross-signer above X2, only in the chain on devices that do
+						     not trust X2. Keeps the two-pin rotation invariant. -->
 						<key>SPKI-SHA256-BASE64</key>
 						<string>C5+lpZ7tcVwmwQIMcRtPbsQtWLABXhQzejna0wHFr8M=</string>
 					</dict>
