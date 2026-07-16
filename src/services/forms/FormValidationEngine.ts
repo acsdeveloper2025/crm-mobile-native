@@ -1,4 +1,8 @@
-import type { FormFieldCondition, FormTemplate } from '../../types/api';
+import type {
+  FormFieldCondition,
+  FormFieldTemplate,
+  FormTemplate,
+} from '../../types/api';
 
 // 2026-07-16: single source of truth for the evidence minimums. Previously
 // hard-coded independently in VerificationFormScreen (UI badges),
@@ -65,6 +69,47 @@ export const evaluateFieldCondition = (
   }
 };
 
+// 2026-07-17: THE visibility rule. A conditional may be a single condition or
+// an array (AND-combined). Absent — or an EMPTY array — means "no gating", so
+// the section/field is visible.
+//
+// Bug 82 (2026-05-07) taught the array half; DynamicFormBuilder applied it to
+// fields but never to sections, so a section with an array conditional stayed
+// permanently visible there while this engine hid it. One definition, both
+// callers.
+export const conditionsMet = (
+  cond: FormFieldCondition | FormFieldCondition[] | undefined,
+  values: Record<string, unknown>,
+): boolean => {
+  if (!cond) return true;
+  const list = Array.isArray(cond) ? cond : [cond];
+  if (list.length === 0) return true;
+  return list.every(c => evaluateFieldCondition(c, values));
+};
+
+// 2026-07-17: THE required rule — `field.required`, or a fully-met
+// `requiredWhen`.
+//
+// NOTE the deliberate asymmetry with `conditionsMet`: an empty `conditional`
+// array means "no gating → VISIBLE", but an empty `requiredWhen` array must
+// mean "NOT required". Same shape, opposite default. `[].every()` is true, so
+// sharing one helper here would silently mark every such field mandatory —
+// that is M1 (audit 2026-04-21). DynamicFormBuilder carried the M1 guard and
+// this engine did not, so the UI drew no asterisk while Save/Submit demanded
+// the field: a form that looks finished and can never be saved.
+export const isFieldRequired = (
+  field: FormFieldTemplate,
+  values: Record<string, unknown>,
+): boolean => {
+  if (field.required) return true;
+  if (!field.requiredWhen) return false;
+  const list = Array.isArray(field.requiredWhen)
+    ? field.requiredWhen
+    : [field.requiredWhen];
+  if (list.length === 0) return false;
+  return list.every(c => evaluateFieldCondition(c, values));
+};
+
 export const validateTemplateRequiredFields = (
   currentTemplate: FormTemplate,
   values: Record<string, unknown>,
@@ -85,43 +130,24 @@ export const validateTemplateRequiredFields = (
     fieldType === 'radio' ||
     fieldType === 'multiselect';
 
-  // Bug 82 (2026-05-07): conditional may be a single FormFieldCondition OR
-  // an array (AND-combined, mirrors requiredWhen contract). Empty array means
-  // "no extra gating".
-  const conditionVisible = (
-    cond: FormFieldCondition | FormFieldCondition[] | undefined,
-  ): boolean => {
-    if (!cond) return true;
-    const list = Array.isArray(cond) ? cond : [cond];
-    if (list.length === 0) return true;
-    return list.every(c => evaluateFieldCondition(c, values));
-  };
-
   for (const section of currentTemplate.sections) {
-    if (!conditionVisible(section.conditional)) {
+    if (!conditionsMet(section.conditional, values)) {
       continue;
     }
 
     for (const field of section.fields) {
-      if (!conditionVisible(field.conditional)) {
+      if (!conditionsMet(field.conditional, values)) {
         continue;
       }
 
-      const requiredByDefault = Boolean(field.required);
-      const requiredWhen = Array.isArray(field.requiredWhen)
-        ? field.requiredWhen.every(condition =>
-            evaluateFieldCondition(condition, values),
-          )
-        : field.requiredWhen
-        ? evaluateFieldCondition(field.requiredWhen, values)
-        : false;
+      const required = isFieldRequired(field, values);
 
       const valueKey = field.name || field.id;
       const value = values[valueKey];
-      if (requiredByDefault || requiredWhen) {
+      if (required) {
         requiredKeys.push(valueKey);
       }
-      if ((requiredByDefault || requiredWhen) && isEmptyFieldValue(value)) {
+      if (required && isEmptyFieldValue(value)) {
         missingFields.push(field.label);
         missingKeys.push(valueKey);
         continue;

@@ -12,11 +12,13 @@
 // pure engine under test).
 
 import {
+  conditionsMet,
   evaluateFormCompleteness,
+  isFieldRequired,
   MIN_VERIFICATION_PHOTOS,
   MIN_SELFIE_PHOTOS,
 } from './FormValidationEngine.ts';
-import type { FormTemplate } from '../../types/api';
+import type { FormFieldTemplate, FormTemplate } from '../../types/api';
 
 // The RN tsconfig's `types` is jest-only (no @types/node), so declare the one
 // Node global we use — mirrors src/sync/runWithTimeout.contract.test.ts.
@@ -126,6 +128,69 @@ check('requiredWhen triggered + blank => blocks; filled => complete', () => {
 check('null template (no outcome / unknown type) => incomplete', () => {
   const r = evaluateFormCompleteness(null, completeValues, PHOTOS, SELFIES);
   assert(!r.isComplete, 'null template must be incomplete');
+});
+
+// --- conditionsMet / isFieldRequired: the rules DynamicFormBuilder used to
+// re-type. It rendered the form while this engine gated Save/Submit, so any
+// disagreement is a form the agent can see but never finish. 2026-07-17.
+
+const cond = (field: string, value: unknown) =>
+  ({ field, operator: 'equals', value } as never);
+
+check('conditionsMet: absent conditional => visible', () => {
+  assert(conditionsMet(undefined, {}), 'undefined conditional must be visible');
+});
+
+check('conditionsMet: single condition honours met/unmet', () => {
+  assert(conditionsMet(cond('a', 'X'), { a: 'X' }), 'met => visible');
+  assert(!conditionsMet(cond('a', 'X'), { a: 'Y' }), 'unmet => hidden');
+});
+
+check('conditionsMet: ARRAY conditional is AND-combined (bug 82)', () => {
+  const both = [cond('a', 'X'), cond('b', 'Y')] as never;
+  assert(conditionsMet(both, { a: 'X', b: 'Y' }), 'all met => visible');
+  assert(!conditionsMet(both, { a: 'X', b: 'Z' }), 'one unmet => hidden');
+});
+
+check('conditionsMet: EMPTY array => visible (no gating)', () => {
+  // DynamicFormBuilder applied this to fields but never to sections, so a
+  // section with an array conditional stayed visible there while the engine
+  // hid it. Both now route here.
+  assert(conditionsMet([] as never, {}), 'empty conditional must not gate');
+});
+
+check('isFieldRequired: field.required wins regardless of values', () => {
+  const f = { id: 'x', name: 'x', required: true } as unknown as FormFieldTemplate;
+  assert(isFieldRequired(f, {}), 'required:true must be required');
+});
+
+check('isFieldRequired: requiredWhen met => required, unmet => optional', () => {
+  const f = {
+    id: 'x', name: 'x', required: false, requiredWhen: cond('a', 'X'),
+  } as unknown as FormFieldTemplate;
+  assert(isFieldRequired(f, { a: 'X' }), 'met requiredWhen => required');
+  assert(!isFieldRequired(f, { a: 'Y' }), 'unmet requiredWhen => optional');
+});
+
+check('isFieldRequired: EMPTY requiredWhen[] => NOT required (M1)', () => {
+  // The asymmetry that caused the drift: `[].every()` is true, so an empty
+  // requiredWhen would silently mark the field mandatory — the UI draws no
+  // asterisk while Save/Submit demand it, and the form can never be saved.
+  // Empty `conditional` means "no gating"; empty `requiredWhen` means "not
+  // required". Same shape, OPPOSITE default — never share one helper.
+  const f = {
+    id: 'x', name: 'x', label: 'Optional', type: 'text',
+    required: false, requiredWhen: [],
+  } as unknown as FormFieldTemplate;
+  assert(!isFieldRequired(f, {}), 'empty requiredWhen[] must NOT require');
+
+  // ...and the same through the real walk Save/Submit call.
+  const t = {
+    sections: [{ id: 's', title: 'S', fields: [f] }],
+  } as unknown as FormTemplate;
+  const r = evaluateFormCompleteness(t, {}, PHOTOS, SELFIES);
+  assert(r.isComplete, `empty requiredWhen[] blocked Save: ${r.missingFields.join(',')}`);
+  assert(r.requiredCount === 0, `requiredCount=${r.requiredCount}, expected 0`);
 });
 
 if (failures.length > 0) {

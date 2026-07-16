@@ -4,102 +4,13 @@ import type { ScrollView } from 'react-native';
 import { DynamicFieldRenderer } from './DynamicFieldRenderer';
 import { useTheme } from '../../context/ThemeContext';
 import { Logger } from '../../utils/logger';
-import type {
-  FormTemplate,
-  FormSectionTemplate,
-  FormFieldTemplate,
-} from '../../types/api';
-
-const toArray = (value: unknown): unknown[] =>
-  Array.isArray(value) ? value : [value];
-
-const isEmptyFieldValue = (value: unknown): boolean => {
-  if (value === null || value === undefined) return true;
-  if (typeof value === 'string') return value.trim() === '';
-  if (Array.isArray(value)) return value.length === 0;
-  return false;
-};
-
-const evaluateCondition = (
-  condition: any,
-  values: Record<string, unknown>,
-): boolean => {
-  const actualValue = values[condition.field];
-  const expectedValue = condition.value;
-
-  switch (condition.operator) {
-    case 'equals':
-      return actualValue === expectedValue;
-    case 'notEquals':
-      return actualValue !== expectedValue;
-    case 'contains':
-      if (Array.isArray(actualValue))
-        return actualValue.includes(expectedValue);
-      return String(actualValue ?? '').includes(String(expectedValue ?? ''));
-    case 'notContains':
-      if (Array.isArray(actualValue))
-        return !actualValue.includes(expectedValue);
-      return !String(actualValue ?? '').includes(String(expectedValue ?? ''));
-    case 'greaterThan':
-      return Number(actualValue) > Number(expectedValue);
-    case 'lessThan':
-      return Number(actualValue) < Number(expectedValue);
-    case 'in':
-      return toArray(expectedValue).includes(actualValue);
-    case 'notIn':
-      return !toArray(expectedValue).includes(actualValue);
-    case 'isTruthy':
-      return !isEmptyFieldValue(actualValue) && !!actualValue;
-    case 'isFalsy':
-      return isEmptyFieldValue(actualValue) || !actualValue;
-    default:
-      return true;
-  }
-};
-
-const isSectionVisible = (
-  section: FormSectionTemplate,
-  values: Record<string, unknown>,
-): boolean => {
-  if (!section.conditional) return true;
-  return evaluateCondition(section.conditional, values);
-};
-
-const isFieldVisible = (
-  field: FormFieldTemplate,
-  values: Record<string, unknown>,
-): boolean => {
-  if (!field.conditional) return true;
-  // Bug 82 (2026-05-07): support array conditional (AND-combined),
-  // mirrors isFieldRequired contract at L80-93. Empty array means
-  // "no extra gating" → visible.
-  const conditions = Array.isArray(field.conditional)
-    ? field.conditional
-    : [field.conditional];
-  if (conditions.length === 0) return true;
-  return conditions.every(condition => evaluateCondition(condition, values));
-};
-
-const isFieldRequired = (
-  field: FormFieldTemplate,
-  values: Record<string, unknown>,
-): boolean => {
-  const alwaysRequired = Boolean(field.required);
-  if (!field.requiredWhen) return alwaysRequired;
-
-  const conditions = Array.isArray(field.requiredWhen)
-    ? field.requiredWhen
-    : [field.requiredWhen];
-  // M1 (audit 2026-04-21): `Array.prototype.every` returns true on an
-  // empty array. An empty `requiredWhen` array (template authoring
-  // quirk) would therefore mark every field required. Short-circuit
-  // to the plain `alwaysRequired` flag when there are no conditions.
-  if (conditions.length === 0) return alwaysRequired;
-  const requiredByCondition = conditions.every(condition =>
-    evaluateCondition(condition, values),
-  );
-  return alwaysRequired || requiredByCondition;
-};
+// The visibility/required rules live with the validator that Save and Submit
+// gate on. Re-typing them here is what let this screen and the engine drift.
+import {
+  conditionsMet,
+  isFieldRequired,
+} from '../../services/forms/FormValidationEngine';
+import type { FormTemplate, FormSectionTemplate } from '../../types/api';
 
 export interface DynamicFormBuilderProps {
   template: FormTemplate | null;
@@ -198,7 +109,7 @@ export const DynamicFormBuilder = forwardRef<
 
     return (Array.isArray(template.sections) ? template.sections : [])
       .filter((section: FormSectionTemplate) =>
-        isSectionVisible(section, formValues),
+        conditionsMet(section.conditional, formValues),
       )
       .map((section: FormSectionTemplate, index: number) => {
         const sectionKey =
@@ -206,7 +117,7 @@ export const DynamicFormBuilder = forwardRef<
         const visibleFields = (
           Array.isArray(section.fields) ? section.fields : []
         )
-          .filter(field => isFieldVisible(field, formValues))
+          .filter(field => conditionsMet(field.conditional, formValues))
           .map(field => {
             // Use field.name as the canonical key for form values. Fall back to
             // field.id only if name is absent. This ensures consistent mapping
