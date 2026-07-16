@@ -19,6 +19,7 @@ import { TaskDetailSkeleton } from '../../components/ui/Skeleton';
 import { TaskTimeline } from '../../components/tasks/TaskTimeline';
 import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
 import { FormRepository } from '../../repositories/FormRepository';
+import { countUnuploadedEvidence } from '../../utils/evidenceCount';
 import { Logger } from '../../utils/logger';
 import { isFieldSubmitted, toFieldStatus } from '../../utils/fieldStatus';
 import { SyncService } from '../../services/SyncService';
@@ -38,6 +39,9 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
     syncStatus: string;
     syncError?: string;
   } | null>(null);
+  // Captures that have not reached the server (no backend_attachment_id). A
+  // synced FORM does not mean a complete SUBMISSION — see the loader below.
+  const [unuploadedEvidence, setUnuploadedEvidence] = useState(0);
   // Phase 3.2 (2026-05-04): WhatsApp-style task mute. Read once on mount,
   // toggle via mute/unmute API. Backend's getScopedNotificationRows
   // filter silences the bell on the next refresh; mute is online-only
@@ -114,6 +118,33 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
           Logger.warn(
             'TaskDetailScreen',
             `Failed to load submission sync status for task ${task.id}`,
+            err,
+          );
+        });
+
+      // 2026-07-17 (owner rule): "Resubmit only shows if any data is missing —
+      // fields or photo capture."
+      //
+      // A synced FORM does not mean the server has the SUBMISSION. Photos
+      // enqueue at capture and the form enqueues at submit, both at the same
+      // priority, so they are ordered only by created_at — and a photo whose
+      // upload FAILS gets a next_retry_at backoff and is SKIPPED by the
+      // dequeue, while the form (PENDING) uploads anyway.
+      // FormUploader.resolveBackendAttachmentIds then ships only the photos
+      // that happen to be SYNCED (and, with none, the LOCAL uuids the server
+      // cannot resolve). The server acks, the form goes SYNCED, and the agent
+      // is told "Submitted to Server" while the case has a partial photo set —
+      // which is what breaks report generation, the web template and the
+      // reverse-geocode (it reads the photos' GPS).
+      //
+      // The device can see this: a capture that has not reached the server has
+      // no backend_attachment_id. Count those, and treat them as missing data.
+      countUnuploadedEvidence(task.id)
+        .then(setUnuploadedEvidence)
+        .catch(err => {
+          Logger.warn(
+            'TaskDetailScreen',
+            `Failed to count unuploaded evidence for task ${task.id}`,
             err,
           );
         });
@@ -211,16 +242,28 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
         // (handleStartVisit → ASSIGNED, handleFillForm → IN_PROGRESS), and
         // TaskListScreen routes a submitted tap to this detail view instead.
         //
-        // It fired on a FALSE premise, too: reaching here means no FAILED queue
-        // item exists, which after a fresh install / re-login / a submit from
-        // another device is simply "this device has no local record" — not
-        // "the server never got it". The server plainly has it: we only render
-        // this block when isFieldSubmitted(task.status), and that status came
-        // from down-sync.
-        Alert.alert(
-          'Already Submitted',
-          'This task was submitted and the office has it. There is nothing on this device left to upload.',
-        );
+        // Nothing is FAILED. Captures may still be PENDING though — those are
+        // not re-queued above (that query matches status='FAILED'), they just
+        // need a sync to carry them up. Run one and re-check rather than
+        // guessing.
+        await SyncService.performSync();
+        const stillMissing = await countUnuploadedEvidence(task.id);
+        if (isMountedRef.current) {
+          setUnuploadedEvidence(stillMissing);
+        }
+        if (stillMissing > 0) {
+          Alert.alert(
+            'Upload Incomplete',
+            `${stillMissing} photo${
+              stillMissing === 1 ? '' : 's'
+            } still have not reached the server. They will keep retrying while you are online — the office cannot generate the report until they arrive.`,
+          );
+        } else {
+          Alert.alert(
+            'Already Submitted',
+            'This task was submitted and the office has it. There is nothing on this device left to upload.',
+          );
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : JSON.stringify(err);
@@ -804,13 +847,46 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
                     Upload Failed
                   </Text>
                 </View>
+              ) : unuploadedEvidence > 0 ? (
+                /*
+                 * 2026-07-17 (owner rule): the FORM landed but photos did not.
+                 * Never call this "Submitted to Server" — the office has a
+                 * partial case, and report generation / the web template / the
+                 * reverse-geocode all fail on it. Say what is missing and leave
+                 * Resubmit available to push the captures up.
+                 */
+                <View
+                  style={[
+                    styles.completedBanner,
+                    {
+                      backgroundColor: theme.colors.warning + '15',
+                      borderColor: theme.colors.warning,
+                    },
+                  ]}
+                >
+                  <Icon
+                    name="cloud-upload-outline"
+                    size={24}
+                    color={theme.colors.warning}
+                  />
+                  <Text
+                    style={[
+                      styles.completedText,
+                      { color: theme.colors.warning },
+                    ]}
+                  >
+                    {unuploadedEvidence} photo
+                    {unuploadedEvidence === 1 ? '' : 's'} not uploaded
+                  </Text>
+                </View>
               ) : (
                 /*
-                 * 2026-07-17: no LOCAL submission row. This used to render a
-                 * grey "No Submission Found", which was simply untrue: we are
-                 * inside isFieldSubmitted(task.status), so the SERVER told us
-                 * this task is submitted (or the office has already completed
-                 * it). `form_submissions` is a device-local OUTBOX —
+                 * 2026-07-17: no LOCAL submission row, and every capture has a
+                 * server receipt. This used to render a grey "No Submission
+                 * Found", which was simply untrue: we are inside
+                 * isFieldSubmitted(task.status), so the SERVER told us this task
+                 * is submitted (or the office has already completed it).
+                 * `form_submissions` is a device-local OUTBOX —
                  * SyncDownloadService only ever DELETEs from it and never
                  * inserts — so it is empty for every task after a fresh
                  * install, a re-login, or a submit made on another device. An
@@ -843,15 +919,24 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
               )}
 
               {/*
-               * Resubmit ONLY when THIS DEVICE is holding a submission that has
-               * not reached the server. The old gate included `!submissionSync`
-               * — no local outbox row — which is the normal state after a fresh
-               * install or a submit from another device, so it offered Resubmit
-               * on work the office already had (93 of this agent's 97 tasks).
-               * The outbox can only ever tell us about a submission made HERE;
-               * absent means nothing to upload, not "the server missed it".
+               * Owner rule: "Resubmit only shows if any data is missing — fields
+               * or photo capture."
+               *
+               * So: this device is holding a FORM that has not reached the
+               * server, OR captures that have not (a synced form with stuck
+               * photos leaves the office a partial case — the exact thing that
+               * breaks the report/template/geocode downstream). Resubmit's
+               * re-queue matches FAILED queue items by localTaskId, and the
+               * ATTACHMENT payload carries it, so it pushes stuck photos too.
+               *
+               * NOT shown merely because `!submissionSync` — an empty local
+               * outbox is the normal state after a fresh install or a submit
+               * from another device. That arm offered Resubmit on work the
+               * office already had (93 of this agent's 97 tasks) and, worse,
+               * ended in an "open the form again" prompt.
                */}
-              {submissionSync && submissionSync.syncStatus !== 'SYNCED' && (
+              {((submissionSync && submissionSync.syncStatus !== 'SYNCED') ||
+                unuploadedEvidence > 0) && (
                 <TouchableOpacity
                   style={[
                     styles.primaryButton,
