@@ -20,6 +20,7 @@ import { TaskTimeline } from '../../components/tasks/TaskTimeline';
 import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
 import { FormRepository } from '../../repositories/FormRepository';
 import { Logger } from '../../utils/logger';
+import { toFieldStatus } from '../../utils/fieldStatus';
 import { SyncService } from '../../services/SyncService';
 import { notificationService } from '../../services/NotificationService';
 import type { RootStackParamList } from '../../navigation/RootNavigator';
@@ -348,13 +349,13 @@ export const TaskDetailScreen = ({ route, navigation }: Props) => {
               <View
                 style={[
                   styles.badge,
-                  { backgroundColor: getStatusColor(task.status) },
+                  { backgroundColor: getStatusColor(toFieldStatus(task.status)) },
                 ]}
               >
                 <Text
                   style={[styles.badgeText, { color: theme.colors.surface }]}
                 >
-                  {task.status.replace('_', ' ')}
+                  {toFieldStatus(task.status).replace('_', ' ')}
                 </Text>
               </View>
             </View>

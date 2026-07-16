@@ -14,6 +14,7 @@ import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../../context/ThemeContext';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { startVisitUseCase } from '../../usecases/StartVisitUseCase';
+import { toFieldStatus } from '../../utils/fieldStatus';
 
 interface TaskCardProps {
   task: LocalTask;
@@ -44,6 +45,14 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
   onMoveTask,
 }) => {
   const { theme } = useTheme();
+  // 2026-07-16 (owner rule): the agent's work ends at SUBMITTED. The office
+  // later flips the row to COMPLETED (ADR-0047) — a backend job field the
+  // agent never acts on and has no tab for. Normalise ONCE here, at the
+  // display boundary, and use `fieldStatus` for every pill, colour, timestamp
+  // and button rule below: a completed task must be indistinguishable from a
+  // submitted one, so the agent is never shown a status they can't act on.
+  // `task.status` keeps the true value for retention/sync — this is display.
+  const fieldStatus = toFieldStatus(task.status);
   // 2026-04-27 deep-audit fix (D12): respect OS-level Reduce Motion. Initial
   // values are set to the *final* state when reduce-motion is on, so the
   // card simply appears instead of fade+slide. The values are still Animated
@@ -114,16 +123,15 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
     }
     // ADR-0047: SUBMITTED is the field terminal. LocalTask has no submittedAt
     // column (no migration), so fall back to updatedAt for the display stamp.
-    if (task.status === 'SUBMITTED') {
+    // Office-completed rows land here too (toFieldStatus maps them), so the
+    // agent reads "Submitted on ..." and never a completion they don't own.
+    if (fieldStatus === 'SUBMITTED') {
       return `Submitted on ${new Date(task.updatedAt).toLocaleString()}`;
-    }
-    if (task.status === 'COMPLETED' && task.completedAt) {
-      return `Completed on ${new Date(task.completedAt).toLocaleString()}`;
     }
     if (task.isSaved && task.savedAt) {
       return `Saved on ${new Date(task.savedAt).toLocaleString()}`;
     }
-    if (task.status === 'IN_PROGRESS' && task.inProgressAt) {
+    if (fieldStatus === 'IN_PROGRESS' && task.inProgressAt) {
       return `Started on ${new Date(task.inProgressAt).toLocaleString()}`;
     }
     if (task.assignedAt) {
@@ -154,8 +162,8 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
   // (COMPLETED has no field tab, kept defensively.)
   const isReadOnly =
     task.isSaved === 1 ||
-    task.status === 'SUBMITTED' ||
-    task.status === 'COMPLETED';
+    fieldStatus === 'SUBMITTED' ||
+    fieldStatus === 'COMPLETED';
 
   return (
     <AnimatedTouchableOpacity
@@ -164,12 +172,12 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         {
           backgroundColor: theme.colors.surface,
           borderColor: theme.colors.border,
-          borderLeftColor: getCardAccentColor(task.status),
+          borderLeftColor: getCardAccentColor(fieldStatus),
         },
-        (task.status === 'ASSIGNED' ||
-          task.status === 'IN_PROGRESS' ||
-          task.status === 'SUBMITTED' ||
-          task.status === 'COMPLETED') &&
+        (fieldStatus === 'ASSIGNED' ||
+          fieldStatus === 'IN_PROGRESS' ||
+          fieldStatus === 'SUBMITTED' ||
+          fieldStatus === 'COMPLETED') &&
           styles.cardStatusAccent,
         { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
       ]}
@@ -208,7 +216,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
          * to a successfully synced one — agent never sees the failure
          * unless they tap into TaskDetailScreen.
          */}
-        {(task.status === 'COMPLETED' || task.status === 'SUBMITTED') &&
+        {(fieldStatus === 'COMPLETED' || fieldStatus === 'SUBMITTED') &&
           task.syncStatus !== 'SYNCED' && (
             <View
               style={[
@@ -235,11 +243,11 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
         <View
           style={[
             styles.badge,
-            { backgroundColor: getStatusColor(task.status) },
+            { backgroundColor: getStatusColor(fieldStatus) },
           ]}
         >
           <Text style={[styles.statusText, { color: theme.colors.surface }]}>
-            {task.status ? task.status.replace('_', ' ') : 'UNKNOWN'}
+            {fieldStatus ? fieldStatus.replace('_', ' ') : 'UNKNOWN'}
           </Text>
         </View>
       </View>
@@ -343,7 +351,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
       {!isReadOnly && (
         <View style={[styles.footer, { borderTopColor: theme.colors.border }]}>
           <View style={styles.actionButtons}>
-            {task.status === 'ASSIGNED' && task.isRevoked !== 1 && (
+            {fieldStatus === 'ASSIGNED' && task.isRevoked !== 1 && (
               <TouchableOpacity
                 style={styles.iconButton}
                 onPress={handleAccept}
@@ -378,7 +386,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
               discover wrong pincode / wrong area / not-relevant only
               AFTER tapping Start, so the action must remain available
               until COMPLETED. */}
-            {(task.status === 'ASSIGNED' || task.status === 'IN_PROGRESS') &&
+            {(fieldStatus === 'ASSIGNED' || fieldStatus === 'IN_PROGRESS') &&
               task.isRevoked !== 1 && (
                 <TouchableOpacity
                   style={styles.iconButton}
@@ -403,7 +411,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
               rationale as Attachments below — once submitted the task is
               read-only and the Info detail page adds no value). Keep on
               ASSIGNED / IN_PROGRESS / SAVED / REVOKED. */}
-            {task.status !== 'COMPLETED' && (
+            {fieldStatus !== 'COMPLETED' && (
               <TouchableOpacity
                 style={styles.iconButton}
                 onPress={() => onInfoPress?.(task)}
@@ -432,7 +440,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
               field-app user. Keep the button on ASSIGNED / IN_PROGRESS /
               SAVED / REVOKED so the agent can still reference docs
               while work is ongoing. */}
-            {task.status !== 'COMPLETED' && (
+            {fieldStatus !== 'COMPLETED' && (
               <TouchableOpacity
                 style={styles.iconButton}
                 onPress={() =>
@@ -514,7 +522,7 @@ const TaskCardComponent: React.FC<TaskCardProps> = ({
                 </TouchableOpacity>
               </View>
             )}
-            {task.status === 'IN_PROGRESS' && (
+            {fieldStatus === 'IN_PROGRESS' && (
               <Icon
                 name="chevron-forward"
                 size={20}

@@ -20,6 +20,7 @@
     "contract:form-completeness": "node --experimental-strip-types --no-warnings src/services/forms/formCompleteness.contract.test.ts",
     "contract:form-prune": "node --experimental-strip-types --no-warnings src/services/forms/formSubmissionPrune.contract.test.ts",
     "contract:relative-time": "node --experimental-strip-types --no-warnings src/utils/relativeTime.contract.test.ts",
+    "contract:field-status": "node --experimental-strip-types --no-warnings src/utils/fieldStatus.contract.test.ts",
     "check:ssl-pins": "bash scripts/check-ssl-pins.sh",
     "verify:ssl-pins-live": "bash scripts/verify-ssl-pins-live.sh",
     "prerelease": "npm run typecheck && npm run lint && npm run check:ssl-pins && npm run verify:ssl-pins-live",
