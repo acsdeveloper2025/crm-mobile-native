@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { v4 as uuidv4 } from 'uuid';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { useAuth } from '../../context/AuthContext';
 import { UppercaseTextInput } from '../../components/ui/UppercaseTextInput';
 import { ApiClient } from '../../api/apiClient';
@@ -42,6 +43,9 @@ export const LoginScreen = () => {
   const styles = React.useMemo(() => makeStyles(theme), [theme]);
   const [username, setUsername] = React.useState('');
   const [password, setPassword] = React.useState('');
+  // Owner-approved 2026-07-17: eye toggle reveals the typed password. Plain
+  // component state — never persisted, so a remount always starts hidden.
+  const [showPassword, setShowPassword] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState('');
   // Client-side rate limiting: track failed attempts with exponential backoff
@@ -547,19 +551,40 @@ export const LoginScreen = () => {
                       *
                     </Text>
                   </Text>
-                  <UppercaseTextInput
-                    name="password"
-                    uppercase={false}
-                    style={styles.input}
-                    placeholder="Enter your password"
-                    placeholderTextColor={theme.colors.textMuted}
-                    value={password}
-                    onChangeText={setPassword}
-                    secureTextEntry
-                    editable={!loading}
-                    testID="login-password-input"
-                    accessibilityLabel="Password input"
-                  />
+                  <View style={styles.passwordWrap}>
+                    <UppercaseTextInput
+                      name="password"
+                      uppercase={false}
+                      style={[styles.input, styles.passwordInput]}
+                      placeholder="Enter your password"
+                      placeholderTextColor={theme.colors.textMuted}
+                      value={password}
+                      onChangeText={setPassword}
+                      secureTextEntry={!showPassword}
+                      editable={!loading}
+                      testID="login-password-input"
+                      accessibilityLabel="Password input"
+                    />
+                    <TouchableOpacity
+                      style={styles.passwordToggle}
+                      onPress={() => setShowPassword(v => !v)}
+                      testID="login-password-toggle"
+                      accessibilityRole="button"
+                      accessibilityLabel={
+                        showPassword ? 'Hide password' : 'Show password'
+                      }
+                    >
+                      <Icon
+                        name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color={
+                          showPassword
+                            ? theme.colors.primary
+                            : theme.colors.textMuted
+                        }
+                      />
+                    </TouchableOpacity>
+                  </View>
                 </View>
 
                 <TouchableOpacity
@@ -688,6 +713,23 @@ const makeStyles = (theme: Theme) =>
       borderWidth: 1,
       borderColor: theme.colors.border,
       minHeight: 44,
+    },
+    // Eye toggle overlays the input's right edge — the input itself keeps its
+    // shared style; only extra right padding stops text running under the icon.
+    passwordWrap: {
+      position: 'relative',
+    },
+    passwordInput: {
+      paddingRight: 48,
+    },
+    passwordToggle: {
+      position: 'absolute',
+      right: 2,
+      top: 0,
+      bottom: 0,
+      width: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     button: {
       backgroundColor: theme.colors.primary,
